@@ -1,7 +1,7 @@
 import mongoose, { mongo } from "mongoose";
 import { env } from "./env";
 import { number, promise } from "zod";
-import { ca } from "zod/locales";
+import { logger } from "../utils/logger";
 
 
 //Types
@@ -47,22 +47,22 @@ function sleep(ms:number){
 
 function registerConnectionEvents() {
     mongoose.connection.on('connected', () => {
-        console.log(`[db] connected to MongoDB`)
+        logger.info(`[db] connected to MongoDB`)
     });
 
     mongoose.connection.on("disconnected", () =>{
-        console.log(`[db] disconnected from MongoDB`);
+        logger.warn(`[db] disconnected from MongoDB`);
 
         cache.conn = null;
         cache.promise = null;
     })
 
     mongoose.connection.on("reconnected", () => {
-        console.warn(`[db] connected to MongoDB`)
+        logger.info(`[db] connected to MongoDB`)
     })
 
     mongoose.connection.on("error", (err) => {
-        console.error(`[db] connection error:`, err.message);
+        logger.error(`[db] connection error:`, err.message);
     })
 }
 
