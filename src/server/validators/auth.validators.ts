@@ -68,3 +68,22 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+
+
+//Request a password reset lin
+export const forgotPasswordSchema = z.object({
+  email: emailField,
+});
+
+//subit new password using the reset token
+export const resetPasswordSchema = z.object({
+  token: z.string({ required_error: "Reset token is required"}).min(1),
+  newPassword: passwordField,
+  confirmPassword: z.string({required_error: "Please confirm your new password"}),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Password do not match",
+  path: ["confirmPassword"],
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

@@ -39,6 +39,8 @@ export interface UserProps{
     isActive: Boolean;
     emailVerificationToken: string | null;
     emailVerificationExpires: Date | null;
+    passwordResetToken: string | null;
+    passwordResetExpires: Date | null;
     refreshTokenId: string | null;
     createdAt :Date;
     updatedAt: Date;
@@ -123,6 +125,8 @@ export class UserEntity {
     readonly #isActive: Boolean;
     readonly #emailVerificationToken: string | null;
     readonly #emailVerificationExpires: Date | null;
+    readonly #passwordResetToken: Date | null;
+    readonly #passwordResetExpires: Date | null;
     readonly #refreshTokenId : string | null;
     readonly #createdAt: Date;
     readonly #updatedAt: Date;
@@ -136,6 +140,8 @@ export class UserEntity {
         this.#isActive = props.isActive;
         this.#emailVerificationToken = props.emailVerificationToken;
         this.#emailVerificationExpires = props.emailVerificationExpires;
+        this.#passwordResetToken = props.passwordResetToken;
+        this.#passwordResetExpires = props.passwordResetExpires;
         this.#refreshTokenId = props.refreshTokenId;
         this.#createdAt = props.createdAt;
         this.#updatedAt = props.updatedAt;
@@ -151,6 +157,8 @@ export class UserEntity {
     get isActive(): boolean { return this.#isActive;}
     get emailVerificationToken(): string | null { return this.#emailVerificationToken}
     get emailVerificationExpires(): string | null { return this.#emailVerificationExpires}
+    get passwordResetToken(): string | null { return this.#passwordResetToken}
+    get passwordResetExpires(): Date | null { return this.#passwordResetExpires}
     get createdAt(): Date { return this.#createdAt; }
     get updatedAt(): Date {return this.#updatedAt}
     
@@ -186,6 +194,8 @@ export class UserEntity {
 
             emailVerificationToken: input.emailVerificaitonToken,
             emailVerificationExpires: expiresAt,
+            passwordResetToken: null,
+            passwordResetExpires: null,
             refreshTokenId: null,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -229,6 +239,13 @@ export class UserEntity {
         return true;
     }
 
+    isPasswordResetTokenValid(token: string): boolean {
+        if (!this.#passwordResetToken || !this.#passwordResetExpires) return false;
+        if (this.#passwordResetToken !== token) return false;
+        if (new Date() > this.#passwordResetExpires) return false;
+        return true;
+    }
+
     // serialisaiton
     //for api responses = never includes sensitive fields
     toPublic(): UserPublicProfile{
@@ -254,6 +271,8 @@ export class UserEntity {
             isActive: this.isActive,
             emailVerificationToken: this.#emailVerificationToken,
             emailVerificationExpires: this.#emailVerificationExpires,
+            passwordResetToken: this.passwordResetToken,
+            passwordResetExpires: this.passwordHash,
             refreshTokenId: this.#refreshTokenId,
             createdAt: this.#createdAt,
             updatedAt: this.#updatedAt

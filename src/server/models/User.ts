@@ -16,6 +16,8 @@ export interface IUser extends Document {
   isActive: boolean;
   emailVerificationToken: string | null;
   emailVerifictionExpires:Date | null;
+  passwordResetToken: string | null;
+  passwordResetExpires: Date | null;
   refreshTokenId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -64,6 +66,16 @@ const userSchema = new Schema<IUser>(
         default: null,
         selects: false,
     },
+    passwordResetToken: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    passwordResetExpires:{
+      type: Date,
+      default: null,
+      select: false
+    },
     refreshTokenId: {
       type: String,
       default: null,
@@ -98,7 +110,9 @@ userSchema.set("toJSON", {
   transform(_doc, ret) {
     delete ret.passwordHash;
     delete ret.emailVerificationToken;
-    delete ret.emailVerifictionExpires
+    delete ret.emailVerifictionExpires;
+    delete ret.passwordResetToken;
+    delete ret.passwordResetExpires;
     delete ret.refreshTokenId;
     delete ret.__v;
     return ret;
@@ -114,6 +128,7 @@ userSchema.set("toJSON", {
 
 userSchema.index({ email: 1});
 userSchema.index({emailVerificaionToken: 1}, {sparse: true});
+userSchema.index({passwordResetToken: 1}, {sparse: true});
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 // Guard against Next.js hot-reload re-registering the model
