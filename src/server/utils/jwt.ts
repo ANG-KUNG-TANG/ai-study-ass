@@ -24,7 +24,7 @@ export interface TokenPair {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-function generateTokenId(): string {``
+function generateTokenId(): string {
   return randomUUID();
 }
 

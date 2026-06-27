@@ -127,7 +127,7 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   // Clear any all-user revocation (e.g. after password change) before issuing new tokens
   await clearUserRevocation(user.id);
 
-  const tokens = signTokenPair({ userId: user.id, email: user.email, jti: randomUUID() });
+  const tokens = signTokenPair({ userId: user.id, email: user.email, role: user.role, jti: randomUUID() });
 
   // Store refresh token ID for rotation tracking
   await userRepo.updateRefreshTokenId(user.id, tokens.refreshTokenId);
@@ -166,7 +166,7 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
   }
 
   // Issue new pair, rotate stored ID — old token is now dead
-  const tokens = signTokenPair({ userId: user.id, email: user.email, jti: randomUUID() });
+  const tokens = signTokenPair({ userId: user.id, email: user.email,role: user.role, jti: randomUUID() });
   await userRepo.updateRefreshTokenId(user.id, tokens.refreshTokenId);
 
   logger.info("Tokens rotated", { userId: user.id });
