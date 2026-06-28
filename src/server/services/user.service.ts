@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import * as userRepo from "@/server/repositories/user.repo";
-import { UserEntity } from "../entities/user";
+import { UserEntity } from "../entities/user.entity";
 import { BCRYPT_ROUNDS } from "../utils/constants";
 import { NotFoundError, ForbiddenError } from "../utils/errors";
 import { logger } from "../utils/logger";
