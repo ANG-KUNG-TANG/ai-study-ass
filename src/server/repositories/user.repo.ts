@@ -2,6 +2,7 @@ import { User } from "@/server/models/User";
 import { UserEntity, type UserProps, type UserId, type UserRole } from "@/server/entities/user.entity";
 import { logger } from "@/server/utils/logger";
 import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from "@/server/utils/constants";
+import { NotFoundError } from "../utils/errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,8 @@ function toEntity(doc: any): UserEntity {
     isActive: doc.isActive,
     emailVerificationToken: doc.emailVerificationToken ?? null,
     emailVerificationExpires: doc.emailVerificationExpires ?? null,
+    passwordResetToken: doc.passwordResetToken ?? null,
+    passwordResetExpires: doc.passwordResetExpires ?? null,
     refreshTokenId: doc.refreshTokenId ?? null,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
@@ -278,37 +281,56 @@ export async function deleteById(id: UserId): Promise<void> {
   logger.info("User deleted", { userId: id });
 }
 
-//upadte password reset flow
-export async function updatePasswordReset(
-  id:UserId,
+// ─── UPDATE — password reset flow ─────────────────────────────────────────────
+
+export async function updatePasswordResetToken(
+  id: UserId,
   token: string,
   expires: Date
-): Promise<void>{
-  await User.findByIdAndUpadate(id, {
+): Promise<void> {
+  await User.findByIdAndUpdate(id, {
     passwordResetToken: token,
     passwordResetExpires: expires,
     updatedAt: new Date(),
   });
-  
 }
 
-export async function clearPasswordResetToken(
-  id:UserId): Promise<void> {
-    await User.findByIdAndUpadte(id, {
-      passwordResetToken: null,
-      passwordResetExpires: null,
-      updatedAt: new Date(),
-    }); 
+export async function clearPasswordResetToken(id: UserId): Promise<void> {
+  await User.findByIdAndUpdate(id, {
+    passwordResetToken: null,
+    passwordResetExpires: null,
+    updatedAt: new Date(),
+  });
 }
 
 export async function findByPasswordResetToken(
-  token:string): Promise<UserEntity | null> {
-    const doc = await User.findOne({ passwordResetToken: token})
-      .selet("+passwordResettoken +passwordResetExpires")
-      .lean()
-      .exec();
-    
-    if (!doc) return null;
-    return toEntity(doc);
-  
+  token: string
+): Promise<UserEntity | null> {
+  const doc = await User.findOne({ passwordResetToken: token })
+    .select("+passwordResetToken +passwordResetExpires")
+    .lean()
+    .exec();
+
+  if (!doc) return null;
+  return toEntity(doc);
+}
+
+// ─── findByIdOrThrow ──────────────────────────────────────────────────────────
+
+export async function findByIdOrThrow(
+  id: UserId,
+  sensitive: SensitiveFieldOptions = {}
+): Promise<UserEntity> {
+  const user = await findById(id, sensitive);
+  if (!user) throw new NotFoundError("User");
+  return user;
+}
+
+export async function findByEmailOrThrow(
+  email: string,
+  sensitive: SensitiveFieldOptions = {}
+): Promise<UserEntity> {
+  const user = await findByEmail(email, sensitive);
+  if (!user) throw new NotFoundError("User");
+  return user;
 }
