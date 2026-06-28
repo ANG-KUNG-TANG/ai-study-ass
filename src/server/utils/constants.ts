@@ -18,7 +18,7 @@ export const MAX_CONTENT_LENGTH = 75_000;
 
 //pagination
 export const DEFAULT_PAGE=1;
-export const DEFAULt_LIMIT = 10;
+export const DEFAULT_LIMIT = 10;
 export const MAX_LIMIT = 50;
 
 //ai generation limits
@@ -48,7 +48,7 @@ export const COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 1000;
 
 
 //These mirror the Rate Limiter Block ()
-export const RATE_LIMIT_AUTH = {max: 10, windwMs: 15 * 60 * 1000}
+export const RATE_LIMIT_AUTH = {max: 10, windowMs: 15 * 60 * 1000}
 export const RATE_LIMIT_API = {max: 100, windowMs: 60 * 1000}
 export const RATE_LIMIT_AI = {max: 20, windowMS: 60 * 1000} 
 
