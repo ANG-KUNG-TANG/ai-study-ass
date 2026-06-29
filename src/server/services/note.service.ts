@@ -1,123 +1,141 @@
-import { randomUUID } from "crypto";
-import * as noteRepo from "@/server/repositories/note.repository";
-import * as quizRepo from "@/server/repositories/quiz.repository";
-import * as flashcardRepo from "@/server/repositories/flashcard.repository";
-import * as chatRepo from "@/server/repositories/chat.repository";
-import { NoteEntity } from "@/server/entities/note.entity";
-import { ForbiddenError } from "@/server/utils/errors";
-import { logger } from "@/server/utils/logger";
-import { buildPaginationMeta } from "@/server/utils/response";
-import type { ProcessedFile } from "@/server/services/upload.service";
-import type { NoteQueryOptions } from "@/server/repositories/note.repository";
+// import { randomUUID } from "crypto";
+// import * as noteRepo from "@/server/repositories/note.repo";
+// import * as quizRepo from "@/server/repositories/quiz.repo";
+// import * as flashcardRepo from "@/server/repositories/flashcard.repo";
+// import * as chatRepo from "@/server/repositories/chat.repo";
+// import { upsertKnowledgeObject, deleteKnowledgeObjectByNoteId } from "@/server/repositories/knowledge_object.repo";
+// import { NoteEntity } from "@/server/entities/note.entity";
+// import { ForbiddenError } from "@/server/utils/errors";
+// import { logger } from "@/server/utils/logger";
+// import { buildPaginationMeta } from "@/server/utils/response";
+// import { runPipeline } from "@/server/pipeline/index";
+// import type { ProcessedFile } from "@/server/services/upload.service";
+// import type { NoteQueryOptions } from "@/server/repositories/note.repo";
 
-// ─── Create from upload ───────────────────────────────────────────────────────
-// Called after processUpload() returns the extracted content.
-// Title defaults to the file name without extension.
+// // ─── Create from upload ───────────────────────────────────────────────────────
+// // 1. Save the note
+// // 2. Run the intelligence pipeline on the extracted text
+// // 3. Persist the knowledge object (non-blocking — failure won't break upload)
 
-export async function createNote(
-  userId: string,
-  file: ProcessedFile
-): Promise<ReturnType<NoteEntity["toPublic"]>> {
-  const title = file.fileName.replace(/\.(pdf|docx)$/i, "").replace(/_/g, " ");
+// export async function createNote(
+//   userId: string,
+//   file: ProcessedFile
+// ): Promise<ReturnType<NoteEntity["toPublic"]>> {
+//   const title = file.fileName.replace(/\.(pdf|docx)$/i, "").replace(/_/g, " ");
 
-  const entity = NoteEntity.create({
-    id: randomUUID(),
-    userId,
-    title,
-    fileName: file.fileName,
-    fileType: file.fileType,
-    fileSize: file.fileSize,
-    content: file.content,
-  });
+//   const entity = NoteEntity.create({
+//     id: randomUUID(),
+//     userId,
+//     title,
+//     fileName: file.fileName,
+//     fileType: file.fileType,
+//     fileSize: file.fileSize,
+//     content: file.content,
+//   });
 
-  const saved = await noteRepo.create(entity);
+//   const saved = await noteRepo.create(entity);
 
-  logger.info("Note created from upload", {
-    noteId: saved.id,
-    userId,
-    fileType: file.fileType,
-    charCount: file.charCount,
-  });
+//   logger.info("Note created from upload", {
+//     noteId: saved.id,
+//     userId,
+//     fileType: file.fileType,
+//     charCount: file.charCount,
+//   });
 
-  return saved.toPublic();
-}
+//   // ── Pipeline ────────────────────────────────────────────────────────────────
+//   // Run after save so a pipeline failure never blocks the upload response.
+//   // The knowledge object is upserted so re-uploads on the same note are safe.
+//   runPipeline({
+//     rawText: file.content,
+//     fileName: file.fileName,
+//     mimeType: file.fileType === "pdf"
+//       ? "application/pdf"
+//       : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+//     fileSize: file.fileSize,
+//     pageCount: file.pageCount,
+//   })
+//     .then(({ knowledge }) =>
+//       upsertKnowledgeObject({ noteId: saved.id, core: knowledge })
+//     )
+//     .then(() => logger.info("Knowledge object saved", { noteId: saved.id }))
+//     .catch((err) =>
+//       logger.error("Pipeline failed — knowledge object not saved", {
+//         noteId: saved.id,
+//         error: err instanceof Error ? err.message : String(err),
+//       })
+//     );
 
-// ─── Get single note ──────────────────────────────────────────────────────────
+//   return saved.toPublic();
+// }
 
-export async function getNoteById(
-  noteId: string,
-  userId: string
-): Promise<ReturnType<NoteEntity["toPublic"]>> {
-  const note = await noteRepo.findByIdOrThrow(noteId);
+// // ─── Get single note ──────────────────────────────────────────────────────────
 
-  // Use entity method for ownership check — not inline comparison
-  if (!note.belongsTo(userId)) throw new ForbiddenError();
+// export async function getNoteById(
+//   noteId: string,
+//   userId: string
+// ): Promise<ReturnType<NoteEntity["toPublic"]>> {
+//   const note = await noteRepo.findByIdOrThrow(noteId);
 
-  return note.toPublic();
-}
+//   if (!note.belongsTo(userId)) throw new ForbiddenError();
 
-// ─── List all notes for user ──────────────────────────────────────────────────
+//   return note.toPublic();
+// }
 
-export async function listNotes(
-  userId: string,
-  options: NoteQueryOptions = {}
-) {
-  const result = await noteRepo.findManyByUser(userId, options);
-  const meta = buildPaginationMeta(result.total, result.page, result.limit);
+// // ─── List all notes for user ──────────────────────────────────────────────────
 
-  return {
-    data: result.data.map((n) => n.toPublic()),
-    meta,
-  };
-}
+// export async function listNotes(
+//   userId: string,
+//   options: NoteQueryOptions = {}
+// ) {
+//   const result = await noteRepo.findManyByUser(userId, options);
+//   const meta = buildPaginationMeta(result.total, result.page, result.limit);
 
-// ─── Delete note + cascade ────────────────────────────────────────────────────
-// Deletes the note and all associated quiz, flashcard, and chat data.
-// All cascade deletes run in parallel for speed.
+//   return {
+//     data: result.data.map((n) => n.toPublic()),
+//     meta,
+//   };
+// }
 
-export async function deleteNote(
-  noteId: string,
-  userId: string
-): Promise<void> {
-  const note = await noteRepo.findByIdOrThrow(noteId);
+// // ─── Delete note + cascade ────────────────────────────────────────────────────
+// // Deletes the note and ALL associated data including the knowledge object.
 
-  if (!note.belongsTo(userId)) throw new ForbiddenError();
+// export async function deleteNote(
+//   noteId: string,
+//   userId: string
+// ): Promise<void> {
+//   const note = await noteRepo.findByIdOrThrow(noteId);
 
-  // Cascade delete all associated data in parallel
-  await Promise.all([
-    noteRepo.deleteById(noteId),
-    quizRepo.deleteByNoteId(noteId),
-    flashcardRepo.deleteByNoteId(noteId),
-    chatRepo.deleteByNoteId(noteId),
-  ]);
+//   if (!note.belongsTo(userId)) throw new ForbiddenError();
 
-  logger.info("Note and all associated data deleted", { noteId, userId });
-}
+//   await Promise.all([
+//     noteRepo.deleteById(noteId),
+//     quizRepo.deleteByNoteId(noteId),
+//     flashcardRepo.deleteByNoteId(noteId),
+//     chatRepo.deleteByNoteId(noteId),
+//     deleteKnowledgeObjectByNoteId(noteId),
+//   ]);
 
-// ─── Update summary ───────────────────────────────────────────────────────────
-// Called by summary.service after AI generates the summary.
+//   logger.info("Note and all associated data deleted", { noteId, userId });
+// }
 
-export async function updateNoteSummary(
-  noteId: string,
-  summary: string
-): Promise<void> {
-  await noteRepo.updateSummary(noteId, summary);
-}
+// // ─── Update summary ───────────────────────────────────────────────────────────
 
-// ─── Get note content for AI ──────────────────────────────────────────────────
-// Returns the raw content string for injection into AI prompts.
-// Ownership check enforced before returning content.
+// export async function updateNoteSummary(
+//   noteId: string,
+//   summary: string
+// ): Promise<void> {
+//   await noteRepo.updateSummary(noteId, summary);
+// }
 
-export async function getNoteContent(
-  noteId: string,
-  userId: string
-): Promise<{ content: string; title: string }> {
-  const note = await noteRepo.findByIdOrThrow(noteId);
+// // ─── Get note content for AI ──────────────────────────────────────────────────
 
-  if (!note.belongsTo(userId)) throw new ForbiddenError();
+// export async function getNoteContent(
+//   noteId: string,
+//   userId: string
+// ): Promise<{ content: string; title: string }> {
+//   const note = await noteRepo.findByIdOrThrow(noteId);
 
-  return {
-    content: note.content,
-    title: note.title,
-  };
-}
+//   if (!note.belongsTo(userId)) throw new ForbiddenError();
+
+//   return { content: note.content, title: note.title };
+// }
