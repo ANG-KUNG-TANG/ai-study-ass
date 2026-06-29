@@ -1,152 +1,155 @@
-import { maxLength } from "zod";
-import { ValidationError } from "../utils/errors";
+import { Types } from "mongoose";
 
-//Rules
+// ─── Validation rules (single source of truth) ────────────────────────────────
 export const NOTE_RULES = {
-    title: { minLength: 1, maxLength: 200},
-    context: { maxLength: 75_000},
-
-    fileName: { maxLength: 255},
+  TITLE_MIN: 1,
+  TITLE_MAX: 200,
+  CONTENT_MAX: 500_000, // ~500k chars ≈ large academic paper
+  SUMMARY_MAX: 5_000,
+  FILE_NAME_MAX: 255,
 } as const;
 
-export type NoteId = string;
-export type FileType = "pdf" | "docx";
+export type NoteFileType = "pdf" | "docx";
+/** Alias — keeps upload.service.ts import compatible */
+export type FileType = NoteFileType;
 
-export interface NoteProps {
-    id: NoteId;
-    userId: string;
-    title: string;
-    fileName: string,
-    fileType: FileType;
-    fileSize: number;
-    content: string;
-    summary: string | null;
-    createdAt: Date;
-    updatedAt: Date;
+// ─── Public shape ─────────────────────────────────────────────────────────────
+export interface NotePublic {
+  id: string;
+  userId: string;
+  title: string;
+  fileName: string;
+  fileType: NoteFileType;
+  fileSize: number;
+  content: string;
+  summary: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export interface NotePublic {
-    id: NoteId,
+// ─── Create input ─────────────────────────────────────────────────────────────
+export interface CreateNoteInput {
+  id: string;
+  userId: string;
+  title: string;
+  fileName: string;
+  fileType: NoteFileType;
+  fileSize: number;
+  content: string;
+}
+
+// ─── Entity ───────────────────────────────────────────────────────────────────
+export class NoteEntity {
+  #id: string;
+  #userId: string;
+  #title: string;
+  #fileName: string;
+  #fileType: NoteFileType;
+  #fileSize: number;
+  #content: string;
+  #summary: string | null;
+  #createdAt: Date;
+  #updatedAt: Date;
+
+  private constructor(data: {
+    id: string;
     userId: string;
     title: string;
     fileName: string;
-    fileType: FileType;
+    fileType: NoteFileType;
     fileSize: number;
     content: string;
     summary: string | null;
     createdAt: Date;
     updatedAt: Date;
-}
+  }) {
+    this.#id = data.id;
+    this.#userId = data.userId;
+    this.#title = data.title.trim();
+    this.#fileName = data.fileName.trim();
+    this.#fileType = data.fileType;
+    this.#fileSize = data.fileSize;
+    this.#content = data.content;
+    this.#summary = data.summary;
+    this.#createdAt = data.createdAt;
+    this.#updatedAt = data.updatedAt;
+  }
 
-//validaiton
-function validateTitle(title: string): void {
-    const t = title.trim();
-    if (t.length< NOTE_RULES.title.maxLength){
-        throw new ValidationError("Validation failed", { title: "Title is required"});
-    }
-    if (t.length> NOTE_RULES.title.maxLength){
-        throw new ValidationError("Validation failed", {
-            title: `Title cannot exceed ${NOTE_RULES.title.maxLength} characters`
-        });
-    }
-}
+  // ─── Factory ────────────────────────────────────────────────────────────────
 
-//entity
+  static create(input: CreateNoteInput): NoteEntity {
+    const now = new Date();
+    return new NoteEntity({
+      ...input,
+      summary: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
 
-export class NoteEntity {
-    readonly #id: NoteId;
-    readonly #userId: string;
-    readonly #title: string;
-    readonly #fileName: string;
-    readonly #fileType: FileType;
-    readonly #fileSize: number;
-    readonly #content: string;
-    readonly #summary: string | null;
-    readonly #createdAt: Date;
-    readonly #updatedAt: Date;
+  static fromPersistence(data: {
+    id: string | Types.ObjectId;
+    userId: string | Types.ObjectId;
+    title: string;
+    fileName: string;
+    fileType: NoteFileType;
+    fileSize: number;
+    content: string;
+    summary?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): NoteEntity {
+    return new NoteEntity({
+      id: data.id.toString(),
+      userId: data.userId.toString(),
+      title: data.title,
+      fileName: data.fileName,
+      fileType: data.fileType,
+      fileSize: data.fileSize,
+      content: data.content,
+      summary: data.summary ?? null,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    });
+  }
 
-    private constructor(props: NoteProps){
-        this.#id = props.id;
-        this.#userId = props.userId;
-        this.#title = props.title;
-        this.#fileName = props.fileName;
-        this.#fileType = props.fileType;
-        this.#fileSize = props.fileSize;
-        this.#content = props.content;
-        this.#summary = props.summary;
-        this.#createdAt = props.createdAt;
-        this.#updatedAt = props.updatedAt;
-    }
+  // ─── Getters ────────────────────────────────────────────────────────────────
+  get id(): string { return this.#id; }
+  get userId(): string { return this.#userId; }
+  get title(): string { return this.#title; }
+  get fileName(): string { return this.#fileName; }
+  get fileType(): NoteFileType { return this.#fileType; }
+  get fileSize(): number { return this.#fileSize; }
+  get content(): string { return this.#content; }
+  get summary(): string | null { return this.#summary; }
+  get createdAt(): Date { return this.#createdAt; }
+  get updatedAt(): Date { return this.#updatedAt; }
 
-    get id(): NoteId { return this.#id;}
-    get userId(): string { return this.#userId}
-    get title(): string { return this.#title}
-    get fileName(): string { return this.#fileName}
-    get fileType(): FileType { return this.#fileType}
-    get fileSize(): number { return this.#fileSize}
-    get content(): string { return this.#content}
-    get summary(): string | null { return this.#summary}
-    get createdAt(): Date { return this.#createdAt}
-    get updatedAt(): Date { return this.#updatedAt}
+  // ─── Business rules ──────────────────────────────────────────────────────────
 
-    static create(input: {
-        id: NoteId;
-        userId: string;
-        title: string;
-        fileName: string;
-        fileType: FileType;
-        fileSize: number;
-        content: string
-    }): NoteEntity {
-        validateTitle(input.title);
-        return new NoteEntity({
-            ...input,
-            title: input.title.trim(),
-            summary: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        });
-    }
+  belongsTo(userId: string): boolean {
+    return this.#userId === userId;
+  }
 
-    static fromPersistence(props: NoteProps): NoteEntity {
-        return new NoteEntity(props);
-    }
+  updateSummary(summary: string): void {
+    this.#summary = summary.trim();
+    this.#updatedAt = new Date();
+  }
 
-    belongsTo(userId: string): boolean {
-        return this.#userId === userId;
-    }
+  // ─── Serialisation ───────────────────────────────────────────────────────────
 
-    hasSummary(): boolean {
-        return this.#summary !== null;
-    }
-
-    toPublic(): NotePublic {
-        return {
-            id: this.#id,
-            userId: this.#userId,
-            title: this.#title,
-            fileName: this.#fileName,
-            fileType: this.#fileType,
-            fileSize: this.#fileSize,
-            content : this.#content,
-            summary: this.#summary,
-            createdAt: this.#createdAt,
-            updatedAt: this.#updatedAt,
-        };
-    }
-
-    toPersistence (): NoteProps {
-        return {
-            id: this.#id,
-            userId: this.#userId,
-            title: this.#title,
-            fileName: this.#fileName,
-            fileType: this.#fileType,
-            fileSize: this.#fileSize,
-            content : this.#content,
-            summary: this.#summary,
-            createdAt: this.#createdAt,
-            updatedAt: this.#updatedAt,
-        };
-    }
+  toPublic(): NotePublic {
+    return {
+      id: this.#id,
+      userId: this.#userId,
+      title: this.#title,
+      fileName: this.#fileName,
+      fileType: this.#fileType,
+      fileSize: this.#fileSize,
+      content: this.#content,
+      summary: this.#summary,
+      createdAt: this.#createdAt,
+      updatedAt: this.#updatedAt,
+    };
+  }
 }
