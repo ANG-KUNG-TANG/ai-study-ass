@@ -19,7 +19,7 @@ function toEntity(doc: any): QuizEntity{
 
 //Read
 export async function findById(id: QuizId): Promise<QuizEntity | null> {
-    const doc = await Quiz.findById(id);
+    const doc = await Quiz.findById(id).lean().exec();
     if (!doc)  return null;
     return toEntity(doc);
 }
@@ -54,7 +54,7 @@ export async function create(entity:QuizEntity): Promise<QuizEntity> {
         difficulty: data.difficulty,
     });
     logger.info("Quiz created", { quizId: String(doc._id), noteId: data.noteId});
-    return toEntity(doc)
+    return toEntity(doc.toObject());
     
 }
 

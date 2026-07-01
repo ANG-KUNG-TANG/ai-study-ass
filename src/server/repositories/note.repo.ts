@@ -1,145 +1,136 @@
-import { ValidationError, NotFoundError } from "@/server/utils/errors";
+import { Note } from "../models/Note";
+import { NoteEntity } from "../entities/note.entity";
+import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from "../utils/constants";
+import { logger } from "../utils/logger";
+import { NotFoundError } from "../utils/errors";
 
-// ─── Rules ────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-export const FLASHCARD_RULES = {
-  front: { minLength: 1, maxLength: 500 },
-  back: { minLength: 1, maxLength: 1000 },
-  count: { min: 1, max: 30 },
-} as const;
-
-export type FlashcardId = string;
-export type FlashcardDifficulty = "easy" | "medium" | "hard";
-
-export interface FlashcardProps {
-  id: FlashcardId;
-  noteId: string;
-  userId: string;
-  front: string;
-  back: string;
-  difficulty: FlashcardDifficulty;
-  reviewCount: number;
-  lastReviewedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+export interface NoteQueryOptions {
+  page?: number;
+  limit?: number;
+  search?: string;               // matches title or fileName substring
+  fileType?: "pdf" | "docx";
+  sortBy?: "createdAt" | "updatedAt" | "title";
+  sortOrder?: "asc" | "desc";
 }
 
-// ─── Validation ───────────────────────────────────────────────────────────────
-
-function validateFront(front: string): void {
-  if (!front.trim()) {
-    throw new ValidationError("Validation failed", { front: "Front is required" });
-  }
-  if (front.length > FLASHCARD_RULES.front.maxLength) {
-    throw new ValidationError("Validation failed", {
-      front: `Front cannot exceed ${FLASHCARD_RULES.front.maxLength} characters`,
-    });
-  }
+export interface PaginatedNotes {
+  data: NoteEntity[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
-function validateBack(back: string): void {
-  if (!back.trim()) {
-    throw new ValidationError("Validation failed", { back: "Back is required" });
-  }
-  if (back.length > FLASHCARD_RULES.back.maxLength) {
-    throw new ValidationError("Validation failed", {
-      back: `Back cannot exceed ${FLASHCARD_RULES.back.maxLength} characters`,
-    });
-  }
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+
+function toEntity(doc: any): NoteEntity {
+  return NoteEntity.fromPersistence({
+    id: doc._id,
+    userId: doc.userId,
+    title: doc.title,
+    fileName: doc.fileName,
+    fileType: doc.fileType,
+    fileSize: doc.fileSize,
+    content: doc.content,
+    summary: doc.summary ?? null,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  });
 }
 
-// ─── Entity ───────────────────────────────────────────────────────────────────
+// ─── Read — single record ──────────────────────────────────────────────────────
 
-export class FlashcardEntity {
-  readonly #id: FlashcardId;
-  readonly #noteId: string;
-  readonly #userId: string;
-  readonly #front: string;
-  readonly #back: string;
-  readonly #difficulty: FlashcardDifficulty;
-  readonly #reviewCount: number;
-  readonly #lastReviewedAt: Date | null;
-  readonly #createdAt: Date;
-  readonly #updatedAt: Date;
-
-  private constructor(props: FlashcardProps) {
-    this.#id = props.id;
-    this.#noteId = props.noteId;
-    this.#userId = props.userId;
-    this.#front = props.front;
-    this.#back = props.back;
-    this.#difficulty = props.difficulty;
-    this.#reviewCount = props.reviewCount;
-    this.#lastReviewedAt = props.lastReviewedAt;
-    this.#createdAt = props.createdAt;
-    this.#updatedAt = props.updatedAt;
-  }
-
-  get id(): FlashcardId { return this.#id; }
-  get noteId(): string { return this.#noteId; }
-  get userId(): string { return this.#userId; }
-  get front(): string { return this.#front; }
-  get back(): string { return this.#back; }
-  get difficulty(): FlashcardDifficulty { return this.#difficulty; }
-  get reviewCount(): number { return this.#reviewCount; }
-  get lastReviewedAt(): Date | null { return this.#lastReviewedAt; }
-  get createdAt(): Date { return this.#createdAt; }
-  get updatedAt(): Date { return this.#updatedAt; }
-
-  static create(input: {
-    id: FlashcardId;
-    noteId: string;
-    userId: string;
-    front: string;
-    back: string;
-    difficulty: FlashcardDifficulty;
-  }): FlashcardEntity {
-    validateFront(input.front);
-    validateBack(input.back);
-    return new FlashcardEntity({
-      ...input,
-      reviewCount: 0,
-      lastReviewedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  }
-
-  static fromPersistence(props: FlashcardProps): FlashcardEntity {
-    return new FlashcardEntity(props);
-  }
-
-  belongsTo(userId: string): boolean {
-    return this.#userId === userId;
-  }
-
-  hasBeenReviewed(): boolean {
-    return this.#reviewCount > 0;
-  }
-
-  toPublic(): FlashcardProps {
-    return {
-      id: this.#id,
-      noteId: this.#noteId,
-      userId: this.#userId,
-      front: this.#front,
-      back: this.#back,
-      difficulty: this.#difficulty,
-      reviewCount: this.#reviewCount,
-      lastReviewedAt: this.#lastReviewedAt,
-      createdAt: this.#createdAt,
-      updatedAt: this.#updatedAt,
-    };
-  }
-
-  toPersistence(): FlashcardProps {
-    return this.toPublic();
-  }
+export async function findById(id: string): Promise<NoteEntity | null> {
+  const doc = await Note.findById(id).lean().exec();
+  if (!doc) return null;
+  return toEntity(doc);
 }
 
-export async function findByNoteIdOrThrow(noteId:string): Promise<NoteEntity> {
-    const doc = await Note.findOne({ noteId}).lean().exec();
-    if (!doc) throw new NotFoundError("Quiz");
-    return toEntity(doc);
-    
+export async function findByIdOrThrow(id: string): Promise<NoteEntity> {
+  const note = await findById(id);
+  if (!note) throw new NotFoundError("Note");
+  return note;
+}
+
+export async function findByIdAndUserId(id: string, userId: string): Promise<NoteEntity | null> {
+  const doc = await Note.findOne({ _id: id, userId }).lean().exec();
+  if (!doc) return null;
+  return toEntity(doc);
+}
+
+export async function existsById(id: string): Promise<boolean> {
+  return Boolean(await Note.exists({ _id: id }));
+}
+
+// ─── Read — list ──────────────────────────────────────────────────────────────
+// Mirrors user.repo.ts's findMany() pattern: service layer passes filters,
+// repo just executes and paginates. This is what note.service.ts's
+// listNotes() calls.
+
+export async function findManyByUser(
+  userId: string,
+  options: NoteQueryOptions = {}
+): Promise<PaginatedNotes> {
+  const page = Math.max(1, options.page ?? DEFAULT_PAGE);
+  const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+  const skip = (page - 1) * limit;
+  const sortOrder = options.sortOrder === "asc" ? 1 : -1;
+  const sortBy = options.sortBy ?? "createdAt";
+
+  const filter: Record<string, unknown> = { userId };
+  if (options.fileType) filter.fileType = options.fileType;
+  if (options.search) {
+    const regex = new RegExp(options.search.trim(), "i");
+    filter.$or = [{ title: regex }, { fileName: regex }];
+  }
+
+  const [docs, total] = await Promise.all([
+    Note.find(filter)
+      .sort({ [sortBy]: sortOrder })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
+    Note.countDocuments(filter),
+  ]);
+
+  return {
+    data: docs.map(toEntity),
+    total,
+    page,
+    limit,
+  };
+}
+
+// ─── Create ───────────────────────────────────────────────────────────────────
+
+export async function create(entity: NoteEntity): Promise<NoteEntity> {
+  const data = entity.toPublic();
+  const doc = await Note.create({
+    _id: data.id,
+    userId: data.userId,
+    title: data.title,
+    fileName: data.fileName,
+    fileType: data.fileType,
+    fileSize: data.fileSize,
+    content: data.content,
+    summary: data.summary,
+  });
+  logger.info("Note created", { noteId: String(doc._id), userId: data.userId });
+  return toEntity(doc.toObject());
+}
+
+// ─── Update ───────────────────────────────────────────────────────────────────
+
+export async function updateSummary(id: string, summary: string): Promise<void> {
+  await Note.findByIdAndUpdate(id, { summary, updatedAt: new Date() });
+  logger.info("Note summary updated", { noteId: id });
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+
+export async function deleteById(id: string): Promise<void> {
+  await Note.findByIdAndDelete(id);
+  logger.info("Note deleted", { noteId: id });
 }

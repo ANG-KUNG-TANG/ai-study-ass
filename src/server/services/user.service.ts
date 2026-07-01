@@ -21,7 +21,7 @@ export async function getProfile(
 }
 
 //update profile
-export async function updateProfiel(
+export async function updateProfile(
     userId:string,
     data: { name?: string}    
 ): Promise<ReturnType<UserEntity["toPublic"]>> {
@@ -38,15 +38,15 @@ export async function updateProfiel(
 
 //Delete own account
 //requires password confirmation - prevents accidental deletion
-export async function deleteAcoutn(
+export async function deleteAccount(
     userId:string,
-    passwordConfirmaiton: string
+    passwordConfirmation: string
     ): Promise<void> {
         const user = await userRepo.findById(userId, { withPassword: true});
         if (!user) throw new NotFoundError("User");
 
-        const match = await bcrypt.compare(passwordConfirmaiton, user.passwordHash);
-        if (!match) throw new ForbiddenError("Password confirmaiton failed");
+        const match = await bcrypt.compare(passwordConfirmation, user.passwordHash);
+        if (!match) throw new ForbiddenError("Password confirmation failed");
 
         await userRepo.deleteById(userId);
 

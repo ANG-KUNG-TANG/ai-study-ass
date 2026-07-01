@@ -7,7 +7,7 @@ import { NotFoundError } from "../utils/errors";
 function toEnitiy(doc: any): FlashcardEntity{
     return FlashcardEntity.fromPersistence({
         id: String(doc._id),
-        noteId: String(doc.NoteId),
+        noteId: String(doc.noteId),
         userId: String(doc.userId),
         front: doc.front,
         back: doc.back,

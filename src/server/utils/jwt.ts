@@ -2,13 +2,14 @@ import jwt from "jsonwebtoken";
 import { env } from "@/server/config/env";
 import { UnauthorizedError } from "./errors";
 import { randomUUID } from "crypto";
-import { RevokedToken } from "@/server/models/RevokedToken";
+import { RevokedToken } from "@/server/models/RevokeToken";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface TokenPayload {
   userId: string;
   email: string;
+  role: string;
   jti: string;
   iat?: number;
   exp?: number;
@@ -44,10 +45,10 @@ function parseDurationMs(duration: string): number {
 
 export function signAccessToken(payload: TokenPayload): string {
   return jwt.sign(
-    { userId: payload.userId, email: payload.email },
+    { userId: payload.userId, email: payload.email, role: payload.role },
     env.JWT_ACCESS_SECRET,
     {
-      expiresIn: env.JWT_ACCESS_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+      expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
       jwtid: generateTokenId(), // jwtid is the JWT spec field — sets the jti claim
     }
   );
@@ -59,7 +60,7 @@ export function signRefreshToken(payload: TokenPayload): {
 } {
   const tokenId = generateTokenId();
   const token = jwt.sign(
-    { userId: payload.userId, email: payload.email },
+    { userId: payload.userId, email: payload.email, role: payload.role },
     env.JWT_REFRESH_SECRET,
     {
       expiresIn: env.JWT_REFRESH_EXPIRES_IN as jwt.SignOptions["expiresIn"],
