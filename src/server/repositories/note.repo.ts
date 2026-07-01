@@ -1,4 +1,4 @@
-import { ValidationError } from "@/server/utils/errors";
+import { ValidationError, NotFoundError } from "@/server/utils/errors";
 
 // ─── Rules ────────────────────────────────────────────────────────────────────
 
@@ -135,4 +135,11 @@ export class FlashcardEntity {
   toPersistence(): FlashcardProps {
     return this.toPublic();
   }
+}
+
+export async function findByNoteIdOrThrow(noteId:string): Promise<NoteEntity> {
+    const doc = await Note.findOne({ noteId}).lean().exec();
+    if (!doc) throw new NotFoundError("Quiz");
+    return toEntity(doc);
+    
 }

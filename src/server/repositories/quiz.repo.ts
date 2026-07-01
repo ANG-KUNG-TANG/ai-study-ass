@@ -76,9 +76,3 @@ export async function findByIdOrThrow(id:QuizId): Promise<QuizEntity> {
     
 }
 
-export async function findByNoteIdOrRhrow(noteId:string): Promise<QuizEntity> {
-    const doc = await Quiz.findOne({ noteId}).lean().exec();
-    if (!doc) throw new NotFoundError("Quiz");
-    return toEntity(doc);
-    
-}

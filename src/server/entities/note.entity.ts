@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { ValidationError } from "@/server/utils/errors";
 
 // ─── Validation rules (single source of truth) ────────────────────────────────
 export const NOTE_RULES = {
@@ -36,6 +37,42 @@ export interface CreateNoteInput {
   fileType: NoteFileType;
   fileSize: number;
   content: string;
+}
+
+// ─── Validation ───────────────────────────────────────────────────────────────
+// Added for consistency with chat_entity.ts / flashcard_entity.ts / quiz_entity.ts /
+// user_entity.ts, which all validate on .create(). NOTE_RULES previously existed
+// but was never enforced.
+
+function validateTitle(title: string): void {
+  const trimmed = title.trim();
+  if (trimmed.length < NOTE_RULES.TITLE_MIN) {
+    throw new ValidationError("Validation failed", { title: "Title is required" });
+  }
+  if (trimmed.length > NOTE_RULES.TITLE_MAX) {
+    throw new ValidationError("Validation failed", {
+      title: `Title cannot exceed ${NOTE_RULES.TITLE_MAX} characters`,
+    });
+  }
+}
+
+function validateContent(content: string): void {
+  if (content.length > NOTE_RULES.CONTENT_MAX) {
+    throw new ValidationError("Validation failed", {
+      content: `Content cannot exceed ${NOTE_RULES.CONTENT_MAX} characters`,
+    });
+  }
+}
+
+function validateFileName(fileName: string): void {
+  if (fileName.trim().length === 0) {
+    throw new ValidationError("Validation failed", { fileName: "File name is required" });
+  }
+  if (fileName.length > NOTE_RULES.FILE_NAME_MAX) {
+    throw new ValidationError("Validation failed", {
+      fileName: `File name cannot exceed ${NOTE_RULES.FILE_NAME_MAX} characters`,
+    });
+  }
 }
 
 // ─── Entity ───────────────────────────────────────────────────────────────────
@@ -78,6 +115,10 @@ export class NoteEntity {
   // ─── Factory ────────────────────────────────────────────────────────────────
 
   static create(input: CreateNoteInput): NoteEntity {
+    validateTitle(input.title);
+    validateFileName(input.fileName);
+    validateContent(input.content);
+
     const now = new Date();
     return new NoteEntity({
       ...input,
@@ -132,6 +173,11 @@ export class NoteEntity {
   }
 
   updateSummary(summary: string): void {
+    if (summary.length > NOTE_RULES.SUMMARY_MAX) {
+      throw new ValidationError("Validation failed", {
+        summary: `Summary cannot exceed ${NOTE_RULES.SUMMARY_MAX} characters`,
+      });
+    }
     this.#summary = summary.trim();
     this.#updatedAt = new Date();
   }

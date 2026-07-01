@@ -45,7 +45,7 @@ export async function deleteAcoutn(
         const user = await userRepo.findById(userId, { withPassword: true});
         if (!user) throw new NotFoundError("User");
 
-        const match = await bcrypt.compare(passwordConfirmaiton, user.paaawordHash);
+        const match = await bcrypt.compare(passwordConfirmaiton, user.passwordHash);
         if (!match) throw new ForbiddenError("Password confirmaiton failed");
 
         await userRepo.deleteById(userId);
