@@ -7,7 +7,7 @@ import {
   clearUserRevocation,
   type TokenPair,
 } from "@/server/utils/jwt";
-import * as userRepo from "@/server/repositories/user.repo;
+import * as userRepo from "@/server/repositories/user.repo"
 import { UserEntity } from "@/server/entities/user.entity";
 import { BCRYPT_ROUNDS } from "@/server/utils/constants";
 import { USER_RULES } from "@/server/entities/user.entity";
@@ -166,7 +166,7 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
   }
 
   // Issue new pair, rotate stored ID — old token is now dead
-  const tokens = signTokenPair({ userId: user.id, email: user.email,role: user.role, jti: randomUUID() });
+  const tokens = signTokenPair({ userId: user.id, email: user.email, role: user.role, jti: randomUUID() });
   await userRepo.updateRefreshTokenId(user.id, tokens.refreshTokenId);
 
   logger.info("Tokens rotated", { userId: user.id });
