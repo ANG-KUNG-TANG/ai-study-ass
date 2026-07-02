@@ -1,83 +1,83 @@
-import {z} from 'zod';
+import { z } from "zod";
 
-//Schema
-const envSchema = z.object({
+// ─── Schema ───────────────────────────────────────────────────────────────────
+// Every env var the app depends on is declared here. Missing or malformed
+// values crash the process on startup (fail fast) rather than surfacing as a
+// confusing runtime error three requests later.
 
-    NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
-    PORT: z.string().default('3000'),
-    
-    // Database
-    MONGODB_URI: z.string().url("MONGODB_URI must be a valid URL"),
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-    //Auth
-    JWT_ACCESS_SECRET: z.
-    string()
-    .min(32, "JWT_ACCESS_SECRET is required"),
+    // ── Database ────────────────────────────────────────────────────────────
+    MONGODB_URI: z
+      .string()
+      .min(1, "MONGODB_URI is required")
+      .refine(
+        (uri) => uri.startsWith("mongodb://") || uri.startsWith("mongodb+srv://"),
+        "MONGODB_URI must start with mongodb:// or mongodb+srv://"
+      ),
 
-    JWT_REFRESH_SECRET: z
-    .string()
-    .min(32, "JWT_REFRESH_SECRET must be at least 32 characters long"),
-    JWT_EXPIRES_IN: z.string().default('1d'),
-    JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+    // ── JWT ─────────────────────────────────────────────────────────────────
+    JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
+    JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
+    JWT_ACCESS_EXPIRY: z.string().default("7d"),
+    JWT_REFRESH_EXPIRY: z.string().default("30d"),
 
-    // Third-party API keys
-    GEMINI_API_KEY: z.string().optional(),
+    // ── Auth ────────────────────────────────────────────────────────────────
+    BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(15).default(10),
+
+    // ── AI provider ─────────────────────────────────────────────────────────
+    AI_PROVIDER: z.enum(["openai", "gemini"]).default("openai"),
     OPENAI_API_KEY: z.string().optional(),
-    AI_PROVIDER: z.enum(['openai', 'gemini']).default('gemini'),
+    GEMINI_API_KEY: z.string().optional(),
 
-    //cors
-    CORS_ORIGIN: z.string().default('http://localhost:3000'),
+    // ── Cookies ─────────────────────────────────────────────────────────────
+    COOKIE_DOMAIN: z.string().optional(),
 
-    //Cookies
-    COOKIE_DOMAIN: z
-    .string()
-    .min(32, "COOKIE_DOMAIN must be at least 32 characters long")
-
-});
-
-//Validation
-
-function validateEnv() {
-    const parsedEnv = envSchema.safeParse(process.env);
-
-    if (!parsedEnv.success) {
-        const formatted = parsedEnv.error.issues
-        .map((issue) => `${issue.path.join('.')} - ${issue.message}`)
-        .join('\n');
-        console.error('Invalid environment variables:', formatted);
-        process.exit(1);
+    // ── Email (Resend) ──────────────────────────────────────────────────────
+    RESEND_API_KEY: z.string().optional(), // optional so dev works without it (mailer.ts logs instead of sending)
+    EMAIL_FROM: z.string().default("AI Study Assistant <onboarding@resend.dev>"),
+    APP_URL: z.string().url().default("http://localhost:3000"),
+  })
+  .superRefine((data, ctx) => {
+    // Cross-field validation: the active provider's key must be present.
+    if (data.AI_PROVIDER === "openai" && !data.OPENAI_API_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["OPENAI_API_KEY"],
+        message: "OPENAI_API_KEY is required when AI_PROVIDER=openai",
+      });
     }
-    const env = parsedEnv.data;
-
-
-    const hasOpenAIKey = Boolean(env.OPENAI_API_KEY);
-    const hasGeminiKey = Boolean(env.GEMINI_API_KEY);
-
-    if (!hasOpenAIKey && !hasGeminiKey) {
-        console.error('At least one API key (OPENAI_API_KEY or GEMINI_API_KEY) must be provided.');
-        process.exit(1);
+    if (data.AI_PROVIDER === "gemini" && !data.GEMINI_API_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["GEMINI_API_KEY"],
+        message: "GEMINI_API_KEY is required when AI_PROVIDER=gemini",
+      });
     }
-
-    if (env.AI_PROVIDER === 'openai' && !hasOpenAIKey) {
-        console.error('AI_PROVIDER is set to "openai", but OPENAI_API_KEY is not provided.');
-        process.exit(1);
+    if (data.JWT_ACCESS_SECRET === data.JWT_REFRESH_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["JWT_REFRESH_SECRET"],
+        message: "JWT_REFRESH_SECRET must differ from JWT_ACCESS_SECRET",
+      });
     }
+  });
 
-    if (env.AI_PROVIDER === 'gemini' && !hasGeminiKey) {
-        console.error('AI_PROVIDER is set to "gemini", but GEMINI_API_KEY is not provided.');
-        process.exit(1);
-    }
+// ─── Parse + fail fast ──────────────────────────────────────────────────────
 
-    return env;
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  // eslint-disable-next-line no-console
+  console.error("❌ Invalid environment variables:");
+  // eslint-disable-next-line no-console
+  console.error(JSON.stringify(parsed.error.flatten().fieldErrors, null, 2));
+  throw new Error("Invalid environment variables — see errors above. Check .env against .env.example.");
 }
 
-//export validated environment variables
+// ─── Typed, exported env object ────────────────────────────────────────────
 
-export const env = validateEnv();
-
-//convenience function to check if the current environment is development
-export const isDevelopment = env.NODE_ENV === 'development';
-export const isProduction = env.NODE_ENV === 'production';
-export const isTest = env.NODE_ENV === 'test';
+export const env = parsed.data;
+export type Env = typeof env;
