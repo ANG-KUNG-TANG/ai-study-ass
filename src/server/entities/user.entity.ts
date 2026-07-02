@@ -7,11 +7,19 @@ export const USER_RULES = {
     minLength: 2,
     maxLength: 100,
   },
+  email: {
+    minLength: 5,
+    maxLength: 254,
+    allowedDomains: ["gmail.com", "company.com"],
+    allowDisposable: false,
+  },
   password: {
     minLength: 8,
     maxLength: 72,          // bcrypt hard limit — was 78 in your version, must be 72
+    requireLowercase: true,
     requireUppercase: true,
-    requireNumber: true,    // was "requiredNumber" (typo) in your version
+    requireNumber: true,
+    requireSpecial: true,    // was "requiredNumber" (typo) in your version
   },
   emailVerification: {      // was "emailVerificaition" (typo) in your version
     expiresInMs: 24 * 60 * 60 * 1000,
@@ -88,6 +96,11 @@ export function validatePasswordStrength(password: string): void {
       password: `Password cannot exceed ${USER_RULES.password.maxLength} characters`, // was "must be at least" for maxLength — wrong message
     });
   }
+  if (USER_RULES.password.requireLowercase && !/[a-z]/.test(password)) {
+    throw new ValidationError("Validation failed", {
+      password: "Password must contain at least one lowercase letter",
+    });
+  }
   if (USER_RULES.password.requireUppercase && !/[A-Z]/.test(password)) {
     throw new ValidationError("Validation failed", {
       password: "Password must contain at least one uppercase letter",
@@ -96,6 +109,11 @@ export function validatePasswordStrength(password: string): void {
   if (USER_RULES.password.requireNumber && !/[0-9]/.test(password)) {  // was "requiredNumber"
     throw new ValidationError("Validation failed", {
       password: "Password must contain at least one number",
+    });
+  }
+  if (USER_RULES.password.requireSpecial && !/[!@#$%^&*(){}~]/.test(password)) {
+    throw new ValidationError("Validation failed", {
+      password: "Password must contain at least one special character",
     });
   }
 }
