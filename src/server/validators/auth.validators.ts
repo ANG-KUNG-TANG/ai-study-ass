@@ -8,24 +8,24 @@ import { USER_RULES } from "@/server/entities/user.entity";
 // ─── Reusable fields ──────────────────────────────────────────────────────────
 
 const emailField = z
-  .string({ required_error: "Email is required" })
+  .string({ error: "Email is required" })
   .email("Invalid email format")
   .toLowerCase()
   .trim();
 
 const passwordField = z
-  .string({ required_error: "Password is required" })
+  .string({ error: "Password is required" })
   .min(USER_RULES.password.minLength, `Password must be at least ${USER_RULES.password.minLength} characters`)
   .max(USER_RULES.password.maxLength, `Password cannot exceed ${USER_RULES.password.maxLength} characters`)
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
   .regex(/[0-9]/, "Password must contain at least one number")
-  .regex(/[!@#$%^&*(){}~]/, "Password must contain at least one special character")
+  .regex(/[!@#$%^&*(){}~]/, "Password must contain at least one special character");
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 export const registerSchema = z.object({
   name: z
-    .string({ required_error: "Name is required" })
+    .string({ error: "Name is required" })
     .min(USER_RULES.name.minLength, `Name must be at least ${USER_RULES.name.minLength} characters`)
     .max(USER_RULES.name.maxLength, `Name cannot exceed ${USER_RULES.name.maxLength} characters`)
     .trim(),
@@ -36,17 +36,17 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: emailField,
   // No strength check on login — only validate presence
-  password: z.string({ required_error: "Password is required" }).min(1),
+  password: z.string({ error: "Password is required" }).min(1),
 });
 
 export const changePasswordSchema = z
   .object({
     currentPassword: z
-      .string({ required_error: "Current password is required" })
+      .string({ error: "Current password is required" })
       .min(1),
     newPassword: passwordField,
     confirmPassword: z
-      .string({ required_error: "Please confirm your new password" }),
+      .string({ error: "Please confirm your new password" }),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",
@@ -59,7 +59,7 @@ export const changePasswordSchema = z
 
 // Accepts the token from the verification email link
 export const verifyEmailSchema = z.object({
-  token: z.string({ required_error: "Verification token is required" }).min(1),
+  token: z.string({ error: "Verification token is required" }).min(1),
 });
 
 // ─── Inferred types ───────────────────────────────────────────────────────────
@@ -77,9 +77,9 @@ export const forgotPasswordSchema = z.object({
 
 //subit new password using the reset token
 export const resetPasswordSchema = z.object({
-  token: z.string({ required_error: "Reset token is required"}).min(1),
+  token: z.string({ error: "Reset token is required" }).min(1),
   newPassword: passwordField,
-  confirmPassword: z.string({required_error: "Please confirm your new password"}),
+  confirmPassword: z.string({ error: "Please confirm your new password" }),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Password do not match",
   path: ["confirmPassword"],

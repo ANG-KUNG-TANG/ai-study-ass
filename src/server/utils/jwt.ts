@@ -48,7 +48,7 @@ export function signAccessToken(payload: TokenPayload): string {
     { userId: payload.userId, email: payload.email, role: payload.role },
     env.JWT_ACCESS_SECRET,
     {
-      expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+      expiresIn: env.JWT_ACCESS_EXPIRY as jwt.SignOptions["expiresIn"],
       jwtid: generateTokenId(), // jwtid is the JWT spec field — sets the jti claim
     }
   );
@@ -63,7 +63,7 @@ export function signRefreshToken(payload: TokenPayload): {
     { userId: payload.userId, email: payload.email, role: payload.role },
     env.JWT_REFRESH_SECRET,
     {
-      expiresIn: env.JWT_REFRESH_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+      expiresIn: env.JWT_REFRESH_EXPIRY as jwt.SignOptions["expiresIn"],
       jwtid: tokenId,
     }
   );
@@ -209,7 +209,7 @@ export async function revokeToken(token: string, secret: string): Promise<void> 
  */
 export async function revokeAllUserTokens(userId: string): Promise<void> {
   const expiresAt = new Date(
-    Date.now() + parseDurationMs(env.JWT_REFRESH_EXPIRES_IN)
+    Date.now() + parseDurationMs(env.JWT_REFRESH_EXPIRY)
   );
 
   await RevokedToken.findOneAndUpdate(

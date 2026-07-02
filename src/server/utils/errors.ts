@@ -18,7 +18,7 @@ export class AppError extends Error {
         this.name = this.constructor.name;
         this.statusCode = statusCode;
         this.code = code;
-        this.isOperatinal=isOperational;
+        this.isOperatinal = isOperational;
 
         //Restore prototype chain -needed when extending built-in classes in Ts
         Object.setPrototypeOf(this, new.target.prototype);
@@ -108,6 +108,6 @@ export class InternalErro extends AppError {
 }
 
 //Type guard
-export function isAppError(err: unknown): err is AIError{
+export function isAppError(err: unknown): err is AppError {
     return err instanceof AppError;
 }

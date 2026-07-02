@@ -98,7 +98,7 @@ export function errorResponse(
 // Converts any throw into a standardised error response.
 // Used inside withErrorHandler HOF (below) and can be called directly.
 
-export function handleError(err: unknown): NextResponse<ApiError> {
+export function handleError(err: unknown): NextResponse< ApiError> {
   // Known operational error — map directly to response
   if (isAppError(err)) {
     if (!err.isOperatinal) {
