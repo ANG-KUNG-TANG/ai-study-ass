@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isAppError } from "../utils/errors";
 import { logger } from "../utils/logger";
 import type { ApiError } from "@/server/utils/response";
-
+import { connectDb } from "@/server/config/database";
 //central error handler
 /**
  * single place that converts Any thrown value into a standaredised error response
@@ -62,8 +62,13 @@ export function handleError(err: unknown): NextResponse<ApiError>{
 
     //Zod errors surfaced outside validatedBody
     if (err instanceof Error && "issues" in err) {
-        const issues = (err as { issues: Array<{path: string[]; message: string[]}>}).issues;
-        const fields = Object.fromEntries(issues.map((i) => [i.path.join('.'), i.message]));
+        const issues = (err as { issues: Array<{path: string[]; message: string | string[]}>}).issues;
+        const fields = Object.fromEntries(
+            issues.map((i) => [
+                i.path.join('.'),
+                Array.isArray(i.message) ? i.message.join(', ') : i.message,
+            ])
+        );
         return NextResponse.json(
             {success: false, error: { code : "VALIDATION_ERROR", message: "Validation failed", fields}},
             {status: 422}
@@ -85,9 +90,13 @@ export function handleError(err: unknown): NextResponse<ApiError>{
 //withErrorHandler Hof
 /**
  * wraps any route handler - no try/catch needed in route files
+ * Also guarantees a live DB connection before the handler runs, so no
+ * individual route/controller/service/repo needs to remember to call
+ * connectDb() itself. connectDb() is idempotent (cached conn / in-flight
+ * promise), so this is cheap on every request.
+ *
  * Usage:
  * export const GET = withErrorHandler(async (req) => {
- * await connectDB()
  * return successResponse(data)})
  */
 
@@ -100,6 +109,7 @@ export function withErrorHandler<T>(
 ): RouteHandler<T | ApiError> {
     return async (req, context) => {
         try { 
+            await connectDb();
             return await handler(req, context);
         } catch (err) {
             return handleError(err);

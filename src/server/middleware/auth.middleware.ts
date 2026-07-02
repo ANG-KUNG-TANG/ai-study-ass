@@ -44,7 +44,7 @@ export function withAuth<T>(handler: AuthedHandler<T>) {
       const auth: AuthContext = {
         userId: payload.userId,
         email: payload.email,
-        role: payload.role,
+        role: payload.role as UserRole,
       };
 
       return await handler(req, context, auth);
@@ -91,7 +91,11 @@ export function withOptionalAuth<T>(handler: OptionalAuthHandler<T>) {
         try {
           const token = extractBearerToken(authHeader);
           const payload = await verifyAccessTokenFull(token);
-          auth = { userId: payload.userId, email: payload.email, role: payload.role };
+          auth = {
+            userId: payload.userId,
+            email: payload.email,
+            role: payload.role as UserRole,
+          };
         } catch {
           auth = null;
         }
