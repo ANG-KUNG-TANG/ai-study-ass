@@ -15,10 +15,12 @@ interface ParsedPDF {
 }
 
 export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
-  let pdfParse: typeof import("pdf-parse");
+  // pdf-parse can be exported as the module itself or as the default export.
+  let pdfParse: (data: Buffer) => Promise<any>;
 
   try {
-    pdfParse = (await import("pdf-parse")).default;
+    const pdfParseModule = await import("pdf-parse");
+    pdfParse = (pdfParseModule as any).default ?? pdfParseModule;
   } catch {
     throw new FileError("PDF parser not available — run: npm install pdf-parse");
   }
@@ -29,9 +31,18 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     result = await pdfParse(buffer);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    const lowerMessage = message.toLowerCase();
 
-    // Encrypted PDFs throw a specific error
-    if (message.toLowerCase().includes("encrypted")) {
+    // Password-protected PDFs surface as pdfjs-dist's PasswordException,
+    // whose message text is usually "No password given" / "Incorrect
+    // Password" — it does NOT contain the word "encrypted", so checking
+    // for that alone misses the common case.
+    const isPasswordProtected =
+      lowerMessage.includes("encrypted") ||
+      lowerMessage.includes("password") ||
+      (err instanceof Error && err.name === "PasswordException");
+
+    if (isPasswordProtected) {
       throw new FileError("PDF is password-protected — please remove the password and re-upload");
     }
 
