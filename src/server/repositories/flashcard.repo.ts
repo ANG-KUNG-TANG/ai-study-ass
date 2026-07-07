@@ -4,7 +4,7 @@ import { logger } from "../utils/logger";
 import { NotFoundError } from "../utils/errors";
 
 //Mapper
-function toEnitiy(doc: any): FlashcardEntity{
+function toEntity(doc: any): FlashcardEntity{
     return FlashcardEntity.fromPersistence({
         id: String(doc._id),
         noteId: String(doc.noteId),
@@ -23,19 +23,26 @@ function toEnitiy(doc: any): FlashcardEntity{
 export async function findById(id:FlashcardId): Promise<FlashcardEntity | null> {
     const doc = await Flashcard.findById(id).lean().exec();
     if (!doc) return null;
-    return toEnitiy(doc);
+    return toEntity(doc);
     
 }
 
 export async function findByNoteId(noteId:string): Promise<FlashcardEntity[]> {
     const docs = await Flashcard.find({noteId}).lean().exec();
-    return docs.map(toEnitiy);
+    return docs.map(toEntity);
     
 }
 
+export async function findManyByNoteId(noteId:string): Promise<FlashcardEntity[]> {
+    const docs = await Flashcard.find({ noteId }).lean().exec();
+    return docs.map(toEntity);
+}
+
+
+
 export async function findNoteByUserId(noteId:string, userId: string): Promise<FlashcardEntity[]>{
     const docs = await Flashcard.find({ noteId, userId}).lean().exec();
-    return docs.map(toEnitiy);
+    return docs.map(toEntity);
     
 }
 
@@ -61,7 +68,7 @@ export async function create(entities: FlashcardEntity[]): Promise<FlashcardEnti
         })
     );
     logger.info("FlashCared created", { count: docs.length});
-    return docs.map((d) => toEnitiy(d.toObject()));    
+    return docs.map((d) => toEntity(d.toObject()));    
 }
 
 //update
@@ -91,10 +98,14 @@ export async function deleteByUserId(userId:string): Promise<void> {
     
 };
 
-//findByIdOrthrown
-export async function findByIdOrT(id:FlashcardId): Promise<FlashcardEntity> {
+//findByIdOrThrow
+export async function findByIdOrThrow(id:FlashcardId): Promise<FlashcardEntity> {
     const doc = await Flashcard.findById(id).lean().exec();
     if (!doc) throw new NotFoundError("Flashcard");
-    return toEnitiy(doc);
+    return toEntity(doc);
     
+}
+
+export function createMany(entities: FlashcardEntity[]) {
+  throw new Error("Function not implemented.");
 }
