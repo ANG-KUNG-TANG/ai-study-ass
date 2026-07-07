@@ -8,6 +8,7 @@ import {
 } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type { UserQueryOptions, PaginatedUsers } from "@/server/repositories/user.repo";
+import { buildPaginationMeta, PaginationMeta } from "../utils/response";
 
 // ─── Purpose ──────────────────────────────────────────────────────────────────
 // Admin-only operations. Every function here must be called from routes
@@ -18,17 +19,21 @@ import type { UserQueryOptions, PaginatedUsers } from "@/server/repositories/use
 
 export async function listUsers(
   options: UserQueryOptions
-): Promise<{ data: ReturnType<UserEntity["toPublic"]>[]; total: number; page: number; limit: number }> {
+): Promise<{
+  data: ReturnType<UserEntity["toPublic"]>[];
+  meta: PaginationMeta;
+}> {
   const result: PaginatedUsers = await userRepo.findMany(options);
 
   return {
     data: result.data.map((u) => u.toPublic()),
-    total: result.total,
-    page: result.page,
-    limit: result.limit,
+    meta: buildPaginationMeta(
+      result.total,
+      result.page,
+      result.limit
+    ),
   };
 }
-
 // ─── Get single user ──────────────────────────────────────────────────────────
 
 export async function getUserById(
