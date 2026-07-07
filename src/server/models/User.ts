@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import bcrypt from "bcryptjs";
-import { BCRYPT_ROUNDS } from "@/server/utils/constants";
 import { USER_RULES, type UserRole } from "@/server/entities/user.entity"; // was "@/server/entities/user" — missing .entity
+// BCRYPT_ROUNDS no longer imported here — hashing lives upstream (service layer), not in the model.
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +25,12 @@ export interface IUser extends Document {
 
 const userSchema = new Schema<IUser>(
   {
+    // Explicit String _id — UserEntity.create() generates UUIDs via
+    // randomUUID(), not Mongo ObjectIds. Without this, Mongoose defaults
+    // _id to ObjectId and rejects every insert with a cast error.
+    _id: {
+      type: String,
+    },
     name: {
       type: String,
       required: [true, "Name is required"],
@@ -84,13 +90,13 @@ const userSchema = new Schema<IUser>(
   }
 );
 
-// ─── Pre-save hook — hash password ────────────────────────────────────────────
-
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("passwordHash")) return next(); // was "password" — field doesn't exist, hook never ran
-  this.passwordHash = await bcrypt.hash(this.passwordHash, BCRYPT_ROUNDS);
-  next();
-});
+// ─── Password hashing ──────────────────────────────────────────────────────────
+// Deliberately NOT hashed here. UserEntity.create()/your auth service already
+// produce a bcrypt hash before the entity is built (that's why the field is
+// typed and named `passwordHash`, not `password`). Hashing again on `pre("save")`
+// would double-hash the value and silently break every login. If you'd rather
+// have the model own hashing instead, do it here AND stop hashing upstream —
+// pick exactly one layer, never both.
 
 // ─── Instance method — compare password ───────────────────────────────────────
 
@@ -102,22 +108,30 @@ userSchema.methods.comparePassword = async function (
 
 // ─── toJSON — strip sensitive fields ──────────────────────────────────────────
 
-userSchema.set("toJSON", {
-  transform(_doc, ret) {
-    delete ret.passwordHash;
-    delete ret.emailVerificationToken;
-    delete ret.emailVerificationExpires;  // was "emailVerifictionExpires" (typo) — nothing was deleted
-    delete ret.passwordResetToken;
-    delete ret.passwordResetExpires;
-    delete ret.refreshTokenId;
-    delete ret.__v;
-    return ret;
-  },
-});
+const toPublicJSON = (_doc: unknown, ret: any) => {
+  // Destructure-omit instead of `delete ret.field` — under strict TS, `delete`
+  // requires the property to be optional on the target type, which IUser's
+  // fields are not. Destructuring avoids that restriction entirely.
+  const {
+    passwordHash,
+    emailVerificationToken,
+    emailVerificationExpires,
+    passwordResetToken,
+    passwordResetExpires,
+    refreshTokenId,
+    __v,
+    ...publicRet
+  } = ret;
+  return publicRet;
+};
+
+userSchema.set("toJSON", { transform: toPublicJSON });
+userSchema.set("toObject", { transform: toPublicJSON }); // covers .toObject()/lean() call sites too
 
 // ─── Indexes ──────────────────────────────────────────────────────────────────
 
-userSchema.index({ email: 1 });
+// email index is already created by `unique: true` on the field above —
+// declaring it again here caused the duplicate schema index warning.
 userSchema.index({ emailVerificationToken: 1 }, { sparse: true }); // was "emailVerificaionToken" (typo) — index on wrong field
 userSchema.index({ passwordResetToken: 1 }, { sparse: true });
 
