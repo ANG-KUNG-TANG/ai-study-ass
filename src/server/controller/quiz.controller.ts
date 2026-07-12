@@ -17,12 +17,13 @@
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import type { AuthContext } from '@/server/middleware/auth.middleware'; // adjust path if this lives elsewhere
-import { successResponse, createdResponse } from '@/server/utils/response';
-import { generateQuiz, getAllQuizzesByNote } from '@/server/services/quiz/quiz.service';
+import { successResponse, createdResponse, noContentResponse } from '@/server/utils/response';
+import { deleteQuiz, generateQuiz, getAllQuizzesByNote, getAllQuizzesByUser } from '@/server/services/quiz/quiz.service';
 import { findById as findQuizById } from '@/server/repositories/quiz.repo';
 import { findById as findNoteById } from '@/server/repositories/note.repo';
 import { QUESTION_TYPES } from '../entities/quiz.entity';
-import { ForbiddenError } from '../utils/errors';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
+import { isValidObjectId } from 'mongoose';
 
 // Matches RouteContext in auth.middleware.ts: params is a Promise (Next.js 15
 // async params), not a plain object.
@@ -85,16 +86,15 @@ export async function getQuizController(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const { id } = await context.params;
-  const quiz = await findQuizById(id);
 
-  // Same non-distinguishing pattern as assertOwnsNote above: a quiz that
-  // doesn't exist and a quiz that exists but belongs to someone else both
-  // produce this exact error, so a caller can't use the response to probe
-  // which quizIds are valid.
+  if (!isValidObjectId(id)) {
+    throw new NotFoundError('Quiz');
+  }
+
+  const quiz = await findQuizById(id);
   if (!quiz || quiz.userId !== auth.userId) {
     throw new ForbiddenError('You do not have access to this quiz.');
   }
-
   return successResponse(quiz.toJSON());
 }
 
@@ -111,5 +111,32 @@ export async function listQuizzesByNoteController(
   const { noteId } = await context.params;
   await assertOwnsNote(noteId, auth.userId);
   const quizzes = await getAllQuizzesByNote(noteId, auth.userId);
+  return successResponse(quizzes.map((q: any) => q.toJSON()));
+}
+
+/**
+ * GET /api/quiz — every quiz belonging to the authenticated user,
+ * across all notes, most recent first.
+ */
+export async function listAllQuizzesController(
+  _req: Request,
+  _context: RouteContext,
+  auth: AuthContext,
+): Promise<NextResponse> {
+  const quizzes = await getAllQuizzesByUser(auth.userId);
   return successResponse(quizzes.map((q) => q.toJSON()));
 }
+
+/**
+ * DELETE /api/quiz/[id]
+ */
+export async function deleteQuizController(
+  _req: Request,
+  context: RouteContext,
+  auth: AuthContext,
+): Promise<NextResponse> {
+  const { id } = await context.params;
+  await deleteQuiz(id, auth.userId);
+  return noContentResponse();
+}
+

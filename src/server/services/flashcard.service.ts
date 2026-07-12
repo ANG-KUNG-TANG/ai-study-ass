@@ -55,9 +55,7 @@ export async function getFlashcardsByNote(noteId: string, userId: string): Promi
 export async function updateReview(flashcardId: string, userId: string, difficulty: FlashcardDifficulty): Promise<ReturnType<FlashcardEntity["toPublic"]>> {
   const flashcard = await flashcardRepo.findByIdOrThrow(flashcardId);
   if (!flashcard.belongsTo(userId)) throw new ForbiddenError();
-  // perform update (repo may not return the updated entity)
   await flashcardRepo.updateReview(flashcardId, difficulty);
-  // reload the entity to return the public view
   const reloaded = await flashcardRepo.findByIdOrThrow(flashcardId);
   return reloaded.toPublic();
 }
@@ -80,11 +78,7 @@ function buildCardsFromCore(core: KnowledgeCore, count: number): Array<{ front: 
 }
 
 async function polishFrontWordingOnly(
-  pairs: Array<{
-    front: string;
-    back: string;
-    difficulty: FlashcardDifficulty;
-  }>
+  pairs: Array<{ front: string; back: string; difficulty: FlashcardDifficulty }>
 ) {
   return Promise.all(
     pairs.map(async (p) => {
@@ -97,12 +91,8 @@ async function polishFrontWordingOnly(
           temperature: 0.2,
           maxTokens: 100,
         });
-
         const rewritten = result.text.trim();
-
-        return rewritten
-          ? { ...p, front: rewritten }
-          : p;
+        return rewritten ? { ...p, front: rewritten } : p;
       } catch {
         return p;
       }
@@ -122,14 +112,12 @@ async function generateCardsViaAI(
     `Return ONLY a JSON array: { "front": string, "back": string, "difficulty": "easy"|"medium"|"hard" }`,
   ].join("\n\n");
 
-  const result = await aiGenerate(
-    {
-      prompt,
-      temperature: 0.3,
-      maxTokens: 2000,
-      jsonMode: true
-    }
-  );
+  const result = await aiGenerate({
+    prompt,
+    temperature: 0.3,
+    maxTokens: 2000,
+    jsonMode: true,
+  });
   try {
     const parsed = JSON.parse(result.text.trim().replace(/^```json\s*|```$/g, ""));
     return Array.isArray(parsed) ? parsed.slice(0, count) : [];
@@ -142,4 +130,3 @@ export async function deleteForNote(noteId: string): Promise<void> {
   await flashcardRepo.deleteByNoteId(noteId);
   logger.info("Flashcard data deleted", { noteId });
 }
-

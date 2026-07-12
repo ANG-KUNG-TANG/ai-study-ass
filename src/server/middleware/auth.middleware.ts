@@ -13,7 +13,7 @@ export interface AuthContext {
   role: UserRole;
 }
 
-type RouteContext = { params: Promise<Record<string, string>> };
+export type RouteContext = { params: Promise<Record<string, string>> };
 
 type AuthedHandler<T = unknown> = (
   req: Request,

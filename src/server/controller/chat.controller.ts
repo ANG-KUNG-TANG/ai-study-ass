@@ -1,46 +1,59 @@
+// server/controllers/chat.controller.ts
+//
+// POST   /api/notes/[id]/chat    ask a question about a note
+// GET    /api/notes/[id]/chat    get chat history for a note
+// DELETE /api/notes/[id]/chat    clear chat history for a note
+
 import type { NextResponse } from "next/server";
 import { z } from "zod";
-import * as chatService from "@/server/services/chat/chat.service";
 import { successResponse, createdResponse, noContentResponse } from "@/server/utils/response";
 import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
+import * as chatService from "@/server/services/chat.service";
+import { ValidationError } from "@/server/utils/errors";
+import { CHAT_RULES } from "@/server/entities/chat.entity";
 
-const sendMessageBodySchema = z.object({
-  question: z.string().min(1),
+const askBodySchema = z.object({
+  question: z.string().min(CHAT_RULES.question.minLength).max(CHAT_RULES.question.maxLength),
 });
 
-// POST /api/notes/[noteId]/chat
-// Ownership is enforced inside chatService.sendMessage itself
-// (note.belongsTo(userId) -> ForbiddenError), so no separate check here.
-export async function sendMessageController(
+export async function askQuestion(
   req: Request,
   context: RouteContext,
-  auth: AuthContext,
+  auth: AuthContext
 ): Promise<NextResponse> {
-  const { noteId } = await context.params;
-  const { question } = sendMessageBodySchema.parse(await req.json());
+  const { id: noteId } = await context.params;
 
-  const message = await chatService.sendMessage(noteId, auth.userId, question);
-  return createdResponse(message);
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    throw new ValidationError("Validation failed", {
+      body: "Request body must be valid JSON",
+    });
+  }
+
+  const { question } = askBodySchema.parse(json);
+
+  const result = await chatService.askQuestion(noteId, auth.userId, question);
+  return createdResponse(result);
 }
 
-// GET /api/notes/[noteId]/chat
-export async function getChatHistoryController(
+export async function getChatHistory(
   _req: Request,
   context: RouteContext,
-  auth: AuthContext,
+  auth: AuthContext
 ): Promise<NextResponse> {
-  const { noteId } = await context.params;
+  const { id: noteId } = await context.params;
   const history = await chatService.getChatHistory(noteId, auth.userId);
   return successResponse(history);
 }
 
-// DELETE /api/notes/[noteId]/chat
-export async function clearChatHistoryController(
+export async function clearChatHistory(
   _req: Request,
   context: RouteContext,
-  auth: AuthContext,
-): Promise<NextResponse> {``
-  const { noteId } = await context.params;
-  await chatService.clearHistory(noteId, auth.userId);
+  auth: AuthContext
+): Promise<NextResponse> {
+  const { id: noteId } = await context.params;
+  await chatService.clearChatHistory(noteId, auth.userId);
   return noContentResponse();
 }

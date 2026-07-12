@@ -27,8 +27,8 @@ export interface QuizQuestionDoc {
 
 export interface QuizDocument extends Document {
   _id: Types.ObjectId;
-  noteId: Types.ObjectId;
-  userId: Types.ObjectId;
+  noteId: String;
+  userId: String;
   questions: QuizQuestionDoc[];
   createdAt: Date;
   updatedAt: Date;
@@ -47,8 +47,8 @@ const QuizQuestionSchema = new Schema<QuizQuestionDoc>(
 
 const QuizSchema = new Schema<QuizDocument>(
   {
-    noteId: { type: Schema.Types.ObjectId, ref: 'Note', required: true, index: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    noteId: { type: String, ref: 'Note', required: true, index: true },
+    userId: { type: String, ref: 'User', required: true, index: true },
     questions: { type: [QuizQuestionSchema], required: true },
   },
   { timestamps: true },

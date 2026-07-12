@@ -36,16 +36,29 @@ export async function createNote(
     charCount: file.charCount,
   });
 
-  intelligenceService.processInBackground(
-    saved.id,
-    intelligenceService.toRawDocument({
-      content: file.content,
-      fileName: file.fileName,
-      fileType: file.fileType,
-      fileSize: file.fileSize,
-      pageCount: file.pageCount,
-    })
-  );
+  // Fire-and-forget background job — explicitly caught so a rejection here
+  // becomes a logged error instead of an unhandled promise rejection.
+  // Fire-and-forget background job — run in an async IIFE so we can attach
+  // a .catch handler even if processInBackground does not return a Promise
+  // (or is typed as void).
+  (async () => {
+    await intelligenceService.processInBackground(
+      saved.id,
+      intelligenceService.toRawDocument({
+        content: file.content,
+        fileName: file.fileName,
+        fileType: file.fileType,
+        fileSize: file.fileSize,
+        pageCount: file.pageCount,
+      })
+    );
+  })().catch((err: unknown) => {
+    logger.error("Background intelligence processing failed", {
+      noteId: saved.id,
+      userId,
+      err,
+    });
+  });
 
   return saved.toPublic();
 }

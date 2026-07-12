@@ -6,7 +6,7 @@ import { extractFileFromRequest, processUpload } from "@/server/services/upload.
 import { createNote } from "@/server/services/note.service";
 import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
 
-// POST /api/notes/upload
+// POST /api/upload
 // NOTE: authLimiter(req) is called without `await` here, matching the
 // original route.ts. If authLimiter is async internally, add `await` —
 // otherwise a rejection here becomes an unhandled promise rejection

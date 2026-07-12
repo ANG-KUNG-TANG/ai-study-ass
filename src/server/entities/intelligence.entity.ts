@@ -41,6 +41,7 @@ export class IntelligenceResultEntity {
   readonly #failedReason: string | null;
   readonly #processedAt: Date;
   readonly #gaps: GapDetectionResult | null;
+  data: any;
 
   private constructor(props: IntelligenceResultProps) {
     this.#noteId = props.noteId;

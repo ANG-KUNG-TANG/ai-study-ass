@@ -1,8 +1,9 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { NOTE_RULES, type FileType } from "@/server/entities/note.entity";
 
-export interface INote extends Document {
-  userId: mongoose.Types.ObjectId;
+export interface INote extends Document<string> {
+  _id: string;
+  userId: string;
   title: string;
   fileName: string;
   fileType: FileType;
@@ -15,7 +16,8 @@ export interface INote extends Document {
 
 const noteSchema = new Schema<INote>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    _id: { type: String },
+    userId: { type: String, required: true, index: true },
     title: {
       type: String,
       required: true,
@@ -28,7 +30,8 @@ const noteSchema = new Schema<INote>(
     content: { type: String, required: true, maxlength: NOTE_RULES.CONTENT_MAX },
     summary: { type: String, default: null, maxlength: NOTE_RULES.SUMMARY_MAX },
   },
-  { timestamps: true }
+  { timestamps: true } // removed _id: false
+
 );
 
 noteSchema.index({ userId: 1, createdAt: -1 });

@@ -32,13 +32,18 @@ export interface ApiPaginated<T = unknown> extends ApiSuccess<T[]> {
   meta: PaginationMeta;
 }
 
+export interface SuccessResponseOptions {
+  message?: string;
+  status?: number;
+}
+
 // ─── 200 OK ───────────────────────────────────────────────────────────────────
 
 export function successResponse<T>(
   data: T,
-  message?: string,
-  status = 200
+  options?: SuccessResponseOptions
 ): NextResponse<ApiSuccess<T>> {
+  const { message, status = 200 } = options ?? {};
   return NextResponse.json(
     { success: true, data, ...(message ? { message } : {}) },
     { status }
@@ -51,7 +56,7 @@ export function createdResponse<T>(
   data: T,
   message?: string
 ): NextResponse<ApiSuccess<T>> {
-  return successResponse(data, message, 201);
+  return successResponse(data, { message, status: 201 });
 }
 
 // ─── 204 No Content ───────────────────────────────────────────────────────────
@@ -98,7 +103,7 @@ export function errorResponse(
 // Converts any throw into a standardised error response.
 // Used inside withErrorHandler HOF (below) and can be called directly.
 
-export function handleError(err: unknown): NextResponse< ApiError> {
+export function handleError(err: unknown): NextResponse<ApiError> {
   // Known operational error — map directly to response
   if (isAppError(err)) {
     if (!err.isOperatinal) {

@@ -21,7 +21,7 @@ import type { AuthContext } from "@/server/middleware/auth.middleware";
 import { successResponse } from "@/server/utils/response";
 import { generateSummary } from "@/server/services/summiary/summary.service";
 import { findById as findNoteById } from "@/server/repositories/note.repo";
-import { ForbiddenError } from "@/server/utils/errors";
+import { ForbiddenError, ValidationError } from "@/server/utils/errors";
 
 const bodySchema = z.object({
   noteId: z.string().min(1),
@@ -30,14 +30,20 @@ const bodySchema = z.object({
 
 type RouteContext = { params: Promise<Record<string, string>> };
 
+
+
 export async function postSummary(
   req: Request,
   _context: RouteContext,
   auth: AuthContext
 ) {
-  const json = await req.json();
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    throw new ValidationError("Validation failed", { body: "Request body must be valid JSON" });
+  }
   const { noteId, force } = bodySchema.parse(json);
-
   const note = await findNoteById(noteId);
   if (note && String(note.userId) !== auth.userId) {
     throw new ForbiddenError("You do not have access to this note.");

@@ -22,7 +22,7 @@
 import { generate } from '@/server/services/ai.service';
 import { buildSummaryPrompt } from '@/server/services/summiary/summary.promt';
 import { findById, updateSummary } from '@/server/repositories/note.repo';
-import { NotFoundError } from '../../utils/errors';
+import { NotFoundError } from '@/server/utils/errors';
 
 export interface SummaryResult {
   /** The persisted, flattened summary string (what's stored on Note.summary). */

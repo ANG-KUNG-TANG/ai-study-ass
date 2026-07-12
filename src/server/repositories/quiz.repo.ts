@@ -69,3 +69,9 @@ export async function deleteByNoteId(noteId: string): Promise<number> {
   const result = await Quiz.deleteMany({ noteId });
   return result.deletedCount ?? 0;
 }
+
+/** All quizzes across all notes for a given user, most recent first. */
+export async function findAllByUser(userId: string): Promise<QuizEntity[]> {
+  const docs = await Quiz.find({ userId }).sort({ createdAt: -1 });
+  return docs.map(toEntity);
+}

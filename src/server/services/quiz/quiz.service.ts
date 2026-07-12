@@ -203,7 +203,8 @@ export async function generateQuiz(
 
   const { count, types } = resolveOptions(options);
 
-  const knowledge = await intelligenceService.getOrRunPipeline(noteId);
+  const intelligenceResult = await intelligenceService.getOrRunPipeline(noteId);
+  const knowledge = intelligenceResult.data;
   const mode = knowledgeEntity.getConfidenceMode(knowledge);
 
   let rawQuestions: QuizQuestionInput[] = [];
@@ -269,4 +270,16 @@ export async function getAllQuizzesByNote(noteId: string, userId: string): Promi
 export async function deleteForNote(noteId: string): Promise<void> {
   await quizRepository.deleteByNoteId(noteId); // was deleteById(noteId) — the cascade no-op bug, fixed
   logger.info('Quiz data deleted', { noteId });
+}
+
+export async function getAllQuizzesByUser(userId: string) {
+  return quizRepository.findAllByUser(userId);
+}
+
+export async function deleteQuiz(quizId: string, userId: string): Promise<void> {
+  const quiz = await quizRepository.findById(quizId);
+  if (!quiz || quiz.userId !== userId) {
+    throw new ForbiddenError('You do not have access to this quiz.');
+  }
+  await quizRepository.deleteById(quizId);
 }

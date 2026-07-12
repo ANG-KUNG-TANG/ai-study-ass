@@ -4,8 +4,6 @@ import { CHAT_HISTORY_LIMIT } from "../utils/constants";
 import { logger } from "../utils/logger";
 import { NotFoundError } from "../utils/errors";
 
-
-//mapper 
 function toEntity(doc: any): ChatEntity {
   return ChatEntity.fromPersistence({
     id: String(doc._id),
@@ -19,24 +17,23 @@ function toEntity(doc: any): ChatEntity {
   });
 }
 
-//read
-export async function findByNoteIdAndUserId(noteId:string, userId: string, limit = CHAT_HISTORY_LIMIT): Promise<ChatEntity[]> {
-    const docs = await Chat.find({ noteId, userId})
-        .sort({ createdAt: -1})
-        .limit(limit)
-        .lean()
-        .exec();
-    
-    //return in chronological order for context building
-    return docs.map(toEntity).reverse();
+export async function findByNoteIdAndUserId(
+  noteId: string,
+  userId: string,
+  limit = CHAT_HISTORY_LIMIT
+): Promise<ChatEntity[]> {
+  const docs = await Chat.find({ noteId, userId })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean()
+    .exec();
+  return docs.map(toEntity).reverse();
 }
 
-export async function countByNoteIdAndUserId(noteId:string, userId: string): Promise<number> {
-    return Chat.countDocuments({noteId, userId});
-    
+export async function countByNoteIdAndUserId(noteId: string, userId: string): Promise<number> {
+  return Chat.countDocuments({ noteId, userId });
 }
 
-//Create
 export async function create(entity: ChatEntity): Promise<ChatEntity> {
   const data = entity.toPersistence();
   const doc = await Chat.create({
@@ -52,37 +49,21 @@ export async function create(entity: ChatEntity): Promise<ChatEntity> {
   return toEntity(doc.toObject());
 }
 
-export async function findHistoryByNoteId(noteId:string, userId: string, limit = CHAT_HISTORY_LIMIT): Promise<ChatEntity[]> {
-    const docs = await Chat.find({ noteId, userId})
-        .sort({ createdAt: -1})
-        .limit(limit)
-        .lean()
-        .exec();
-    
-    //return in chronological order for context building
-    return docs.map(toEntity).reverse();
+export async function deleteByNoteIdAndUserId(noteId: string, userId: string): Promise<void> {
+  await Chat.deleteMany({ noteId, userId });
+  logger.info("Chat history cleared", { noteId, userId });
 }
 
-
-//delete
-export async function deleteByNoteIdAndUserId(noteId:string, userId: string): Promise<void> {
-    await Chat.deleteMany({ noteId, userId});
-    logger.info("Chat history cleared", { noteId, userId});    
+export async function deleteByNoteId(noteId: string): Promise<void> {
+  await Chat.deleteMany({ noteId });
 }
 
-export async function deleteByNoteId(noteId:string): Promise<void> {
-    await Chat.deleteMany({ noteId})
+export async function deleteByUserId(userId: string): Promise<void> {
+  await Chat.deleteMany({ userId });
 }
 
-export async function deleteByUserId(userId:string): Promise<void> {
-    await Chat.deleteMany({userId})
-}
-
-
-//findByIdOrThrown
-export async function findByIdOrThrow(id:ChatId): Promise<ChatEntity> {
-    const doc = await Chat.findById(id).lean().exec();
-    if (!doc) throw new NotFoundError("Chat message");
-    return toEntity(doc);
-    
+export async function findByIdOrThrow(id: ChatId): Promise<ChatEntity> {
+  const doc = await Chat.findById(id).lean().exec();
+  if (!doc) throw new NotFoundError("Chat message");
+  return toEntity(doc);
 }
