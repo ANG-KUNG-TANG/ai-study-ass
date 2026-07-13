@@ -1,9 +1,9 @@
 // server/entities/knowledge.entity.ts
 // Pure business rules — no Mongoose, no AI SDK, no I/O.
 
-import type {  ConfidenceMode, GraphData, OntologyMatchRef, PipelineStage } from '@/server/types/Knowledge';
-import { KnowledgeCore } from '../intelligence/pipeline';
-import { AIFallbackResult, ConfidenceBreakdown, KnowledgeGap, PrologFact } from '../intelligence/types';
+import type { ConfidenceMode, GraphData, OntologyMatchRef, PipelineStage } from '@/server/types/Knowledge';
+import type { KnowledgeCore } from '../intelligence/pipeline';
+import type { AIFallbackResult, ConfidenceBreakdown, KnowledgeGap, PrologFact } from '../intelligence/types';
 
 const SYMBOLIC_ONLY_THRESHOLD = 0.81;
 const AI_REQUIRED_THRESHOLD = 0.61;
@@ -17,7 +17,7 @@ const AI_REQUIRED_THRESHOLD = 0.61;
  * union — flagging that as a possible follow-up if this bites you).
  */
 export interface KnowledgeEntity {
-  noteId: string;
+  readonly noteId: string;
   stage: PipelineStage;
   error?: string;
   core?: KnowledgeCore;

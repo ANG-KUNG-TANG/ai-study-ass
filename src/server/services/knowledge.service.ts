@@ -1,10 +1,11 @@
 // server/services/knowledge.service.ts
 // (matches your uploaded knowledge_service.ts, minus the typo import + new failure path)
 
-import * as knowledgeRepo from '@/server/repositories/knowledge.repo';
+import * as knowledgeRepo from '@/server/repositories/knowldege.repo';
 import * as knowledgeEntity from '@/server/entities/knowledge.entity';
 import { NotFoundError, ValidationError } from '@/server/utils/errors';
-import type { IntelligenceResult, KnowledgeEntity, PipelineStage } from '@/server/types/Knowledge';
+import type { IntelligenceResult, PipelineStage } from '@/server/types/Knowledge';
+import { KnowledgeEntity} from '@/server/entities/knowledge.entity';
 
 export async function createKnowledge(result: IntelligenceResult): Promise<KnowledgeEntity> {
   const input = knowledgeRepo.fromIntelligenceResult(result);

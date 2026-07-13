@@ -1,33 +1,43 @@
 // server/knowledge/knowledge.controller.ts
 
-import type { NextRequest, NextResponse } from 'next/server';
+import type { NextResponse } from 'next/server';
 import * as knowledgeService from '@/server/services/knowledge.service';
-import { successResponse } from '@/server/utils/response'; // ASSUMPTION: confirm path
-import { withErrorHandler } from '@/server/middleware/error.middleware'; // ASSUMPTION: confirm path
-import type { AuthContext } from '@/server/middleware/auth.middleware'; // ASSUMPTION: confirm 3-arg shape
+import * as noteRepo from '@/server/repositories/note.repo';
+import { ForbiddenError } from '@/server/utils/errors';
+import { successResponse } from '@/server/utils/response';
+import type { AuthContext, RouteContext } from '@/server/middleware/auth.middleware';
 
-// No ownership check here — assuming the caller (note.service) already
-// verified the note belongs to this user before Knowledge is touched.
-// Flag if that's wrong; see note above.
-
-type KnowledgeContext = AuthContext & { params: { noteId: string } };
+// ─── Purpose ────────────────────────────────────────────────────────────────
+// Knowledge has no userId of its own — ownership is enforced here by loading
+// the parent Note and checking note.belongsTo(auth.userId), same pattern as
+// intelligence.controller.ts. Not delegated to the caller: this controller
+// may end up reachable from more than one route in future, and "the caller
+// already checked" is exactly the kind of assumption that quietly breaks.
 
 export async function getKnowledgeByNote(
-  _req: NextRequest,
-  context: KnowledgeContext,
-  _auth: { userId: string }
+  _req: Request,
+  context: RouteContext,
+  auth: AuthContext
 ): Promise<NextResponse> {
-  const { noteId } = context.params;
+  const { noteId } = await context.params;
+
+  const note = await noteRepo.findByIdOrThrow(noteId);
+  if (!note.belongsTo(auth.userId)) throw new ForbiddenError();
+
   const knowledge = await knowledgeService.getKnowledge(noteId);
   return successResponse(knowledge);
 }
 
 export async function deleteKnowledgeByNote(
-  _req: NextRequest,
-  context: KnowledgeContext,
-  _auth: { userId: string }
+  _req: Request,
+  context: RouteContext,
+  auth: AuthContext
 ): Promise<NextResponse> {
-  const { noteId } = context.params;
+  const { noteId } = await context.params;
+
+  const note = await noteRepo.findByIdOrThrow(noteId);
+  if (!note.belongsTo(auth.userId)) throw new ForbiddenError();
+
   const deleted = await knowledgeService.deleteKnowledge(noteId);
   return successResponse({ deleted });
 }

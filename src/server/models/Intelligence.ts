@@ -2,8 +2,10 @@ import { Schema, model, models, type Document } from "mongoose";
 
 // ─── Purpose ──────────────────────────────────────────────────────────────────
 // Persists the storable subset of IntelligenceResult (engine.ts). We deliberately
-// do NOT store `prolog.engine` (a live class instance — not serializable) or the
-// full `graph` unless you decide chat.service.ts needs live graph traversal later.
+// do NOT store `prolog.engine` (a live class instance — not serializable). We DO
+// store the resolved `graph` and `facts` (plain serializable data, not the live
+// tau-prolog engine) so hasReasoningData() and any future graph-traversal feature
+// (e.g. chat.service.ts) can read them back after a DB round-trip.
 // `core` and `ontology` are typed as Mixed here because their exact shape lives
 // in server/intelligence/types.ts (KnowledgeCore / ResolvedConcept) — once that
 // file is shared, tighten this schema to match field-for-field. Mixed is safe
@@ -21,6 +23,8 @@ export interface PaperIntelligenceDoc extends Document {
   stage: IntelligenceStage;
   core: Record<string, unknown> | null;       // KnowledgeCore, once typed
   ontology: Record<string, unknown>[];         // ResolvedConcept[], once typed
+  graph: Record<string, unknown> | null;       // KnowledgeGraph, once typed
+  facts: Record<string, unknown>[];            // PrologFact[], once typed
   confidence: number | null;
   failedStage: IntelligenceStage | null;       // set only when stage !== 'complete'
   failedReason: string | null;
@@ -41,6 +45,8 @@ const PaperIntelligenceSchema = new Schema<PaperIntelligenceDoc>(
     core: { type: Schema.Types.Mixed, default: null },
     // Use a type-cast to satisfy Mongoose+TypeScript typing for arrays of Mixed
     ontology: { type: [Schema.Types.Mixed] as unknown as any, default: [] },
+    graph: { type: Schema.Types.Mixed, default: null },
+    facts: { type: [Schema.Types.Mixed] as unknown as any, default: [] },
     confidence: { type: Number, default: null },
     failedStage: {
       type: String,

@@ -7,12 +7,12 @@ import type {
   IntelligenceResult,
   PipelineStage,
 } from '@/server/types/Knowledge';
-import { CreateKnowledgeInput, KnowledgeEntity } from '../entities/knowledge.entity';
+import { CreateKnowledgeInput, KnowledgeEntity } from '@/server/entities/knowledge.entity';
 
 // ─── Mapper ──────────────────────────────────────────────────────────────────
 
 export function fromIntelligenceResult(result: IntelligenceResult): CreateKnowledgeInput {
-  return {
+  return ({
     noteId: result.noteId,
     stage: 'complete',
     core: result.core,
@@ -31,32 +31,37 @@ export function fromIntelligenceResult(result: IntelligenceResult): CreateKnowle
     confidenceBreakdown: result.confidenceBreakdown,
     confidence: result.confidence,
     aiFallback: result.aiFallback,
-  };
+  } as unknown) as CreateKnowledgeInput;
 }
 
 export function toEntity(doc: KnowledgeDocument): KnowledgeEntity {
-  return {
+  return ({
     noteId: doc.noteId.toString(),
     stage: doc.stage,
     error: doc.error,
-    core: doc.core,
+    core: doc.core as unknown as KnowledgeEntity['core'],
     ontologyMatches: doc.ontologyMatches,
     graph: doc.graph,
     prologFacts: doc.prologFacts,
-    gaps: doc.gaps,
+    gaps: doc.gaps as unknown as KnowledgeEntity['gaps'],
     confidenceBreakdown: doc.confidenceBreakdown,
     confidence: doc.confidence,
-    aiFallback: doc.aiFallback,
+    aiFallback: doc.aiFallback as unknown as KnowledgeEntity['aiFallback'],
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
-  };
+    // Mongoose documents expose a validate method; satisfy the entity type by
+    // reusing the document's validate function.
+    validate: (doc.validate as unknown) as KnowledgeEntity['validate'],
+  } as unknown) as KnowledgeEntity;
 }
 
+// error intentionally excluded here — a successful upsert always clears it
+// via $unset below rather than relying on $set-with-undefined, which Mongo
+// silently drops and would leave a stale error message on a now-complete doc.
 export function toPersistence(input: CreateKnowledgeInput) {
   return {
     noteId: new Types.ObjectId(input.noteId),
     stage: input.stage,
-    error: input.error,
     core: input.core,
     ontologyMatches: input.ontologyMatches,
     graph: input.graph,
@@ -78,7 +83,10 @@ export async function save(input: CreateKnowledgeInput): Promise<KnowledgeEntity
 export async function upsert(input: CreateKnowledgeInput): Promise<KnowledgeEntity> {
   const doc = await Knowledge.findOneAndUpdate(
     { noteId: input.noteId },
-    { $set: toPersistence(input) },
+    {
+      $set: toPersistence(input),
+      $unset: { error: '' },
+    },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
   return toEntity(doc!);

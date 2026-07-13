@@ -1,8 +1,9 @@
-import type { NextRequest } from "next/server";
+import type { NextResponse } from "next/server";
 import * as intelligenceService from "@/server/services/intelligence.service";
 import * as noteRepo from "@/server/repositories/note.repo";
 import { ForbiddenError } from "@/server/utils/errors";
 import { successResponse } from "@/server/utils/response";
+import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
 
 // ─── Purpose ────────────────────────────────────────────────────────────────
 // HTTP-facing layer for read-only intelligence status. Intelligence has no
@@ -15,16 +16,15 @@ import { successResponse } from "@/server/utils/response";
 // an expensive pipeline run.
 
 export async function getIntelligenceStatus(
-  request: NextRequest,
-  params: { id: string },
-  userId: string
-) {
-  const noteId = params.id;
+  _req: Request,
+  context: RouteContext,
+  auth: AuthContext
+): Promise<NextResponse> {
+  const { id: noteId } = await context.params;
 
   const note = await noteRepo.findByIdOrThrow(noteId);
-  if (!note.belongsTo(userId)) throw new ForbiddenError();
+  if (!note.belongsTo(auth.userId)) throw new ForbiddenError();
 
   const status = await intelligenceService.getStatus(noteId);
-
   return successResponse(status);
 }
