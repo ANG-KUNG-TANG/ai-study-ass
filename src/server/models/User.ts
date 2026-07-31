@@ -28,9 +28,7 @@ const userSchema = new Schema<IUser>(
     // Explicit String _id — UserEntity.create() generates UUIDs via
     // randomUUID(), not Mongo ObjectIds. Without this, Mongoose defaults
     // _id to ObjectId and rejects every insert with a cast error.
-    _id: {
-      type: String,
-    },
+    _id: String,
     name: {
       type: String,
       required: [true, "Name is required"],

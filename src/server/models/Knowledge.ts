@@ -4,7 +4,7 @@
 import { Schema, model, models, Types, Document } from 'mongoose';
 
 export interface KnowledgeDocument extends Document {
-  noteId: Types.ObjectId;
+  noteId: string;
   stage: 'pending' | 'document' | 'extraction' | 'ontology' | 'graph' | 'prolog' | 'complete';
   error?: string;
   core?: {
@@ -171,7 +171,7 @@ const AIFallbackSchema = new Schema(
 
 const KnowledgeSchema = new Schema<KnowledgeDocument>(
   {
-    noteId: { type: Schema.Types.ObjectId, ref: 'Note', required: true, unique: true },
+    noteId: { type: String, ref: 'Note', required: true, unique: true },
     stage: {
       type: String,
       enum: ['pending', 'document', 'extraction', 'ontology', 'graph', 'prolog', 'complete'],
@@ -191,6 +191,6 @@ const KnowledgeSchema = new Schema<KnowledgeDocument>(
   { timestamps: true }
 );
 
-KnowledgeSchema.index({ noteId: 1 }, { unique: true });
+// KnowledgeSchema.index({ noteId: 1 }, { unique: true });
 
 export const Knowledge = models.Knowledge || model<KnowledgeDocument>('Knowledge', KnowledgeSchema);

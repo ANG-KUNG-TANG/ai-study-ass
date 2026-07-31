@@ -20,7 +20,7 @@ const chatSchema = new Schema<IChat>(
     tokensUsed: { type: Number, required: true, default: 0 },
     provider: {
       type: String,
-      enum: ["openai", "gemini"] satisfies AIProvider[],
+      enum: ["openai", "gemini", "symbolic"] satisfies AIProvider[],
       required: true,
     },
   },
