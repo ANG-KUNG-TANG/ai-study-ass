@@ -8,12 +8,10 @@ import { buildQuizPrompt, resolveOptions, type QuizPromptOptions } from '@/serve
 import * as quizRepository from '@/server/repositories/quiz.repo';
 import * as noteRepo from '@/server/repositories/note.repo';
 import * as intelligenceService from '@/server/services/intelligence.service';
-import * as knowledgeEntity from '@/server/entities/knowledge.entity';
 import { QuizEntity, QuizValidationError, QUESTION_TYPES, type QuizQuestionInput } from '@/server/entities/quiz.entity';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/server/utils/errors';
 import { logger } from '@/server/utils/logger';
-import type { KnowledgeCore } from '@/server/intelligence/types';
-import type { OntologyMatchRef } from '@/server/types/Knowledge';
+import type { KnowledgeCore, ResolvedConcept } from '@/server/intelligence/types';
 
 interface RawQuizJSON {
   questions?: unknown;
@@ -87,12 +85,12 @@ function pickDistractors(pool: string[], correct: string, n: number): string[] {
 
 function buildQuestionsFromCore(
   core: KnowledgeCore,
-  ontologyMatches: OntologyMatchRef[],
+  ontologyMatches: ResolvedConcept[],
   types: QuizPromptOptions['questionTypes'] & string[],
   count: number,
 ): QuizQuestionInput[] {
   const questions: QuizQuestionInput[] = [];
-  const distractorPool = [...core.entities, ...ontologyMatches.map((m) => m.conceptId)].filter(
+  const distractorPool = [...core.entities, ...ontologyMatches.map((m) => m.concept.id)].filter(
     (v, i, arr) => arr.indexOf(v) === i,
   );
 
@@ -188,6 +186,7 @@ async function polishQuestionWordingOnly(questions: QuizQuestionInput[]): Promis
 export interface GenerateQuizOptions extends QuizPromptOptions {
   dropInvalidQuestions?: boolean;
 }
+// quiz.service.ts — generateQuiz(), corrected section
 
 export async function generateQuiz(
   noteId: string,
@@ -195,7 +194,7 @@ export async function generateQuiz(
   options: GenerateQuizOptions = {},
 ): Promise<QuizEntity> {
   const note = await noteRepo.findByIdOrThrow(noteId);
-  if (!note.belongsTo(userId)) throw new ForbiddenError(); // was missing entirely — see message above
+  if (!note.belongsTo(userId)) throw new ForbiddenError();
 
   if (!note.content || note.content.trim().length === 0) {
     throw new ValidationError(`Note ${noteId} has no extracted content to generate a quiz from.`);
@@ -204,13 +203,12 @@ export async function generateQuiz(
   const { count, types } = resolveOptions(options);
 
   const intelligenceResult = await intelligenceService.getOrRunPipeline(noteId);
-  const knowledge = intelligenceResult.data;
-  const mode = knowledgeEntity.getConfidenceMode(knowledge);
+  const mode = intelligenceResult.getConfidenceMode();
 
   let rawQuestions: QuizQuestionInput[] = [];
 
-  if (mode !== 'AI_REQUIRED' && knowledge.core) {
-    rawQuestions = buildQuestionsFromCore(knowledge.core, knowledge.ontologyMatches ?? [], types, count);
+  if (mode !== 'AI_REQUIRED' && intelligenceResult.core) {
+    rawQuestions = buildQuestionsFromCore(intelligenceResult.core, intelligenceResult.ontology ?? [], types, count);
     if (rawQuestions.length > 0 && mode === 'SYMBOLIC_WITH_OPTIONAL_AI_POLISH') {
       rawQuestions = await polishQuestionWordingOnly(rawQuestions);
     }

@@ -4,6 +4,7 @@ import {
   signTokenPair,
   verifyRefreshToken,
   revokeAllUserTokens,
+  revokeToken,
   clearUserRevocation,
   type TokenPair,
 } from "@/server/utils/jwt";
@@ -23,6 +24,7 @@ import type {
   LoginInput,
   ChangePasswordInput,
 } from "@/server/validators/auth.validators";
+import { env } from "../config/env";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,15 +39,12 @@ export async function register(
   input: RegisterInput,
   sendVerificationEmail: (email: string, token: string) => Promise<void>
 ): Promise<{ message: string }> {
-  // Fast duplicate check before doing any hashing
   const taken = await userRepo.existsByEmail(input.email);
   if (taken) throw new ConflictError("Email already registered");
 
-  // Hash password here — entity stays free of bcrypt
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
   const verificationToken = randomUUID();
 
-  // Entity validates name + email and sets isActive=false, role="user"
   const entity = UserEntity.create({
     id: randomUUID(),
     name: input.name,
@@ -56,8 +55,18 @@ export async function register(
 
   await userRepo.create(entity);
 
-  // Send email AFTER DB write — if email fails, user can request resend
-  await sendVerificationEmail(entity.email, verificationToken);
+  // Email delivery is best-effort: the account is already created and valid.
+  // If sending fails (provider outage, misconfig, etc.), log it and let the
+  // user request a fresh link via resendVerification — don't fail the whole
+  // registration over a transport-layer problem.
+  try {
+    await sendVerificationEmail(entity.email, verificationToken);
+  } catch (err) {
+    logger.warn("Verification email failed to send — user can request resend", {
+      userId: entity.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   logger.info("User registered — awaiting verification", { userId: entity.id });
 
@@ -90,8 +99,6 @@ export async function resendVerification(
   sendVerificationEmail: (email: string, token: string) => Promise<void>
 ): Promise<{ message: string }> {
   const user = await userRepo.findByEmail(email);
-
-  // Always return same message — don't reveal if email exists
   const genericMessage = "If that email is registered and unverified, a new link has been sent";
 
   if (!user) return { message: genericMessage };
@@ -101,9 +108,17 @@ export async function resendVerification(
   const expires = new Date(Date.now() + USER_RULES.emailVerification.expiresInMs);
 
   await userRepo.updateVerificationToken(user.id, newToken, expires);
-  await sendVerificationEmail(user.email, newToken);
 
-  logger.info("Verification email resent", { userId: user.id });
+  try {
+    await sendVerificationEmail(user.email, newToken);
+  } catch (err) {
+    logger.warn("Resend verification email failed", {
+      userId: user.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  logger.info("Verification email resend attempted", { userId: user.id });
 
   return { message: genericMessage };
 }
@@ -139,7 +154,10 @@ export async function login(input: LoginInput): Promise<AuthResult> {
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
 
-export async function logout(userId: string): Promise<void> {
+export async function logout(userId: string, accessToken?: string): Promise<void> {
+  if (accessToken){
+    await revokeToken(accessToken, env.JWT_ACCESS_SECRET)
+  }
   await userRepo.updateRefreshTokenId(userId, null);
   logger.info("User logged out", { userId });
 }
@@ -211,22 +229,25 @@ export async function forgotPassword(
   email: string,
   sendResetEmail: (email: string, token: string) => Promise<void>
 ): Promise<{ message: string }> {
-  // Always return generic message — never reveal if email exists
   const genericMessage = "If that email is registered, a password reset link has been sent";
 
   const user = await userRepo.findByEmail(email);
   if (!user) return { message: genericMessage };
-
-  // Inactive users cannot reset password — they should verify email first
   if (!user.isActive) return { message: genericMessage };
 
   const resetToken = randomUUID();
   const expires = new Date(Date.now() + USER_RULES.passwordReset.expiresInMs);
 
   await userRepo.updatePasswordResetToken(user.id, resetToken, expires);
-  await sendResetEmail(user.email, resetToken);
 
-  logger.info("Password reset email sent", { userId: user.id });
+  try {
+    await sendResetEmail(user.email, resetToken);
+  } catch (err) {
+    logger.warn("Password reset email failed to send", {
+      userId: user.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   return { message: genericMessage };
 }

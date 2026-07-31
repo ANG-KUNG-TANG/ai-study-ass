@@ -20,7 +20,7 @@
 // =============================================================================
 
 import { generate } from '@/server/services/ai.service';
-import { buildSummaryPrompt } from '@/server/services/summiary/summary.promt';
+import { buildSummaryPrompt } from '@/server/services/summary/summary.promt';
 import { findById, updateSummary } from '@/server/repositories/note.repo';
 import { NotFoundError } from '@/server/utils/errors';
 

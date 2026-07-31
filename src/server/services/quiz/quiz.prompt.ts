@@ -1,5 +1,5 @@
 // =============================================================================
-// server/services/quiz.prompt.ts
+// server/services/quiz/quiz.prompt.ts
 //
 // Builds the prompt for quiz generation. Separate from quiz.service.ts so
 // the prompt text can be iterated on independently of the parsing/
@@ -12,10 +12,14 @@ import {
   MAX_QUESTIONS_PER_QUIZ,
   type QuestionType,
 } from '@/server/entities/quiz.entity';
+import { DEFAULT_QUIZ_QUESTIONS } from '@/server/utils/constants';
 
 const MAX_CONTENT_CHARS = 24_000; // same reasoning as summary.prompt.ts
 
-const DEFAULT_QUESTION_COUNT = 5;
+// Was a local literal (5) that silently disagreed with constants.ts's
+// DEFAULT_QUIZ_QUESTIONS (10) — a no-args generateQuiz() call was getting a
+// smaller quiz than the constants file promised. Imported instead of
+// redeclared, same fix pattern as quiz.entity.ts's MAX_QUESTIONS_PER_QUIZ.
 const DEFAULT_QUESTION_TYPES: QuestionType[] = ['multiple_choice', 'true_false'];
 
 export interface QuizPromptOptions {
@@ -39,7 +43,7 @@ export interface QuizPromptResult {
  * questionCount: 500 should get a smaller quiz, not a 500-error.
  */
 export function resolveOptions(options: QuizPromptOptions): { count: number; types: QuestionType[] } {
-  const requestedCount = options.questionCount ?? DEFAULT_QUESTION_COUNT;
+  const requestedCount = options.questionCount ?? DEFAULT_QUIZ_QUESTIONS;
   const count = Math.min(Math.max(requestedCount, MIN_QUESTIONS_PER_QUIZ), MAX_QUESTIONS_PER_QUIZ);
 
   const requestedTypes = options.questionTypes?.filter((t) => QUESTION_TYPES.includes(t));

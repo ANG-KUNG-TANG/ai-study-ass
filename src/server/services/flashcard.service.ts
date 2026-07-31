@@ -3,15 +3,16 @@ import * as flashcardRepo from "@/server/repositories/flashcard.repo";
 import * as noteRepo from "@/server/repositories/note.repo";
 import * as intelligenceService from "@/server/services/intelligence.service";
 import { FlashcardEntity, type FlashcardDifficulty } from "@/server/entities/flashcard.entity";
-import { ForbiddenError, BadRequestError } from "@/server/utils/errors";
+import { ForbiddenError, BadRequestError, AIError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type { KnowledgeCore } from "@/server/intelligence/types";
 import { generate as aiGenerate } from "@/server/services/ai.service";
+import { DEFAULT_FLASHCARDS } from "@/server/utils/constants";
 
 export async function generateFlashcards(
   noteId: string,
   userId: string,
-  count = 10
+  count = DEFAULT_FLASHCARDS
 ): Promise<ReturnType<FlashcardEntity["toPublic"]>[]> {
   const note = await noteRepo.findByIdOrThrow(noteId);
   if (!note.belongsTo(userId)) throw new ForbiddenError();
@@ -20,20 +21,51 @@ export async function generateFlashcards(
   const mode = intelligence.getConfidenceMode();
 
   let pairs: Array<{ front: string; back: string; difficulty: FlashcardDifficulty }> = [];
+  let aiUnavailable = false;
 
   if (mode !== "AI_REQUIRED" && intelligence.core) {
     pairs = buildCardsFromCore(intelligence.core, count);
     if (pairs.length > 0 && mode === "SYMBOLIC_WITH_OPTIONAL_AI_POLISH") {
+      // polishFrontWordingOnly already swallows per-card failures (see its own
+      // try/catch) and returns the original front on error, so no wrapping
+      // needed here — a polish failure just means unpolished-but-correct cards.
       pairs = await polishFrontWordingOnly(pairs);
     }
   }
 
+  // Only reached when: mode === AI_REQUIRED, or the symbolic pass produced
+  // zero cards despite a non-AI_REQUIRED mode (sparse extraction). Either way
+  // we need AI content — but a missing/invalid API key must degrade to
+  // "return what we have" rather than 502 the whole request.
   if (pairs.length === 0) {
-    pairs = await generateCardsViaAI(intelligence, note, count);
+    try {
+      pairs = await generateCardsViaAI(intelligence, note, count);
+    } catch (err) {
+      if (!(err instanceof AIError)) throw err; // unexpected error type — don't swallow
+
+      aiUnavailable = true;
+      logger.warn("AI generation failed for flashcards — falling back to symbolic extraction only", {
+        noteId,
+        mode,
+        error: err.message,
+      });
+
+      // Last-ditch symbolic attempt even in AI_REQUIRED mode: better a few
+      // low-confidence cards than a hard failure, as long as we're honest
+      // that mode was gated toward AI. If core is null/empty this still
+      // yields [] and we fall through to the BadRequestError below.
+      if (intelligence.core) {
+        pairs = buildCardsFromCore(intelligence.core, count);
+      }
+    }
   }
 
   if (pairs.length === 0) {
-    throw new BadRequestError("Not enough content to generate flashcards for this document");
+    throw new BadRequestError(
+      aiUnavailable
+        ? "AI generation is unavailable and this document doesn't have enough extracted content to generate flashcards without it. Configure an AI provider or try a more detailed document."
+        : "Not enough content to generate flashcards for this document"
+    );
   }
 
   const entities = pairs.slice(0, count).map((p) =>
@@ -41,7 +73,7 @@ export async function generateFlashcards(
   );
 
   await flashcardRepo.createMany(entities);
-  logger.info("Flashcards generated", { noteId, userId, count: entities.length, mode });
+  logger.info("Flashcards generated", { noteId, userId, count: entities.length, mode, aiUnavailable });
   return entities.map((f) => f.toPublic());
 }
 
@@ -94,6 +126,9 @@ async function polishFrontWordingOnly(
         const rewritten = result.text.trim();
         return rewritten ? { ...p, front: rewritten } : p;
       } catch {
+        // Already tolerant of AI failure — including a missing API key, since
+        // generate() throws AIError in that case too. Falls back to the
+        // unpolished (but perfectly valid) symbolic front text.
         return p;
       }
     })
@@ -112,6 +147,13 @@ async function generateCardsViaAI(
     `Return ONLY a JSON array: { "front": string, "back": string, "difficulty": "easy"|"medium"|"hard" }`,
   ].join("\n\n");
 
+  // NOTE: this now lets AIError propagate to the caller (generateFlashcards),
+  // which decides whether to fall back to symbolic cards or surface a proper
+  // error. Previously any thrown error here would bubble uncaught all the way
+  // to the route handler as an unhandled 502 — this function itself is
+  // unchanged except for that removed inner try/catch-to-[] on the AI call
+  // (the JSON-parse try/catch below is unrelated and stays, since malformed
+  // JSON from a live provider is a different failure mode than no provider).
   const result = await aiGenerate({
     prompt,
     temperature: 0.3,

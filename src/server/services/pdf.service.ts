@@ -1,12 +1,16 @@
+// src/server/services/pdf.service.ts
 import { FileError } from "@/server/utils/errors";
 import { MAX_CONTENT_LENGTH } from "@/server/utils/constants";
 import { logger } from "@/server/utils/logger";
 
 // ─── PDF Parser ───────────────────────────────────────────────────────────────
-// Extracts raw text from a PDF buffer using pdf-parse.
-// Returns cleaned text + page count metadata.
-// install: npm install pdf-parse
-// install: npm install -D @types/pdf-parse
+// Extracts raw text from a PDF buffer using pdf-parse v2 (class-based API).
+// v2 is a full rewrite of v1 — it is NOT a callable function anymore:
+//   const { PDFParse } = require("pdf-parse");
+//   const parser = new PDFParse({ data: buffer });   // buffer goes in the constructor
+//   const result = await parser.getText();            // getText() takes ParseParameters, not a buffer
+//   await parser.destroy();                            // always free worker/memory resources
+// install: npm install pdf-parse   (v2.x — this file does not support pdf-parse v1)
 
 interface ParsedPDF {
   text: string;
@@ -15,38 +19,61 @@ interface ParsedPDF {
 }
 
 export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
-  // pdf-parse can be exported as the module itself or as the default export.
-  let pdfParse: (data: Buffer) => Promise<any>;
+  let PDFParse: any;
+  let PasswordException: any;
 
   try {
-    const pdfParseModule = await import("pdf-parse");
-    pdfParse = (pdfParseModule as any).default ?? pdfParseModule;
-  } catch {
-    throw new FileError("PDF parser not available — run: npm install pdf-parse");
+    // require, not dynamic import — pdf-parse is CJS and Next's webpack
+    // interop for `import()` on this package doesn't reliably yield the
+    // callable exports. Requires serverExternalPackages: ["pdf-parse"]
+    // in next.config.ts so webpack doesn't try to bundle it at all.
+    const mod = require("pdf-parse");
+    PDFParse = mod.PDFParse;
+    PasswordException = mod.PasswordException;
+
+    if (typeof PDFParse !== "function") {
+      throw new Error(
+        `pdf-parse export missing PDFParse class — got keys: ${Object.keys(mod).join(", ")}. ` +
+          `This file targets pdf-parse v2.x; check your installed version.`
+      );
+    }
+  } catch (err) {
+    logger.error("pdf-parse could not be resolved to the v2 PDFParse class", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+    throw new FileError("PDF parser not available — check pdf-parse installation/version");
   }
 
-  let result: Awaited<ReturnType<typeof pdfParse>>;
+  // Buffer is passed to the constructor, not to getText(). getText() itself
+  // takes a ParseParameters options object (e.g. { partial: [1,2] }), so
+  // passing the buffer there is what produces the earlier "verbosity" crash —
+  // pdf-parse tries to read config fields off the buffer.
+  const parser = new PDFParse({ data: buffer });
+
+  let result: { text: string; total?: number };
 
   try {
-    result = await pdfParse(buffer);
+    result = await parser.getText();
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    const lowerMessage = message.toLowerCase();
-
-    // Password-protected PDFs surface as pdfjs-dist's PasswordException,
-    // whose message text is usually "No password given" / "Incorrect
-    // Password" — it does NOT contain the word "encrypted", so checking
-    // for that alone misses the common case.
     const isPasswordProtected =
-      lowerMessage.includes("encrypted") ||
-      lowerMessage.includes("password") ||
+      (PasswordException && err instanceof PasswordException) ||
       (err instanceof Error && err.name === "PasswordException");
 
     if (isPasswordProtected) {
       throw new FileError("PDF is password-protected — please remove the password and re-upload");
     }
 
+    const message = err instanceof Error ? err.message : "Unknown error";
     throw new FileError(`Failed to parse PDF: ${message}`);
+  } finally {
+    // Always release the underlying pdfjs-dist worker/document, even on failure.
+    try {
+      await parser.destroy();
+    } catch (destroyErr) {
+      logger.warn("pdf-parse: failed to destroy parser instance", {
+        message: destroyErr instanceof Error ? destroyErr.message : String(destroyErr),
+      });
+    }
   }
 
   const rawText = result.text ?? "";
@@ -55,10 +82,8 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     throw new FileError("PDF appears to contain no extractable text — it may be a scanned image");
   }
 
-  // Clean extracted text
   const cleaned = cleanText(rawText);
 
-  // Truncate if over the content limit
   const text = cleaned.length > MAX_CONTENT_LENGTH
     ? cleaned.slice(0, MAX_CONTENT_LENGTH)
     : cleaned;
@@ -72,14 +97,13 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
 
   return {
     text,
-    pageCount: result.numpages ?? 0,
+    pageCount: result.total ?? 0,
     charCount: text.length,
   };
 }
 
 // ─── DOCX Parser ──────────────────────────────────────────────────────────────
-// Extracts raw text from a DOCX buffer using mammoth.
-// install: npm install mammoth
+// Unchanged — mammoth's ESM/CJS interop is reliable, not implicated in this bug.
 
 interface ParsedDOCX {
   text: string;
@@ -128,14 +152,13 @@ export async function parseDOCX(buffer: Buffer): Promise<ParsedDOCX> {
 }
 
 // ─── Text cleaner ─────────────────────────────────────────────────────────────
-// Normalises whitespace extracted from documents.
 
 function cleanText(raw: string): string {
   return raw
-    .replace(/\r\n/g, "\n")         // normalise line endings
+    .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
-    .replace(/\t/g, " ")            // tabs to spaces
-    .replace(/[ ]{2,}/g, " ")       // collapse multiple spaces
-    .replace(/\n{3,}/g, "\n\n")     // max two consecutive newlines
+    .replace(/\t/g, " ")
+    .replace(/[ ]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }

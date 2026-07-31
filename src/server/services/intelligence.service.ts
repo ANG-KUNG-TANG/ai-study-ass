@@ -50,6 +50,7 @@ export async function runAndPersistPipeline(
       facts: result.prolog.facts,
       confidence: result.confidence,
       processedAt: result.processedAt,
+      gaps: result.gaps
     });
 
     await intelligenceRepo.upsert(entity);
