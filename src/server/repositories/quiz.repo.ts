@@ -58,6 +58,9 @@ export async function findLatestByNote(noteId: string, userId: string): Promise<
   const doc = await Quiz.findOne({ noteId, userId }).sort({ createdAt: -1 });
   return doc ? toEntity(doc) : null;
 }
+export async function count(): Promise<number> {
+  return Quiz.countDocuments();
+}
 
 export async function deleteById(id: string): Promise<boolean> {
   const result = await Quiz.findByIdAndDelete(id);

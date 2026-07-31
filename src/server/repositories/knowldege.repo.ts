@@ -60,7 +60,7 @@ export function toEntity(doc: KnowledgeDocument): KnowledgeEntity {
 // silently drops and would leave a stale error message on a now-complete doc.
 export function toPersistence(input: CreateKnowledgeInput) {
   return {
-    noteId: new Types.ObjectId(input.noteId),
+    noteId: input.noteId,
     stage: input.stage,
     core: input.core,
     ontologyMatches: input.ontologyMatches,
@@ -129,6 +129,17 @@ export async function upsertFailed(
 export async function findByNoteId(noteId: string): Promise<KnowledgeEntity | null> {
   const doc = await Knowledge.findOne({ noteId });
   return doc ? toEntity(doc) : null;
+}
+
+export async function findStagesByNoteIds(noteIds: string[]): Promise<Map<string, string>> {
+  if (noteIds.length === 0) return new Map();
+  const docs = await Knowledge.find(
+    { noteId: { $in: noteIds } },
+    { noteId: 1, stage: 1 }
+  ).lean().exec();
+  const map = new Map<string, string>();
+  for (const d of docs) map.set(String(d.noteId), d.stage);
+  return map;
 }
 
 export async function deleteByNoteId(noteId: string): Promise<boolean> {

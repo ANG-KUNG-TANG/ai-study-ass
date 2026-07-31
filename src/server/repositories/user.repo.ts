@@ -149,6 +149,12 @@ export async function findMany(
   };
 }
 
+// add near findMany
+export async function findManyByIds(ids: UserId[]): Promise<UserEntity[]> {
+  if (ids.length === 0) return [];
+  const docs = await User.find({ _id: { $in: ids } }).lean().exec();
+  return docs.map(toEntity);
+}
 // ─── AGGREGATE ────────────────────────────────────────────────────────────────
 
 export async function count(

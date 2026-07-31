@@ -22,6 +22,14 @@ export interface PaginatedNotes {
   limit: number;
 }
 
+export interface AdminNoteQueryOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  fileType?: "pdf" | "docx";
+  sortBy?: "createdAt" | "updatedAt" | "title";
+  sortOrder?: "asc" | "desc";
+}
 // ─── Mapper ───────────────────────────────────────────────────────────────────
 
 function toEntity(doc: any): NoteEntity {
@@ -103,6 +111,30 @@ export async function findManyByUser(
   };
 }
 
+export async function findManyAdmin(
+  options: AdminNoteQueryOptions = {}
+): Promise<PaginatedNotes> {
+  const page = Math.max(1, options.page ?? DEFAULT_PAGE);
+  const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+  const skip = (page - 1) * limit;
+  const sortOrder = options.sortOrder === "asc" ? 1 : -1;
+  const sortBy = options.sortBy ?? "createdAt";
+
+  const filter: Record<string, unknown> = {};
+  if (options.fileType) filter.fileType = options.fileType;
+  if (options.search) {
+    const regex = new RegExp(options.search.trim(), "i");
+    filter.$or = [{ title: regex }, { fileName: regex }];
+  }
+
+  const [docs, total] = await Promise.all([
+    Note.find(filter).sort({ [sortBy]: sortOrder }).skip(skip).limit(limit).lean().exec(),
+    Note.countDocuments(filter),
+  ]);
+
+  return { data: docs.map(toEntity), total, page, limit };
+}
+
 // ─── Create ───────────────────────────────────────────────────────────────────
 
 export async function create(entity: NoteEntity): Promise<NoteEntity> {
@@ -126,6 +158,11 @@ export async function create(entity: NoteEntity): Promise<NoteEntity> {
 export async function updateSummary(id: string, summary: string): Promise<void> {
   await Note.findByIdAndUpdate(id, { summary, updatedAt: new Date() });
   logger.info("Note summary updated", { noteId: id });
+}
+
+// add near the other "Read — list" functions
+export async function count(): Promise<number> {
+  return Note.countDocuments();
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
