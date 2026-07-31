@@ -19,9 +19,10 @@
 import { z } from "zod";
 import type { AuthContext } from "@/server/middleware/auth.middleware";
 import { successResponse } from "@/server/utils/response";
-import { generateSummary } from "@/server/services/summiary/summary.service";
+import { generateSummary } from "@/server/services/summary/summary.service";
 import { findById as findNoteById } from "@/server/repositories/note.repo";
 import { ForbiddenError, ValidationError } from "@/server/utils/errors";
+import { logActivity } from "@/server/services/auditLog.service";
 
 const bodySchema = z.object({
   noteId: z.string().min(1),
@@ -50,6 +51,14 @@ export async function postSummary(
   }
 
   const result = await generateSummary(noteId, { force });
+
+  logActivity({
+    actorId: auth.userId,
+    actorEmail: auth.email,
+    action: "summary.generated",
+    targetType: "note",
+    targetId: noteId,
+  });
 
   return successResponse(result);
 }

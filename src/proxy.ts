@@ -5,7 +5,8 @@ import { COOKIE_REFRESH_TOKEN } from "@/server/utils/constants";
 
 // ─── Route config ─────────────────────────────────────────────────────────────
 
-// Public routes — no token required
+// Public pages — no session required. Prefixed with /auth to match actual
+// page locations (src/app/auth/login, src/app/auth/logout, ...).
 const PUBLIC_ROUTES = [
   "/auth/login",
   "/auth/register",
@@ -22,18 +23,28 @@ const PUBLIC_API_ROUTES = [
   "/api/auth/verify-email",
   "/api/auth/forgot-password",
   "/api/auth/reset-password",
+  "/api/auth/resend-verification",
   "/api/health",
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const isPublicPage = (p: string) => PUBLIC_ROUTES.some((r) => p.startsWith(r));
-
 const isPublicApi = (p: string) => PUBLIC_API_ROUTES.some((r) => p.startsWith(r));
-
 const isApiRoute = (p: string) => p.startsWith("/api/");
 
-async function verifyToken(token: string): Promise<boolean> {
+async function verifySession(token: string | undefined): Promise<{ role: string } | null> {
+  if (!token) return null;
+  try {
+    const secret = new TextEncoder().encode(process.env.JWT_REFRESH_SECRET);
+    const { payload } = await jwtVerify(token, secret);
+    return payload as unknown as { role: string };
+  } catch {
+    return null; // expired/invalid — DB revocation still isn't checked here, that's /api/auth/me's job
+  }
+}
+
+async function verifyAccessToken(token: string): Promise<boolean> {
   try {
     const secret = new TextEncoder().encode(process.env.JWT_ACCESS_SECRET);
     await jwtVerify(token, secret);
@@ -44,17 +55,14 @@ async function verifyToken(token: string): Promise<boolean> {
 }
 
 // ─── Proxy ────────────────────────────────────────────────────────────────────
-// Runs on the Node.js runtime before any route handler (Next.js 16: proxy.ts
-// replaces the deprecated middleware.ts — same job, new name, no edge runtime).
-// Handles redirect logic for pages + blocks unauthenticated API calls early.
-// Note: DB revocation check (verifyAccessTokenFull) still happens in
-// auth.middleware.ts's withAuth — this is a fast lightweight gate, not the
-// full trust check.
+// Next.js 16: proxy.ts replaces the deprecated middleware.ts. Runs on the
+// Node.js runtime before any route handler. Handles page redirect logic +
+// blocks unauthenticated API calls early. DB revocation check still happens
+// in auth.middleware.ts's withAuth — this is a fast, lightweight gate only.
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // ── Skip static/internal assets ─────────────────────────────────────────────
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
@@ -65,49 +73,46 @@ export async function proxy(req: NextRequest) {
 
   // ── API routes ───────────────────────────────────────────────────────────────
   if (isApiRoute(pathname)) {
-    // Public API routes — always allow through
     if (isPublicApi(pathname)) return NextResponse.next();
 
-    // Protected API — must have a valid Bearer token
     const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7).trim()
-      : null;
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
 
-    if (!token || !(await verifyToken(token))) {
+    if (!token || !(await verifyAccessToken(token))) {
       return NextResponse.json(
-        {
-          success: false,
-          error: { code: "UNAUTHORIZED", message: "Authentication required" },
-        },
+        { success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } },
         { status: 401 }
       );
     }
-
     return NextResponse.next();
   }
 
   // ── Page routes ─────────────────────────────────────────────────────────────
-  // Access token lives in memory on the client (not in a cookie). We use the
-  // refresh token cookie as a proxy signal for "is logged in" — the real auth
-  // check happens when the page loads and calls /api/auth/me.
-  const hasSession = Boolean(req.cookies.get(COOKIE_REFRESH_TOKEN)?.value);
+  const session = await verifySession(req.cookies.get(COOKIE_REFRESH_TOKEN)?.value);
+  const isPublicPageRoute = isPublicPage(pathname);
 
-  // Already logged in — redirect away from auth pages
-  if (isPublicPage(pathname) && hasSession) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  if (session && isPublicPageRoute) {
+    const url = req.nextUrl.clone();
+    url.pathname = session.role === "admin" ? "/admin/overview" : "/student/dashboard";
+    return NextResponse.redirect(url);
   }
 
-  // Not logged in — redirect to login, preserve destination
-  if (!isPublicPage(pathname) && !hasSession) {
-    const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("from", pathname);
-    return NextResponse.redirect(loginUrl);
+  if (!session && !isPublicPageRoute) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/auth/login"; // was "/login" — didn't exist, caused the redirect loop
+    url.searchParams.set("from", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  if (session && pathname.startsWith("/admin") && session.role !== "admin") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/student/dashboard";
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|public/).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|public/|.well-known/).*)"],
 };

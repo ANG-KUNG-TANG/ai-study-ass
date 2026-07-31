@@ -21,9 +21,10 @@ import { successResponse, createdResponse, noContentResponse } from '@/server/ut
 import { deleteQuiz, generateQuiz, getAllQuizzesByNote, getAllQuizzesByUser } from '@/server/services/quiz/quiz.service';
 import { findById as findQuizById } from '@/server/repositories/quiz.repo';
 import { findById as findNoteById } from '@/server/repositories/note.repo';
-import { QUESTION_TYPES } from '../entities/quiz.entity';
+import { QUESTION_TYPES } from '@/server/entities/quiz.entity';
 import { ForbiddenError, NotFoundError } from '../utils/errors';
 import { isValidObjectId } from 'mongoose';
+import { logActivity } from '@/server/services/auditLog.service';
 
 // Matches RouteContext in auth.middleware.ts: params is a Promise (Next.js 15
 // async params), not a plain object.
@@ -45,10 +46,7 @@ const generateBodySchema = z.object({
  */
 async function assertOwnsNote(noteId: string, userId: string): Promise<void> {
   const note = await findNoteById(noteId);
-  // Deliberately the same error for "doesn't exist" and "exists but isn't
-  // yours" — a caller shouldn't be able to distinguish the two and use
-  // that to enumerate valid noteIds belonging to other users.
-  if (!note || String(note.userId) !== userId) {
+  if (!note || !note.belongsTo(userId)) {
     throw new ForbiddenError('You do not have access to this note.');
   }
 }
@@ -74,9 +72,17 @@ export async function generateQuizController(
     dropInvalidQuestions,
   });
 
+  logActivity({
+    actorId: auth.userId,
+    actorEmail: auth.email,
+    action: "quiz.generated",
+    targetType: "note",
+    targetId: noteId,
+    metadata: { questionCount: quiz.toJSON().questions?.length },
+  });
+
   return createdResponse(quiz.toJSON());
 }
-
 /**
  * GET /api/quiz/[id]
  */

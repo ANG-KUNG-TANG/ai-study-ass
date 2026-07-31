@@ -15,6 +15,16 @@ export const userQuerySchema = z.object({
 
 export type UserQueryInput = z.infer<typeof userQuerySchema>;
 
+export const noteQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+  fileType: z.enum(["pdf", "docx"]).optional(),
+  search: z.string().trim().max(100).optional(),
+  sortBy: z.enum(["createdAt", "updatedAt", "title"]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
+});
+
+export type NoteQueryInput = z.infer<typeof noteQuerySchema>;
 // ─── Update role ──────────────────────────────────────────────────────────────
 
 export const updateRoleSchema = z.object({

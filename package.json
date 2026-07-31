@@ -2,6 +2,7 @@
   "name": "ai-study-assistant",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,8 +15,10 @@
   "dependencies": {
     "@google/genai": "^2.10.0",
     "bcryptjs": "^3.0.3",
+    "date-fns": "^4.4.0",
     "jose": "^6.2.3",
     "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.25.0",
     "mammoth": "^1.12.0",
     "mongoose": "^9.7.2",
     "next": "16.2.9",

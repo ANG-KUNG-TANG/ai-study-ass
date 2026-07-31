@@ -15,6 +15,13 @@ export interface AuthContext {
 
 export type RouteContext = { params: Promise<Record<string, string>> };
 
+// Handler order is (req, context, auth) — this is the real, established
+// convention across the codebase (chat/flashcard/intelligence/knowledge/
+// note/quiz/summary controllers all depend on it). Do NOT flip this: an
+// earlier attempt to "fix" this to (req, auth, context) broke every one of
+// those controllers, because JS won't error on the mismatch — it just
+// silently hands the wrong object into whichever slot a controller reads
+// `auth.userId` from.
 type AuthedHandler<T = unknown> = (
   req: Request,
   context: RouteContext,

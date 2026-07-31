@@ -5,6 +5,6 @@ import { getUserStats } from "@/server/controller/admin.controller";
 
 // GET /api/admin/users/stats
 export const GET = withRole("admin")(async (req, _context, auth) => {
-  apiLimiter(req);
+  apiLimiter(req, "admin:user-stats");
   return getUserStats(req as NextRequest, auth);
 });

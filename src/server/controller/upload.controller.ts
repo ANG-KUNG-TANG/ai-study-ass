@@ -5,7 +5,7 @@ import { createdResponse } from "@/server/utils/response";
 import { extractFileFromRequest, processUpload } from "@/server/services/upload.service";
 import { createNote } from "@/server/services/note.service";
 import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
-
+import { logActivity } from "@/server/services/auditLog.service";
 // POST /api/upload
 // NOTE: authLimiter(req) is called without `await` here, matching the
 // original route.ts. If authLimiter is async internally, add `await` —
@@ -22,6 +22,15 @@ export async function uploadNoteController(
   const file = await extractFileFromRequest(req);
   const processed = await processUpload(file);
   const note = await createNote(auth.userId, processed);
+
+  logActivity({
+    actorId: auth.userId,
+    actorEmail: auth.email,
+    action: "note.uploaded",
+    targetType: "note",
+    targetId: note.id,
+    metadata: { title: note.title },
+  });
 
   return createdResponse(note, "Note created successfully");
 }

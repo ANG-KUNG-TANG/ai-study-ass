@@ -2,7 +2,7 @@
 
 export const ALLOWED_MIME_TYPES = [
     'application/pdf',
-    'application/vnd.openxmlformts-officedocument.workprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 ] as const;
 
 export const ALLOWED_EXTENSIONS = ['.pdf', '.docx'] as const;
@@ -17,7 +17,7 @@ export const MAX_CONTENT_LENGTH = 75_000;
 
 
 //pagination
-export const DEFAULT_PAGE=1;
+export const DEFAULT_PAGE = 1;
 export const DEFAULT_LIMIT = 10;
 export const MAX_LIMIT = 50;
 
@@ -42,7 +42,7 @@ export const BCRYPT_ROUNDS = 12;
 export const COOKIE_REFRESH_TOKEN = "refresh_token";
 
 //30days in milliseconds
-export const COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 1000;
+export const COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 //Rate Limits
 
@@ -50,7 +50,7 @@ export const COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 1000;
 //These mirror the Rate Limiter Block ()
 export const RATE_LIMIT_AUTH = {max: 10, windowMs: 15 * 60 * 1000}
 export const RATE_LIMIT_API = {max: 100, windowMs: 60 * 1000}
-export const RATE_LIMIT_AI = {max: 20, windowMS: 60 * 1000} 
+export const RATE_LIMIT_AI = {max: 20, windowMs: 60 * 1000} 
 
 
 //AI retry

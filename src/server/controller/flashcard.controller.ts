@@ -17,6 +17,7 @@ import type { AuthContext, RouteContext } from "@/server/middleware/auth.middlew
 import * as flashcardService from "@/server/services/flashcard.service";
 import { ValidationError } from "@/server/utils/errors";
 import { FLASHCARD_RULES } from "@/server/entities/flashcard.entity";
+import { logActivity } from "@/server/services/auditLog.service";
 
 const generateBodySchema = z.object({
   count: z
@@ -40,26 +41,30 @@ export async function generateFlashcards(
 ): Promise<NextResponse> {
   const { id: noteId } = await context.params;
 
-  // count is optional, so an empty body is valid here — don't call req.json()
-  // directly on a possibly-empty body (see summary.controller.ts's 422 fix).
   let json: unknown = {};
   const rawText = await req.text();
   if (rawText.trim().length > 0) {
     try {
       json = JSON.parse(rawText);
     } catch {
-      throw new ValidationError("Validation failed", {
-        body: "Request body must be valid JSON",
-      });
+      throw new ValidationError("Validation failed", { body: "Request body must be valid JSON" });
     }
   }
 
   const { count } = generateBodySchema.parse(json);
-
   const flashcards = await flashcardService.generateFlashcards(noteId, auth.userId, count);
+
+  logActivity({
+    actorId: auth.userId,
+    actorEmail: auth.email,
+    action: "flashcards.generated",
+    targetType: "note",
+    targetId: noteId,
+    metadata: { cardCount: flashcards.length },
+  });
+
   return createdResponse(flashcards, "Flashcards generated successfully");
 }
-
 // ─── GET /api/notes/[id]/flashcards ───────────────────────────────────────────
 export async function listFlashcards(
   _req: Request,

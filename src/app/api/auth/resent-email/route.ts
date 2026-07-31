@@ -6,6 +6,6 @@ import { resendVerification } from "@/server/controller/auth.controller";
 // POST /api/auth/resend-verification
 // Public. Rate-limited to discourage email-bombing a target address.
 export const POST = withErrorHandler(async (req) => {
-  authLimiter(req);
+  authLimiter(req, 'resend-verification');
   return resendVerification(req as NextRequest);
 });

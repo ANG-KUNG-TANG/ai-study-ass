@@ -14,12 +14,13 @@ import type { AuthContext, RouteContext } from '@/server/middleware/auth.middlew
 // may end up reachable from more than one route in future, and "the caller
 // already checked" is exactly the kind of assumption that quietly breaks.
 
+// server/knowledge/knowledge.controller.ts — param destructuring updated
 export async function getKnowledgeByNote(
   _req: Request,
   context: RouteContext,
   auth: AuthContext
 ): Promise<NextResponse> {
-  const { noteId } = await context.params;
+  const { id: noteId } = await context.params;   // was: const { noteId } = ...
 
   const note = await noteRepo.findByIdOrThrow(noteId);
   if (!note.belongsTo(auth.userId)) throw new ForbiddenError();
@@ -33,7 +34,7 @@ export async function deleteKnowledgeByNote(
   context: RouteContext,
   auth: AuthContext
 ): Promise<NextResponse> {
-  const { noteId } = await context.params;
+  const { id: noteId } = await context.params;   // was: const { noteId } = ...
 
   const note = await noteRepo.findByIdOrThrow(noteId);
   if (!note.belongsTo(auth.userId)) throw new ForbiddenError();

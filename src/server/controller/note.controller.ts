@@ -1,8 +1,9 @@
 import type { NextResponse } from "next/server";
 import * as noteService from "@/server/services/note.service";
-import { successResponse, noContentResponse } from "@/server/utils/response";
+import { successResponse, noContentResponse, paginatedResponse } from "@/server/utils/response";
 import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
 import { parseNoteQuery } from "@/server/validators/note.validators";
+import { logActivity } from "@/server/services/auditLog.service";
 
 // GET /api/notes
 export async function listNotes(
@@ -22,7 +23,7 @@ export async function listNotes(
     sortBy: options.sortBy === "fileSize" ? undefined : options.sortBy,
   };
   const result = await noteService.listNotes(auth.userId, normalizedOptions);
-  return successResponse(result, { status: 200 });
+  return paginatedResponse(result.data, result.meta);
 }
 
 // GET /api/notes/[id]
@@ -43,6 +44,15 @@ export async function deleteNote(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const { id } = await context.params;
+  const note = await noteService.getNoteById(id, auth.userId); // fetch before delete for title/metadata
   await noteService.deleteNote(id, auth.userId);
+  logActivity({
+    actorId: auth.userId,
+    actorEmail: auth.email,
+    action: "note.deleted",
+    targetType: "note",
+    targetId: id,
+    metadata: { title: note.title },
+  });
   return noContentResponse();
 }

@@ -78,10 +78,19 @@ export interface OntologyConcept {
 export type MatchType = 'exact' | 'alias' | 'fuzzy' | 'unknown';
 
 export interface ResolvedConcept {
-  concept: OntologyConcept;
+  concept: OntologyConcept;   // ← nested object, not a flat id
   confidence: number;
   matchType: MatchType;
   rawInput: string;
+}
+
+export interface OntologyConcept {
+  id: string;
+  label: string;
+  aliases: string[];
+  ancestors: string[];
+  relations: OntologyRelation[];
+  domain: OntologyDomain;
 }
 
 // ─── Knowledge graph ───────────────────────────────────────────────────────────

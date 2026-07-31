@@ -8,7 +8,7 @@ import type { NextResponse } from "next/server";
 import { z } from "zod";
 import { successResponse, createdResponse, noContentResponse } from "@/server/utils/response";
 import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
-import * as chatService from "@/server/services/chat.service";
+import * as chatService from "@/server/services/chat/chat.service";
 import { ValidationError } from "@/server/utils/errors";
 import { CHAT_RULES } from "@/server/entities/chat.entity";
 

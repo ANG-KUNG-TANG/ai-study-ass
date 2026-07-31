@@ -6,6 +6,6 @@ import { refresh } from "@/server/controller/auth.controller";
 // POST /api/auth/refresh
 // Public (identity comes from the refresh-token cookie, not a Bearer token).
 export const POST = withErrorHandler(async (req) => {
-  authLimiter(req);
+  authLimiter(req, 'refresh');
   return refresh(req as NextRequest);
 });

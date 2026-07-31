@@ -5,7 +5,7 @@ import { banUser } from "@/server/controller/admin.controller";
 
 // POST /api/admin/users/[id]/ban
 export const POST = withRole("admin")(async (req, context, auth) => {
-  apiLimiter(req);
+  apiLimiter(req, 'ban');
   const params = await context.params;
-  return banUser(req as NextRequest, auth, { params: params as { id: string } });
+  return banUser(req as NextRequest,  auth, { params: params as { id: string } });
 });

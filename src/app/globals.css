@@ -1,0 +1,9 @@
+/* src/app/globals.css */
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+body {
+  background:
+    radial-gradient(circle, theme('colors.line-soft') 1px, transparent 1px) 0 0 / 22px 22px,
+    theme('colors.paper');
+}

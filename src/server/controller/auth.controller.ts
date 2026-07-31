@@ -18,12 +18,17 @@ import {
   resetPasswordSchema,
 } from "@/server/validators/auth.validators";
 import { z } from "zod";
-import type { AuthContext } from "@/server/middleware/auth.middleware";
+import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
+import { handleError } from "@/server/middleware/error.middleware";
+import { COOKIE_REFRESH_TOKEN } from "../utils/constants";
+import { logActivity } from "../services/auditLog.service";
+
 
 // ─── Purpose ──────────────────────────────────────────────────────────────────
 // Public routes (register, login, refresh, verify, forgot/reset password) take
-// only `req`. Routes that need an identity (logout, me, change password) take
-// `(req, ctx)` and are expected to sit behind withAuth.
+// only `req`. Routes that need an identity (logout, me, change password) sit
+// behind withAuth and take (req, context, auth) — matching withAuth's real
+// call signature. auth.userId (NOT context) is where the identity lives.
 
 const resendVerificationSchema = z.object({
   email: z.string({ error: "Email is required" }).email("Invalid email format").toLowerCase().trim(),
@@ -41,6 +46,11 @@ function requireRefreshCookie(req: NextRequest): string {
 export async function register(req: NextRequest): Promise<NextResponse> {
   const input = await validateBody(req, registerSchema);
   const result = await authService.register(input, sendVerificationEmail);
+  // result may be a simple message object or a user object. Guard before logging.
+  if ((result as any)?.id) {
+    const r = result as any;
+    logActivity({ actorId: r.id, actorEmail: r.email, action: "auth.register" });
+  }
   return createdResponse(result);
 }
 
@@ -64,14 +74,24 @@ export async function resendVerification(req: NextRequest): Promise<NextResponse
 export async function login(req: NextRequest): Promise<NextResponse> {
   const input = await validateBody(req, loginSchema);
   const { user, tokens } = await authService.login(input);
-
-  const res = successResponse({ user, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+  logActivity({ actorId: user.id, actorEmail: user.email, action: "auth.login" });
+  const res = successResponse({ user, accessToken: tokens.accessToken });
   return setRefreshTokenCookie(res, tokens.refreshToken);
 }
 
 // POST /api/auth/logout
-export async function logout(_req: NextRequest, ctx: AuthContext): Promise<NextResponse> {
-  await authService.logout(ctx.userId);
+export async function logout(
+  req: NextRequest,
+  _context: RouteContext,
+  auth: AuthContext
+): Promise<NextResponse> {
+  const authHeader = req.headers.get("Authorization");
+  const accessToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : undefined;
+
+  await authService.logout(auth.userId, accessToken);
+  logActivity({ actorId: auth.userId, actorEmail: auth.email, action: "auth.logout" });
   const res = noContentResponse();
   return clearRefreshTokenCookie(res);
 }
@@ -79,24 +99,40 @@ export async function logout(_req: NextRequest, ctx: AuthContext): Promise<NextR
 // POST /api/auth/refresh
 export async function refresh(req: NextRequest): Promise<NextResponse> {
   const incomingRefreshToken = requireRefreshCookie(req);
-  const tokens = await authService.refreshTokens(incomingRefreshToken);
-
-  const res = successResponse({ accessToken: tokens.accessToken });
-  return setRefreshTokenCookie(res, tokens.refreshToken);
+  try {
+    const tokens = await authService.refreshTokens(incomingRefreshToken);
+    const res = successResponse({ accessToken: tokens.accessToken });
+    return setRefreshTokenCookie(res, tokens.refreshToken);
+  } catch (err) {
+    // The refresh cookie the client is holding is dead (expired, reused, or
+    // the user no longer exists) — clear it so the client stops resending it.
+    // Without this, a failed refresh loops forever: same bad cookie in,
+    // same 401 out, burning the authLimiter budget every retry.
+    const res = handleError(err);
+    return clearRefreshTokenCookie(res);
+  }
 }
 
 // ─── Profile / password ────────────────────────────────────────────────────────
 
 // GET /api/auth/me
-export async function getMe(_req: NextRequest, ctx: AuthContext): Promise<NextResponse> {
-  const user = await authService.getMe(ctx.userId);
+export async function getMe(
+  _req: NextRequest,
+  _context: RouteContext,
+  auth: AuthContext
+): Promise<NextResponse> {
+  const user = await authService.getMe(auth.userId);
   return successResponse(user);
 }
 
 // PATCH /api/auth/password
-export async function changePassword(req: NextRequest, ctx: AuthContext): Promise<NextResponse> {
+export async function changePassword(
+  req: NextRequest,
+  _context: RouteContext,
+  auth: AuthContext
+): Promise<NextResponse> {
   const input = await validateBody(req, changePasswordSchema);
-  await authService.changePassword(ctx.userId, input);
+  await authService.changePassword(auth.userId, input);
   // changePassword revokes all sessions server-side — clear this device's cookie too
   const res = successResponse({ message: "Password changed — please log in again" });
   return clearRefreshTokenCookie(res);

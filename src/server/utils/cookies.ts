@@ -22,8 +22,8 @@ export function setRefreshTokenCookie(res: NextResponse, token: string): NextRes
   res.cookies.set(COOKIE_REFRESH_TOKEN, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: REFRESH_COOKIE_MAX_AGE_SECONDS,
+    sameSite: "lax",
+    maxAge: COOKIE_MAX_AGE_MS / 1000,
     path: "/",
   });
   return res;
