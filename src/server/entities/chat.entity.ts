@@ -8,7 +8,11 @@ export const CHAT_RULES = {
 } as const;
 
 export type ChatId = string;
-export type AIProvider = "openai" | "gemini";
+// Widened to include "symbolic": SYMBOLIC_ONLY-mode answers (and AI-fallback
+// answers when the AI call fails) never touch a provider, so they need a
+// third value here. This is a strict superset of the old "openai" | "gemini"
+// — nothing that only produced those two values needs to change.
+export type AIProvider = "openai" | "gemini" | "symbolic";
 
 export interface ChatProps {
   id: ChatId;

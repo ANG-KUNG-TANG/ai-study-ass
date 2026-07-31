@@ -1,31 +1,27 @@
-// =============================================================================
-// server/entities/quiz.entity.ts
-//
-// Owns Quiz's business rules. The Mongoose schema (server/models/Quiz.ts)
-// imports QUESTION_TYPES from here as the single source of truth for the
-// enum, rather than declaring it separately — same "single-source constants"
-// principle you use for cookie names and rate-limit keys.
-//
-// Uses # private fields for true runtime encapsulation (not just a
-// TypeScript `private` compile-time annotation) — a QuizEntity instance
-// cannot have its internals mutated from outside except through the
-// methods this class exposes.
-// =============================================================================
+import { ValidationError } from "@/server/utils/errors";
+import { MAX_QUIZ_QUESTIONS } from "@/server/utils/constants";
 
-export const QUESTION_TYPES = ['multiple_choice', 'true_false', 'short_answer'] as const;
+// ─── Question types ─────────────────────────────────────────────────────────
+export const QUESTION_TYPES = ["multiple_choice", "true_false", "short_answer"] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
+// Reuses the limit already defined in constants.ts rather than redeclaring —
+// quiz.prompt.ts imports this under the name MAX_QUESTIONS_PER_QUIZ, so the
+// export name stays the same even though the source of truth moved.
+export const MAX_QUESTIONS_PER_QUIZ = MAX_QUIZ_QUESTIONS;
 export const MIN_QUESTIONS_PER_QUIZ = 1;
-export const MAX_QUESTIONS_PER_QUIZ = 20;
-export const MIN_MULTIPLE_CHOICE_OPTIONS = 2;
-export const MAX_MULTIPLE_CHOICE_OPTIONS = 6;
 
+// ─── Shapes ──────────────────────────────────────────────────────────────────
 export interface QuizQuestionInput {
   question: string;
   questionType: QuestionType;
   options: string[];
   answer: string;
   explanation?: string;
+}
+
+export interface QuizQuestionPublic extends QuizQuestionInput {
+  id: string;
 }
 
 export interface QuizEntityProps {
@@ -36,129 +32,107 @@ export interface QuizEntityProps {
   createdAt: Date;
 }
 
-/** Thrown when constructing a QuizEntity with data that violates its own rules. */
-export class QuizValidationError extends Error {
-  constructor(message: string) {
-    super(`QuizEntity validation failed: ${message}`);
-    this.name = 'QuizValidationError';
+export interface QuizPublic {
+  id: string;
+  noteId: string;
+  userId: string;
+  questions: QuizQuestionPublic[];
+  createdAt: Date;
+}
+
+// ─── Error ───────────────────────────────────────────────────────────────────
+export class QuizValidationError extends ValidationError {
+  constructor(message: string, fields?: Record<string, string>) {
+    super(message, fields);
+    this.name = "QuizValidationError";
   }
 }
 
+// ─── Validation ──────────────────────────────────────────────────────────────
+function validateQuestion(q: QuizQuestionInput, index: number): void {
+  if (!q.question || q.question.trim().length === 0) {
+    throw new QuizValidationError("Validation failed", {
+      [`questions.${index}.question`]: "Question text is required",
+    });
+  }
+  if (!QUESTION_TYPES.includes(q.questionType)) {
+    throw new QuizValidationError("Validation failed", {
+      [`questions.${index}.questionType`]: `Must be one of ${QUESTION_TYPES.join(", ")}`,
+    });
+  }
+  if (q.questionType === "multiple_choice") {
+    if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 6) {
+      throw new QuizValidationError("Validation failed", {
+        [`questions.${index}.options`]: "multiple_choice requires 2-6 options",
+      });
+    }
+    if (!q.options.includes(q.answer)) {
+      throw new QuizValidationError("Validation failed", {
+        [`questions.${index}.answer`]: "Answer must exactly match one of the options",
+      });
+    }
+  }
+  if (q.questionType === "true_false" && q.answer !== "True" && q.answer !== "False") {
+    throw new QuizValidationError("Validation failed", {
+      [`questions.${index}.answer`]: 'Answer must be exactly "True" or "False"',
+    });
+  }
+  if (q.questionType === "short_answer" && (!q.answer || q.answer.trim().length === 0)) {
+    throw new QuizValidationError("Validation failed", {
+      [`questions.${index}.answer`]: "Answer is required",
+    });
+  }
+}
+
+// ─── Entity ──────────────────────────────────────────────────────────────────
+// Public constructor (not a private-constructor + static create() split like
+// NoteEntity/UserEntity) — quiz.service.ts's dropInvalidQuestions path calls
+// `new QuizEntity(...)` directly per-question as a validation probe, so the
+// constructor itself has to be the validation gate. Confirmed against the
+// real quiz.service.ts — this call site exists exactly as assumed.
 export class QuizEntity {
-  readonly #id: string;
-  readonly #noteId: string;
-  readonly #userId: string;
-  readonly #questions: QuizQuestionInput[];
-  readonly #createdAt: Date;
+  #id: string;
+  #noteId: string;
+  #userId: string;
+  #questions: QuizQuestionInput[];
+  #createdAt: Date;
 
   constructor(props: QuizEntityProps) {
-    QuizEntity.#validateQuestions(props.questions);
+    if (!Array.isArray(props.questions) || props.questions.length < MIN_QUESTIONS_PER_QUIZ) {
+      throw new QuizValidationError("Validation failed", {
+        questions: `Quiz must have at least ${MIN_QUESTIONS_PER_QUIZ} question(s)`,
+      });
+    }
+    if (props.questions.length > MAX_QUESTIONS_PER_QUIZ) {
+      throw new QuizValidationError("Validation failed", {
+        questions: `Quiz cannot exceed ${MAX_QUESTIONS_PER_QUIZ} questions`,
+      });
+    }
+    props.questions.forEach(validateQuestion);
 
     this.#id = props.id;
     this.#noteId = props.noteId;
     this.#userId = props.userId;
-    // Defensive copy — callers holding a reference to the original array
-    // shouldn't be able to mutate this entity's internal state after
-    // construction.
-    this.#questions = props.questions.map((q) => ({ ...q, options: [...q.options] }));
+    this.#questions = props.questions;
     this.#createdAt = props.createdAt;
   }
 
-  get id(): string {
-    return this.#id;
-  }
-  get noteId(): string {
-    return this.#noteId;
-  }
-  get userId(): string {
-    return this.#userId;
-  }
-  get questions(): readonly QuizQuestionInput[] {
-    return this.#questions;
-  }
-  get questionCount(): number {
-    return this.#questions.length;
-  }
-  get createdAt(): Date {
-    return this.#createdAt;
-  }
+  get id(): string { return this.#id; }
+  get noteId(): string { return this.#noteId; }
+  get userId(): string { return this.#userId; }
+  get questions(): QuizQuestionInput[] { return this.#questions; }
+  get createdAt(): Date { return this.#createdAt; }
 
-  /**
-   * Checks a submitted answer against the stored correct answer for
-   * question at `index`. Case-insensitive, whitespace-trimmed comparison —
-   * "Paris " and "paris" should both count as correct for short_answer.
-   */
-  checkAnswer(index: number, submitted: string): boolean {
-    const q = this.#questions[index];
-    if (!q) {
-      throw new QuizValidationError(`No question at index ${index} (quiz has ${this.#questions.length}).`);
-    }
-    return q.answer.trim().toLowerCase() === submitted.trim().toLowerCase();
-  }
-
-  /** Plain-object projection for API responses / persistence. */
-  toJSON() {
+  // Synthesizes a stable per-question id (`${quizId}-q${index}`) since raw
+  // AI/symbolic output has no id concept — needed for React keys and for
+  // tracking "which question is the student currently on" client-side.
+  toJSON(): QuizPublic {
     return {
       id: this.#id,
       noteId: this.#noteId,
       userId: this.#userId,
-      questions: this.#questions,
+      questions: this.#questions.map((q, i) => ({ id: `${this.#id}-q${i}`, ...q })),
       createdAt: this.#createdAt,
     };
-  }
-
-  // ── Business rules ──────────────────────────────────────────────────────────
-
-  static #validateQuestions(questions: QuizQuestionInput[]): void {
-    if (!Array.isArray(questions) || questions.length < MIN_QUESTIONS_PER_QUIZ) {
-      throw new QuizValidationError(`must have at least ${MIN_QUESTIONS_PER_QUIZ} question.`);
-    }
-    if (questions.length > MAX_QUESTIONS_PER_QUIZ) {
-      throw new QuizValidationError(`cannot have more than ${MAX_QUESTIONS_PER_QUIZ} questions.`);
-    }
-
-    questions.forEach((q, i) => QuizEntity.#validateQuestion(q, i));
-  }
-
-  static #validateQuestion(q: QuizQuestionInput, index: number): void {
-    const prefix = `question[${index}]`;
-
-    if (!q.question || q.question.trim().length === 0) {
-      throw new QuizValidationError(`${prefix}.question must be a non-empty string.`);
-    }
-    if (!QUESTION_TYPES.includes(q.questionType)) {
-      throw new QuizValidationError(`${prefix}.questionType must be one of ${QUESTION_TYPES.join(', ')}.`);
-    }
-    if (!q.answer || q.answer.trim().length === 0) {
-      throw new QuizValidationError(`${prefix}.answer must be a non-empty string.`);
-    }
-
-    switch (q.questionType) {
-      case 'multiple_choice':
-        if (
-          q.options.length < MIN_MULTIPLE_CHOICE_OPTIONS ||
-          q.options.length > MAX_MULTIPLE_CHOICE_OPTIONS
-        ) {
-          throw new QuizValidationError(
-            `${prefix}.options must have between ${MIN_MULTIPLE_CHOICE_OPTIONS} and ${MAX_MULTIPLE_CHOICE_OPTIONS} options for a multiple_choice question.`,
-          );
-        }
-        if (!q.options.some((opt) => opt.trim().toLowerCase() === q.answer.trim().toLowerCase())) {
-          throw new QuizValidationError(
-            `${prefix}.answer ("${q.answer}") must exactly match one of its own options.`,
-          );
-        }
-        break;
-
-      case 'true_false':
-        if (!['true', 'false'].includes(q.answer.trim().toLowerCase())) {
-          throw new QuizValidationError(`${prefix}.answer must be "True" or "False" for a true_false question.`);
-        }
-        break;
-
-      case 'short_answer':
-        // No options constraint — free text. Nothing further to validate.
-        break;
-    }
   }
 }
