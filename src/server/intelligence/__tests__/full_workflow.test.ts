@@ -16,8 +16,8 @@
 
 import { runPipeline } from '../engine';
 import { ontologyCache } from '../ontology/ontology.cache';
-import { RawDocument } from '../pipeline/types';
-import { AIGenerateFn } from '../types';
+import type { RawDocument } from '../pipeline/types';
+import type { AIGenerateFn } from '../types';
 
 // ─── Test fixtures ───────────────────────────────────────────────────────────
 
@@ -109,7 +109,7 @@ describe('Strong paper: symbolic pipeline alone should be sufficient', () => {
 
     expect(result.stage).toBe('complete');
     expect(result.core.method).not.toBeNull();
-    expect(result.core.dataset).not.toBeNull();
+    expect(result.core.dataset?.toLowerCase()).toBe('cifar-10');
     expect(result.core.accuracy).toBe(96.2);
     expect(result.gaps.missingFields).toHaveLength(0);
     expect(result.gaps.missingSections).toHaveLength(0);

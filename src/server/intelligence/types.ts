@@ -84,15 +84,6 @@ export interface ResolvedConcept {
   rawInput: string;
 }
 
-export interface OntologyConcept {
-  id: string;
-  label: string;
-  aliases: string[];
-  ancestors: string[];
-  relations: OntologyRelation[];
-  domain: OntologyDomain;
-}
-
 // ─── Knowledge graph ───────────────────────────────────────────────────────────
 
 export type NodeType = 'paper' | 'concept' | 'method' | 'dataset' | 'metric' | 'task';
@@ -285,13 +276,14 @@ export type ExpectedSection =
 
 export interface KnowledgeGap {
   missingFields: ExpectedField[];
+  /** Human-readable labels corresponding to missingFields. */
+  structuralGaps: string[];
+  /** Related ontology concepts expected from primary concepts but not observed. */
+  domainGaps: string[];
   missingSections: ExpectedSection[];
-  /** Unresolved ontology entities — extracted but not recognised (matchType 'unknown') */
+  /** Unresolved ontology entities — extracted but not recognised (matchType 'unknown'). */
   unresolvedEntities: string[];
-  /**
-   * Fraction of expected items actually present, in [0, 1] — combines
-   * fields and sections into one coverage number. 1.0 = nothing missing.
-   */
+  /** Fraction of expected fields and sections present, in [0, 1]. */
   coverageScore: number;
 }
 

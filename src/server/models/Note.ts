@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, type Document, type Model } from "mongoose";
 import { NOTE_RULES, type FileType } from "@/server/entities/note.entity";
 
 export interface INote extends Document<string> {
@@ -8,7 +8,9 @@ export interface INote extends Document<string> {
   fileName: string;
   fileType: FileType;
   fileSize: number;
+  /** Original text extracted from the uploaded document. */
   content: string;
+  /** AI-generated, paraphrased study notes. */
   summary: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -24,16 +26,37 @@ const noteSchema = new Schema<INote>(
       trim: true,
       maxlength: NOTE_RULES.TITLE_MAX,
     },
-    fileName: { type: String, required: true, maxlength: NOTE_RULES.FILE_NAME_MAX },
-    fileType: { type: String, enum: ["pdf", "docx"] satisfies FileType[], required: true },
-    fileSize: { type: Number, required: true },
-    content: { type: String, required: true, maxlength: NOTE_RULES.CONTENT_MAX },
-    summary: { type: String, default: null, maxlength: NOTE_RULES.SUMMARY_MAX },
+    fileName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: NOTE_RULES.FILE_NAME_MAX,
+    },
+    fileType: {
+      type: String,
+      enum: ["pdf", "docx"] satisfies FileType[],
+      required: true,
+    },
+    fileSize: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    content: {
+      type: String,
+      required: true,
+      maxlength: NOTE_RULES.CONTENT_MAX,
+    },
+    summary: {
+      type: String,
+      default: null,
+      maxlength: NOTE_RULES.SUMMARY_MAX,
+    },
   },
-  { timestamps: true } // removed _id: false
-
+  { timestamps: true },
 );
 
 noteSchema.index({ userId: 1, createdAt: -1 });
 
-export const Note: Model<INote> = mongoose.models.Note ?? mongoose.model<INote>("Note", noteSchema);
+export const Note: Model<INote> =
+  mongoose.models.Note ?? mongoose.model<INote>("Note", noteSchema);

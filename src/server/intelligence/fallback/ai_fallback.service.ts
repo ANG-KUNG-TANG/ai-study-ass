@@ -91,10 +91,14 @@ function parseResponse(text: string): AIFallbackFields {
     typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
 
   const asNumber = (v: unknown): number | null => {
-    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      return v >= 0 && v <= 100 ? v : null;
+    }
     if (typeof v === 'string') {
       const parsedNum = parseFloat(v.replace('%', ''));
-      return Number.isNaN(parsedNum) ? null : parsedNum;
+      return !Number.isNaN(parsedNum) && parsedNum >= 0 && parsedNum <= 100
+        ? parsedNum
+        : null;
     }
     return null;
   };
@@ -105,6 +109,16 @@ function parseResponse(text: string): AIFallbackFields {
     accuracy: asNumber(obj.accuracy),
     problem: asString(obj.problem),
   };
+}
+
+
+function rebuildKeyPoints(core: KnowledgeCore): KnowledgeCore['keyPoints'] {
+  const points: KnowledgeCore['keyPoints'] = [];
+  if (core.method) points.push({ label: 'Method', value: core.method });
+  if (core.dataset) points.push({ label: 'Dataset', value: core.dataset });
+  if (core.extras?.metric) points.push({ label: 'Metric', value: core.extras.metric });
+  if (core.accuracy !== null) points.push({ label: 'Accuracy', value: `${core.accuracy}%` });
+  return points;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -165,6 +179,7 @@ export async function completeWithAI(
   }
 
   if (filledFields.length > 0) {
+    mergedCore.keyPoints = rebuildKeyPoints(mergedCore);
     mergedCore.extras = {
       ...(mergedCore.extras ?? { metric: null, limitations: null, futureWork: null, topic: null, keywords: [] }),
       aiAssisted: true,

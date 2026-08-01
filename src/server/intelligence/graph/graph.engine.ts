@@ -350,31 +350,33 @@ export function buildGraph(
   }
 
   // ── 5. Problem (task) ──────────────────────────────────────────────────────
-  // FIX (audit #2): same unknown-match guard as method/dataset above.
-  if (core.problem !== null && cache.resolve(core.problem).matchType !== 'unknown') {
-    const resolved = cache.resolve(core.problem);
-    const concept = resolved.concept;
-    const tId = nodeId('task', concept.id);
+  if (core.problem !== null) {
+    const resolved = cache.resolveFromText(core.problem);
+    if (resolved.matchType !== 'unknown') {
+      const concept = resolved.concept;
+      const tId = nodeId('task', concept.id);
 
-    graph.addNode({
-      id: tId,
-      type: 'task',
-      label: concept.label,
-      properties: {
-        conceptId: concept.id,
-        confidence: resolved.confidence,
-        matchType: resolved.matchType,
-      },
-    });
+      graph.addNode({
+        id: tId,
+        type: 'task',
+        label: concept.label,
+        properties: {
+          conceptId: concept.id,
+          confidence: resolved.confidence,
+          matchType: resolved.matchType,
+        },
+      });
 
-    // paper -[solves]-> task  (explicit, weight 1.0)
-    graph.addEdge({ from: paperId, to: tId, type: 'solves', weight: 1.0 });
-
-    addAncestorChain(graph, concept.id, cache);
-    addOntologyRelations(graph, concept.id, cache);
-
-    // Same fix as the method node above — link task:X to concept:X.
-    graph.addEdge({ from: tId, to: nodeId('concept', concept.id), type: 'is_a', weight: 1.0 });
+      graph.addEdge({ from: paperId, to: tId, type: 'solves', weight: 1.0 });
+      addAncestorChain(graph, concept.id, cache);
+      addOntologyRelations(graph, concept.id, cache);
+      graph.addEdge({
+        from: tId,
+        to: nodeId('concept', concept.id),
+        type: 'is_a',
+        weight: 1.0,
+      });
+    }
   }
 
   // ── 6 + 7. Extra entities from KnowledgeCore ──────────────────────────────

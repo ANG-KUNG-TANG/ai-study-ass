@@ -5,13 +5,14 @@ import { ValidationError } from "@/server/utils/errors";
 export const NOTE_RULES = {
   TITLE_MIN: 1,
   TITLE_MAX: 200,
-  CONTENT_MAX: 500_000, // ~500k chars ≈ large academic paper
-  SUMMARY_MAX: 5_000,
+  CONTENT_MAX: 500_000,
+  // Generated study notes can be substantially longer than a short summary.
+  SUMMARY_MAX: 30_000,
   FILE_NAME_MAX: 255,
 } as const;
 
 export type NoteFileType = "pdf" | "docx";
-/** Alias — keeps upload.service.ts import compatible */
+/** Alias — keeps upload.service.ts import compatible. */
 export type FileType = NoteFileType;
 
 // ─── Public shape ─────────────────────────────────────────────────────────────
@@ -22,7 +23,9 @@ export interface NotePublic {
   fileName: string;
   fileType: NoteFileType;
   fileSize: number;
+  /** Original text extracted from the uploaded document. */
   content: string;
+  /** AI-generated, paraphrased study notes. */
   summary: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -40,15 +43,15 @@ export interface CreateNoteInput {
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
-// Added for consistency with chat_entity.ts / flashcard_entity.ts / quiz_entity.ts /
-// user_entity.ts, which all validate on .create(). NOTE_RULES previously existed
-// but was never enforced.
-
 function validateTitle(title: string): void {
   const trimmed = title.trim();
+
   if (trimmed.length < NOTE_RULES.TITLE_MIN) {
-    throw new ValidationError("Validation failed", { title: "Title is required" });
+    throw new ValidationError("Validation failed", {
+      title: "Title is required",
+    });
   }
+
   if (trimmed.length > NOTE_RULES.TITLE_MAX) {
     throw new ValidationError("Validation failed", {
       title: `Title cannot exceed ${NOTE_RULES.TITLE_MAX} characters`,
@@ -57,6 +60,12 @@ function validateTitle(title: string): void {
 }
 
 function validateContent(content: string): void {
+  if (!content.trim()) {
+    throw new ValidationError("Validation failed", {
+      content: "Extracted document content is empty",
+    });
+  }
+
   if (content.length > NOTE_RULES.CONTENT_MAX) {
     throw new ValidationError("Validation failed", {
       content: `Content cannot exceed ${NOTE_RULES.CONTENT_MAX} characters`,
@@ -64,10 +73,31 @@ function validateContent(content: string): void {
   }
 }
 
+function validateSummary(summary: string): string {
+  const trimmed = summary.trim();
+
+  if (!trimmed) {
+    throw new ValidationError("Validation failed", {
+      summary: "Generated study notes cannot be empty",
+    });
+  }
+
+  if (trimmed.length > NOTE_RULES.SUMMARY_MAX) {
+    throw new ValidationError("Validation failed", {
+      summary: `Summary cannot exceed ${NOTE_RULES.SUMMARY_MAX} characters`,
+    });
+  }
+
+  return trimmed;
+}
+
 function validateFileName(fileName: string): void {
   if (fileName.trim().length === 0) {
-    throw new ValidationError("Validation failed", { fileName: "File name is required" });
+    throw new ValidationError("Validation failed", {
+      fileName: "File name is required",
+    });
   }
+
   if (fileName.length > NOTE_RULES.FILE_NAME_MAX) {
     throw new ValidationError("Validation failed", {
       fileName: `File name cannot exceed ${NOTE_RULES.FILE_NAME_MAX} characters`,
@@ -113,13 +143,13 @@ export class NoteEntity {
   }
 
   // ─── Factory ────────────────────────────────────────────────────────────────
-
   static create(input: CreateNoteInput): NoteEntity {
     validateTitle(input.title);
     validateFileName(input.fileName);
     validateContent(input.content);
 
     const now = new Date();
+
     return new NoteEntity({
       ...input,
       summary: null,
@@ -155,35 +185,57 @@ export class NoteEntity {
   }
 
   // ─── Getters ────────────────────────────────────────────────────────────────
-  get id(): string { return this.#id; }
-  get userId(): string { return this.#userId; }
-  get title(): string { return this.#title; }
-  get fileName(): string { return this.#fileName; }
-  get fileType(): NoteFileType { return this.#fileType; }
-  get fileSize(): number { return this.#fileSize; }
-  get content(): string { return this.#content; }
-  get summary(): string | null { return this.#summary; }
-  get createdAt(): Date { return this.#createdAt; }
-  get updatedAt(): Date { return this.#updatedAt; }
+  get id(): string {
+    return this.#id;
+  }
 
-  // ─── Business rules ──────────────────────────────────────────────────────────
+  get userId(): string {
+    return this.#userId;
+  }
 
+  get title(): string {
+    return this.#title;
+  }
+
+  get fileName(): string {
+    return this.#fileName;
+  }
+
+  get fileType(): NoteFileType {
+    return this.#fileType;
+  }
+
+  get fileSize(): number {
+    return this.#fileSize;
+  }
+
+  get content(): string {
+    return this.#content;
+  }
+
+  get summary(): string | null {
+    return this.#summary;
+  }
+
+  get createdAt(): Date {
+    return this.#createdAt;
+  }
+
+  get updatedAt(): Date {
+    return this.#updatedAt;
+  }
+
+  // ─── Business rules ─────────────────────────────────────────────────────────
   belongsTo(userId: string): boolean {
     return this.#userId === userId;
   }
 
   updateSummary(summary: string): void {
-    if (summary.length > NOTE_RULES.SUMMARY_MAX) {
-      throw new ValidationError("Validation failed", {
-        summary: `Summary cannot exceed ${NOTE_RULES.SUMMARY_MAX} characters`,
-      });
-    }
-    this.#summary = summary.trim();
+    this.#summary = validateSummary(summary);
     this.#updatedAt = new Date();
   }
 
-  // ─── Serialisation ───────────────────────────────────────────────────────────
-
+  // ─── Serialisation ──────────────────────────────────────────────────────────
   toPublic(): NotePublic {
     return {
       id: this.#id,

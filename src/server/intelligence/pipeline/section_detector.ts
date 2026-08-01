@@ -68,7 +68,7 @@ export function detectSections(doc: CleanedDocument): SectionedDocument {
 
   const flush = () => {
     const body = currentLines.join("\n").trim();
-    if (body.length > 0 || sections.length === 0) {
+    if (body.length > 0 || currentRawHeading.length > 0) {
       sections.push({
         title: currentTitle,
         rawHeading: currentRawHeading,

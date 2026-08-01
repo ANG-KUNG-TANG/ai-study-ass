@@ -152,6 +152,35 @@ class OntologyCache {
     };
   }
 
+  /**
+   * Resolve a concept mentioned inside a longer sentence. Direct id/alias/fuzzy
+   * resolution is attempted first; then declared ids and aliases are matched as
+   * whole terms, preferring the longest match.
+   */
+  resolveFromText(raw: string): ResolvedConcept {
+    const direct = this.resolve(raw);
+    if (direct.matchType !== 'unknown') return direct;
+
+    const lower = raw.toLowerCase();
+    const candidates = [...this.byAlias.entries()].sort((a, b) => b[0].length - a[0].length);
+    for (const [alias, conceptId] of candidates) {
+      if (alias.length < 3) continue;
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`, 'i');
+      if (!pattern.test(lower)) continue;
+      const concept = this.byId.get(conceptId);
+      if (!concept) continue;
+      return {
+        concept,
+        confidence: alias === concept.id.toLowerCase() ? 0.8 : 0.75,
+        matchType: 'alias',
+        rawInput: raw,
+      };
+    }
+
+    return direct;
+  }
+
   // ── Batch resolve ──────────────────────────────────────────────────────────
 
   resolveAll(raws: string[]): ResolvedConcept[] {

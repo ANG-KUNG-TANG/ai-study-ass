@@ -40,7 +40,7 @@ import type {
   KnowledgeGraph,
   NLPResult,
   ResolvedConcept,
-} from '@/server/intelligence/types';
+} from '../types';
 
 // ─── Weights ───────────────────────────────────────────────────────────────────
 // Must sum to 1.0 — enforced by a dev-time assertion below rather than just
@@ -89,12 +89,12 @@ function scoreNLP(nlp: NLPResult): number {
 // so one weak match shouldn't drag this component to its floor the way it
 // used to drag the *entire* confidence score to its floor.
 //
-// Edge case: no entities to resolve isn't evidence of low confidence, it's
-// evidence of nothing to be unsure about — default to 1.0, matching the
-// original computeOverallConfidence()'s edge-case handling.
+// Edge case: no entities to resolve means this stage produced no positive
+// evidence, so it contributes 0 rather than artificially increasing the
+// overall confidence.
 
 function scoreOntology(ontology: ResolvedConcept[]): number {
-  if (ontology.length === 0) return 1.0;
+  if (ontology.length === 0) return 0.0;
   const sum = ontology.reduce((acc, r) => acc + r.confidence, 0);
   return sum / ontology.length;
 }
@@ -108,8 +108,8 @@ function scoreOntology(ontology: ResolvedConcept[]): number {
 // couldn't place it, so the graph is less complete than the raw KnowledgeCore
 // fields alone would suggest.
 //
-// Edge case: no fields extracted at all isn't a graph-completeness problem
-// (there was nothing for the graph to represent) — default to 1.0.
+// Edge case: no fields extracted means the graph carries no structured
+// knowledge beyond the paper node, so this component contributes 0.
 
 function scoreGraph(graph: KnowledgeGraph, core: KnowledgeCore): number {
   const checks: Array<{ expected: boolean; nodePrefix: string }> = [
@@ -120,7 +120,7 @@ function scoreGraph(graph: KnowledgeGraph, core: KnowledgeCore): number {
   ];
 
   const expectedChecks = checks.filter((c) => c.expected);
-  if (expectedChecks.length === 0) return 1.0;
+  if (expectedChecks.length === 0) return 0.0;
 
   const nodeIds = [...graph.nodes.keys()];
   const foundCount = expectedChecks.filter((c) =>

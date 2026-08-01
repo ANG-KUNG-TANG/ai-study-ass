@@ -99,9 +99,24 @@ export function extractKnowledge(
   const metric    = extractMetric(nlp.entities);
   const accuracy  = extractAccuracy(nlp.sentences, nlp.entities);
   const problem   = extractProblem(nlp.sentences, sectionText(["abstract", "introduction"]));
-  const contribution = extractSignalText(nlp.sentences, CONTRIBUTION_SIGNALS, sectionText(["abstract", "introduction"]));
-  const limitations  = extractSignalText(nlp.sentences, LIMITATION_SIGNALS, sectionText(["future_work"]));
-  const futureWork    = extractSignalText(nlp.sentences, FUTURE_WORK_SIGNALS, sectionText(["future_work"]));
+  const contribution = extractSignalText(
+    nlp.sentences,
+    CONTRIBUTION_SIGNALS,
+    sectionText(["abstract", "introduction"]),
+    false,
+  );
+  const limitations  = extractSignalText(
+    nlp.sentences,
+    LIMITATION_SIGNALS,
+    sectionText(["discussion", "future_work", "conclusion"]),
+    false,
+  );
+  const futureWork    = extractSignalText(
+    nlp.sentences,
+    FUTURE_WORK_SIGNALS,
+    sectionText(["future_work", "conclusion"]),
+    false,
+  );
   const topic     = detectTopic(doc.cleanText);
   // FIX (audit #4): previously this was deduplicateEntityTexts(nlp.entities)
   // unfiltered — whatever text got assigned to `method`/`dataset`/`metric`
@@ -119,7 +134,10 @@ export function extractKnowledge(
       .filter((v): v is string => v !== null)
       .map((v) => v.toLowerCase()),
   );
-  const entities  = deduplicateEntityTexts(nlp.entities).filter(
+  const ontologyCandidates = nlp.entities.filter(
+    (entity) => entity.type !== "NUMBER" && entity.type !== "METRIC",
+  );
+  const entities  = deduplicateEntityTexts(ontologyCandidates).filter(
     (text) => !claimedTexts.has(text.toLowerCase()),
   );
 
@@ -189,7 +207,21 @@ function extractMethod(
   entities: NamedEntity[],
   methodText: string
 ): string | null {
-  const algEntity = entities.find((e) => e.type === "ALGORITHM");
+  const methodLower = methodText.toLowerCase();
+  const supportingAlgorithms = new Set([
+    "adam", "sgd", "dropout", "backpropagation", "gradient descent", "attention",
+  ]);
+  const scopedAlgorithms = entities
+    .filter((entity) => entity.type === "ALGORITHM" && methodLower.includes(entity.text.toLowerCase()))
+    .sort((a, b) => {
+      const aSupporting = supportingAlgorithms.has(a.text.toLowerCase()) ? 1 : 0;
+      const bSupporting = supportingAlgorithms.has(b.text.toLowerCase()) ? 1 : 0;
+      if (aSupporting !== bSupporting) return aSupporting - bSupporting;
+      return methodLower.indexOf(a.text.toLowerCase()) - methodLower.indexOf(b.text.toLowerCase());
+    });
+  if (scopedAlgorithms[0]) return scopedAlgorithms[0].text;
+
+  const algEntity = entities.find((entity) => entity.type === "ALGORITHM");
   if (algEntity) return algEntity.text;
 
   const snippet = methodText.slice(0, 200);
@@ -198,8 +230,10 @@ function extractMethod(
 }
 
 function extractDataset(entities: NamedEntity[]): string | null {
-  const ds = entities.find((e) => e.type === "DATASET");
-  return ds?.text ?? null;
+  const datasets = entities
+    .filter((entity) => entity.type === "DATASET")
+    .sort((a, b) => b.text.length - a.text.length);
+  return datasets[0]?.text ?? null;
 }
 
 function extractMetric(entities: NamedEntity[]): string | null {
@@ -225,7 +259,9 @@ function extractAccuracy(
     );
     if (!hasMetric) continue;
 
-    const numberEntity = sent.entities.find((e) => e.type === "NUMBER");
+    const numberEntities = sent.entities.filter((entity) => entity.type === "NUMBER");
+    const numberEntity =
+      numberEntities.find((entity) => entity.text.includes("%")) ?? numberEntities[0];
     if (numberEntity) {
       const parsed = parseFloat(numberEntity.text.replace("%", ""));
       return Number.isNaN(parsed) ? null : parsed;
@@ -242,17 +278,21 @@ function extractAccuracy(
 function extractSignalText(
   sentences: NLPSentence[],
   signals: string[],
-  sectionFallback: string
+  sectionFallback: string,
+  allowSectionFallback = true,
 ): string | null {
-  const candidates = sentences.filter((s) =>
-    signals.some((sig) => s.text.toLowerCase().includes(sig))
+  const scopedSentences = sectionFallback.trim().length > 0
+    ? sentences.filter((sentence) => sectionFallback.includes(sentence.text))
+    : sentences;
+  const candidates = scopedSentences.filter((sentence) =>
+    signals.some((signal) => sentence.text.toLowerCase().includes(signal)),
   );
 
   if (candidates.length > 0) {
     return candidates.sort((a, b) => b.score - a.score)[0].text;
   }
 
-  if (sectionFallback.trim().length > 0) {
+  if (allowSectionFallback && sectionFallback.trim().length > 0) {
     return sectionFallback.trim().slice(0, 300);
   }
 

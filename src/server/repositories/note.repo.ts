@@ -5,11 +5,10 @@ import { logger } from "../utils/logger";
 import { NotFoundError } from "../utils/errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface NoteQueryOptions {
   page?: number;
   limit?: number;
-  search?: string;               // matches title or fileName substring
+  search?: string;
   fileType?: "pdf" | "docx";
   sortBy?: "createdAt" | "updatedAt" | "title";
   sortOrder?: "asc" | "desc";
@@ -30,12 +29,23 @@ export interface AdminNoteQueryOptions {
   sortBy?: "createdAt" | "updatedAt" | "title";
   sortOrder?: "asc" | "desc";
 }
-// ─── Mapper ───────────────────────────────────────────────────────────────────
 
-function toEntity(doc: any): NoteEntity {
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+function toEntity(doc: {
+  _id: unknown;
+  userId: unknown;
+  title: string;
+  fileName: string;
+  fileType: "pdf" | "docx";
+  fileSize: number;
+  content: string;
+  summary?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): NoteEntity {
   return NoteEntity.fromPersistence({
-    id: doc._id,
-    userId: doc.userId,
+    id: String(doc._id),
+    userId: String(doc.userId),
     title: doc.title,
     fileName: doc.fileName,
     fileType: doc.fileType,
@@ -47,12 +57,10 @@ function toEntity(doc: any): NoteEntity {
   });
 }
 
-// ─── Read — single record ──────────────────────────────────────────────────────
-
+// ─── Read — single record ─────────────────────────────────────────────────────
 export async function findById(id: string): Promise<NoteEntity | null> {
   const doc = await Note.findById(id).lean().exec();
-  if (!doc) return null;
-  return toEntity(doc);
+  return doc ? toEntity(doc) : null;
 }
 
 export async function findByIdOrThrow(id: string): Promise<NoteEntity> {
@@ -61,24 +69,22 @@ export async function findByIdOrThrow(id: string): Promise<NoteEntity> {
   return note;
 }
 
-export async function findByIdAndUserId(id: string, userId: string): Promise<NoteEntity | null> {
+export async function findByIdAndUserId(
+  id: string,
+  userId: string,
+): Promise<NoteEntity | null> {
   const doc = await Note.findOne({ _id: id, userId }).lean().exec();
-  if (!doc) return null;
-  return toEntity(doc);
+  return doc ? toEntity(doc) : null;
 }
 
 export async function existsById(id: string): Promise<boolean> {
   return Boolean(await Note.exists({ _id: id }));
 }
 
-// ─── Read — list ──────────────────────────────────────────────────────────────
-// Mirrors user.repo.ts's findMany() pattern: service layer passes filters,
-// repo just executes and paginates. This is what note.service.ts's
-// listNotes() calls.
-
+// ─── Read — lists ─────────────────────────────────────────────────────────────
 export async function findManyByUser(
   userId: string,
-  options: NoteQueryOptions = {}
+  options: NoteQueryOptions = {},
 ): Promise<PaginatedNotes> {
   const page = Math.max(1, options.page ?? DEFAULT_PAGE);
   const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
@@ -87,8 +93,10 @@ export async function findManyByUser(
   const sortBy = options.sortBy ?? "createdAt";
 
   const filter: Record<string, unknown> = { userId };
+
   if (options.fileType) filter.fileType = options.fileType;
-  if (options.search) {
+
+  if (options.search?.trim()) {
     const regex = new RegExp(options.search.trim(), "i");
     filter.$or = [{ title: regex }, { fileName: regex }];
   }
@@ -112,7 +120,7 @@ export async function findManyByUser(
 }
 
 export async function findManyAdmin(
-  options: AdminNoteQueryOptions = {}
+  options: AdminNoteQueryOptions = {},
 ): Promise<PaginatedNotes> {
   const page = Math.max(1, options.page ?? DEFAULT_PAGE);
   const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
@@ -121,24 +129,36 @@ export async function findManyAdmin(
   const sortBy = options.sortBy ?? "createdAt";
 
   const filter: Record<string, unknown> = {};
+
   if (options.fileType) filter.fileType = options.fileType;
-  if (options.search) {
+
+  if (options.search?.trim()) {
     const regex = new RegExp(options.search.trim(), "i");
     filter.$or = [{ title: regex }, { fileName: regex }];
   }
 
   const [docs, total] = await Promise.all([
-    Note.find(filter).sort({ [sortBy]: sortOrder }).skip(skip).limit(limit).lean().exec(),
+    Note.find(filter)
+      .sort({ [sortBy]: sortOrder })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
     Note.countDocuments(filter),
   ]);
 
-  return { data: docs.map(toEntity), total, page, limit };
+  return {
+    data: docs.map(toEntity),
+    total,
+    page,
+    limit,
+  };
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────
-
 export async function create(entity: NoteEntity): Promise<NoteEntity> {
   const data = entity.toPublic();
+
   const doc = await Note.create({
     _id: data.id,
     userId: data.userId,
@@ -149,24 +169,51 @@ export async function create(entity: NoteEntity): Promise<NoteEntity> {
     content: data.content,
     summary: data.summary,
   });
-  logger.info("Note created", { noteId: String(doc._id), userId: data.userId });
+
+  logger.info("Note created", {
+    noteId: String(doc._id),
+    userId: data.userId,
+  });
+
   return toEntity(doc.toObject());
 }
 
 // ─── Update ───────────────────────────────────────────────────────────────────
+export async function updateSummary(
+  id: string,
+  summary: string,
+): Promise<NoteEntity> {
+  const doc = await Note.findByIdAndUpdate(
+    id,
+    {
+      $set: {
+        summary,
+        updatedAt: new Date(),
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  )
+    .lean()
+    .exec();
 
-export async function updateSummary(id: string, summary: string): Promise<void> {
-  await Note.findByIdAndUpdate(id, { summary, updatedAt: new Date() });
-  logger.info("Note summary updated", { noteId: id });
+  if (!doc) throw new NotFoundError("Note");
+
+  logger.info("Note study notes updated", {
+    noteId: id,
+    summaryLength: summary.length,
+  });
+
+  return toEntity(doc);
 }
 
-// add near the other "Read — list" functions
 export async function count(): Promise<number> {
   return Note.countDocuments();
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
-
 export async function deleteById(id: string): Promise<void> {
   await Note.findByIdAndDelete(id);
   logger.info("Note deleted", { noteId: id });

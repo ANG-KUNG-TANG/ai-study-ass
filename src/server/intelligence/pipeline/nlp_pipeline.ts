@@ -142,7 +142,7 @@ const KNOWN_ALGORITHMS = new Set([
 
 const KNOWN_DATASETS = new Set([
   "cifar","cifar-10","cifar-100","imagenet","mnist","coco","pascal","voc",
-  "glue","squad","wikitext","penn treebank","conll","ner","imdb","sst",
+  "glue","squad","wikitext","penn treebank","conll","imdb","sst",
   "ms coco","open images","librispeech","commonvoice","voxceleb",
 ]);
 
@@ -173,16 +173,27 @@ export function extractEntities(tokens: Token[]): NamedEntity[] {
   // Build a lowercase string of the sentence for multi-word matches
   const sentenceText = tokens.map((t) => t.text).join(" ").toLowerCase();
 
-  // Check known multi-word terms first
-  for (const alg of KNOWN_ALGORITHMS) {
-    if (sentenceText.includes(alg)) add(alg, "ALGORITHM");
-  }
-  for (const ds of KNOWN_DATASETS) {
-    if (sentenceText.includes(ds)) add(ds, "DATASET");
-  }
-  for (const metric of KNOWN_METRICS) {
-    if (sentenceText.includes(metric)) add(metric, "METRIC");
-  }
+  const addKnownMatches = (
+    terms: Set<string>,
+    type: NamedEntity["type"],
+  ): void => {
+    const accepted: string[] = [];
+    const sorted = [...terms].sort((a, b) => b.length - a.length);
+    for (const term of sorted) {
+      const normalized = term.toLowerCase();
+      const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const termPattern = new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`, "i");
+      if (!termPattern.test(sentenceText)) continue;
+      if (accepted.some((longer) => longer.includes(normalized))) continue;
+      accepted.push(normalized);
+      add(term, type);
+    }
+  };
+
+  // Prefer specific names such as CIFAR-10 over generic substrings such as CIFAR.
+  addKnownMatches(KNOWN_ALGORITHMS, "ALGORITHM");
+  addKnownMatches(KNOWN_DATASETS, "DATASET");
+  addKnownMatches(KNOWN_METRICS, "METRIC");
 
   // Token-level checks
   for (const token of tokens) {

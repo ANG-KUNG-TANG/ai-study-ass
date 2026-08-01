@@ -54,13 +54,13 @@ import type {
   PrologFact,
   ResolvedConcept,
 } from './types';
-import { ontologyCache } from '@/server/intelligence//ontology/ontology.cache';
-import { buildGraph } from '@/server/intelligence/graph/graph.engine';
-import { PrologEngine, quoteAtom } from '@/server/intelligence//prolog/prolog.engine';
-import { detectGaps } from '@/server/intelligence/pipeline/gap_detector';
-import { computeConfidenceBreakdown } from '@/server/intelligence/confidence/confidence.engine';
-import { needsAIFallback } from '@/server/entities/intelligence.entity';
-import { completeWithAI } from '@/server/intelligence/fallback/ai_fallback.service';
+import { ontologyCache } from './ontology/ontology.cache';
+import { buildGraph } from './graph/graph.engine';
+import { PrologEngine, quoteAtom } from './prolog/prolog.engine';
+import { detectGaps } from './pipeline/gap_detector';
+import { computeConfidenceBreakdown } from './confidence/confidence.engine';
+import { needsAIFallback } from '../entities/intelligence.entity';
+import { completeWithAI } from './fallback/ai_fallback.service';
 
 // ─── Document pipeline seam ──────────────────────────────────────────────────
 // runPipeline() here is the EXISTING pipeline/index.ts function — it already
@@ -137,6 +137,50 @@ function ensureOntologyLoaded(): void {
   }
 }
 
+function buildFallbackSource(document: SectionedDocument): string {
+  const preferred = new Set([
+    'abstract',
+    'introduction',
+    'methodology',
+    'experiments',
+    'results',
+    'discussion',
+    'conclusion',
+  ]);
+  const focused = document.sections
+    .filter((section) => preferred.has(section.title))
+    .map((section) => `${section.rawHeading || section.title}\n${section.body}`)
+    .join('\n\n');
+  return focused.trim().length > 0 ? focused : document.cleanText;
+}
+
+function resolveCoreOntology(core: KnowledgeCore): ResolvedConcept[] {
+  const rawConcepts = [core.method, core.dataset, ...core.entities]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  const seen = new Set<string>();
+  const resolutions = ontologyCache.resolveAll(
+    rawConcepts.filter((value) => {
+      const key = value.toLowerCase().trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  );
+
+  if (core.problem?.trim()) {
+    const problemResolution = ontologyCache.resolveFromText(core.problem);
+    const duplicate = resolutions.some(
+      (resolution) =>
+        resolution.concept.id === problemResolution.concept.id &&
+        resolution.matchType !== 'unknown',
+    );
+    if (!duplicate) resolutions.push(problemResolution);
+  }
+
+  return resolutions;
+}
+
 // ─── Symbolic stages (graph → prolog → gaps → confidence) ──────────────────────
 // Extracted into a helper so Stage 7's hybrid re-run (after AI fills gaps)
 // can call the exact same graph/prolog/gap/confidence logic against the
@@ -188,7 +232,9 @@ async function runSymbolicStages(
   let prologAnswerCount = 0;
   try {
     const keyFactResult = await prologEngine.query(`key_fact(${quoteAtom(noteId)}, Type, Val)`);
-    prologAnswerCount = keyFactResult.answers.length;
+    prologAnswerCount = new Set(
+      keyFactResult.answers.map((answer) => answer.bindings.Type).filter(Boolean),
+    ).size;
   } catch {
     prologAnswerCount = 0;
   }
@@ -247,7 +293,7 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
   // ── Stage 2: Ontology resolution ────────────────────────────────────────────
   let ontology: ResolvedConcept[];
   try {
-    ontology = ontologyCache.resolveAll(knowledge.entities);
+    ontology = resolveCoreOntology(knowledge);
   } catch (err) {
     throw new PipelineError('ontology', noteId, err);
   }
@@ -284,27 +330,34 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
         skippedReason: 'confidence below threshold but no aiGenerate function was supplied',
       };
     } else {
-      const { core: mergedCore, result: fallbackResult } = await completeWithAI(
-        knowledge,
-        gaps,
-        sectionedDoc.cleanText,
-        aiGenerate,
-      );
-      aiFallback = fallbackResult;
-
-      if (fallbackResult.used) {
-        // Fields changed — recompute graph/prolog/gaps/confidence once
-        // against the merged core so the rest of IntelligenceResult stays
-        // consistent with what's actually in `core`, not stale from before
-        // the AI filled anything in.
-        knowledge = mergedCore;
-        ({ graph, prologEngine, facts, gaps, confidenceBreakdown } = await runSymbolicStages(
+      try {
+        const { core: mergedCore, result: fallbackResult } = await completeWithAI(
           knowledge,
-          sectionedDoc,
-          nlp,
-          ontology,
-          noteId,
-        ));
+          gaps,
+          buildFallbackSource(sectionedDoc),
+          aiGenerate,
+        );
+        aiFallback = fallbackResult;
+
+        if (fallbackResult.used) {
+          // Re-resolve ontology because AI may have supplied method/dataset values.
+          knowledge = mergedCore;
+          ontology = resolveCoreOntology(knowledge);
+          ({ graph, prologEngine, facts, gaps, confidenceBreakdown } = await runSymbolicStages(
+            knowledge,
+            sectionedDoc,
+            nlp,
+            ontology,
+            noteId,
+          ));
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        aiFallback = {
+          used: false,
+          filledFields: [],
+          skippedReason: `AI fallback failed safely: ${message}`,
+        };
       }
     }
   }
