@@ -69,7 +69,7 @@ export async function findById(
 ): Promise<UserEntity | null> {
   const select = buildSelect(sensitive);
   const doc = await User.findById(id)
-    .select(select || undefined)
+    .select(select || {})
     .lean()
     .exec();
 
@@ -83,7 +83,7 @@ export async function findByEmail(
 ): Promise<UserEntity | null> {
   const select = buildSelect(sensitive);
   const doc = await User.findOne({ email: email.toLowerCase().trim() })
-    .select(select || undefined)
+    .select(select || {})
     .lean()
     .exec();
 

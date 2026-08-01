@@ -7,6 +7,7 @@ import type {
   ConfidenceMode,
 } from "@/server/entities/intelligence.entity";
 import type { RawDocument } from "@/server/intelligence/pipeline";
+import { generateForIntelligence } from "@/server/services/ai.service";
 import { logger } from "@/server/utils/logger";
 
 export function toRawDocument(input: {
@@ -28,79 +29,122 @@ export function toRawDocument(input: {
   };
 }
 
+async function executePipelineWithFallback(
+  noteId: string,
+  document: RawDocument,
+) {
+  try {
+    return await runPipeline({
+      noteId,
+      document,
+      aiGenerate: generateForIntelligence,
+    });
+  } catch (firstError) {
+    logger.warn(
+      "Intelligence pipeline with AI fallback failed; retrying symbolic-only",
+      {
+        noteId,
+        error:
+          firstError instanceof Error
+            ? firstError.message
+            : String(firstError),
+      },
+    );
+
+    return runPipeline({
+      noteId,
+      document,
+    });
+  }
+}
+
 export async function runAndPersistPipeline(
   noteId: string,
-  document: RawDocument
+  document: RawDocument,
 ): Promise<IntelligenceResultEntity | null> {
   try {
-    const result = await runPipeline({ noteId, document });
-
+    const result = await executePipelineWithFallback(noteId, document);
     const stillExists = await noteRepo.findById(noteId);
+
     if (!stillExists) {
-      logger.warn("Note deleted during intelligence processing — discarding result", { noteId });
+      logger.warn(
+        "Note deleted during intelligence processing; discarding result",
+        { noteId },
+      );
       return null;
     }
 
     const entity = IntelligenceResultEntity.createSuccess({
       noteId: result.noteId,
       stage: result.stage as IntelligenceStage,
-      core: result.core ,
+      core: result.core,
       ontology: result.ontology,
       graph: result.graph,
       facts: result.prolog.facts,
       confidence: result.confidence,
       processedAt: result.processedAt,
-      gaps: result.gaps
+      gaps: result.gaps,
     });
 
     await intelligenceRepo.upsert(entity);
-    logger.info("Intelligence result saved", { noteId });
+
+    logger.info("Intelligence result saved", {
+      noteId,
+      confidence: result.confidence,
+      mode: entity.getConfidenceMode(),
+    });
+
     return entity;
-  } catch (err) {
+  } catch (error) {
     const stage: IntelligenceStage =
-      err instanceof PipelineError
-        ? (err.stage as unknown as IntelligenceStage)
+      error instanceof PipelineError
+        ? (error.stage as unknown as IntelligenceStage)
         : ("extraction" as IntelligenceStage);
 
-    logger.error("Intelligence pipeline failed", {
+    logger.error("Symbolic intelligence processing failed", {
       noteId,
       stage,
-      error: err instanceof Error ? err.message : String(err),
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
     });
 
     const stillExists = await noteRepo.findById(noteId);
-    if (!stillExists) {
-      logger.warn("Note deleted during intelligence processing — discarding failure marker", { noteId });
-      return null;
-    }
+    if (!stillExists) return null;
 
     const failedEntity = IntelligenceResultEntity.createFailed(
       noteId,
       stage,
-      err instanceof Error ? err.message : String(err)
+      error instanceof Error ? error.message : String(error),
     );
+
     await intelligenceRepo.upsertFailed(failedEntity);
     return failedEntity;
   }
 }
 
-export function processInBackground(noteId: string, document: RawDocument): void {
-  void runAndPersistPipeline(noteId, document);
+export async function processInBackground(
+  noteId: string,
+  document: RawDocument,
+): Promise<void> {
+  await runAndPersistPipeline(noteId, document);
 }
 
-// ─── Read path ────────────────────────────────────────────────────────────
-// Now self-contained: takes only noteId, fetches the note itself. Quiz/
-// Flashcard/Chat services just call intelligenceService.getOrRunPipeline(
-// noteId) — no RawDocument-building duplicated across three call sites.
-
-export async function getOrRunPipeline(noteId: string): Promise<IntelligenceResultEntity> {
+export async function getOrRunPipeline(
+  noteId: string,
+): Promise<IntelligenceResultEntity> {
   const existing = await intelligenceRepo.findByNoteId(noteId);
-  if (existing && existing.isComplete()) {
+
+  // Reuse either a complete or failed persisted result. Feature services must
+  // not independently rerun the pipeline after the orchestrator has already
+  // processed this note. Explicit regeneration calls runAndPersistPipeline()
+  // before invoking the feature services and replaces the persisted result.
+  if (existing) {
     return existing;
   }
 
   const note = await noteRepo.findByIdOrThrow(noteId);
-
   const document = toRawDocument({
     content: note.content,
     fileName: note.fileName,
@@ -111,12 +155,7 @@ export async function getOrRunPipeline(noteId: string): Promise<IntelligenceResu
   const result = await runAndPersistPipeline(noteId, document);
 
   if (!result) {
-    // Only reachable if the note was deleted in the brief window between
-    // findByIdOrThrow above and runAndPersistPipeline's own re-check.
-    throw await noteRepo.findByIdOrThrow(noteId).then(
-      () => new Error("Unreachable"),
-      (err) => err
-    );
+    throw new Error(`Intelligence result was not created for note ${noteId}`);
   }
 
   return result;
@@ -133,7 +172,14 @@ export async function getStatus(noteId: string): Promise<{
   const result = await intelligenceRepo.findByNoteId(noteId);
 
   if (!result) {
-    return { exists: false, stage: null, isComplete: false, hasFailed: false, confidence: null, mode: null };
+    return {
+      exists: false,
+      stage: null,
+      isComplete: false,
+      hasFailed: false,
+      confidence: null,
+      mode: null,
+    };
   }
 
   return {
@@ -146,7 +192,9 @@ export async function getStatus(noteId: string): Promise<{
   };
 }
 
-export async function getResultOrThrow(noteId: string): Promise<IntelligenceResultEntity> {
+export async function getResultOrThrow(
+  noteId: string,
+): Promise<IntelligenceResultEntity> {
   return intelligenceRepo.findByNoteIdOrThrow(noteId);
 }
 

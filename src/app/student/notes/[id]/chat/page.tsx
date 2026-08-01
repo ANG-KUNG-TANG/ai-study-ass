@@ -1,67 +1,147 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Topbar } from "@/components/layout/Topbar";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Send, Trash2 } from "lucide-react";
+import { useNoteContext } from "@/context/NoteContext";
+import { useChat } from "@/hooks/useChat";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { useNotes } from "@/hooks/useNotes";
 
-export default function ChatLandingPage() {
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const { notes, meta, isLoading, error } = useNotes({
-    limit: 20,
-    page,
-    search: search || undefined,
-  });
-  const router = useRouter();
+export default function ChatPage() {
+  const { note } = useNoteContext();
+  const noteId = note?.id ?? "";
+
+  const {
+    messages,
+    isLoading,
+    isSending,
+    isClearing,
+    error,
+    send,
+    clear,
+  } = useChat(noteId);
+
+  const [question, setQuestion] = useState("");
+  const endRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isSending]);
+
+  if (!note) return null;
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const trimmed = question.trim();
+    if (!trimmed || isSending) return;
+
+    setQuestion("");
+    await send(trimmed);
+  }
 
   return (
-    <>
-      <Topbar
-        eyebrow="AI"
-        title="Chat with your notes"
-        search={{ value: search, onChange: (v) => { setSearch(v); setPage(1); }, placeholder: "Search notes…" }}
-      />
-
-      {isLoading && <p className="text-[13px] text-[#726B5C]">Loading notes…</p>}
-      {error && <p className="text-[13px] text-[#E85D46]">{error}</p>}
-
-      {!isLoading && !error && notes.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-[#E6DDC8] bg-white p-8 text-center">
-          <p className="text-[13px] text-[#726B5C]">No notes yet – upload one to start a chat.</p>
+    <div className="flex min-h-[620px] flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+            Document chat
+          </p>
+          <h2 className="mt-1 font-serif text-[20px] font-semibold">
+            Ask about {note.title}
+          </h2>
         </div>
-      )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {notes.map((note) => (
-          <Card
-            key={note.id}
-            className="cursor-pointer transition hover:-translate-y-1 hover:shadow-lg"
-            onClick={() => router.push(`/student/notes/${note.id}/chat`)}
+        {messages.length > 0 && (
+          <button
+            type="button"
+            onClick={() => void clear()}
+            disabled={isClearing}
+            className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-coral disabled:opacity-50"
           >
-            <h3 className="font-serif text-[15px] font-semibold">{note.title}</h3>
-            <p className="mt-1 text-[13px] text-[#726B5C]">Ask questions about this note</p>
-            <div className="mt-3">
-              <span className="rounded-full bg-[#E7E4F5] px-3 py-1 text-[11px] text-[#6C63B0]">
-                Chat
-              </span>
-            </div>
-          </Card>
-        ))}
+            <Trash2 size={14} />
+            {isClearing ? "Clearing" : "Clear chat"}
+          </button>
+        )}
       </div>
 
-      {meta && meta.totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-3 text-[12px] text-[#726B5C]">
-          <button onClick={() => setPage((p) => p - 1)} disabled={!meta.hasPrev} className="disabled:opacity-30">
-            Prev
-          </button>
-          <span>Page {meta.page} of {meta.totalPages}</span>
-          <button onClick={() => setPage((p) => p + 1)} disabled={!meta.hasNext} className="disabled:opacity-30">
-            Next
-          </button>
+      <Card className="flex min-h-[470px] flex-1 flex-col">
+        <div className="flex-1 space-y-5 overflow-y-auto pr-1">
+          {isLoading && (
+            <p className="text-[13px] text-ink-soft">
+              Loading conversation…
+            </p>
+          )}
+
+          {!isLoading && messages.length === 0 && (
+            <div className="flex min-h-[340px] flex-col items-center justify-center text-center">
+              <h3 className="font-serif text-[18px] font-semibold">
+                Start a conversation
+              </h3>
+              <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-soft">
+                Ask for explanations, examples, comparisons, definitions, or
+                revision questions based on this document.
+              </p>
+            </div>
+          )}
+
+          {messages.map((message) => (
+            <div key={message.id} className="space-y-3">
+              <div className="ml-auto max-w-[82%] rounded-2xl rounded-br-sm bg-[#221F1A] px-4 py-3 text-[13px] leading-relaxed text-white">
+                {message.question}
+              </div>
+
+              <div className="max-w-[88%] rounded-2xl rounded-bl-sm bg-[#F5F0E6] px-4 py-3 text-[13px] leading-relaxed text-ink">
+                <p className="whitespace-pre-wrap">{message.answer}</p>
+                <p className="mt-2 text-[10px] uppercase tracking-wide text-ink-faint">
+                  {message.provider}
+                </p>
+              </div>
+            </div>
+          ))}
+
+          {isSending && (
+            <div className="max-w-[88%] rounded-2xl rounded-bl-sm bg-[#F5F0E6] px-4 py-3 text-[13px] text-ink-soft">
+              Thinking…
+            </div>
+          )}
+
+          <div ref={endRef} />
         </div>
-      )}
-    </>
+
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 flex items-end gap-2 border-t border-[#E6DDC8] pt-4"
+        >
+          <textarea
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+            placeholder="Ask a question about this document…"
+            rows={2}
+            className="min-h-[46px] flex-1 resize-none rounded-xl border border-[#E6DDC8] bg-white px-3 py-2.5 text-[13px] leading-relaxed outline-none focus:border-[#8C82C8]"
+          />
+
+          <Button
+            type="submit"
+            disabled={isSending || !question.trim()}
+            aria-label="Send question"
+          >
+            <Send size={15} />
+          </Button>
+        </form>
+      </Card>
+
+      {error && <p className="text-[12px] text-coral">{error}</p>}
+    </div>
   );
 }

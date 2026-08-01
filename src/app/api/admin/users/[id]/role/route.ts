@@ -7,5 +7,9 @@ import { updateUserRole } from "@/server/controller/admin.controller";
 export const PATCH = withRole("admin")(async (req, context, auth) => {
   apiLimiter(req, "admin:update-role");
   const params = await context.params;
-  return updateUserRole(req as NextRequest, auth, { params: params as { id: string } });
+  return updateUserRole(
+    req as NextRequest,
+    { params: Promise.resolve(params as unknown as Record<string, string>) },
+    auth,
+  );
 });

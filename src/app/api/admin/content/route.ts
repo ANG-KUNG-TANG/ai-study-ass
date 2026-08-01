@@ -6,5 +6,9 @@ import { listContent } from "@/server/controller/admin.controller";
 // GET /api/admin/content
 export const GET = withRole("admin")(async (req, _context, auth) => {
   apiLimiter(req, "admin:list-content");
-  return listContent(req as NextRequest, auth);
+  return listContent(
+    req as NextRequest,
+    { params: Promise.resolve({} as Record<string, string>) },
+    auth,
+  );
 });

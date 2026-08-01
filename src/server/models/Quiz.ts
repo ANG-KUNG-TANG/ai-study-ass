@@ -1,23 +1,16 @@
-// =============================================================================
-// server/models/Quiz.ts
-//
-// Mongoose schema/model — persistence only. No business rules live here;
-// those belong to QuizEntity (server/entities/quiz.entity.ts). This file's
-// only job is mapping to/from MongoDB documents, per your DDD layering:
-// "models import entity rule constants as the single source of truth."
-//
-// The documented Quiz collection design lists `questions: []` with no
-// declared shape. Left untyped, that's an easy way to end up with
-// inconsistent question documents over time, so it's expanded here into a
-// concrete subdocument schema — question/questionType/options/answer/
-// explanation — matching the richer Quiz Model block feature list
-// (questionType enum, explanation field).
-// =============================================================================
+import {
+  Schema,
+  model,
+  models,
+  type HydratedDocument,
+  type Model,
+} from "mongoose";
+import {
+  QUESTION_TYPES,
+  type QuestionType,
+} from "@/server/entities/quiz.entity";
 
-import { Schema, model, models, type Document, type Types } from 'mongoose';
-import { QUESTION_TYPES, type QuestionType } from '../entities/quiz.entity';
-
-export interface QuizQuestionDoc {
+export interface QuizQuestionDocument {
   question: string;
   questionType: QuestionType;
   options: string[];
@@ -25,40 +18,98 @@ export interface QuizQuestionDoc {
   explanation?: string;
 }
 
-export interface QuizDocument extends Document {
-  _id: Types.ObjectId;
-  noteId: String;
-  userId: String;
-  questions: QuizQuestionDoc[];
+export interface QuizPersistence {
+  noteId: string;
+  userId: string;
+  questions: QuizQuestionDocument[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-const QuizQuestionSchema = new Schema<QuizQuestionDoc>(
-  {
-    question: { type: String, required: true },
-    questionType: { type: String, enum: QUESTION_TYPES, required: true },
-    options: { type: [String], default: [] },
-    answer: { type: String, required: true },
-    explanation: { type: String },
-  },
-  { _id: false }, // questions are always accessed as part of the parent quiz, not individually
-);
+export type QuizDocument =
+  HydratedDocument<QuizPersistence>;
 
-const QuizSchema = new Schema<QuizDocument>(
-  {
-    noteId: { type: String, ref: 'Note', required: true, index: true },
-    userId: { type: String, ref: 'User', required: true, index: true },
-    questions: { type: [QuizQuestionSchema], required: true },
-  },
-  { timestamps: true },
-);
+const quizQuestionSchema =
+  new Schema<QuizQuestionDocument>(
+    {
+      question: {
+        type: String,
+        required: true,
+        trim: true,
+      },
 
-// Compound index — matches the roadmap's "Index on noteId + userId" note,
-// and is what quiz.repository.ts's findByNoteId() actually queries on.
-QuizSchema.index({ noteId: 1, userId: 1 });
+      questionType: {
+        type: String,
+        enum: QUESTION_TYPES,
+        required: true,
+      },
 
-// Reuse the existing model if this module is re-imported (Next.js
-// hot-reload safe) — same pattern your database connection module uses.
-export const Quiz = models.Quiz ?? model<QuizDocument>('Quiz', QuizSchema);
-export default Quiz;
+      options: {
+        type: [String],
+        default: [],
+      },
+
+      answer: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+
+      explanation: {
+        type: String,
+        required: false,
+        trim: true,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const quizSchema =
+  new Schema<QuizPersistence>(
+    {
+      noteId: {
+        type: String,
+        required: true,
+        index: true,
+      },
+
+      userId: {
+        type: String,
+        required: true,
+        index: true,
+      },
+
+      questions: {
+        type: [quizQuestionSchema],
+        required: true,
+        validate: {
+          validator: (
+            value: QuizQuestionDocument[],
+          ) => value.length > 0,
+          message:
+            "Quiz must contain at least one question",
+        },
+      },
+    },
+    {
+      timestamps: true,
+      versionKey: false,
+    },
+  );
+
+quizSchema.index({
+  noteId: 1,
+  userId: 1,
+  createdAt: -1,
+});
+
+export const Quiz: Model<QuizPersistence> =
+  (models.Quiz as
+    | Model<QuizPersistence>
+    | undefined) ??
+  model<QuizPersistence>(
+    "Quiz",
+    quizSchema,
+  );

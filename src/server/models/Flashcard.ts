@@ -1,9 +1,19 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
-import { FLASHCARD_RULES, type FlashcardDifficulty } from "@/server/entities/flashcard.entity";
+import {
+  Schema,
+  model,
+  models,
+  type HydratedDocument,
+  type Model,
+} from "mongoose";
+import {
+  FLASHCARD_RULES,
+  type FlashcardDifficulty,
+} from "@/server/entities/flashcard.entity";
 
-export interface IFlashcard extends Document {
-  noteId: mongoose.Types.ObjectId;
-  userId: mongoose.Types.ObjectId;
+export interface FlashcardPersistence {
+  _id: string;
+  noteId: string;
+  userId: string;
   front: string;
   back: string;
   difficulty: FlashcardDifficulty;
@@ -13,24 +23,86 @@ export interface IFlashcard extends Document {
   updatedAt: Date;
 }
 
-const flashcardSchema = new Schema<IFlashcard>(
-  {
-    noteId: { type: Schema.Types.ObjectId, ref: "Note", required: true, index: true },
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    front: { type: String, required: true, maxlength: FLASHCARD_RULES.front.maxLength },
-    back: { type: String, required: true, maxlength: FLASHCARD_RULES.back.maxLength },
-    difficulty: {
-      type: String,
-      enum: ["easy", "medium", "hard"] satisfies FlashcardDifficulty[],
-      required: true,
+export type FlashcardDocument =
+  HydratedDocument<FlashcardPersistence>;
+
+const flashcardSchema =
+  new Schema<FlashcardPersistence>(
+    {
+      // The application uses UUID strings for flashcards, notes and users.
+      // ObjectId fields cause CastError for UUID values such as
+      // "8705634c-1dea-46cd-8055-f3f9b46ad08e".
+      _id: {
+        type: String,
+        required: true,
+      },
+
+      noteId: {
+        type: String,
+        required: true,
+        index: true,
+      },
+
+      userId: {
+        type: String,
+        required: true,
+        index: true,
+      },
+
+      front: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength:
+          FLASHCARD_RULES.front.maxLength,
+      },
+
+      back: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength:
+          FLASHCARD_RULES.back.maxLength,
+      },
+
+      difficulty: {
+        type: String,
+        enum: [
+          "easy",
+          "medium",
+          "hard",
+        ] satisfies FlashcardDifficulty[],
+        required: true,
+      },
+
+      reviewCount: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+
+      lastReviewedAt: {
+        type: Date,
+        default: null,
+      },
     },
-    reviewCount: { type: Number, default: 0 },
-    lastReviewedAt: { type: Date, default: null },
-  },
-  { timestamps: true }
-);
+    {
+      timestamps: true,
+      versionKey: false,
+    },
+  );
 
-flashcardSchema.index({ noteId: 1, userId: 1 });
+flashcardSchema.index({
+  noteId: 1,
+  userId: 1,
+});
 
-export const Flashcard: Model<IFlashcard> =
-  mongoose.models.Flashcard ?? mongoose.model<IFlashcard>("Flashcard", flashcardSchema);
+export const Flashcard:
+  Model<FlashcardPersistence> =
+  (models.Flashcard as
+    | Model<FlashcardPersistence>
+    | undefined) ??
+  model<FlashcardPersistence>(
+    "Flashcard",
+    flashcardSchema,
+  );

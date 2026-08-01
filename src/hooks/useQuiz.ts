@@ -1,41 +1,88 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { listQuizzesByNote, generateQuiz } from "@/services/quiz.service";
-import type { Quiz, GenerateQuizOptions } from "@/types/quiz";
+
+import { useCallback, useEffect, useState } from "react";
+import {
+  listQuizzesByNote,
+  generateQuiz,
+} from "@/services/quiz.service";
+import type {
+  Quiz,
+  GenerateQuizOptions,
+} from "@/types/quiz";
 
 export function useQuiz(noteId: string) {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(Boolean(noteId));
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!noteId) {
+      setQuiz(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
+
     try {
       const quizzes = await listQuizzesByNote(noteId);
-      setQuiz(quizzes[0] ?? null);
+      const latest = [...quizzes].sort(
+        (left, right) =>
+          new Date(right.createdAt).getTime() -
+          new Date(left.createdAt).getTime(),
+      )[0];
+
+      setQuiz(latest ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load quiz");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load quiz",
+      );
     } finally {
       setIsLoading(false);
     }
   }, [noteId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  const generate = useCallback(async (options?: GenerateQuizOptions) => {
-    setIsGenerating(true);
-    setError(null);
-    try {
-      const newQuiz = await generateQuiz(noteId, options);
-      setQuiz(newQuiz);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate quiz");
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [noteId]);
+  const generate = useCallback(
+    async (
+      options?: GenerateQuizOptions,
+    ): Promise<Quiz | null> => {
+      if (!noteId) return null;
 
-  return { quiz, isLoading, isGenerating, error, generate, refetch: load };
+      setIsGenerating(true);
+      setError(null);
+
+      try {
+        const created = await generateQuiz(noteId, options);
+        setQuiz(created);
+        return created;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to generate quiz",
+        );
+        return null;
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [noteId],
+  );
+
+  return {
+    quiz,
+    isLoading,
+    isGenerating,
+    error,
+    generate,
+    refetch: load,
+  };
 }

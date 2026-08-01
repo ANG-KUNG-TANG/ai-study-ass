@@ -6,5 +6,9 @@ import { getRecentActivity } from "@/server/controller/admin.controller";
 // GET /api/admin/activity
 export const GET = withRole("admin")(async (req, _context, auth) => {
   apiLimiter(req, "admin:activity");
-  return getRecentActivity(req as NextRequest, auth);
+  return getRecentActivity(
+    req as NextRequest,
+    { params: Promise.resolve({} as Record<string, string>) },
+    auth,
+  );
 });

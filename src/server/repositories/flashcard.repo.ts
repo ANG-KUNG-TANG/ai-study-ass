@@ -1,10 +1,33 @@
-import { Flashcard } from "../models/Flashcard";
-import { FlashcardEntity, type FlashcardProps, type FlashcardId } from "../entities/flashcard.entity";
-import { logger } from "../utils/logger";
-import { NotFoundError } from "../utils/errors";
+import {
+  Flashcard,
+  type FlashcardDocument,
+  type FlashcardPersistence,
+} from "@/server/models/Flashcard";
+import {
+  FlashcardEntity,
+  type FlashcardId,
+} from "@/server/entities/flashcard.entity";
+import { logger } from "@/server/utils/logger";
+import { NotFoundError } from "@/server/utils/errors";
 
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-function toEntity(doc: any): FlashcardEntity {
+type FlashcardRecord =
+  Pick<
+    FlashcardPersistence,
+    | "_id"
+    | "noteId"
+    | "userId"
+    | "front"
+    | "back"
+    | "difficulty"
+    | "reviewCount"
+    | "lastReviewedAt"
+    | "createdAt"
+    | "updatedAt"
+  >;
+
+function toEntity(
+  doc: FlashcardRecord,
+): FlashcardEntity {
   return FlashcardEntity.fromPersistence({
     id: String(doc._id),
     noteId: String(doc.noteId),
@@ -12,92 +35,189 @@ function toEntity(doc: any): FlashcardEntity {
     front: doc.front,
     back: doc.back,
     difficulty: doc.difficulty,
-    reviewCount: doc.reviewCount,
-    lastReviewedAt: doc.lastReviewedAt ?? null,
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
+    reviewCount:
+      doc.reviewCount ?? 0,
+    lastReviewedAt:
+      doc.lastReviewedAt ?? null,
+    createdAt:
+      doc.createdAt ?? new Date(),
+    updatedAt:
+      doc.updatedAt ?? new Date(),
   });
 }
 
-// ─── Read ─────────────────────────────────────────────────────────────────────
+export async function findById(
+  id: FlashcardId,
+): Promise<FlashcardEntity | null> {
+  const doc =
+    await Flashcard.findById(id)
+      .lean<FlashcardRecord>()
+      .exec();
 
-export async function findById(id: FlashcardId): Promise<FlashcardEntity | null> {
-  const doc = await Flashcard.findById(id).lean().exec();
-  if (!doc) return null;
-  return toEntity(doc);
+  return doc ? toEntity(doc) : null;
 }
 
-export async function findByIdOrThrow(id: FlashcardId): Promise<FlashcardEntity> {
-  const doc = await Flashcard.findById(id).lean().exec();
-  if (!doc) throw new NotFoundError("Flashcard");
-  return toEntity(doc);
+export async function findByIdOrThrow(
+  id: FlashcardId,
+): Promise<FlashcardEntity> {
+  const flashcard =
+    await findById(id);
+
+  if (!flashcard) {
+    throw new NotFoundError(
+      "Flashcard",
+    );
+  }
+
+  return flashcard;
 }
 
-// Single canonical "list by note" function — findByNoteId and findManyByNoteId
-// were exact duplicates; kept the name the service actually calls.
-export async function findManyByNoteId(noteId: string): Promise<FlashcardEntity[]> {
-  const docs = await Flashcard.find({ noteId }).lean().exec();
-  return docs.map(toEntity);
-}
-
-export async function findByNoteAndUserId(noteId: string, userId: string): Promise<FlashcardEntity[]> {
-  const docs = await Flashcard.find({ noteId, userId }).lean().exec();
-  return docs.map(toEntity);
-}
-
-export async function existsByNoteId(noteId: string): Promise<boolean> {
-  return Boolean(await Flashcard.exists({ noteId }));
-}
-
-// ─── Create ───────────────────────────────────────────────────────────────────
-// This was previously split across a working create() and a stub createMany()
-// that threw "Function not implemented." — the service calls createMany(),
-// so that's the name that survives, with the real insertMany logic moved in.
-
-export async function createMany(entities: FlashcardEntity[]): Promise<FlashcardEntity[]> {
-  const docs = await Flashcard.insertMany(
-    entities.map((e) => {
-      const d = e.toPersistence();
-      return {
-        _id: d.id,
-        noteId: d.noteId,
-        userId: d.userId,
-        front: d.front,
-        back: d.back,
-        difficulty: d.difficulty,
-        reviewCount: d.reviewCount,
-        lastReviewedAt: d.lastReviewedAt,
-      };
+export async function findManyByNoteId(
+  noteId: string,
+): Promise<FlashcardEntity[]> {
+  const docs =
+    await Flashcard.find({
+      noteId,
     })
-  );
-  logger.info("Flashcards created", { count: docs.length });
-  return docs.map((d) => toEntity(d.toObject()));
+      .sort({ createdAt: 1 })
+      .lean<FlashcardRecord[]>()
+      .exec();
+
+  return docs.map(toEntity);
 }
 
-// ─── Update ───────────────────────────────────────────────────────────────────
+export async function findByNoteAndUserId(
+  noteId: string,
+  userId: string,
+): Promise<FlashcardEntity[]> {
+  const docs =
+    await Flashcard.find({
+      noteId,
+      userId,
+    })
+      .sort({ createdAt: 1 })
+      .lean<FlashcardRecord[]>()
+      .exec();
+
+  return docs.map(toEntity);
+}
+
+export async function existsByNoteId(
+  noteId: string,
+): Promise<boolean> {
+  return Boolean(
+    await Flashcard.exists({
+      noteId,
+    }),
+  );
+}
+
+export async function createMany(
+  entities: FlashcardEntity[],
+): Promise<FlashcardEntity[]> {
+  if (entities.length === 0) {
+    return [];
+  }
+
+  const now = new Date();
+
+  const payload =
+    entities.map((entity) => {
+      const value =
+        entity.toPersistence();
+
+      return {
+        _id: value.id,
+        noteId: value.noteId,
+        userId: value.userId,
+        front: value.front,
+        back: value.back,
+        difficulty:
+          value.difficulty,
+        reviewCount:
+          value.reviewCount,
+        lastReviewedAt:
+          value.lastReviewedAt,
+        createdAt:
+          value.createdAt ?? now,
+        updatedAt:
+          value.updatedAt ?? now,
+      };
+    });
+
+  const docs =
+    await Flashcard.insertMany(
+      payload,
+      {
+        ordered: true,
+      },
+    );
+
+  logger.info(
+    "Flashcards created",
+    {
+      count: docs.length,
+      noteId:
+        payload[0]?.noteId,
+    },
+  );
+
+  return docs.map(
+    (document: FlashcardDocument) =>
+      toEntity(
+        document.toObject() as
+          FlashcardRecord,
+      ),
+  );
+}
 
 export async function updateReview(
   id: FlashcardId,
-  difficulty: FlashcardEntity["difficulty"]
+  difficulty:
+    FlashcardEntity["difficulty"],
 ): Promise<void> {
-  await Flashcard.findByIdAndUpdate(id, {
-    difficulty,
-    $inc: { reviewCount: 1 },
-    lastReviewedAt: new Date(),
-    updatedAt: new Date(),
-  });
+  const result =
+    await Flashcard.updateOne(
+      { _id: id },
+      {
+        $set: {
+          difficulty,
+          lastReviewedAt:
+            new Date(),
+        },
+        $inc: {
+          reviewCount: 1,
+        },
+      },
+    ).exec();
+
+  if (result.matchedCount === 0) {
+    throw new NotFoundError(
+      "Flashcard",
+    );
+  }
 }
 
-// ─── Delete ───────────────────────────────────────────────────────────────────
-
-export async function deleteById(id: FlashcardId): Promise<void> {
-  await Flashcard.findByIdAndDelete(id);
+export async function deleteById(
+  id: FlashcardId,
+): Promise<void> {
+  await Flashcard.deleteOne({
+    _id: id,
+  }).exec();
 }
 
-export async function deleteByNoteId(noteId: string): Promise<void> {
-  await Flashcard.deleteMany({ noteId });
+export async function deleteByNoteId(
+  noteId: string,
+): Promise<void> {
+  await Flashcard.deleteMany({
+    noteId,
+  }).exec();
 }
 
-export async function deleteByUserId(userId: string): Promise<void> {
-  await Flashcard.deleteMany({ userId });
+export async function deleteByUserId(
+  userId: string,
+): Promise<void> {
+  await Flashcard.deleteMany({
+    userId,
+  }).exec();
 }

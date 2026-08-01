@@ -7,12 +7,20 @@ import { getUser, deleteUser } from "@/server/controller/admin.controller";
 export const GET = withRole("admin")(async (req, context, auth) => {
   apiLimiter(req, "admin:get-user");
   const params = await context.params;
-  return getUser(req as NextRequest, auth, { params: params as { id: string } });
+  return getUser(
+    req as NextRequest,
+    { params: Promise.resolve(params as unknown as Record<string, string>) },
+    auth,
+  );
 });
 
 // DELETE /api/admin/users/[id]
 export const DELETE = withRole("admin")(async (req, context, auth) => {
   apiLimiter(req, "admin:delete-user");
   const params = await context.params;
-  return deleteUser(req as NextRequest, auth, { params: params as { id: string } });
+  return deleteUser(
+    req as NextRequest,
+    { params: Promise.resolve(params as unknown as Record<string, string>) },
+    auth,
+  );
 });

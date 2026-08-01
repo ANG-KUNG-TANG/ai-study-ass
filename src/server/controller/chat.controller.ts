@@ -1,59 +1,142 @@
-// server/controllers/chat.controller.ts
-//
-// POST   /api/notes/[id]/chat    ask a question about a note
-// GET    /api/notes/[id]/chat    get chat history for a note
-// DELETE /api/notes/[id]/chat    clear chat history for a note
-
-import type { NextResponse } from "next/server";
-import { z } from "zod";
-import { successResponse, createdResponse, noContentResponse } from "@/server/utils/response";
-import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
+import type {
+  NextResponse,
+} from "next/server";
+import {
+  z,
+} from "zod";
+import {
+  successResponse,
+  createdResponse,
+  noContentResponse,
+} from "@/server/utils/response";
+import type {
+  AuthContext,
+  RouteContext,
+} from "@/server/middleware/auth.middleware";
 import * as chatService from "@/server/services/chat/chat.service";
-import { ValidationError } from "@/server/utils/errors";
-import { CHAT_RULES } from "@/server/entities/chat.entity";
+import {
+  BadRequestError,
+  ValidationError,
+} from "@/server/utils/errors";
+import {
+  CHAT_RULES,
+} from "@/server/entities/chat.entity";
 
-const askBodySchema = z.object({
-  question: z.string().min(CHAT_RULES.question.minLength).max(CHAT_RULES.question.maxLength),
-});
+const askBodySchema =
+  z.object({
+    question:
+      z.string()
+        .trim()
+        .min(
+          CHAT_RULES.question.minLength,
+        )
+        .max(
+          CHAT_RULES.question.maxLength,
+        ),
+  });
+
+async function getNoteId(
+  context: RouteContext,
+): Promise<string> {
+  const params =
+    await context.params;
+
+  const noteId =
+    params.id ??
+    params.noteId ??
+    params.noteid;
+
+  if (!noteId) {
+    throw new BadRequestError(
+      "Missing note id in route parameters",
+    );
+  }
+
+  return noteId;
+}
 
 export async function askQuestion(
   req: Request,
   context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
-  const { id: noteId } = await context.params;
+  const noteId =
+    await getNoteId(
+      context,
+    );
 
   let json: unknown;
+
   try {
-    json = await req.json();
+    json =
+      await req.json();
   } catch {
-    throw new ValidationError("Validation failed", {
-      body: "Request body must be valid JSON",
-    });
+    throw new ValidationError(
+      "Validation failed",
+      {
+        body:
+          "Request body must be valid JSON",
+      },
+    );
   }
 
-  const { question } = askBodySchema.parse(json);
+  const {
+    question,
+  } =
+    askBodySchema.parse(
+      json,
+    );
 
-  const result = await chatService.askQuestion(noteId, auth.userId, question);
-  return createdResponse(result);
+  const result =
+    await chatService
+      .askQuestion(
+        noteId,
+        auth.userId,
+        question,
+      );
+
+  return createdResponse(
+    result,
+  );
 }
 
 export async function getChatHistory(
   _req: Request,
   context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
-  const { id: noteId } = await context.params;
-  const history = await chatService.getChatHistory(noteId, auth.userId);
-  return successResponse(history);
+  const noteId =
+    await getNoteId(
+      context,
+    );
+
+  const history =
+    await chatService
+      .getChatHistory(
+        noteId,
+        auth.userId,
+      );
+
+  return successResponse(
+    history,
+  );
 }
 
 export async function clearChatHistory(
   _req: Request,
   context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
-  const { id: noteId } = await context.params;
-  await chatService.clearChatHistory(noteId, auth.userId);
+  const noteId =
+    await getNoteId(
+      context,
+    );
+
+  await chatService
+    .clearChatHistory(
+      noteId,
+      auth.userId,
+    );
+
   return noContentResponse();
 }

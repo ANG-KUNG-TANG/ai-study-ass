@@ -1,20 +1,21 @@
-// =============================================================================
-// server/services/chat.prompt.ts
-//
-// Builds the system + user prompt for answering a chat question about a
-// note. Separate from chat.service.ts so the prompt text can be iterated
-// on independently of the history-fetching/persistence logic around it —
-// same split as quiz.prompt.ts.
-// =============================================================================
-
-import type { IntelligenceResultEntity, ConfidenceMode } from "@/server/entities/intelligence.entity";
-
-const MAX_CONTRIBUTIONS = 3;
-const MAX_CONCEPTS = 10;
+import type {
+  IntelligenceResultEntity,
+} from "@/server/entities/intelligence.entity";
 
 export interface ChatHistoryMessage {
   question: string;
   answer: string;
+}
+
+export interface BuildChatPromptInput {
+  noteTitle: string;
+  noteContent: string;
+  intelligence:
+    | IntelligenceResultEntity
+    | null;
+  history: ChatHistoryMessage[];
+  question: string;
+  evidence: string[];
 }
 
 export interface ChatPromptResult {
@@ -22,69 +23,129 @@ export interface ChatPromptResult {
   prompt: string;
 }
 
-/**
- * Builds the "Extracted facts" block from the intelligence result's core
- * data + resolved concepts.
- */
-function buildFactBlock(intelligence: IntelligenceResultEntity): string {
-  const factLines: string[] = [];
-  const core = intelligence.core;
-
-  if (core?.method) factLines.push(`Method: ${core.method}`);
-  if (core?.dataset) factLines.push(`Dataset: ${core.dataset}`);
-  if (core?.accuracy !== null && core?.accuracy !== undefined) factLines.push(`Accuracy: ${core.accuracy}%`);
-  if (core?.problem) factLines.push(`Problem: ${core.problem}`);
-  for (const c of core?.contributions.slice(0, MAX_CONTRIBUTIONS) ?? []) {
-    factLines.push(`Contribution: ${c}`);
-  }
-
-  const concepts = intelligence.resolvedConcepts().map((c) => c.concept.label).slice(0, MAX_CONCEPTS);
-  if (concepts.length > 0) factLines.push(`Key concepts: ${concepts.join(", ")}`);
-
-  return factLines.length > 0 ? factLines.join("\n") : "(no structured facts extracted)";
-}
-
-/**
- * Grounding strictness scales with confidence mode: the higher the
- * confidence in the extracted facts, the less the model is allowed to
- * stray from them.
- */
-function buildSystemPrompt(
-  noteTitle: string,
-  intelligence: IntelligenceResultEntity,
-  mode: ConfidenceMode,
+function buildFactBlock(
+  intelligence:
+    | IntelligenceResultEntity
+    | null,
 ): string {
-  const factBlock = buildFactBlock(intelligence);
-  const base = `You are a study assistant helping a student understand a document titled "${noteTitle}".\n\nExtracted facts:\n${factBlock}`;
-
-  if (mode === "SYMBOLIC_ONLY") {
-    return `${base}\n\nAnswer ONLY using the facts above. Do not add information beyond them. If the facts don't cover the question, say so clearly rather than guessing.`;
+  if (!intelligence?.core) {
+    return "(no structured facts were extracted)";
   }
-  if (mode === "SYMBOLIC_WITH_OPTIONAL_AI_POLISH") {
-    return `${base}\n\nAnswer based primarily on the facts above. You may add brief clarifying context, but never contradict the extracted facts.`;
-  }
-  return `${base}\n\nThe extracted facts above may be incomplete or unreliable for this document. Use them as a starting point, but reason more broadly from general knowledge to give a complete, helpful answer. Be clear when you're going beyond the extracted facts.`;
-}
 
-/**
- * Folds prior Q&A turns into the user prompt so the model has conversation
- * context. Falls back to the bare question when there's no history yet.
- */
-function buildUserPrompt(history: ChatHistoryMessage[], question: string): string {
-  if (history.length === 0) return question;
-  const historyContext = history.map((m) => `User: ${m.question}\nAssistant: ${m.answer}`).join("\n\n");
-  return `Previous conversation:\n${historyContext}\n\nNew question: ${question}`;
+  const core =
+    intelligence.core;
+
+  const facts: string[] = [];
+
+  if (core.problem) {
+    facts.push(
+      `Problem: ${core.problem}`,
+    );
+  }
+
+  if (core.method) {
+    facts.push(
+      `Method: ${core.method}`,
+    );
+  }
+
+  if (core.dataset) {
+    facts.push(
+      `Dataset: ${core.dataset}`,
+    );
+  }
+
+  if (
+    core.accuracy !== null &&
+    core.accuracy !== undefined
+  ) {
+    facts.push(
+      `Accuracy: ${core.accuracy}%`,
+    );
+  }
+
+  for (
+    const contribution of
+    core.contributions.slice(0, 3)
+  ) {
+    facts.push(
+      `Contribution: ${contribution}`,
+    );
+  }
+
+  const concepts =
+    intelligence
+      .resolvedConcepts()
+      .map(
+        (match) =>
+          match.concept.label,
+      )
+      .slice(0, 10);
+
+  if (concepts.length > 0) {
+    facts.push(
+      `Key concepts: ${concepts.join(", ")}`,
+    );
+  }
+
+  return facts.length > 0
+    ? facts.join("\n")
+    : "(no structured facts were extracted)";
 }
 
 export function buildChatPrompt(
-  noteTitle: string,
-  intelligence: IntelligenceResultEntity,
-  mode: ConfidenceMode,
-  history: ChatHistoryMessage[],
-  question: string,
+  input: BuildChatPromptInput,
 ): ChatPromptResult {
+  const historyText =
+    input.history
+      .slice(-6)
+      .map(
+        (message) =>
+          `Student: ${message.question}\n` +
+          `Assistant: ${message.answer}`,
+      )
+      .join("\n\n");
+
+  const documentBlock =
+    input.evidence.length > 0
+      ? [
+          "Relevant document evidence:",
+          input.evidence.join("\n\n"),
+        ].join("\n")
+      : [
+          "Document excerpt:",
+          input.noteContent.slice(0, 4_000),
+        ].join("\n");
+
   return {
-    systemPrompt: buildSystemPrompt(noteTitle, intelligence, mode),
-    prompt: buildUserPrompt(history, question),
+    systemPrompt:
+      `You are a study assistant for ` +
+      `"${input.noteTitle}". ` +
+      "Answer using only the extracted facts " +
+      "and uploaded-document evidence. " +
+      "Do not invent information. " +
+      "If the evidence is insufficient, say so clearly.",
+
+    prompt: [
+      [
+        "Extracted facts:",
+        buildFactBlock(
+          input.intelligence,
+        ),
+      ].join("\n"),
+
+      documentBlock,
+
+      historyText
+        ? [
+            "Previous conversation:",
+            historyText,
+          ].join("\n")
+        : "",
+
+      `Question: ${input.question}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
   };
 }

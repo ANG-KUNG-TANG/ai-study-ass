@@ -1,100 +1,203 @@
-// server/controllers/flashcard.controller.ts
-//
-// Three endpoints:
-//   POST   /api/notes/[id]/flashcards        generate flashcards for a note
-//   GET    /api/notes/[id]/flashcards        list flashcards for a note
-//   PATCH  /api/flashcards/[id]/review        record a review + difficulty
-//
-// Ownership checks (note.belongsTo / flashcard.belongsTo) live in
-// flashcard.service.ts, not here — matches the pattern used by quiz/chat
-// services, not the ownership-in-controller pattern summary.controller.ts
-// used. Consistent with the rest of the codebase's services.
-
-import type { NextResponse } from "next/server";
+import type {
+  NextResponse,
+} from "next/server";
 import { z } from "zod";
-import { successResponse, createdResponse } from "@/server/utils/response";
-import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
+import {
+  successResponse,
+  createdResponse,
+} from "@/server/utils/response";
+import type {
+  AuthContext,
+  RouteContext,
+} from "@/server/middleware/auth.middleware";
 import * as flashcardService from "@/server/services/flashcard.service";
-import { ValidationError } from "@/server/utils/errors";
-import { FLASHCARD_RULES } from "@/server/entities/flashcard.entity";
-import { logActivity } from "@/server/services/auditLog.service";
+import {
+  BadRequestError,
+  ValidationError,
+} from "@/server/utils/errors";
+import {
+  FLASHCARD_RULES,
+} from "@/server/entities/flashcard.entity";
+import {
+  logActivity,
+} from "@/server/services/auditLog.service";
 
 const generateBodySchema = z.object({
   count: z
     .number()
     .int()
-    .min(FLASHCARD_RULES.count.min)
-    .max(FLASHCARD_RULES.count.max)
+    .min(
+      FLASHCARD_RULES.count.min,
+    )
+    .max(
+      FLASHCARD_RULES.count.max,
+    )
+    .optional(),
+
+  force: z
+    .boolean()
     .optional(),
 });
 
 const reviewBodySchema = z.object({
-  difficulty: z.enum(["easy", "medium", "hard"]),
+  difficulty: z.enum([
+    "easy",
+    "medium",
+    "hard",
+  ]),
 });
 
-// ─── POST /api/notes/[id]/flashcards ──────────────────────────────────────────
-// Body is optional — { "count": 15 } or no body at all (service defaults to 10).
+async function getId(
+  context: RouteContext,
+): Promise<string> {
+  const params =
+    await context.params;
+
+  const id =
+    params.id ??
+    params.noteId ??
+    params.noteid;
+
+  if (!id) {
+    throw new BadRequestError(
+      "Missing route id",
+    );
+  }
+
+  return id;
+}
+
 export async function generateFlashcards(
   req: Request,
   context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
-  const { id: noteId } = await context.params;
+  const noteId =
+    await getId(context);
 
   let json: unknown = {};
-  const rawText = await req.text();
-  if (rawText.trim().length > 0) {
+
+  const rawText =
+    await req.text();
+
+  if (rawText.trim()) {
     try {
-      json = JSON.parse(rawText);
+      json =
+        JSON.parse(rawText);
     } catch {
-      throw new ValidationError("Validation failed", { body: "Request body must be valid JSON" });
+      throw new ValidationError(
+        "Validation failed",
+        {
+          body:
+            "Request body must be valid JSON",
+        },
+      );
     }
   }
 
-  const { count } = generateBodySchema.parse(json);
-  const flashcards = await flashcardService.generateFlashcards(noteId, auth.userId, count);
+  const {
+    count,
+    force,
+  } =
+    generateBodySchema.parse(
+      json,
+    );
 
-  logActivity({
-    actorId: auth.userId,
-    actorEmail: auth.email,
-    action: "flashcards.generated",
-    targetType: "note",
-    targetId: noteId,
-    metadata: { cardCount: flashcards.length },
+  const result =
+    await flashcardService
+      .generateFlashcardsWithMetadata(
+        noteId,
+        auth.userId,
+        count,
+        { force },
+      );
+
+  void logActivity({
+    actorId:
+      auth.userId,
+    actorEmail:
+      auth.email,
+    action:
+      "flashcards.generated",
+    targetType:
+      "note",
+    targetId:
+      noteId,
+    metadata: {
+      cardCount:
+        result.flashcards.length,
+      source:
+        result.metadata.source,
+      forced:
+        force ?? false,
+    },
   });
 
-  return createdResponse(flashcards, "Flashcards generated successfully");
+  return createdResponse(
+    result.flashcards,
+    "Flashcards generated successfully",
+  );
 }
-// ─── GET /api/notes/[id]/flashcards ───────────────────────────────────────────
+
 export async function listFlashcards(
   _req: Request,
   context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
-  const { id: noteId } = await context.params;
-  const flashcards = await flashcardService.getFlashcardsByNote(noteId, auth.userId);
-  return successResponse(flashcards);
+  const noteId =
+    await getId(context);
+
+  const flashcards =
+    await flashcardService
+      .getFlashcardsByNote(
+        noteId,
+        auth.userId,
+      );
+
+  return successResponse(
+    flashcards,
+  );
 }
 
-// ─── PATCH /api/flashcards/[id]/review ────────────────────────────────────────
 export async function updateFlashcardReview(
   req: Request,
   context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
-  const { id: flashcardId } = await context.params;
+  const flashcardId =
+    await getId(context);
 
   let json: unknown;
+
   try {
-    json = await req.json();
+    json =
+      await req.json();
   } catch {
-    throw new ValidationError("Validation failed", {
-      body: "Request body must be valid JSON",
-    });
+    throw new ValidationError(
+      "Validation failed",
+      {
+        body:
+          "Request body must be valid JSON",
+      },
+    );
   }
 
-  const { difficulty } = reviewBodySchema.parse(json);
+  const {
+    difficulty,
+  } =
+    reviewBodySchema.parse(
+      json,
+    );
 
-  const updated = await flashcardService.updateReview(flashcardId, auth.userId, difficulty);
-  return successResponse(updated);
+  const updated =
+    await flashcardService
+      .updateReview(
+        flashcardId,
+        auth.userId,
+        difficulty,
+      );
+
+  return successResponse(
+    updated,
+  );
 }

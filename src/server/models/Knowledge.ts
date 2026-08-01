@@ -1,19 +1,40 @@
 // server/models/Knowledge.ts
-// Only the diff from last turn: stage/error added, core/graph/etc. now optional.
+//
+// Legacy compatibility model.
+//
+// The canonical symbolic pipeline result is persisted through
+// intelligence.service.ts. Do not reconnect automatic generation to this
+// collection. Keep this model only while older code or data is migrated.
 
-import { Schema, model, models, Types, Document } from 'mongoose';
+import {
+  Schema,
+  model,
+  models,
+  type HydratedDocument,
+  type Model,
+} from "mongoose";
+import type {
+  PipelineStage,
+} from "@/server/types/Knowledge";
+import type {
+  AIProvider,
+} from "@/server/entities/chat.entity";
 
-export interface KnowledgeDocument extends Document {
+export interface KnowledgePersistence {
   noteId: string;
-  stage: 'pending' | 'document' | 'extraction' | 'ontology' | 'graph' | 'prolog' | 'complete';
+  stage: PipelineStage;
   error?: string;
+
   core?: {
     method: string | null;
     dataset: string | null;
     accuracy: number | null;
     problem: string | null;
     contributions: string[];
-    keyPoints: { label: string; value: string }[];
+    keyPoints: Array<{
+      label: string;
+      value: string;
+    }>;
     entities: string[];
     extras?: {
       metric: string | null;
@@ -25,23 +46,48 @@ export interface KnowledgeDocument extends Document {
       aiFilledFields?: string[];
     };
   };
-  ontologyMatches?: {
+
+  ontologyMatches?: Array<{
     conceptId: string;
     confidence: number;
-    matchType: 'exact' | 'alias' | 'fuzzy' | 'unknown';
+    matchType:
+      | "exact"
+      | "alias"
+      | "fuzzy"
+      | "unknown";
     rawInput: string;
-  }[];
+  }>;
+
   graph?: {
-    nodes: { id: string; type: string; label: string; properties?: Record<string, unknown> }[];
-    edges: { from: string; to: string; type: string; weight: number }[];
+    nodes: Array<{
+      id: string;
+      type: string;
+      label: string;
+      properties?: Record<
+        string,
+        unknown
+      >;
+    }>;
+    edges: Array<{
+      from: string;
+      to: string;
+      type: string;
+      weight: number;
+    }>;
   };
-  prologFacts?: { functor: string; args: string[] }[];
+
+  prologFacts?: Array<{
+    functor: string;
+    args: string[];
+  }>;
+
   gaps?: {
     missingFields: string[];
     missingSections: string[];
     unresolvedEntities: string[];
     coverageScore: number;
   };
+
   confidenceBreakdown?: {
     nlp: number;
     ontology: number;
@@ -51,146 +97,486 @@ export interface KnowledgeDocument extends Document {
     overall: number;
     overallOutOf10: number;
   };
+
   confidence?: number;
+
   aiFallback?: {
     used: boolean;
     filledFields: string[];
     raw?: string;
-    provider?: 'openai' | 'gemini';
+    provider?: Exclude<
+      AIProvider,
+      "symbolic"
+    >;
     tokensUsed?: number;
     skippedReason?: string;
   };
+
+  processedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const KeyPointSchema = new Schema({ label: String, value: String }, { _id: false });
+export type KnowledgeDocument =
+  HydratedDocument<
+    KnowledgePersistence
+  >;
 
-const KnowledgeCoreSchema = new Schema(
-  {
-    method: { type: String, default: null },
-    dataset: { type: String, default: null },
-    accuracy: { type: Number, default: null },
-    problem: { type: String, default: null },
-    contributions: { type: [String], default: [] },
-    keyPoints: { type: [KeyPointSchema], default: [] },
-    entities: { type: [String], default: [] },
-    extras: {
-      type: new Schema(
-        {
-          metric: { type: String, default: null },
-          limitations: { type: String, default: null },
-          futureWork: { type: String, default: null },
-          topic: { type: String, default: null },
-          keywords: { type: [String], default: [] },
-          aiAssisted: { type: Boolean, default: false },
-          aiFilledFields: { type: [String], default: [] },
-        },
-        { _id: false }
-      ),
-      required: false,
+const keyPointSchema =
+  new Schema(
+    {
+      label: {
+        type: String,
+        required: true,
+      },
+
+      value: {
+        type: String,
+        required: true,
+      },
     },
-  },
-  { _id: false }
-);
-
-const OntologyMatchRefSchema = new Schema(
-  {
-    conceptId: { type: String, required: true },
-    confidence: { type: Number, required: true },
-    matchType: { type: String, enum: ['exact', 'alias', 'fuzzy', 'unknown'], required: true },
-    rawInput: { type: String, required: true },
-  },
-  { _id: false }
-);
-
-const GraphNodeSchema = new Schema(
-  {
-    id: { type: String, required: true },
-    type: { type: String, required: true },
-    label: { type: String, required: true },
-    properties: { type: Schema.Types.Mixed, required: false },
-  },
-  { _id: false }
-);
-
-const GraphEdgeSchema = new Schema(
-  {
-    from: { type: String, required: true },
-    to: { type: String, required: true },
-    type: { type: String, required: true },
-    weight: { type: Number, required: true },
-  },
-  { _id: false }
-);
-
-const GraphSchema = new Schema(
-  { nodes: { type: [GraphNodeSchema], default: [] }, edges: { type: [GraphEdgeSchema], default: [] } },
-  { _id: false }
-);
-
-const PrologFactSchema = new Schema(
-  { functor: { type: String, required: true }, args: { type: [String], default: [] } },
-  { _id: false }
-);
-
-const GapsSchema = new Schema(
-  {
-    missingFields: { type: [String], default: [] },
-    missingSections: { type: [String], default: [] },
-    unresolvedEntities: { type: [String], default: [] },
-    coverageScore: { type: Number, required: true },
-  },
-  { _id: false }
-);
-
-const ConfidenceBreakdownSchema = new Schema(
-  {
-    nlp: { type: Number, required: true },
-    ontology: { type: Number, required: true },
-    graph: { type: Number, required: true },
-    prolog: { type: Number, required: true },
-    coverage: { type: Number, required: true },
-    overall: { type: Number, required: true },
-    overallOutOf10: { type: Number, required: true },
-  },
-  { _id: false }
-);
-
-const AIFallbackSchema = new Schema(
-  {
-    used: { type: Boolean, required: true },
-    filledFields: { type: [String], default: [] },
-    raw: { type: String, required: false },
-    provider: { type: String, enum: ['openai', 'gemini'], required: false },
-    tokensUsed: { type: Number, required: false },
-    skippedReason: { type: String, required: false },
-  },
-  { _id: false }
-);
-
-const KnowledgeSchema = new Schema<KnowledgeDocument>(
-  {
-    noteId: { type: String, ref: 'Note', required: true, unique: true },
-    stage: {
-      type: String,
-      enum: ['pending', 'document', 'extraction', 'ontology', 'graph', 'prolog', 'complete'],
-      required: true,
-      default: 'pending',
+    {
+      _id: false,
     },
-    error: { type: String, required: false },
-    core: { type: KnowledgeCoreSchema, required: false },
-    ontologyMatches: { type: [OntologyMatchRefSchema], default: undefined, required: false },
-    graph: { type: GraphSchema, required: false },
-    prologFacts: { type: [PrologFactSchema], default: undefined, required: false },
-    gaps: { type: GapsSchema, required: false },
-    confidenceBreakdown: { type: ConfidenceBreakdownSchema, required: false },
-    confidence: { type: Number, min: 0, max: 1, required: false },
-    aiFallback: { type: AIFallbackSchema, required: false },
-  },
-  { timestamps: true }
-);
+  );
 
-// KnowledgeSchema.index({ noteId: 1 }, { unique: true });
+const knowledgeCoreSchema =
+  new Schema(
+    {
+      method: {
+        type: String,
+        default: null,
+      },
 
-export const Knowledge = models.Knowledge || model<KnowledgeDocument>('Knowledge', KnowledgeSchema);
+      dataset: {
+        type: String,
+        default: null,
+      },
+
+      accuracy: {
+        type: Number,
+        default: null,
+      },
+
+      problem: {
+        type: String,
+        default: null,
+      },
+
+      contributions: {
+        type: [String],
+        default: [],
+      },
+
+      keyPoints: {
+        type: [
+          keyPointSchema,
+        ],
+        default: [],
+      },
+
+      entities: {
+        type: [String],
+        default: [],
+      },
+
+      extras: {
+        type: new Schema(
+          {
+            metric: {
+              type: String,
+              default: null,
+            },
+
+            limitations: {
+              type: String,
+              default: null,
+            },
+
+            futureWork: {
+              type: String,
+              default: null,
+            },
+
+            topic: {
+              type: String,
+              default: null,
+            },
+
+            keywords: {
+              type: [String],
+              default: [],
+            },
+
+            aiAssisted: {
+              type: Boolean,
+              default: false,
+            },
+
+            aiFilledFields: {
+              type: [String],
+              default: [],
+            },
+          },
+          {
+            _id: false,
+          },
+        ),
+        required: false,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const ontologyMatchSchema =
+  new Schema(
+    {
+      conceptId: {
+        type: String,
+        required: true,
+      },
+
+      confidence: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 1,
+      },
+
+      matchType: {
+        type: String,
+        enum: [
+          "exact",
+          "alias",
+          "fuzzy",
+          "unknown",
+        ],
+        required: true,
+      },
+
+      rawInput: {
+        type: String,
+        required: true,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const graphNodeSchema =
+  new Schema(
+    {
+      id: {
+        type: String,
+        required: true,
+      },
+
+      type: {
+        type: String,
+        required: true,
+      },
+
+      label: {
+        type: String,
+        required: true,
+      },
+
+      properties: {
+        type:
+          Schema.Types.Mixed,
+        required: false,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const graphEdgeSchema =
+  new Schema(
+    {
+      from: {
+        type: String,
+        required: true,
+      },
+
+      to: {
+        type: String,
+        required: true,
+      },
+
+      type: {
+        type: String,
+        required: true,
+      },
+
+      weight: {
+        type: Number,
+        required: true,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const graphSchema =
+  new Schema(
+    {
+      nodes: {
+        type: [
+          graphNodeSchema,
+        ],
+        default: [],
+      },
+
+      edges: {
+        type: [
+          graphEdgeSchema,
+        ],
+        default: [],
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const prologFactSchema =
+  new Schema(
+    {
+      functor: {
+        type: String,
+        required: true,
+      },
+
+      args: {
+        type: [String],
+        default: [],
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const gapsSchema =
+  new Schema(
+    {
+      missingFields: {
+        type: [String],
+        default: [],
+      },
+
+      missingSections: {
+        type: [String],
+        default: [],
+      },
+
+      unresolvedEntities: {
+        type: [String],
+        default: [],
+      },
+
+      coverageScore: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 1,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const confidenceBreakdownSchema =
+  new Schema(
+    {
+      nlp: {
+        type: Number,
+        required: true,
+      },
+
+      ontology: {
+        type: Number,
+        required: true,
+      },
+
+      graph: {
+        type: Number,
+        required: true,
+      },
+
+      prolog: {
+        type: Number,
+        required: true,
+      },
+
+      coverage: {
+        type: Number,
+        required: true,
+      },
+
+      overall: {
+        type: Number,
+        required: true,
+      },
+
+      overallOutOf10: {
+        type: Number,
+        required: true,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const aiFallbackSchema =
+  new Schema(
+    {
+      used: {
+        type: Boolean,
+        required: true,
+      },
+
+      filledFields: {
+        type: [String],
+        default: [],
+      },
+
+      raw: {
+        type: String,
+        required: false,
+      },
+
+      provider: {
+        type: String,
+        enum: [
+          "openai",
+          "gemini",
+        ],
+        required: false,
+      },
+
+      tokensUsed: {
+        type: Number,
+        min: 0,
+        required: false,
+      },
+
+      skippedReason: {
+        type: String,
+        required: false,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const knowledgeSchema =
+  new Schema<KnowledgePersistence>(
+    {
+      noteId: {
+        type: String,
+        required: true,
+        unique: true,
+        index: true,
+      },
+
+      stage: {
+        type: String,
+        enum: [
+          "pending",
+          "document",
+          "extraction",
+          "ontology",
+          "graph",
+          "prolog",
+          "complete",
+        ] satisfies PipelineStage[],
+        required: true,
+        default: "pending",
+      },
+
+      error: {
+        type: String,
+        required: false,
+      },
+
+      core: {
+        type:
+          knowledgeCoreSchema,
+        required: false,
+      },
+
+      ontologyMatches: {
+        type: [
+          ontologyMatchSchema,
+        ],
+        default: undefined,
+        required: false,
+      },
+
+      graph: {
+        type: graphSchema,
+        required: false,
+      },
+
+      prologFacts: {
+        type: [
+          prologFactSchema,
+        ],
+        default: undefined,
+        required: false,
+      },
+
+      gaps: {
+        type: gapsSchema,
+        required: false,
+      },
+
+      confidenceBreakdown: {
+        type:
+          confidenceBreakdownSchema,
+        required: false,
+      },
+
+      confidence: {
+        type: Number,
+        min: 0,
+        max: 1,
+        required: false,
+      },
+
+      aiFallback: {
+        type:
+          aiFallbackSchema,
+        required: false,
+      },
+
+      processedAt: {
+        type: Date,
+        required: false,
+      },
+    },
+    {
+      timestamps: true,
+      versionKey: false,
+    },
+  );
+
+export const Knowledge:
+  Model<KnowledgePersistence> =
+  (models.Knowledge as
+    | Model<KnowledgePersistence>
+    | undefined) ??
+  model<KnowledgePersistence>(
+    "Knowledge",
+    knowledgeSchema,
+  );
