@@ -1,124 +1,122 @@
-import mongoose, { mongo } from "mongoose";
+import mongoose from "mongoose";
 import { env } from "./env";
-import { number, promise } from "zod";
 import { logger } from "../utils/logger";
-
-//Types
 
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
+  eventsRegistered: boolean;
 }
 
-//global cache
-
 declare global {
+  // eslint-disable-next-line no-var
   var __mongoose: MongooseCache | undefined;
 }
 
-const cache: MongooseCache = global.__mongoose ?? { conn: null, promise: null };
+const cache: MongooseCache = globalThis.__mongoose ?? {
+  conn: null,
+  promise: null,
+  eventsRegistered: false,
+};
 
-if (!global.__mongoose) {
-  global.__mongoose = cache;
-}
-
-//config
+globalThis.__mongoose = cache;
 
 const CONNECTION_OPTIONS: mongoose.ConnectOptions = {
   bufferCommands: false,
   maxPoolSize: 10,
   minPoolSize: 2,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 10000,
-  heartbeatFrequencyMS: 10000,
+  serverSelectionTimeoutMS: 5_000,
+  socketTimeoutMS: 45_000,
+  connectTimeoutMS: 10_000,
+  heartbeatFrequencyMS: 10_000,
 };
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
+const RETRY_DELAY_MS = 2_000;
 
-//helpters
-
-function sleep(ms: number) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function registerConnectionEvents() {
+function registerConnectionEvents(): void {
+  if (cache.eventsRegistered) return;
+  cache.eventsRegistered = true;
+
   mongoose.connection.on("connected", () => {
-    logger.info(`[db] connected to MongoDB`);
+    logger.info("[db] connected to MongoDB");
   });
 
   mongoose.connection.on("disconnected", () => {
-    logger.warn(`[db] disconnected from MongoDB`);
-
+    logger.warn("[db] disconnected from MongoDB");
     cache.conn = null;
     cache.promise = null;
   });
 
   mongoose.connection.on("reconnected", () => {
-    logger.info(`[db] connected to MongoDB`);
+    logger.info("[db] reconnected to MongoDB");
   });
 
-  mongoose.connection.on("error", (err) => {
-    logger.error(`[db] connection error:`, err.message);
+  mongoose.connection.on("error", (error: Error) => {
+    logger.error("[db] connection error", { message: error.message });
   });
 }
 
-//connect
 export async function connectDb(): Promise<typeof mongoose> {
-  //already connected - return cached connection
-  if (cache.conn) return cache.conn;
-
-  //connection in progress - wait for it
+  if (cache.conn && mongoose.connection.readyState === 1) return cache.conn;
   if (cache.promise) return cache.promise;
 
-  //start a new connection with retry login
-  cache.promise = (async () => {
-    registerConnectionEvents();
+  registerConnectionEvents();
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+  cache.promise = (async () => {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
       try {
-        const connection = await mongoose.connect(
-          env.MONGODB_URI,
-          CONNECTION_OPTIONS,
-        );
+        const connection = await mongoose.connect(env.MONGODB_URI, CONNECTION_OPTIONS);
         cache.conn = connection;
         return connection;
-      } catch (err) {
-        const isLastAttempt = attempt === MAX_RETRIES;
+      } catch (unknownError) {
+        const error = unknownError instanceof Error
+          ? unknownError
+          : new Error(String(unknownError));
 
-        if (isLastAttempt) {
+        if (attempt === MAX_RETRIES) {
           cache.promise = null;
           throw new Error(
-            `[db] failed to connect after ${MAX_RETRIES} attempts: ${(err as Error).message}`,
+            `[db] failed to connect after ${MAX_RETRIES} attempts: ${error.message}`,
           );
         }
 
-        console.warn(
-          `[db] connection attempt ${attempt}/${MAX_RETRIES} failed - retrying in ${RETRY_DELAY_MS}ms`,
-        );
+        logger.warn("[db] connection attempt failed", {
+          attempt,
+          maxRetries: MAX_RETRIES,
+          retryInMs: RETRY_DELAY_MS * attempt,
+          message: error.message,
+        });
         await sleep(RETRY_DELAY_MS * attempt);
       }
     }
-    throw new Error(`[db] unreachable`);
+
+    throw new Error("[db] unreachable");
   })();
 
-  return cache.promise;
+  try {
+    return await cache.promise;
+  } catch (error) {
+    cache.promise = null;
+    throw error;
+  }
 }
 
-//Disconnect
-//used in test and graceful shutdown - not in normal request handling
-
-export async function disxonnectDB(): Promise<void> {
-  if (!cache.conn) return;
-
+export async function disconnectDB(): Promise<void> {
+  if (!cache.conn && mongoose.connection.readyState === 0) return;
   await mongoose.disconnect();
   cache.conn = null;
   cache.promise = null;
-  console.log("[db] disconnected cleanly");
+  logger.info("[db] disconnected cleanly");
 }
 
-//health check
+/** @deprecated Use disconnectDB. */
+export const disxonnectDB = disconnectDB;
+
 export async function checkDBHealth(): Promise<{
   status: "ok" | "error";
   message: string;
@@ -126,24 +124,26 @@ export async function checkDBHealth(): Promise<{
 }> {
   try {
     const state = mongoose.connection.readyState;
-
-    //readySteate: 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
-    if (state !== 1) {
+    if (state !== 1 || !mongoose.connection.db) {
       return {
         status: "error",
-        message: `MongoDB not connected (readyState : ${state})`,
+        message: `MongoDB not connected (readyState: ${state})`,
       };
     }
 
     const start = Date.now();
-    await mongoose.connection.db?.admin().ping();
-    const latencyMs = Date.now() - start;
-
-    return { status: "ok", message: "MongoDB reachabel", latencyMs };
-  } catch (err) {
+    await mongoose.connection.db.admin().ping();
+    return {
+      status: "ok",
+      message: "MongoDB reachable",
+      latencyMs: Date.now() - start,
+    };
+  } catch (unknownError) {
     return {
       status: "error",
-      message: (err as Error).message,
+      message: unknownError instanceof Error
+        ? unknownError.message
+        : String(unknownError),
     };
   }
 }

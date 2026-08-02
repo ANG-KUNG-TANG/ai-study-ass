@@ -18,71 +18,45 @@ const bodySchema = z.object({
   force: z.boolean().optional(),
 });
 
+async function readJsonBody(req: Request): Promise<unknown> {
+  try {
+    return await req.json();
+  } catch {
+    throw new ValidationError("Validation failed", {
+      body: "Request body must be valid JSON",
+    });
+  }
+}
+
 export async function postSummary(
   req: Request,
   _context: RouteContext,
   auth: AuthContext,
 ) {
-  let json: unknown;
-
-  try {
-    json = await req.json();
-  } catch {
-<<<<<<< HEAD
-    throw new ValidationError(
-      "Validation failed",
-      {
-        body:
-          "Request body must be valid JSON",
-      },
-    );
-=======
-    throw new ValidationError("Validation failed", {
-      body: "Request body must be valid JSON",
-    });
-  }
-
-  const { noteId, force } = bodySchema.parse(json);
-
+  const { noteId, force } = bodySchema.parse(await readJsonBody(req));
   const note = await findNoteById(noteId);
 
   if (!note) {
-    throw new NotFoundError(`Note ${noteId} not found`);
+    throw new NotFoundError(`Note ${noteId}`);
   }
 
   if (!note.belongsTo(auth.userId)) {
     throw new ForbiddenError("You do not have access to this note.");
->>>>>>> 0340f1e (refactor(server): update feature controllers, repos, and entities for chat, quiz, and flashcards)
   }
 
-  const { noteId, force } =
-    bodySchema.parse(json);
+  const result = await generateSummary(noteId, { force });
 
-  const note = await findNoteById(noteId);
-
-  if (!note) {
-    throw new NotFoundError(
-      `Note ${noteId} not found`,
-    );
-  }
-
-  if (!note.belongsTo(auth.userId)) {
-    throw new ForbiddenError(
-      "You do not have access to this note.",
-    );
-  }
-
-  const result = await generateSummary(
-    noteId,
-    { force },
-  );
-
-  logActivity({
+  void logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "summary.generated",
     targetType: "note",
     targetId: noteId,
+    metadata: {
+      source: result.source,
+      status: result.status,
+      forced: force ?? false,
+    },
   });
 
   return successResponse(result);

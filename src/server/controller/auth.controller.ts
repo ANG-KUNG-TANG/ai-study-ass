@@ -1,9 +1,17 @@
 import type { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import * as authService from "@/server/services/auth.service";
 import { validateBody } from "@/server/middleware/validation.middleware";
-import { successResponse, createdResponse, noContentResponse } from "@/server/utils/response";
+import {
+  successResponse,
+  createdResponse,
+  noContentResponse,
+} from "@/server/utils/response";
 import { UnauthorizedError } from "@/server/utils/errors";
-import { sendVerificationEmail, sendPasswordResetEmail } from "@/server/utils/mailer";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "@/server/utils/mailer";
 import {
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
@@ -16,23 +24,24 @@ import {
   verifyEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  type RegisterInput,
+  type LoginInput,
+  type ChangePasswordInput,
+  type VerifyEmailInput,
+  type ForgotPasswordInput,
+  type ResetPasswordInput,
 } from "@/server/validators/auth.validators";
-import { z } from "zod";
-import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
+import type {
+  AuthContext,
+  RouteContext,
+} from "@/server/middleware/auth.middleware";
 import { handleError } from "@/server/middleware/error.middleware";
-import { COOKIE_REFRESH_TOKEN } from "../utils/constants";
-import { logActivity } from "../services/auditLog.service";
-
-
-// ─── Purpose ──────────────────────────────────────────────────────────────────
-// Public routes (register, login, refresh, verify, forgot/reset password) take
-// only `req`. Routes that need an identity (logout, me, change password) sit
-// behind withAuth and take (req, context, auth) — matching withAuth's real
-// call signature. auth.userId (NOT context) is where the identity lives.
+import { logActivity } from "@/server/services/auditLog.service";
 
 const resendVerificationSchema = z.object({
-  email: z.string({ error: "Email is required" }).email("Invalid email format").toLowerCase().trim(),
+  email: z.string().email("Invalid email format").toLowerCase().trim(),
 });
+type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
 
 function requireRefreshCookie(req: NextRequest): string {
   const token = getRefreshTokenFromRequest(req);
@@ -40,50 +49,53 @@ function requireRefreshCookie(req: NextRequest): string {
   return token;
 }
 
-// ─── Registration / verification ───────────────────────────────────────────────
-
-// POST /api/auth/register
 export async function register(req: NextRequest): Promise<NextResponse> {
-  const input = await validateBody(req, registerSchema);
-  const result = await authService.register(input, sendVerificationEmail);
-  // result may be a simple message object or a user object. Guard before logging.
-  if ((result as any)?.id) {
-    const r = result as any;
-    logActivity({ actorId: r.id, actorEmail: r.email, action: "auth.register" });
-  }
-  return createdResponse(result);
+  const input = await validateBody<RegisterInput>(req, registerSchema);
+  return createdResponse(
+    await authService.register(input, sendVerificationEmail),
+  );
 }
 
-// POST /api/auth/verify-email
 export async function verifyEmail(req: NextRequest): Promise<NextResponse> {
-  const { token } = await validateBody(req, verifyEmailSchema);
-  const result = await authService.verifyEmail(token);
-  return successResponse(result);
+  const { token } = await validateBody<VerifyEmailInput>(
+    req,
+    verifyEmailSchema,
+  );
+  return successResponse(await authService.verifyEmail(token));
 }
 
-// POST /api/auth/resend-verification
-export async function resendVerification(req: NextRequest): Promise<NextResponse> {
-  const { email } = await validateBody(req, resendVerificationSchema);
-  const result = await authService.resendVerification(email, sendVerificationEmail);
-  return successResponse(result);
+export async function resendVerification(
+  req: NextRequest,
+): Promise<NextResponse> {
+  const { email } = await validateBody<ResendVerificationInput>(
+    req,
+    resendVerificationSchema,
+  );
+  return successResponse(
+    await authService.resendVerification(email, sendVerificationEmail),
+  );
 }
 
-// ─── Login / logout / refresh ──────────────────────────────────────────────────
-
-// POST /api/auth/login
 export async function login(req: NextRequest): Promise<NextResponse> {
-  const input = await validateBody(req, loginSchema);
+  const input = await validateBody<LoginInput>(req, loginSchema);
   const { user, tokens } = await authService.login(input);
-  logActivity({ actorId: user.id, actorEmail: user.email, action: "auth.login" });
-  const res = successResponse({ user, accessToken: tokens.accessToken });
-  return setRefreshTokenCookie(res, tokens.refreshToken);
+
+  void logActivity({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "auth.login",
+  });
+
+  return setRefreshTokenCookie(
+    successResponse({ user, accessToken: tokens.accessToken }),
+    tokens.refreshToken,
+  );
 }
 
-// POST /api/auth/logout
 export async function logout(
   req: NextRequest,
   _context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
   const authHeader = req.headers.get("Authorization");
   const accessToken = authHeader?.startsWith("Bearer ")
@@ -91,65 +103,68 @@ export async function logout(
     : undefined;
 
   await authService.logout(auth.userId, accessToken);
-  logActivity({ actorId: auth.userId, actorEmail: auth.email, action: "auth.logout" });
-  const res = noContentResponse();
-  return clearRefreshTokenCookie(res);
+
+  void logActivity({
+    actorId: auth.userId,
+    actorEmail: auth.email,
+    action: "auth.logout",
+  });
+
+  return clearRefreshTokenCookie(noContentResponse());
 }
 
-// POST /api/auth/refresh
 export async function refresh(req: NextRequest): Promise<NextResponse> {
   const incomingRefreshToken = requireRefreshCookie(req);
+
   try {
     const tokens = await authService.refreshTokens(incomingRefreshToken);
-    const res = successResponse({ accessToken: tokens.accessToken });
-    return setRefreshTokenCookie(res, tokens.refreshToken);
-  } catch (err) {
-    // The refresh cookie the client is holding is dead (expired, reused, or
-    // the user no longer exists) — clear it so the client stops resending it.
-    // Without this, a failed refresh loops forever: same bad cookie in,
-    // same 401 out, burning the authLimiter budget every retry.
-    const res = handleError(err);
-    return clearRefreshTokenCookie(res);
+    return setRefreshTokenCookie(
+      successResponse({ accessToken: tokens.accessToken }),
+      tokens.refreshToken,
+    );
+  } catch (error) {
+    return clearRefreshTokenCookie(handleError(error));
   }
 }
 
-// ─── Profile / password ────────────────────────────────────────────────────────
-
-// GET /api/auth/me
 export async function getMe(
   _req: NextRequest,
   _context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
-  const user = await authService.getMe(auth.userId);
-  return successResponse(user);
+  return successResponse(await authService.getMe(auth.userId));
 }
 
-// PATCH /api/auth/password
 export async function changePassword(
   req: NextRequest,
   _context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
-  const input = await validateBody(req, changePasswordSchema);
+  const input = await validateBody<ChangePasswordInput>(
+    req,
+    changePasswordSchema,
+  );
   await authService.changePassword(auth.userId, input);
-  // changePassword revokes all sessions server-side — clear this device's cookie too
-  const res = successResponse({ message: "Password changed — please log in again" });
-  return clearRefreshTokenCookie(res);
+
+  return clearRefreshTokenCookie(
+    successResponse({ message: "Password changed — please log in again" }),
+  );
 }
 
-// ─── Forgot / reset password ───────────────────────────────────────────────────
-
-// POST /api/auth/forgot-password
 export async function forgotPassword(req: NextRequest): Promise<NextResponse> {
-  const { email } = await validateBody(req, forgotPasswordSchema);
-  const result = await authService.forgotPassword(email, sendPasswordResetEmail);
-  return successResponse(result);
+  const { email } = await validateBody<ForgotPasswordInput>(
+    req,
+    forgotPasswordSchema,
+  );
+  return successResponse(
+    await authService.forgotPassword(email, sendPasswordResetEmail),
+  );
 }
 
-// POST /api/auth/reset-password
 export async function resetPassword(req: NextRequest): Promise<NextResponse> {
-  const { token, newPassword } = await validateBody(req, resetPasswordSchema);
-  const result = await authService.resetPassword(token, newPassword);
-  return successResponse(result);
+  const { token, newPassword } = await validateBody<ResetPasswordInput>(
+    req,
+    resetPasswordSchema,
+  );
+  return successResponse(await authService.resetPassword(token, newPassword));
 }

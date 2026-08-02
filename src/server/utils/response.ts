@@ -106,7 +106,7 @@ export function errorResponse(
 export function handleError(err: unknown): NextResponse<ApiError> {
   // Known operational error — map directly to response
   if (isAppError(err)) {
-    if (!err.isOperatinal) {
+    if (!err.isOperational) {
       logger.error("Unexpected application error", {
         name: err.name,
         message: err.message,
