@@ -1,14 +1,4 @@
-import {
-  LayoutDashboard,
-  FileText,
-  AlignLeft,
-  HelpCircle,
-  Copy,
-  MessageSquare,
-  Users,
-  Sparkles,
-  Activity,
-} from "lucide-react";
+import { LayoutDashboard, FileText, AlignLeft, HelpCircle, Copy, MessageSquare, Users, Sparkles, Activity } from "lucide-react";
 
 export const studentNavItems = [
   { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },

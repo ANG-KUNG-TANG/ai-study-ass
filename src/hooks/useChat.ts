@@ -29,9 +29,13 @@ export function useChat(noteId: string) {
       setMessages(await getChatHistory(noteId));
     } catch (err) {
       setError(
+<<<<<<< HEAD
         err instanceof Error
           ? err.message
           : "Failed to load chat history",
+=======
+        err instanceof Error ? err.message : "Failed to load chat history",
+>>>>>>> 58360d5 (feat(ui): overhaul student application layout, navigation context, and feature hooks)
       );
     } finally {
       setIsLoading(false);
@@ -56,11 +60,15 @@ export function useChat(noteId: string) {
         setMessages((current) => [...current, message]);
         return message;
       } catch (err) {
+<<<<<<< HEAD
         setError(
           err instanceof Error
             ? err.message
             : "Failed to send message",
         );
+=======
+        setError(err instanceof Error ? err.message : "Failed to send message");
+>>>>>>> 58360d5 (feat(ui): overhaul student application layout, navigation context, and feature hooks)
         return null;
       } finally {
         setIsSending(false);
@@ -81,9 +89,13 @@ export function useChat(noteId: string) {
       return true;
     } catch (err) {
       setError(
+<<<<<<< HEAD
         err instanceof Error
           ? err.message
           : "Failed to clear chat history",
+=======
+        err instanceof Error ? err.message : "Failed to clear chat history",
+>>>>>>> 58360d5 (feat(ui): overhaul student application layout, navigation context, and feature hooks)
       );
       return false;
     } finally {

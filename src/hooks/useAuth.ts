@@ -3,8 +3,9 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth as useAuthContext, sectionForRole } from "@/context/AuthContext";
+import { useAuth as useAuthContext } from "@/context/AuthContext";
 import type { User } from "@/types/user";
+import { sectionForRole } from "@/utils/auth-routing";
 
 // Single source of truth for "where does this user land after login".
 function resolveHomeRoute(user: User): string {
