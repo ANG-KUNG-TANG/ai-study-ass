@@ -11,6 +11,8 @@ export type AuditAction =
   | "quiz.generated"
   | "flashcards.generated"
   | "summary.generated"
+  | "user.profile_updated"
+  | "user.account_deleted"
   | "rate_limit.hit"
   | "admin.role_changed"
   | "admin.user_banned"
@@ -70,15 +72,30 @@ export class AuditLogEntity {
         return `${who} generated a flashcard deck${count ? ` (${count} cards)` : ""}`;
       }
       case "summary.generated": return `${who} generated a summary`;
+      case "user.profile_updated": return `${who} updated their profile`;
+      case "user.account_deleted": return `${who} deleted their account`;
       case "rate_limit.hit": {
         const route = this.metadata?.route ?? "an endpoint";
         const ip = this.metadata?.ip ?? "unknown IP";
         return `Rate limit hit on ${route} from IP ${ip}`;
       }
-      case "admin.role_changed": return `${who}'s role was changed`;
-      case "admin.user_banned": return `${who} was banned`;
-      case "admin.user_unbanned": return `${who} was unbanned`;
-      case "admin.user_deleted": return `${who}'s account was deleted`;
+      case "admin.role_changed": {
+        const target = this.metadata?.targetEmail ?? this.targetId ?? "a user";
+        const role = this.metadata?.newRole ?? "another role";
+        return `${who} changed ${target} to ${role}`;
+      }
+      case "admin.user_banned": {
+        const target = this.metadata?.targetEmail ?? this.targetId ?? "a user";
+        return `${who} banned ${target}`;
+      }
+      case "admin.user_unbanned": {
+        const target = this.metadata?.targetEmail ?? this.targetId ?? "a user";
+        return `${who} restored ${target}`;
+      }
+      case "admin.user_deleted": {
+        const target = this.metadata?.targetEmail ?? this.targetId ?? "a user";
+        return `${who} deleted ${target}`;
+      }
       default: return `${who} performed ${this.action}`;
     }
   }

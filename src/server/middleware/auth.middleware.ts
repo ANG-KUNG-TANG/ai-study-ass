@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { connectDb } from "@/server/config/database";
 import { extractBearerToken, verifyAccessTokenFull } from "@/server/utils/jwt";
 import { handleError } from "@/server/utils/response";
 import { ForbiddenError } from "@/server/utils/errors";
@@ -45,6 +46,7 @@ export function withAuth<T>(handler: AuthedHandler<T>) {
     context: RouteContext
   ): Promise<NextResponse<T | ApiError>> => {
     try {
+      await connectDb();
       const token = extractBearerToken(req.headers.get("Authorization"));
       const payload = await verifyAccessTokenFull(token);
 
@@ -91,6 +93,7 @@ export function withOptionalAuth<T>(handler: OptionalAuthHandler<T>) {
     context: RouteContext
   ): Promise<NextResponse<T | ApiError>> => {
     try {
+      await connectDb();
       let auth: AuthContext | null = null;
 
       const authHeader = req.headers.get("Authorization");

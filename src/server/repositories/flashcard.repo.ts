@@ -198,6 +198,10 @@ export async function updateReview(
   }
 }
 
+export async function count(): Promise<number> {
+  return Flashcard.countDocuments();
+}
+
 export async function deleteById(
   id: FlashcardId,
 ): Promise<void> {

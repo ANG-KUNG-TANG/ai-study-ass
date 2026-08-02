@@ -172,7 +172,7 @@ export async function create(entity: UserEntity): Promise<UserEntity> {
     _id: data.id,
     name: data.name,
     email: data.email,
-    passwordHash: data.passwordHash,   // pre-save hook hashes this
+    passwordHash: data.passwordHash,   // already hashed by auth.service
     role: data.role,
     isActive: data.isActive,
     emailVerificationToken: data.emailVerificationToken,

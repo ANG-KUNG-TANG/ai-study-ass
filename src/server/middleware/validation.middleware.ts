@@ -1,4 +1,4 @@
-{ status: 401}import { z, type ZodSchema } from "zod";
+import { z, type ZodSchema } from "zod";
 import { ValidationError } from "@/server/utils/errors";
 import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from "@/server/utils/constants";
 

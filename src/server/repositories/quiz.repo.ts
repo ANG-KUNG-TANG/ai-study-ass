@@ -246,3 +246,8 @@ export async function findAllByUser(
 
   return docs.map(toEntity);
 }
+
+export async function deleteByUserId(userId: string): Promise<number> {
+  const result = await Quiz.deleteMany({ userId });
+  return result.deletedCount ?? 0;
+}

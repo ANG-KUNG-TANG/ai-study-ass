@@ -83,6 +83,24 @@ export async function findByNoteIdOrThrow(noteId: string): Promise<IntelligenceR
   return result;
 }
 
+export async function findStagesByNoteIds(
+  noteIds: string[],
+): Promise<Map<string, string>> {
+  if (noteIds.length === 0) return new Map();
+
+  const docs = await PaperIntelligence.find(
+    { noteId: { $in: noteIds } },
+    { noteId: 1, stage: 1 },
+  ).lean().exec();
+
+  return new Map(
+    docs.map((doc: { noteId: string; stage: string }) => [
+      String(doc.noteId),
+      doc.stage,
+    ]),
+  );
+}
+
 export async function deleteByNoteId(noteId: string): Promise<void> {
   await PaperIntelligence.deleteOne({ noteId });
   logger.info("Intelligence result deleted", { noteId });

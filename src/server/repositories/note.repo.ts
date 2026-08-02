@@ -155,6 +155,17 @@ export async function findManyAdmin(
   };
 }
 
+export async function findIdsByUserId(
+  userId: string,
+): Promise<string[]> {
+  const docs = await Note.find(
+    { userId },
+    { _id: 1 },
+  ).lean().exec();
+
+  return docs.map((doc: { _id: unknown }) => String(doc._id));
+}
+
 // ─── Create ───────────────────────────────────────────────────────────────────
 export async function create(entity: NoteEntity): Promise<NoteEntity> {
   const data = entity.toPublic();
@@ -217,4 +228,9 @@ export async function count(): Promise<number> {
 export async function deleteById(id: string): Promise<void> {
   await Note.findByIdAndDelete(id);
   logger.info("Note deleted", { noteId: id });
+}
+
+export async function deleteByUserId(userId: string): Promise<number> {
+  const result = await Note.deleteMany({ userId });
+  return result.deletedCount ?? 0;
 }
