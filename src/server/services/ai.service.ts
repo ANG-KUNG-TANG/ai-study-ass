@@ -15,6 +15,11 @@ export interface AIGenerateOptions {
   systemPrompt?: string;
   maxTokens?: number;
   temperature?: number;
+  /**
+   * When true, instructs the provider to return ONLY valid JSON with no
+   * prose/markdown fences — quiz.service.ts and flashcard.service.ts need
+   * this for structured output parsing.
+   */
   jsonMode?: boolean;
 }
 
@@ -23,12 +28,6 @@ export interface AIGenerateResult {
   tokensUsed: number;
   provider: AIProvider;
   model: string;
-}
-
-export interface IntelligenceAIResult {
-  text: string;
-  tokensUsed?: number;
-  provider?: AIProvider;
 }
 
 // ─── Retry / timeout policy ───────────────────────────────────────────────────
@@ -403,9 +402,11 @@ export async function generate(
 ): Promise<AIGenerateResult> {
   const provider = AI_CONFIG.activeProvider;
   const adapter = ADAPTERS[provider];
-  const maxAttempts = AI_CONFIG.maxRetries + 1;
+  const maxAttempts = AI_CONFIG.maxRetries + 1; // maxRetries=3 → up to 4 total attempts
 
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
@@ -413,28 +414,20 @@ export async function generate(
     );
 
     try {
-      return await adapter(options, controller.signal);
-    } catch (unknownError) {
-      const error = unknownError as AdapterError;
-      const isAbort =
-        unknownError instanceof Error &&
-        unknownError.name === "AbortError";
+      const result = await adapter(options, controller.signal);
+      clearTimeout(timeout);
+      return result;
+    } catch (err) {
+      clearTimeout(timeout);
+      lastError = err;
 
-      const retryable =
-        isAbort ||
-        (error.retryable !== false &&
-          typeof error.status === "number" &&
-          isRetryableStatus(error.status));
+      const status = (err as AdapterError)?.status;
+      const isAbort = err instanceof Error && err.name === 'AbortError';
+      const retryable = isAbort || (typeof status === 'number' && isRetryableStatus(status));
 
       const isLastAttempt = attempt === maxAttempts - 1;
 
       if (!retryable || isLastAttempt) {
-        if (isAbort) {
-          throw new AIError(
-            `AI request timed out after ${AI_CONFIG.requestTimeoutMs}ms`,
-          );
-        }
-
         throw new AIError(
           error.publicMessage ??
             (unknownError instanceof Error
@@ -454,24 +447,7 @@ export async function generate(
     }
   }
 
-  throw new AIError("AI generation exhausted all retry attempts.");
-}
-
-export async function generateForIntelligence(
-  prompt: string,
-): Promise<IntelligenceAIResult> {
-  const result = await generate({
-    prompt,
-    systemPrompt:
-      "Follow the requested output format exactly. " +
-      "Return only the requested data and do not add markdown fences.",
-    maxTokens: 1_400,
-    temperature: 0.1,
-  });
-
-  return {
-    text: result.text,
-    tokensUsed: result.tokensUsed,
-    provider: result.provider,
-  };
+  // Unreachable given the loop above always returns or throws, but keeps
+  // TypeScript's control-flow analysis happy without a non-null assertion.
+  throw new AIError('exhausted retries');
 }

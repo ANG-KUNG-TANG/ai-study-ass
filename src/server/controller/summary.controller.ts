@@ -28,6 +28,7 @@ export async function postSummary(
   try {
     json = await req.json();
   } catch {
+<<<<<<< HEAD
     throw new ValidationError(
       "Validation failed",
       {
@@ -35,6 +36,23 @@ export async function postSummary(
           "Request body must be valid JSON",
       },
     );
+=======
+    throw new ValidationError("Validation failed", {
+      body: "Request body must be valid JSON",
+    });
+  }
+
+  const { noteId, force } = bodySchema.parse(json);
+
+  const note = await findNoteById(noteId);
+
+  if (!note) {
+    throw new NotFoundError(`Note ${noteId} not found`);
+  }
+
+  if (!note.belongsTo(auth.userId)) {
+    throw new ForbiddenError("You do not have access to this note.");
+>>>>>>> 0340f1e (refactor(server): update feature controllers, repos, and entities for chat, quiz, and flashcards)
   }
 
   const { noteId, force } =

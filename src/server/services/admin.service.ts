@@ -13,6 +13,14 @@ import type { UserQueryOptions, PaginatedUsers } from "@/server/repositories/use
 import { buildPaginationMeta, PaginationMeta } from "../utils/response";
 import * as knowledgeRepo from '@/server/repositories/knowldege.repo'
 import type { NoteQueryOptions} from "@/server/repositories/note.repo";
+import mongoose from "mongoose";
+import {
+  AI_CONFIG,
+  type AIProvider,
+} from "@/server/config/ai_config";
+import {
+  getAIUsageEvents,
+} from "@/server/services/ai.service";
 
 // ─── Purpose ──────────────────────────────────────────────────────────────────
 // Admin-only operations. Every function here must be called from routes
@@ -210,3 +218,427 @@ export async function getOverviewStats(): Promise<{
 
   return { totalUsers, totalNotes, totalQuizzes };
 }
+
+// ─── AI usage ─────────────────────────────────────────────────────────────────
+
+export type AdminAIProviderStatus =
+  | "operational"
+  | "configured"
+  | "not_configured";
+
+export interface AdminAIProviderUsage {
+  provider: AIProvider;
+  status: AdminAIProviderStatus;
+  requestsToday: number;
+  tokensToday: number;
+  averageLatencyMs: number;
+  spendToday: number;
+  failuresToday: number;
+}
+
+export interface AdminAIUsage {
+  providers: AdminAIProviderUsage[];
+  monthlySpend: number;
+  requestsLastSevenDays: Array<{
+    label: string;
+    value: number;
+  }>;
+  requestsByRoute: Array<{
+    route: string;
+    count: number;
+  }>;
+  warning: string;
+}
+
+function providerConfigured(
+  provider: AIProvider,
+): boolean {
+  return provider === "openai"
+    ? Boolean(
+        AI_CONFIG.openai.apiKey.trim(),
+      )
+    : Boolean(
+        AI_CONFIG.gemini.apiKey.trim(),
+      );
+}
+
+function providerStatus(
+  provider: AIProvider,
+): AdminAIProviderStatus {
+  if (
+    !providerConfigured(
+      provider,
+    )
+  ) {
+    return "not_configured";
+  }
+
+  return provider ===
+    AI_CONFIG.activeProvider
+    ? "operational"
+    : "configured";
+}
+
+function beginningOfDay(
+  date: Date,
+): Date {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
+}
+
+function averageNumber(
+  values: number[],
+): number {
+  if (
+    values.length === 0
+  ) {
+    return 0;
+  }
+
+  return Math.round(
+    values.reduce(
+      (sum, value) =>
+        sum + value,
+      0,
+    ) /
+      values.length,
+  );
+}
+
+export async function getAIUsage():
+  Promise<AdminAIUsage> {
+  const now = new Date();
+  const today =
+    beginningOfDay(now);
+
+  const events =
+    getAIUsageEvents();
+
+  const providers:
+    AIProvider[] = [
+      "openai",
+      "gemini",
+    ];
+
+  const providerUsage =
+    providers.map(
+      (
+        provider,
+      ): AdminAIProviderUsage => {
+        const todayEvents =
+          events.filter(
+            (event) =>
+              event.provider ===
+                provider &&
+              event.createdAt >=
+                today,
+          );
+
+        return {
+          provider,
+
+          status:
+            providerStatus(
+              provider,
+            ),
+
+          requestsToday:
+            todayEvents.length,
+
+          tokensToday:
+            todayEvents.reduce(
+              (sum, event) =>
+                sum +
+                event.tokensUsed,
+              0,
+            ),
+
+          averageLatencyMs:
+            averageNumber(
+              todayEvents.map(
+                (event) =>
+                  event.latencyMs,
+              ),
+            ),
+
+          spendToday:
+            0,
+
+          failuresToday:
+            todayEvents.filter(
+              (event) =>
+                !event.success,
+            ).length,
+        };
+      },
+    );
+
+  const weekday =
+    new Intl.DateTimeFormat(
+      "en",
+      {
+        weekday: "short",
+      },
+    );
+
+  const requestsLastSevenDays =
+    Array.from(
+      {
+        length: 7,
+      },
+      (_, index) => {
+        const day =
+          new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate() -
+              (6 - index),
+          );
+
+        const nextDay =
+          new Date(
+            day.getFullYear(),
+            day.getMonth(),
+            day.getDate() + 1,
+          );
+
+        return {
+          label:
+            weekday.format(day),
+
+          value:
+            events.filter(
+              (event) =>
+                event.createdAt >=
+                  day &&
+                event.createdAt <
+                  nextDay,
+            ).length,
+        };
+      },
+    );
+
+  const routeCounts =
+    new Map<string, number>();
+
+  for (
+    const event of events
+  ) {
+    routeCounts.set(
+      event.usageLabel,
+      (
+        routeCounts.get(
+          event.usageLabel,
+        ) ??
+        0
+      ) + 1,
+    );
+  }
+
+  return {
+    providers:
+      providerUsage,
+
+    monthlySpend:
+      0,
+
+    requestsLastSevenDays,
+
+    requestsByRoute:
+      Array.from(
+        routeCounts.entries(),
+      )
+        .map(
+          ([
+            route,
+            count,
+          ]) => ({
+            route,
+            count,
+          }),
+        )
+        .sort(
+          (left, right) =>
+            right.count -
+            left.count,
+        ),
+
+    warning:
+      "Usage telemetry is stored in memory and resets when the server restarts. " +
+      "Spend remains $0 until durable input/output token accounting and pricing are added.",
+  };
+}
+
+// ─── Detailed admin health ────────────────────────────────────────────────────
+
+export interface AdminHealthCheck {
+  status:
+    | "healthy"
+    | "degraded"
+    | "unhealthy";
+
+  timestamp: string;
+  uptime: number;
+  version: string;
+
+  database: {
+    connected: boolean;
+    state: string;
+    latencyMs: number | null;
+  };
+
+  ai: {
+    reachable: boolean;
+    configured: boolean;
+    provider: AIProvider;
+    model: string;
+    checkMode: "configuration";
+  };
+
+  memory: {
+    used: number;
+    total: number;
+    rss: number;
+  };
+}
+
+const MONGOOSE_STATES:
+  Record<number, string> = {
+    0: "disconnected",
+    1: "connected",
+    2: "connecting",
+    3: "disconnecting",
+  };
+
+async function databaseHealth():
+  Promise<
+    AdminHealthCheck[
+      "database"
+    ]
+  > {
+  const state =
+    mongoose.connection.readyState;
+
+  if (
+    state !== 1 ||
+    !mongoose.connection.db
+  ) {
+    return {
+      connected:
+        false,
+      state:
+        MONGOOSE_STATES[state] ??
+        "unknown",
+      latencyMs:
+        null,
+    };
+  }
+
+  const startedAt =
+    Date.now();
+
+  try {
+    await mongoose.connection.db
+      .admin()
+      .ping();
+
+    return {
+      connected:
+        true,
+      state:
+        "connected",
+      latencyMs:
+        Date.now() -
+        startedAt,
+    };
+  } catch (error) {
+    logger.warn(
+      "Admin health database ping failed",
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      },
+    );
+
+    return {
+      connected:
+        false,
+      state:
+        "error",
+      latencyMs:
+        Date.now() -
+        startedAt,
+    };
+  }
+}
+
+export async function getSystemHealth():
+  Promise<AdminHealthCheck> {
+  const database =
+    await databaseHealth();
+
+  const provider =
+    AI_CONFIG.activeProvider;
+
+  const configured =
+    providerConfigured(
+      provider,
+    );
+
+  const memory =
+    process.memoryUsage();
+
+  return {
+    status:
+      database.connected &&
+      configured
+        ? "healthy"
+        : database.connected
+          ? "degraded"
+          : "unhealthy",
+
+    timestamp:
+      new Date().toISOString(),
+
+    uptime:
+      process.uptime(),
+
+    version:
+      process.env
+        .npm_package_version ??
+      "unknown",
+
+    database,
+
+    ai: {
+      reachable:
+        configured,
+      configured,
+      provider,
+
+      model:
+        provider === "openai"
+          ? AI_CONFIG.openai.model
+          : AI_CONFIG.gemini.model,
+
+      // This does not consume provider quota. It verifies configuration only.
+      checkMode:
+        "configuration",
+    },
+
+    memory: {
+      used:
+        memory.heapUsed,
+      total:
+        memory.heapTotal,
+      rss:
+        memory.rss,
+    },
+  };
+}
+

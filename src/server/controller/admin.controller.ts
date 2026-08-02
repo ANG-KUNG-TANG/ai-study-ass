@@ -34,13 +34,6 @@ function requireUserId(id: string | undefined): string {
   return id;
 }
 
-async function getTargetUserId(
-  context: RouteContext,
-): Promise<string> {
-  const { id } = await context.params;
-  return requireUserId(id);
-}
-
 // GET /api/admin/users
 export async function listUsers(
   req: NextRequest,
@@ -49,12 +42,7 @@ export async function listUsers(
 ): Promise<NextResponse> {
   const query = validateQuery(req, userQuerySchema);
   const result = await adminService.listUsers(query);
-
-  return paginatedResponse(
-    result.data,
-    result.meta,
-    "Users retrieved",
-  );
+  return paginatedResponse(result.data, result.meta, "Users retrieved");
 }
 
 // GET /api/admin/content
@@ -64,12 +52,7 @@ export async function listContent(
   _auth: AuthContext,
 ): Promise<NextResponse> {
   const query = validateQuery(req, noteQuerySchema);
-
-  const allowedSortBy =
-    query.sortBy === "fileSize"
-      ? undefined
-      : query.sortBy;
-
+  const allowedSortBy = query.sortBy === "fileSize" ? undefined : query.sortBy;
   const result = await adminService.listContent({
     page: query.page,
     limit: query.limit,
@@ -78,12 +61,7 @@ export async function listContent(
     sortBy: allowedSortBy,
     sortOrder: query.sortOrder,
   });
-
-  return paginatedResponse(
-    result.data,
-    result.meta,
-    "Content retrieved",
-  );
+  return paginatedResponse(result.data, result.meta, "Content retrieved");
 }
 
 // GET /api/admin/users/[id]
@@ -114,21 +92,10 @@ export async function updateUserRole(
   context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const targetId = await getTargetUserId(context);
-  const { role } = await validateBody(
-    req,
-    updateRoleSchema,
-  );
-
-  await adminService.updateUserRole(
-    auth.userId,
-    targetId,
-    role,
-  );
-
-  const target =
-    await adminService.getUserById(targetId);
-
+  const targetId = requireUserId(context.params.id);
+  const { role } = await validateBody(req, updateRoleSchema);
+  await adminService.updateUserRole(auth.userId, targetId, role);
+  const target = await adminService.getUserById(targetId);
   logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
@@ -152,15 +119,9 @@ export async function banUser(
   context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const targetId = await getTargetUserId(context);
-  const target =
-    await adminService.getUserById(targetId);
-
-  await adminService.banUser(
-    auth.userId,
-    targetId,
-  );
-
+  const targetId = requireUserId(context.params.id);
+  const target = await adminService.getUserById(targetId);
+  await adminService.banUser(auth.userId, targetId);
   logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
@@ -183,16 +144,9 @@ export async function unbanUser(
   context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const targetId = await getTargetUserId(context);
-
-  await adminService.unbanUser(
-    auth.userId,
-    targetId,
-  );
-
-  return successResponse({
-    message: "User unbanned",
-  });
+  const targetId = requireUserId(context.params.id);
+  await adminService.unbanUser(auth.userId, targetId);
+  return successResponse({ message: "User unbanned" });
 }
 
 // DELETE /api/admin/users/[id]
@@ -201,16 +155,10 @@ export async function deleteUser(
   context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const targetId = await getTargetUserId(context);
-
-  const target =
-    await adminService.getUserById(targetId);
-
-  await adminService.deleteUser(
-    auth.userId,
-    targetId,
-  );
-
+  const targetId = requireUserId(context.params.id);
+  // Fetch before delete — nothing left to read the email from afterward.
+  const target = await adminService.getUserById(targetId);
+  await adminService.deleteUser(auth.userId, targetId);
   logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
@@ -231,10 +179,30 @@ export async function getOverviewStats(
   _context: RouteContext,
   _auth: AuthContext,
 ): Promise<NextResponse> {
-  const stats =
-    await adminService.getOverviewStats();
-
+  const stats = await adminService.getOverviewStats();
   return successResponse(stats);
+}
+
+// GET /api/admin/ai-usage
+export async function getAIUsage(
+  _req: NextRequest,
+  _context: RouteContext,
+  _auth: AuthContext,
+): Promise<NextResponse> {
+  const usage = await adminService.getAIUsage();
+
+  return successResponse(usage);
+}
+
+// GET /api/admin/health
+export async function getSystemHealth(
+  _req: NextRequest,
+  _context: RouteContext,
+  _auth: AuthContext,
+): Promise<NextResponse> {
+  const health = await adminService.getSystemHealth();
+
+  return successResponse(health);
 }
 
 // GET /api/admin/activity
@@ -243,19 +211,8 @@ export async function getRecentActivity(
   _context: RouteContext,
   _auth: AuthContext,
 ): Promise<NextResponse> {
-  const limitParam =
-    req.nextUrl.searchParams.get("limit");
-
-  const numericLimit = limitParam
-    ? Number(limitParam)
-    : 20;
-
-  const limit = Number.isFinite(numericLimit)
-    ? Math.min(Math.max(numericLimit, 1), 100)
-    : 20;
-
-  const activity =
-    await auditLogService.getRecentActivity(limit);
-
+  const limitParam = req.nextUrl.searchParams.get("limit");
+  const limit = limitParam ? Math.min(Number(limitParam), 100) : 20;
+  const activity = await auditLogService.getRecentActivity(limit);
   return successResponse(activity);
 }
