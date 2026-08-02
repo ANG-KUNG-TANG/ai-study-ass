@@ -1,100 +1,50 @@
-// =============================================================================
-// server/intelligence/engine.ts
-//
-// The master orchestrator. Ties pipeline → ontology → graph → prolog →
-// gap-detection → confidence into one IntelligenceResult. This is the only
-// file feature services and note.service.ts should import to run
-// intelligence processing — everything else in this folder is an
-// implementation detail behind runPipeline().
-//
-// Sequence (straight line, no branching):
-//   1. { knowledge, nlp, document } = pipeline.runPipeline(raw)
-//        — this single call already chains clean → section → nlp → extract,
-//          see pipeline/index.ts. We do NOT re-implement those four stages
-//          here; we only orchestrate what comes after them.
-//   2. ontology = ontologyCache.resolveAll(knowledge.entities)
-//   3. graph    = buildGraph(knowledge, ontologyCache, noteId)
-//   4. prolog   = new PrologEngine(); await prolog.load(graph, noteId)
-//   4.5. prologAnswerCount = (await prolog.query('key_fact(NoteId, T, V)')).answers.length
-//        — a lightweight "did the reasoning layer actually produce
-//          anything" signal, feeding the confidence engine's prolog score.
-//   5. gaps = detectKnowledgeGaps(knowledge, document, ontology)
-//   6. confidenceBreakdown = computeConfidenceBreakdown({...})
-//   7. if needsAIFallback(confidenceBreakdown.overall) and an aiGenerate
-//      function was supplied: completeWithAI() fills the specific missing
-//      fields, then graph/prolog/gaps/confidence are recomputed ONCE against
-//      the merged core (not looped — this is a single hybrid pass, matching
-//      the doc's "AI Hybrid (Optional)" framing, not an iterative retry).
-//   8. return IntelligenceResult
-//
-// Failure handling: if any stage throws, the function does NOT swallow the
-// error — it rethrows after attaching which stage failed, so the caller
-// (note.service.ts) can log it and decide whether to retry, store a
-// 'failed'-stage partial result, or surface an error to the user. We do not
-// silently return a half-built IntelligenceResult; PipelineStage exists
-// precisely so failure states are explicit, not inferred from missing fields.
-//
-// ON AI FALLBACK: per the project's existing "centralize thresholds"
-// principle, the actual threshold decision lives in
-// intelligence-result.entity.ts's needsAIFallback() — NOT hardcoded here.
-// This file only calls that function and, if it returns true, hands off to
-// fallback/ai_fallback.service.ts. engine.ts never imports a concrete AI
-// provider module itself — the caller injects `aiGenerate` (see
-// EngineInput below), keeping this file decoupled from provider choice,
-// retry/backoff, and timeout logic, which stay in your real ai.service.ts.
-// =============================================================================
-
 import type {
   AIGenerateFn,
+  ConfidenceBreakdown,
   IntelligenceResult,
+  IntelligenceStageId,
+  IntelligenceStageProgress,
   KnowledgeCore,
+  KnowledgeGap,
   KnowledgeGraph,
   NLPResult,
+  PipelineProgressListener,
   PipelineStage,
   PrologFact,
   ResolvedConcept,
-} from './types';
-import { ontologyCache } from './ontology/ontology.cache';
-import { buildGraph } from './graph/graph.engine';
-import { PrologEngine, quoteAtom } from './prolog/prolog.engine';
-import { detectGaps } from './pipeline/gap_detector';
-import { computeConfidenceBreakdown } from './confidence/confidence.engine';
-import { needsAIFallback } from '../entities/intelligence.entity';
-import { completeWithAI } from './fallback/ai_fallback.service';
+} from "./types";
+import type {
+  DocumentChunk,
+  RawDocument,
+  SectionedDocument,
+} from "./pipeline";
+import {
+  buildDocumentChunks,
+  classifyDocument,
+  cleanDocument,
+  detectSections,
+  extractKnowledge,
+  runNLPPipeline,
+  validateKnowledge,
+} from "./pipeline";
+import { ontologyCache } from "./ontology/ontology.cache";
+import { buildGraph } from "./graph/graph.engine";
+import { PrologEngine, quoteAtom } from "./prolog/prolog.engine";
+import { detectGaps } from "./pipeline/gap_detector";
+import { computeConfidenceBreakdown } from "./confidence/confidence.engine";
+import { completeWithAI } from "./fallback/ai_fallback.service";
+import { createPendingStageProgress } from "./stage-catalog";
 
-// ─── Document pipeline seam ──────────────────────────────────────────────────
-// runPipeline() here is the EXISTING pipeline/index.ts function — it already
-// chains cleanDocument → detectSections → runNLPPipeline → extractKnowledge
-// internally and is synchronous. We import it under an alias so this file's
-// own exported runPipeline() (the full intelligence orchestrator) doesn't
-// collide with the document-pipeline's runPipeline() by name.
-import { runPipeline as runDocumentPipeline } from './pipeline';
-import type { RawDocument, PipelineResult, SectionedDocument } from './pipeline';
+const DEFAULT_AI_FALLBACK_THRESHOLD = 0.74;
 
-// ─── Engine entry input ──────────────────────────────────────────────────────
-// This is what callers of THIS file's runPipeline() pass in — a raw document
-// plus the noteId it belongs to. This is distinct from pipeline/types.ts's
-// RawDocument, which has no noteId because the document pipeline doesn't
-// need one; noteId only matters once we start building graph node ids and
-// Prolog facts, which is this file's job, not the document pipeline's.
 
 export interface EngineInput {
   noteId: string;
   document: RawDocument;
-  /**
-   * Optional AI generate function, injected by the caller (note.service.ts)
-   * from your real ai.service.ts. If omitted and needsAIFallback() returns
-   * true, the pipeline still completes — result.aiFallback.skippedReason
-   * will explain that no AI adapter was supplied, and result.core keeps
-   * whatever fields the symbolic pipeline managed to extract.
-   */
   aiGenerate?: AIGenerateFn;
+  onProgress?: PipelineProgressListener;
+  aiFallbackThreshold?: number;
 }
-
-// ─── PipelineError ──────────────────────────────────────────────────────────
-// Wraps the original error with which stage failed, so callers can branch on
-// it (e.g. note.service.ts might retry a 'document' failure but not a
-// 'prolog' one).
 
 export class PipelineError extends Error {
   readonly stage: PipelineStage;
@@ -102,303 +52,395 @@ export class PipelineError extends Error {
   readonly cause: unknown;
 
   constructor(stage: PipelineStage, noteId: string, cause: unknown) {
-    const causeMessage = cause instanceof Error ? cause.message : String(cause);
-    super(`Pipeline failed at stage '${stage}' for note ${noteId}: ${causeMessage}`);
-    this.name = 'PipelineError';
+    super(`Pipeline failed at stage '${stage}' for note ${noteId}: ${cause instanceof Error ? cause.message : String(cause)}`);
+    this.name = "PipelineError";
     this.stage = stage;
     this.noteId = noteId;
     this.cause = cause;
   }
 }
 
-// ─── Boot guard ───────────────────────────────────────────────────────────────
-// ontologyCache.load() must run before resolveAll() works. Calling it here
-// rather than requiring callers to remember a separate boot step keeps
-// runPipeline() safe to call from any entry point — API routes, tests,
-// scripts — without a hidden initialization order dependency leaking into
-// note.service.ts.
-//
-// NOTE: ontologyCache.isLoaded() and ontologyCache.resolveAll() must exist
-// on OntologyCache. If your current ontology.cache.ts only exposes
-// resolve() (singular, one string at a time), either add resolveAll() as a
-// thin wrapper:
-//
-//   resolveAll(raws: string[]): ResolvedConcept[] {
-//     return raws.map((raw) => this.resolve(raw));
-//   }
-//
-// or call ontologyCache.resolve() in a .map() at the call site below
-// instead. This file assumes resolveAll() exists on the cache; swap to
-// `knowledge.entities.map((e) => ontologyCache.resolve(e))` if it doesn't.
-
-function ensureOntologyLoaded(): void {
-  if (!ontologyCache.isLoaded()) {
-    ontologyCache.load();
-  }
-}
-
-function buildFallbackSource(document: SectionedDocument): string {
-  const preferred = new Set([
-    'abstract',
-    'introduction',
-    'methodology',
-    'experiments',
-    'results',
-    'discussion',
-    'conclusion',
-  ]);
-  const focused = document.sections
-    .filter((section) => preferred.has(section.title))
-    .map((section) => `${section.rawHeading || section.title}\n${section.body}`)
-    .join('\n\n');
-  return focused.trim().length > 0 ? focused : document.cleanText;
-}
-
-function resolveCoreOntology(core: KnowledgeCore): ResolvedConcept[] {
-  const rawConcepts = [core.method, core.dataset, ...core.entities]
-    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
-
-  const seen = new Set<string>();
-  const resolutions = ontologyCache.resolveAll(
-    rawConcepts.filter((value) => {
-      const key = value.toLowerCase().trim();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }),
-  );
-
-  if (core.problem?.trim()) {
-    const problemResolution = ontologyCache.resolveFromText(core.problem);
-    const duplicate = resolutions.some(
-      (resolution) =>
-        resolution.concept.id === problemResolution.concept.id &&
-        resolution.matchType !== 'unknown',
-    );
-    if (!duplicate) resolutions.push(problemResolution);
-  }
-
-  return resolutions;
-}
-
-// ─── Symbolic stages (graph → prolog → gaps → confidence) ──────────────────────
-// Extracted into a helper so Stage 7's hybrid re-run (after AI fills gaps)
-// can call the exact same graph/prolog/gap/confidence logic against the
-// merged core, instead of a second hand-maintained copy that could drift
-// from the first pass.
-
-interface SymbolicStagesResult {
+interface SymbolicResult {
   graph: KnowledgeGraph;
   prologEngine: PrologEngine;
   facts: PrologFact[];
-  gaps: ReturnType<typeof detectGaps>;
-  confidenceBreakdown: ReturnType<typeof computeConfidenceBreakdown>;
+  gaps: KnowledgeGap;
+  confidenceBreakdown: ConfidenceBreakdown;
+  prologWarnings: string[];
 }
 
-async function runSymbolicStages(
+export async function runPipeline(input: EngineInput): Promise<IntelligenceResult> {
+  const tracker = new ProgressTracker(input.onProgress);
+  const { noteId, document } = input;
+  const threshold = input.aiFallbackThreshold ?? DEFAULT_AI_FALLBACK_THRESHOLD;
+
+  await tracker.complete("document_received", {
+    metrics: {
+      fileSize: document.fileSize,
+      pageCount: document.pageCount ?? document.pages?.length ?? 0,
+      rawCharacters: document.rawText.length,
+    },
+  });
+
+  let sectioned: SectionedDocument;
+  let chunks: DocumentChunk[];
+  let nlp: NLPResult;
+  let core: KnowledgeCore;
+
+  try {
+    const cleaned = await tracker.run("cleaning", () => cleanDocument(document), (value) => ({
+      cleanCharacters: value.cleanText.length,
+      citationsRemoved: value.cleaningStats.citationsRemoved,
+      referenceLinesRemoved: value.cleaningStats.referenceLinesRemoved,
+    }));
+
+    sectioned = await tracker.run("section_detection", () => detectSections(cleaned), (value) => ({
+      sections: value.sections.length,
+      hasAbstract: value.hasAbstract,
+      hasMethodology: value.hasMethodology,
+    }));
+
+    const profile = await tracker.run("document_classification", () => classifyDocument(sectioned), (value) => ({
+      kind: value.kind,
+      classificationConfidence: Number(value.confidence.toFixed(3)),
+    }));
+
+    chunks = await tracker.run("chunking", () => buildDocumentChunks(sectioned), (value) => ({
+      chunks: value.length,
+      estimatedTokens: value.reduce((sum, chunk) => sum + chunk.tokenEstimate, 0),
+    }));
+
+    nlp = await tracker.run("nlp", () => runNLPPipeline(sectioned), (value) => ({
+      sentences: value.sentences.length,
+      entities: value.entities.length,
+      keyPhrases: value.keyPhrases.length,
+    }));
+
+    core = await tracker.run("claim_extraction", () => extractKnowledge(sectioned, nlp, profile), (value) => ({
+      claims: value.claims.length,
+      concepts: value.concepts.length,
+    }));
+
+    core = await tracker.run("claim_validation", () => validateKnowledge(core), (value) => ({
+      validClaims: value.validation.validClaimIds.length,
+      rejectedClaims: value.validation.rejectedClaimIds.length,
+      validConcepts: value.validation.validConceptIds.length,
+      validationPassed: value.validation.passed,
+    }));
+  } catch (error) {
+    throw new PipelineError("extraction", noteId, error);
+  }
+
+  ensureOntologyLoaded();
+
+  let ontology = await tracker.run("ontology_resolution", () => resolveCoreOntology(core), (value) => ({
+    resolved: value.filter((item) => item.matchType !== "unknown").length,
+    documentLocal: value.filter((item) => item.matchType === "unknown").length,
+  }));
+
+  let symbolic = await runSymbolicStages({ noteId, core, sectioned, nlp, ontology, tracker });
+
+  let aiFallback: IntelligenceResult["aiFallback"] = { used: false, filledFields: [] };
+  const needsRepair = symbolic.gaps.missingFields.length > 0 || symbolic.confidenceBreakdown.overall < threshold;
+
+  if (!needsRepair) {
+    await tracker.skip("ai_repair", "All required fields are present and confidence is above the repair threshold.");
+  } else if (!input.aiGenerate) {
+    aiFallback = {
+      used: false,
+      filledFields: [],
+      skippedReason: "AI repair was needed, but no AI generator was supplied.",
+    };
+    await tracker.skip("ai_repair", aiFallback.skippedReason ?? "AI repair was skipped.");
+  } else {
+    const repair = await tracker.run("ai_repair", async () => {
+      const result = await completeWithAI(
+        core,
+        symbolic.gaps,
+        buildFallbackSource(sectioned, chunks),
+        input.aiGenerate!,
+      );
+      aiFallback = result.result;
+      if (!result.result.used) return { repairedCore: core, used: false };
+      return { repairedCore: validateKnowledge(result.core), used: true };
+    }, (value) => ({
+      used: value.used,
+      filledFields: aiFallback.filledFields.join(", ") || "none",
+      acceptedClaims: aiFallback.acceptedClaimIds?.length ?? 0,
+      rejectedClaims: aiFallback.rejectedClaims?.length ?? 0,
+    }));
+
+    if (repair.used) {
+      core = repair.repairedCore;
+      ontology = resolveCoreOntology(core);
+      symbolic = await rerunSymbolicStages(noteId, core, sectioned, nlp, ontology);
+    }
+  }
+
+  await tracker.complete("complete", {
+    message: `${core.validation.validClaimIds.length} validated claims and ${core.validation.validConceptIds.length} concepts are ready.`,
+    metrics: {
+      confidence: Number(symbolic.confidenceBreakdown.overall.toFixed(3)),
+      validatedClaims: core.validation.validClaimIds.length,
+      graphNodes: symbolic.graph.nodes.size,
+      graphEdges: symbolic.graph.edges.length,
+    },
+  });
+
+  return {
+    noteId,
+    stage: "complete",
+    nlp,
+    core,
+    ontology,
+    graph: symbolic.graph,
+    prolog: { engine: symbolic.prologEngine, facts: symbolic.facts },
+    gaps: symbolic.gaps,
+    confidenceBreakdown: symbolic.confidenceBreakdown,
+    confidence: symbolic.confidenceBreakdown.overall,
+    aiFallback,
+    stageProgress: tracker.snapshot(),
+    processedAt: new Date(),
+  };
+}
+
+async function runSymbolicStages(input: {
+  noteId: string;
+  core: KnowledgeCore;
+  sectioned: SectionedDocument;
+  nlp: NLPResult;
+  ontology: ResolvedConcept[];
+  tracker: ProgressTracker;
+}): Promise<SymbolicResult> {
+  const graph = await input.tracker.run("graph_construction", () => buildGraph(input.core, ontologyCache, input.noteId), (value) => ({
+    nodes: value.nodes.size,
+    edges: value.edges.length,
+  }));
+
+  const reasoning = await input.tracker.run("symbolic_reasoning", () => loadReasoning(graph, input.noteId), (value) => ({
+    facts: value.facts.length,
+    keyFacts: value.answerCount,
+    degraded: value.warnings.length > 0,
+  }), { allowPartial: true });
+
+  const gaps = await input.tracker.run("gap_detection", () => detectGaps(
+    input.core,
+    input.ontology,
+    input.sectioned.sections.map((section) => section.title),
+  ), (value) => ({
+    missingRequiredFields: value.missingFields.length,
+    notApplicableFields: value.notApplicableFields.length,
+    coverage: Number(value.coverageScore.toFixed(3)),
+  }));
+
+  const confidenceBreakdown = await input.tracker.run("confidence_scoring", () => computeConfidenceBreakdown({
+    nlp: input.nlp,
+    ontology: input.ontology,
+    graph,
+    core: input.core,
+    prologAnswerCount: reasoning.answerCount,
+    gaps,
+  }), (value) => ({
+    overall: Number(value.overall.toFixed(3)),
+    grounding: Number(value.grounding.toFixed(3)),
+    numericValidation: Number(value.numericValidation.toFixed(3)),
+  }));
+
+  return {
+    graph,
+    prologEngine: reasoning.engine,
+    facts: reasoning.facts,
+    gaps,
+    confidenceBreakdown,
+    prologWarnings: reasoning.warnings,
+  };
+}
+
+async function rerunSymbolicStages(
+  noteId: string,
   core: KnowledgeCore,
-  sectionedDoc: SectionedDocument,
+  sectioned: SectionedDocument,
   nlp: NLPResult,
   ontology: ResolvedConcept[],
-  noteId: string,
-): Promise<SymbolicStagesResult> {
-  // ── Graph construction ─────────────────────────────────────────────────────
-  let graph: KnowledgeGraph;
-  try {
-    graph = buildGraph(core, ontologyCache, noteId);
-  } catch (err) {
-    throw new PipelineError('graph', noteId, err);
-  }
-
-  // ── Prolog load ─────────────────────────────────────────────────────────────
-  const prologEngine = new PrologEngine();
-  let facts: PrologFact[];
-  try {
-    await prologEngine.load(graph, noteId);
-    facts = prologEngine.getFacts();
-  } catch (err) {
-    throw new PipelineError('prolog', noteId, err);
-  }
-
-  // ── Prolog reasoning "success" signal ───────────────────────────────────────
-  // key_fact(NoteId, Type, Val) is cs.rules.pl's single entry point for
-  // quiz.service.ts, with up to 5 possible Type bindings (method, dataset,
-  // accuracy, domain, task). How many of those actually fire for this note
-  // is a direct measure of "did the reasoning layer produce anything",
-  // feeding the confidence engine's prolog score. A failure here is
-  // intentionally non-fatal — an empty/failed query just means
-  // prologAnswerCount stays 0, which the confidence score already handles,
-  // rather than failing the whole pipeline over a diagnostic query.
-  let prologAnswerCount = 0;
-  try {
-    const keyFactResult = await prologEngine.query(`key_fact(${quoteAtom(noteId)}, Type, Val)`);
-    prologAnswerCount = new Set(
-      keyFactResult.answers.map((answer) => answer.bindings.Type).filter(Boolean),
-    ).size;
-  } catch {
-    prologAnswerCount = 0;
-  }
-
-  // ── Knowledge Gap Detection ──────────────────────────────────────────────────
-  let gaps;
-  try {
-    gaps = detectGaps(core, ontology, sectionedDoc.sections.map((s) => s.title));
-  } catch (err) {
-    throw new PipelineError('extraction', noteId, err);
-  }
-
-  // ── Confidence ───────────────────────────────────────────────────────────────
+): Promise<SymbolicResult> {
+  const graph = buildGraph(core, ontologyCache, noteId);
+  const reasoning = await loadReasoning(graph, noteId);
+  const gaps = detectGaps(core, ontology, sectioned.sections.map((section) => section.title));
   const confidenceBreakdown = computeConfidenceBreakdown({
     nlp,
     ontology,
     graph,
     core,
-    prologAnswerCount,
+    prologAnswerCount: reasoning.answerCount,
     gaps,
   });
-
-  return { graph, prologEngine, facts, gaps, confidenceBreakdown };
+  return {
+    graph,
+    prologEngine: reasoning.engine,
+    facts: reasoning.facts,
+    gaps,
+    confidenceBreakdown,
+    prologWarnings: reasoning.warnings,
+  };
 }
 
-// ─── runPipeline ───────────────────────────────────────────────────────────────
-
-export async function runPipeline(input: EngineInput): Promise<IntelligenceResult> {
-  const { noteId, document, aiGenerate } = input;
-
-  ensureOntologyLoaded();
-
-  // ── Stage 1: document pipeline (clean → section → nlp → extract) ───────────
-  // This single call covers what the original draft tried to split into
-  // separate 'nlp' and 'extraction' stages. pipeline/index.ts's runPipeline()
-  // is synchronous and does all four steps internally — see that file for
-  // the cleanDocument/detectSections/runNLPPipeline/extractKnowledge chain.
-  //
-  // FIX: nlp/knowledge were declared with `let nlp;` (no annotation), which
-  // TypeScript infers as implicit `any`. Under noImplicitAny (or strict
-  // mode) that's a compile error; without it, it silently defeats type
-  // checking on the IntelligenceResult assembly below — either way it's
-  // wrong. Explicitly typing both from PipelineResult fixes it.
-  let nlp: NLPResult;
-  let knowledge: KnowledgeCore;
-  let sectionedDoc: SectionedDocument;
+async function loadReasoning(graph: KnowledgeGraph, noteId: string): Promise<{
+  engine: PrologEngine;
+  facts: PrologFact[];
+  answerCount: number;
+  warnings: string[];
+}> {
+  const engine = new PrologEngine();
+  const warnings: string[] = [];
   try {
-    const result: PipelineResult = runDocumentPipeline(document);
-    nlp = result.nlp;
-    knowledge = result.knowledge;
-    sectionedDoc = result.document;
-  } catch (err) {
-    throw new PipelineError('extraction', noteId, err);
+    await engine.load(graph, noteId);
+    const facts = engine.getFacts();
+    let answerCount = 0;
+    try {
+      const result = await engine.query(`key_fact(${quoteAtom(noteId)}, Type, Val)`);
+      answerCount = new Set(result.answers.map((answer) => answer.bindings.Type).filter(Boolean)).size;
+    } catch (error) {
+      warnings.push(`Key-fact diagnostic failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return { engine, facts, answerCount, warnings };
+  } catch (error) {
+    warnings.push(`Prolog reasoning was unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    return { engine, facts: [], answerCount: 0, warnings };
   }
+}
 
-  // ── Stage 2: Ontology resolution ────────────────────────────────────────────
-  let ontology: ResolvedConcept[];
-  try {
-    ontology = resolveCoreOntology(knowledge);
-  } catch (err) {
-    throw new PipelineError('ontology', noteId, err);
-  }
+function resolveCoreOntology(core: KnowledgeCore): ResolvedConcept[] {
+  const rawConcepts = [
+    ...core.concepts.filter((concept) => concept.valid).map((concept) => concept.term),
+    ...core.claims
+      .filter((claim) => claim.validationStatus === "valid" && ["method", "tool", "data_source", "metric"].includes(claim.type))
+      .map((claim) => claim.object),
+  ];
+  const seen = new Set<string>();
+  return ontologyCache.resolveAll(rawConcepts.filter((value) => {
+    const key = value.toLowerCase().trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  })).map((resolution) => ({
+    ...resolution,
+    status: resolution.matchType === "unknown" ? "document_local" : "ontology",
+  }));
+}
 
-  // ── Stages 3-6: graph → prolog → gaps → confidence (first pass) ────────────
-  let { graph, prologEngine, facts, gaps, confidenceBreakdown } = await runSymbolicStages(
-    knowledge,
-    sectionedDoc,
-    nlp,
-    ontology,
-    noteId,
-  );
+function ensureOntologyLoaded(): void {
+  if (!ontologyCache.isLoaded()) ontologyCache.load();
+}
 
-  // ── Stage 7: High/Low branch — AI-Assisted Completion ───────────────────────
-  // The doc's diagram: Confidence >= Threshold → Symbolic Features;
-  // Confidence < Threshold → AI Hybrid. needsAIFallback() centralizes the
-  // threshold (intelligence-result.entity.ts) — this file only acts on its
-  // answer, it doesn't decide the number itself.
-  //
-  // This is a SINGLE hybrid pass, not a loop: if the AI fills some fields
-  // but confidence is still below threshold afterward, we do not retry
-  // again. The doc frames AI Hybrid as an optional one-shot enhancement,
-  // not an iterative negotiation with the AI.
-  let aiFallback: IntelligenceResult['aiFallback'] = {
-    used: false,
-    filledFields: [],
-  };
+function buildFallbackSource(sectioned: SectionedDocument, chunks: DocumentChunk[]): string {
+  const priority = new Set(["abstract", "method", "implementation", "evaluation", "results", "discussion", "conclusion"]);
+  const focused = chunks
+    .filter((chunk) => priority.has(chunk.semanticRole))
+    .map((chunk) => `[${chunk.sectionTitle}${chunk.pageStart ? `, page ${chunk.pageStart}` : ""}]\n${chunk.text}`)
+    .join("\n\n");
+  return focused.trim() || sectioned.analysisText;
+}
 
-  if (needsAIFallback(confidenceBreakdown.overall)) {
-    if (!aiGenerate) {
-      aiFallback = {
-        used: false,
-        filledFields: [],
-        skippedReason: 'confidence below threshold but no aiGenerate function was supplied',
-      };
-    } else {
-      try {
-        const { core: mergedCore, result: fallbackResult } = await completeWithAI(
-          knowledge,
-          gaps,
-          buildFallbackSource(sectionedDoc),
-          aiGenerate,
-        );
-        aiFallback = fallbackResult;
+class ProgressTracker {
+  private readonly stages = new Map<IntelligenceStageId, IntelligenceStageProgress>();
 
-        if (fallbackResult.used) {
-          // Re-resolve ontology because AI may have supplied method/dataset values.
-          knowledge = mergedCore;
-          ontology = resolveCoreOntology(knowledge);
-          ({ graph, prologEngine, facts, gaps, confidenceBreakdown } = await runSymbolicStages(
-            knowledge,
-            sectionedDoc,
-            nlp,
-            ontology,
-            noteId,
-          ));
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        aiFallback = {
-          used: false,
-          filledFields: [],
-          skippedReason: `AI fallback failed safely: ${message}`,
-        };
-      }
+  constructor(private readonly listener?: PipelineProgressListener) {
+    for (const stage of createPendingStageProgress()) {
+      this.stages.set(stage.stage, stage);
     }
   }
 
-  // ── Stage 8: assembly ────────────────────────────────────────────────────────
-  const result: IntelligenceResult = {
-    noteId,
-    stage: 'complete',
-    nlp,
-    core: knowledge,
-    ontology,
-    graph,
-    prolog: {
-      engine: prologEngine,
-      facts,
-    },
-    gaps,
-    confidenceBreakdown,
-    confidence: confidenceBreakdown.overall,
-    aiFallback,
-    processedAt: new Date(),
-  };
+  async run<T>(
+    stage: IntelligenceStageId,
+    task: () => T | Promise<T>,
+    metrics?: (value: T) => Record<string, number | string | boolean>,
+    options: { allowPartial?: boolean } = {},
+  ): Promise<T> {
+    const startedAt = new Date();
+    await this.publish(stage, { status: "running", startedAt, message: "Processing…" });
+    try {
+      const value = await task();
+      const warnings = extractWarnings(value);
+      const status = options.allowPartial && warnings.length > 0 ? "partial" : "complete";
+      await this.publish(stage, {
+        status,
+        completedAt: new Date(),
+        durationMs: Date.now() - startedAt.getTime(),
+        message: status === "partial" ? "Completed with warnings." : "Completed.",
+        warnings,
+        metrics: metrics?.(value),
+      });
+      return value;
+    } catch (error) {
+      await this.publish(stage, {
+        status: "failed",
+        completedAt: new Date(),
+        durationMs: Date.now() - startedAt.getTime(),
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
 
-  return result;
+  async complete(
+    stage: IntelligenceStageId,
+    patch: Partial<IntelligenceStageProgress> = {},
+  ): Promise<void> {
+    const now = new Date();
+    await this.publish(stage, {
+      status: "complete",
+      startedAt: patch.startedAt ?? now,
+      completedAt: patch.completedAt ?? now,
+      durationMs: patch.durationMs ?? 0,
+      message: patch.message ?? "Completed.",
+      metrics: patch.metrics,
+      warnings: patch.warnings ?? [],
+    });
+  }
+
+  async skip(stage: IntelligenceStageId, reason: string): Promise<void> {
+    await this.publish(stage, {
+      status: "skipped",
+      startedAt: new Date(),
+      completedAt: new Date(),
+      durationMs: 0,
+      message: reason,
+    });
+  }
+
+  snapshot(): IntelligenceStageProgress[] {
+    return [...this.stages.values()].map((stage) => ({ ...stage, warnings: [...stage.warnings] }));
+  }
+
+  private async publish(
+    stage: IntelligenceStageId,
+    patch: Partial<IntelligenceStageProgress>,
+  ): Promise<void> {
+    const current = this.stages.get(stage)!;
+    const next: IntelligenceStageProgress = {
+      ...current,
+      ...patch,
+      warnings: patch.warnings ?? current.warnings,
+    };
+    this.stages.set(stage, next);
+    try {
+      await this.listener?.({ ...next, warnings: [...next.warnings] });
+    } catch {
+      // Progress delivery must never fail intelligence processing.
+    }
+  }
 }
 
-// ─── Partial-failure result builder ──────────────────────────────────────────
-// Used by note.service.ts when it wants to persist a 'failed' stage marker
-// instead of letting the PipelineError propagate all the way to the API
-// response. Not called automatically by runPipeline() — failure handling is
-// the caller's decision, this just gives them a typed way to express it.
+function extractWarnings(value: unknown): string[] {
+  if (!value || typeof value !== "object") return [];
+  const warnings = (value as { warnings?: unknown }).warnings;
+  return Array.isArray(warnings) ? warnings.filter((item): item is string => typeof item === "string") : [];
+}
 
 export function buildFailedResult(
   noteId: string,
   failedAtStage: PipelineStage,
   partial: Partial<IntelligenceResult> = {},
-): Pick<IntelligenceResult, 'noteId' | 'stage' | 'processedAt'> & Partial<IntelligenceResult> {
-  return {
-    noteId,
-    stage: failedAtStage,
-    processedAt: new Date(),
-    ...partial,
-  };
+): Pick<IntelligenceResult, "noteId" | "stage" | "processedAt"> & Partial<IntelligenceResult> {
+  return { noteId, stage: failedAtStage, processedAt: new Date(), ...partial };
 }

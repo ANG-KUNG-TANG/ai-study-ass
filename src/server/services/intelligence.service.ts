@@ -8,6 +8,8 @@ import type {
 } from "@/server/entities/intelligence.entity";
 import type { RawDocument } from "@/server/intelligence/pipeline";
 import { generateForIntelligence } from "@/server/services/ai.service";
+import * as progressService from "@/server/services/intelligence-progress.service";
+import type { IntelligenceProgressSnapshot } from "@/server/services/intelligence-progress.service";
 import { logger } from "@/server/utils/logger";
 
 export function toRawDocument(input: {
@@ -16,6 +18,7 @@ export function toRawDocument(input: {
   fileType: string;
   fileSize: number;
   pageCount?: number;
+  pages?: Array<{ pageNumber: number; rawText: string }>;
 }): RawDocument {
   return {
     rawText: input.content,
@@ -26,51 +29,30 @@ export function toRawDocument(input: {
         : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     fileSize: input.fileSize,
     pageCount: input.pageCount,
+    pages: input.pages,
   };
-}
-
-async function executePipelineWithFallback(
-  noteId: string,
-  document: RawDocument,
-) {
-  try {
-    return await runPipeline({
-      noteId,
-      document,
-      aiGenerate: generateForIntelligence,
-    });
-  } catch (firstError) {
-    logger.warn(
-      "Intelligence pipeline with AI fallback failed; retrying symbolic-only",
-      {
-        noteId,
-        error:
-          firstError instanceof Error
-            ? firstError.message
-            : String(firstError),
-      },
-    );
-
-    return runPipeline({
-      noteId,
-      document,
-    });
-  }
 }
 
 export async function runAndPersistPipeline(
   noteId: string,
   document: RawDocument,
 ): Promise<IntelligenceResultEntity | null> {
-  try {
-    const result = await executePipelineWithFallback(noteId, document);
-    const stillExists = await noteRepo.findById(noteId);
+  progressService.begin(noteId);
 
+  try {
+    const result = await runPipeline({
+      noteId,
+      document,
+      aiGenerate: generateForIntelligence,
+      onProgress: (event) => {
+        progressService.record(noteId, event);
+      },
+    });
+
+    const stillExists = await noteRepo.findById(noteId);
     if (!stillExists) {
-      logger.warn(
-        "Note deleted during intelligence processing; discarding result",
-        { noteId },
-      );
+      logger.warn("Note deleted during intelligence processing; discarding result", { noteId });
+      progressService.fail(noteId, "The note was deleted while it was being analysed.");
       return null;
     }
 
@@ -87,11 +69,15 @@ export async function runAndPersistPipeline(
     });
 
     await intelligenceRepo.upsert(entity);
+    progressService.complete(noteId);
 
-    logger.info("Intelligence result saved", {
+    logger.info("Evidence-grounded intelligence result saved", {
       noteId,
       confidence: result.confidence,
       mode: entity.getConfidenceMode(),
+      validatedClaims: result.core.validation.validClaimIds.length,
+      rejectedClaims: result.core.validation.rejectedClaimIds.length,
+      aiRepairUsed: result.aiFallback.used,
     });
 
     return entity;
@@ -100,25 +86,15 @@ export async function runAndPersistPipeline(
       error instanceof PipelineError
         ? (error.stage as unknown as IntelligenceStage)
         : ("extraction" as IntelligenceStage);
+    const message = error instanceof Error ? error.message : String(error);
 
-    logger.error("Symbolic intelligence processing failed", {
-      noteId,
-      stage,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-    });
+    progressService.fail(noteId, message);
+    logger.error("Intelligence processing failed", { noteId, stage, error: message });
 
     const stillExists = await noteRepo.findById(noteId);
     if (!stillExists) return null;
 
-    const failedEntity = IntelligenceResultEntity.createFailed(
-      noteId,
-      stage,
-      error instanceof Error ? error.message : String(error),
-    );
-
+    const failedEntity = IntelligenceResultEntity.createFailed(noteId, stage, message);
     await intelligenceRepo.upsertFailed(failedEntity);
     return failedEntity;
   }
@@ -135,14 +111,7 @@ export async function getOrRunPipeline(
   noteId: string,
 ): Promise<IntelligenceResultEntity> {
   const existing = await intelligenceRepo.findByNoteId(noteId);
-
-  // Reuse either a complete or failed persisted result. Feature services must
-  // not independently rerun the pipeline after the orchestrator has already
-  // processed this note. Explicit regeneration calls runAndPersistPipeline()
-  // before invoking the feature services and replaces the persisted result.
-  if (existing) {
-    return existing;
-  }
+  if (existing?.isComplete()) return existing;
 
   const note = await noteRepo.findByIdOrThrow(noteId);
   const document = toRawDocument({
@@ -153,11 +122,7 @@ export async function getOrRunPipeline(
   });
 
   const result = await runAndPersistPipeline(noteId, document);
-
-  if (!result) {
-    throw new Error(`Intelligence result was not created for note ${noteId}`);
-  }
-
+  if (!result) throw new Error(`Intelligence result was not created for note ${noteId}`);
   return result;
 }
 
@@ -168,17 +133,22 @@ export async function getStatus(noteId: string): Promise<{
   hasFailed: boolean;
   confidence: number | null;
   mode: ConfidenceMode | null;
+  progress: IntelligenceProgressSnapshot | null;
 }> {
-  const result = await intelligenceRepo.findByNoteId(noteId);
+  const [result, progress] = await Promise.all([
+    intelligenceRepo.findByNoteId(noteId),
+    Promise.resolve(progressService.get(noteId)),
+  ]);
 
   if (!result) {
     return {
       exists: false,
       stage: null,
-      isComplete: false,
-      hasFailed: false,
+      isComplete: progress?.state === "complete",
+      hasFailed: progress?.state === "failed",
       confidence: null,
       mode: null,
+      progress,
     };
   }
 
@@ -189,15 +159,15 @@ export async function getStatus(noteId: string): Promise<{
     hasFailed: result.hasFailed(),
     confidence: result.confidence,
     mode: result.getConfidenceMode(),
+    progress,
   };
 }
 
-export async function getResultOrThrow(
-  noteId: string,
-): Promise<IntelligenceResultEntity> {
+export async function getResultOrThrow(noteId: string): Promise<IntelligenceResultEntity> {
   return intelligenceRepo.findByNoteIdOrThrow(noteId);
 }
 
 export async function deleteForNote(noteId: string): Promise<void> {
+  progressService.clear(noteId);
   await intelligenceRepo.deleteByNoteId(noteId);
 }

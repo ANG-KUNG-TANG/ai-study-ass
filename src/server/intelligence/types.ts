@@ -1,92 +1,192 @@
-// =============================================================================
-// server/intelligence/types.ts
-//
-// RECONSTRUCTED FILE — see note.
-// -----------------------------------------------------------------------------
-// The uploads for this project included two files both named `types.ts`
-// (the pipeline-level server/intelligence/pipeline/types.ts and this
-// intelligence-level server/intelligence/types.ts). Flattened into a single
-// upload folder, the second silently overwrote the first, so this file's
-// real content wasn't available to audit or edit directly.
-//
-// Everything below was reconstructed by reading every
-// `import type {...} from '../types'` across engine.ts, graph.engine.ts,
-// prolog.engine.ts, explanation.ts, ontology.cache.ts, and
-// knowledge_extractor.ts, and matching field names/shapes to how each one
-// is actually used. Please diff this against your real file before
-// replacing it — if your original had extra fields nothing here currently
-// reads, this reconstruction will have silently dropped them.
-//
-// This file owns every intelligence-layer type. It does NOT import from
-// pipeline/types.ts (that file only has document-stage types — RawDocument,
-// CleanedDocument, SectionedDocument — which flow the other direction, into
-// this layer, not out of it). nlp_pipeline.ts imports Token/POS/NamedEntity/
-// NLPSentence/NLPResult FROM here (audit #9 fix) rather than the reverse, so
-// there is exactly one canonical definition and no circular import.
-// =============================================================================
+// src/server/intelligence/types.ts
+// Canonical contracts for the evidence-grounded intelligence engine.
 
 // ─── Ontology ────────────────────────────────────────────────────────────────
 
-/**
- * Closed set of top-level domains a concept can belong to.
- * Values are the actual strings used across cs_ontology.ts.
- */
 export type OntologyDomain =
-  | 'ml'
-  | 'computer_vision'
-  | 'nlp'
-  | 'databases'
-  | 'networking'
-  | 'systems'
-  | 'security'
-  | 'algorithms';
+  | "ml"
+  | "computer_vision"
+  | "nlp"
+  | "databases"
+  | "networking"
+  | "systems"
+  | "security"
+  | "algorithms"
+  | "software_engineering"
+  | "data_science"
+  | "general";
 
-/**
- * Edge/relation types used both for ontology-declared concept relations
- * (cs_ontology.ts) and for KnowledgeGraph edges (graph.engine.ts).
- *
- * 'mentions' — paper → concept only, used for the generic "extra entities"
- * pass in graph.engine.ts. Deliberately distinct from 'related_to' (which
- * is concept → concept only) so the two functors never collide on the same
- * arity when serialised to Prolog facts — see prolog.engine.ts and audit #5.
- */
 export type RelationType =
-  | 'is_a'
-  | 'part_of'
-  | 'uses'
-  | 'solves'
-  | 'related_to'
-  | 'achieves'
-  | 'trained_on'
-  | 'mentions';
+  | "is_a"
+  | "part_of"
+  | "uses"
+  | "solves"
+  | "related_to"
+  | "achieves"
+  | "trained_on"
+  | "mentions"
+  | "contains"
+  | "defines"
+  | "reports"
+  | "evaluated_on"
+  | "uses_tool"
+  | "has_problem"
+  | "supports"
+  | "validated_by"
+  | "influences";
 
 export interface OntologyRelation {
   type: RelationType;
-  target: string; // concept id
+  target: string;
 }
 
 export interface OntologyConcept {
   id: string;
   label: string;
   aliases: string[];
-  /** Root-first ancestor chain, inclusive of the concept's own id */
   ancestors: string[];
   relations: OntologyRelation[];
   domain: OntologyDomain;
 }
 
-export type MatchType = 'exact' | 'alias' | 'fuzzy' | 'unknown';
+export type MatchType = "exact" | "alias" | "fuzzy" | "generated" | "unknown";
 
 export interface ResolvedConcept {
-  concept: OntologyConcept;   // ← nested object, not a flat id
+  concept: OntologyConcept;
   confidence: number;
   matchType: MatchType;
   rawInput: string;
+  status?: "ontology" | "document_local" | "unresolved";
 }
 
-// ─── Knowledge graph ───────────────────────────────────────────────────────────
+// ─── Document profile ────────────────────────────────────────────────────────
 
-export type NodeType = 'paper' | 'concept' | 'method' | 'dataset' | 'metric' | 'task';
+export type DocumentKind =
+  | "research_paper"
+  | "lecture_notes"
+  | "textbook_chapter"
+  | "project_report"
+  | "technical_documentation"
+  | "assignment"
+  | "unknown";
+
+export type ClaimType =
+  | "problem"
+  | "objective"
+  | "method"
+  | "tool"
+  | "data_source"
+  | "sample"
+  | "metric"
+  | "result"
+  | "contribution"
+  | "limitation"
+  | "future_work"
+  | "definition";
+
+export type FieldState = "present" | "missing" | "not_applicable";
+
+export interface ExpectedFieldDefinition {
+  field: ClaimType;
+  required: boolean;
+  applicable: boolean;
+  reason: string;
+}
+
+export interface DocumentProfile {
+  kind: DocumentKind;
+  confidence: number;
+  reasons: string[];
+  expectedFields: ExpectedFieldDefinition[];
+}
+
+// ─── Evidence, claims and concepts ───────────────────────────────────────────
+
+export interface EvidenceSpan {
+  id: string;
+  sectionId: string;
+  sectionTitle: string;
+  pageNumber?: number;
+  chunkId?: string;
+  text: string;
+  startOffset?: number;
+  endOffset?: number;
+}
+
+export interface ExtractedClaim {
+  id: string;
+  type: ClaimType;
+  subject: string;
+  predicate: string;
+  object: string;
+  metric?: string;
+  numericValue?: number;
+  unit?: string;
+  qualifier?: string;
+  evidence: EvidenceSpan[];
+  extractionSource: "symbolic" | "ai";
+  confidence: number;
+  validationStatus?: "pending" | "valid" | "rejected";
+  validationMessages?: string[];
+}
+
+export interface ConceptCandidate {
+  id: string;
+  term: string;
+  normalizedTerm: string;
+  acronym?: string;
+  definition?: string;
+  importance?: string;
+  occurrences: number;
+  sectionIds: string[];
+  evidence: EvidenceSpan[];
+  score: number;
+  valid: boolean;
+  rejectionReason?: string;
+}
+
+export interface ValidationIssue {
+  code:
+    | "missing_evidence"
+    | "unsupported_number"
+    | "metric_mismatch"
+    | "duplicate_claim"
+    | "invalid_concept"
+    | "contradiction"
+    | "missing_required_field";
+  severity: "warning" | "error";
+  message: string;
+  claimId?: string;
+  conceptId?: string;
+}
+
+export interface ValidationReport {
+  validClaimIds: string[];
+  rejectedClaimIds: string[];
+  validConceptIds: string[];
+  rejectedConceptIds: string[];
+  issues: ValidationIssue[];
+  groundedClaimRatio: number;
+  numericClaimRatio: number;
+  consistencyScore: number;
+  passed: boolean;
+}
+
+// ─── Knowledge graph ─────────────────────────────────────────────────────────
+
+export type NodeType =
+  | "paper"
+  | "section"
+  | "concept"
+  | "claim"
+  | "method"
+  | "dataset"
+  | "metric"
+  | "task"
+  | "tool"
+  | "sample"
+  | "result"
+  | "organisation";
 
 export interface GraphNode {
   id: string;
@@ -100,6 +200,7 @@ export interface GraphEdge {
   to: string;
   type: RelationType;
   weight: number;
+  evidenceIds?: string[];
 }
 
 export interface KnowledgeGraph {
@@ -108,71 +209,34 @@ export interface KnowledgeGraph {
   getNode(id: string): GraphNode | undefined;
   getEdges(nodeId: string, type?: RelationType): GraphEdge[];
   getNeighbors(nodeId: string, type?: RelationType): GraphNode[];
-
-  // ── Graph algorithms (doc component 3 — "Run Graph Algorithms") ────────────
-  // Added alongside Knowledge Gap Detection + the weighted Confidence Engine.
-  // All four treat the graph as undirected for traversal purposes: edge
-  // direction encodes semantic meaning (paper -[uses]-> method), but "nearby
-  // concepts" / "connected topics" / "important concepts" are direction-
-  // agnostic questions, so traversal walks edges both ways.
-
-  /**
-   * Breadth-first walk outward from `startId` up to `maxDepth` hops.
-   * Returns nodes in the order discovered, each tagged with its hop distance
-   * from the start node. Mirrors the doc's "find nearby concepts" example
-   * (cnn → deep_learning → ai).
-   */
   bfs(startId: string, maxDepth?: number): BFSResult;
-
-  /**
-   * Unweighted shortest path between two nodes (BFS-based). Used to build
-   * the doc's "explain reasoning path" output (e.g. cnn → deep_learning →
-   * computer_vision). Returns null if no path exists.
-   */
   shortestPath(fromId: string, toId: string): GraphPath | null;
-
-  /**
-   * Partitions the graph into connected components (undirected). Mirrors
-   * the doc's "find related topics" use case — nodes that are reachable
-   * from each other, regardless of the specific paper that connected them.
-   */
   connectedComponents(): string[][];
-
-  /**
-   * Degree centrality per node, normalised to [0, 1] by dividing by the
-   * maximum observed degree. Mirrors the doc's "determine important
-   * concepts" use case (highest centrality = most important keyword).
-   * Degree centrality (rather than betweenness/eigenvector) is used
-   * deliberately: it's O(E), needs no iteration to converge, and for the
-   * ~100-node per-paper graphs this system builds, "how many things
-   * reference this concept" is a good enough proxy for importance without
-   * the complexity of PageRank-style scoring.
-   */
   centrality(): Map<string, number>;
 }
 
 export interface BFSResult {
   startId: string;
-  /** Node id → hop distance from start (0 for the start node itself) */
   distances: Map<string, number>;
-  /** Same data as distances, in discovery order — convenient for display */
   order: Array<{ id: string; depth: number }>;
 }
 
 export interface GraphPath {
-  /** Node ids in order from `from` to `to`, inclusive of both endpoints */
   nodeIds: string[];
-  /** Human-readable labels for the same path, for display/explanation */
   labels: string[];
-  length: number; // number of hops (nodeIds.length - 1)
+  length: number;
 }
 
-// ─── Knowledge core (output of the document pipeline) ──────────────────────────
+// ─── Backwards-compatible knowledge core ────────────────────────────────────
 
 export interface KeyPoint {
   label: string;
   value: string;
+  claimId?: string;
+  pageNumber?: number;
 }
+
+export type ExpectedField = ClaimType;
 
 export interface KnowledgeExtras {
   metric: string | null;
@@ -180,33 +244,30 @@ export interface KnowledgeExtras {
   futureWork: string | null;
   topic: string | null;
   keywords: string[];
-  /**
-   * True once completeWithAI() (fallback/ai_fallback.service.ts) has merged
-   * AI-inferred values into this KnowledgeCore. Lets downstream consumers
-   * (quiz/flashcard/chat prompts, UI badges) distinguish "the symbolic
-   * pipeline extracted this" from "the AI filled this in because the
-   * symbolic pipeline couldn't" — the whole point of staying explainable.
-   */
   aiAssisted?: boolean;
-  /** Which of the strict fields were AI-filled, if aiAssisted is true */
   aiFilledFields?: ExpectedField[];
 }
 
 export interface KnowledgeCore {
+  // Legacy fields retained so existing feature services do not break.
   method: string | null;
   dataset: string | null;
   accuracy: number | null;
   problem: string | null;
   contributions: string[];
   keyPoints: KeyPoint[];
-  /** Raw entity text list — see knowledge_extractor.ts's dedup-against-core fix */
   entities: string[];
   extras?: KnowledgeExtras;
+
+  // New evidence-grounded read model.
+  documentProfile: DocumentProfile;
+  claims: ExtractedClaim[];
+  concepts: ConceptCandidate[];
+  validation: ValidationReport;
+  fieldStates: Partial<Record<ClaimType, FieldState>>;
 }
 
-// ─── NLP result ────────────────────────────────────────────────────────────────
-// Canonical definitions. nlp_pipeline.ts imports these from here instead of
-// redeclaring a structurally-identical parallel set (audit #9).
+// ─── NLP ─────────────────────────────────────────────────────────────────────
 
 export interface Token {
   text: string;
@@ -216,118 +277,101 @@ export interface Token {
 }
 
 export type POS =
-  | 'NN'
-  | 'NNS'
-  | 'NNP'
-  | 'VB'
-  | 'VBG'
-  | 'VBN'
-  | 'JJ'
-  | 'RB'
-  | 'IN'
-  | 'DT'
-  | 'CD'
-  | 'SYM'
-  | 'UNK';
+  | "NN"
+  | "NNS"
+  | "NNP"
+  | "VB"
+  | "VBG"
+  | "VBN"
+  | "JJ"
+  | "RB"
+  | "IN"
+  | "DT"
+  | "CD"
+  | "SYM"
+  | "UNK";
 
 export interface NamedEntity {
   text: string;
-  type: 'ALGORITHM' | 'DATASET' | 'METRIC' | 'TOOL' | 'ORG' | 'NUMBER' | 'ACRONYM';
+  type:
+    | "ALGORITHM"
+    | "METHOD"
+    | "DATASET"
+    | "METRIC"
+    | "TOOL"
+    | "ORG"
+    | "NUMBER"
+    | "ACRONYM"
+    | "CONCEPT";
 }
 
 export interface NLPSentence {
+  id: string;
   text: string;
   tokens: Token[];
   entities: NamedEntity[];
   score: number;
+  sectionId: string;
+  sectionTitle: string;
+  pageNumber?: number;
 }
 
 export interface NLPResult {
   sentences: NLPSentence[];
   keywords: string[];
+  keyPhrases: string[];
   entities: NamedEntity[];
   topSentences: string[];
 }
 
-// ─── Knowledge Gap Detection (doc component 4) ──────────────────────────────
-// Previously entirely unimplemented — no file computed "expected vs
-// extracted" coverage. See gaps/gap_detector.ts.
+// ─── Gap detection ───────────────────────────────────────────────────────────
 
-/**
- * The core fields a well-formed paper is expected to have populated.
- * Matches KnowledgeCore's strict fields exactly (contributions/keyPoints/
- * entities are derived/aggregate, not independently "expected", so they're
- * intentionally excluded from gap scoring).
- */
-export type ExpectedField = 'method' | 'dataset' | 'accuracy' | 'problem';
-
-/**
- * The sections a well-formed academic paper is expected to have, per the
- * doc's example (Method / Dataset / Training / Evaluation / Conclusion).
- * Mapped onto SectionTitle from pipeline/types.ts — 'experiments' stands in
- * for "Training", 'results' for "Evaluation".
- */
 export type ExpectedSection =
-  | 'abstract'
-  | 'methodology'
-  | 'experiments'
-  | 'results'
-  | 'conclusion';
+  | "abstract"
+  | "methodology"
+  | "experiments"
+  | "results"
+  | "conclusion";
 
 export interface KnowledgeGap {
   missingFields: ExpectedField[];
-  /** Human-readable labels corresponding to missingFields. */
+  notApplicableFields: ExpectedField[];
   structuralGaps: string[];
-  /** Related ontology concepts expected from primary concepts but not observed. */
   domainGaps: string[];
   missingSections: ExpectedSection[];
-  /** Unresolved ontology entities — extracted but not recognised (matchType 'unknown'). */
   unresolvedEntities: string[];
-  /** Fraction of expected fields and sections present, in [0, 1]. */
   coverageScore: number;
 }
 
-// ─── Confidence Evaluation Engine (doc component 6) ─────────────────────────
-// Previously `computeOverallConfidence()` only looked at ontology-resolution
-// confidence (Math.min across ResolvedConcept[]). Replaced with the doc's
-// weighted formula across five components. See confidence/confidence.engine.ts.
+// ─── Confidence ──────────────────────────────────────────────────────────────
 
 export interface ConfidenceBreakdown {
-  /** Each sub-score is in [0, 1]; weights match the doc's percentages exactly */
-  nlp: number; // weight 0.25
-  ontology: number; // weight 0.20
-  graph: number; // weight 0.20
-  prolog: number; // weight 0.25
-  coverage: number; // weight 0.10
-  /** Weighted sum of the five scores above, in [0, 1] */
+  grounding: number;
+  numericValidation: number;
+  consistency: number;
+  sectionCoverage: number;
+  conceptQuality: number;
+  ontology: number;
+  graph: number;
+  reasoning: number;
   overall: number;
-  /** Same value *10, for display in the doc's "8.8/10" style */
   overallOutOf10: number;
+
+  // Legacy aliases used by older UI/read models.
+  nlp: number;
+  prolog: number;
+  coverage: number;
 }
 
-// ─── AI-Assisted Completion (doc's "AI Hybrid" branch) ──────────────────────
-// Fires only when needsAIFallback(confidence) is true (see
-// intelligence-result.entity.ts) AND the caller supplied an AIGenerateFn —
-// engine.ts never imports a concrete AI service module itself (it doesn't
-// know your real ai.service.ts's import path or call signature), so the
-// caller (note.service.ts) injects a thin adapter instead. This keeps
-// engine.ts decoupled from provider choice/retry/timeout logic, which
-// stays exactly where the roadmap already puts it: ai.service.ts.
+// ─── AI fallback ─────────────────────────────────────────────────────────────
 
-/**
- * Minimal contract engine.ts needs from your real AI service. Bind your
- * actual `ai.service.ts`'s generate() to this shape at the call site, e.g.:
- *   runPipeline({ ..., aiGenerate: (prompt) => aiService.generate(prompt) })
- */
 export type AIGenerateFn = (prompt: string) => Promise<{
   text: string;
   tokensUsed?: number;
-  provider?: 'openai' | 'gemini';
+  provider?: "openai" | "gemini";
 }>;
 
-/** Only the strict KnowledgeCore fields are eligible for AI completion —
- *  sections/entities are structural facts about the document, not
- *  something an AI should be asked to invent. */
+/** @deprecated Kept only for compatibility with older imports. */
 export interface AIFallbackFields {
   method: string | null;
   dataset: string | null;
@@ -337,26 +381,68 @@ export interface AIFallbackFields {
 
 export interface AIFallbackResult {
   used: boolean;
-  /** Which fields the AI actually filled (were null, AI returned non-null) */
   filledFields: ExpectedField[];
-  /** Raw AI response text, kept for debugging/audit — never shown to end users as-is */
+  acceptedClaimIds?: string[];
+  rejectedClaims?: string[];
   raw?: string;
-  provider?: 'openai' | 'gemini';
+  provider?: "openai" | "gemini";
   tokensUsed?: number;
-  /** Set when fallback was needed but no AIGenerateFn was supplied, or the AI call failed */
   skippedReason?: string;
 }
 
-// ─── Pipeline stage tracking ────────────────────────────────────────────────────
+// ─── User-visible processing stages ─────────────────────────────────────────
 
 export type PipelineStage =
-  | 'pending'
-  | 'document'
-  | 'extraction'
-  | 'ontology'
-  | 'graph'
-  | 'prolog'
-  | 'complete';
+  | "pending"
+  | "document"
+  | "extraction"
+  | "ontology"
+  | "graph"
+  | "prolog"
+  | "complete";
+
+export type IntelligenceStageId =
+  | "document_received"
+  | "cleaning"
+  | "section_detection"
+  | "document_classification"
+  | "chunking"
+  | "nlp"
+  | "claim_extraction"
+  | "claim_validation"
+  | "ontology_resolution"
+  | "graph_construction"
+  | "symbolic_reasoning"
+  | "gap_detection"
+  | "confidence_scoring"
+  | "ai_repair"
+  | "complete";
+
+export type IntelligenceStageStatus =
+  | "pending"
+  | "running"
+  | "complete"
+  | "partial"
+  | "failed"
+  | "skipped";
+
+export interface IntelligenceStageProgress {
+  stage: IntelligenceStageId;
+  label: string;
+  description: string;
+  status: IntelligenceStageStatus;
+  progress: number;
+  startedAt?: Date;
+  completedAt?: Date;
+  durationMs?: number;
+  message?: string;
+  warnings: string[];
+  metrics?: Record<string, number | string | boolean>;
+}
+
+export type PipelineProgressListener = (
+  event: IntelligenceStageProgress,
+) => void | Promise<void>;
 
 // ─── Prolog ──────────────────────────────────────────────────────────────────
 
@@ -366,25 +452,16 @@ export interface PrologFact {
 }
 
 export interface PrologAnswer {
-  /** Variable name → formatted value, e.g. { X: 'cnn' } */
   bindings: Record<string, string>;
-  /** Loaded facts heuristically associated with this answer's bound values */
   evidence: PrologFact[];
 }
 
 export interface PrologResult {
   goal: string;
   answers: PrologAnswer[];
-  /** Human-readable reasoning chain — see prolog/explanation.ts */
   explanation: string;
-  /**
-   * 1.0 — direct ground-fact match
-   * 0.7 — satisfied via rule inference
-   * 0.4 — partially bound
-   * 0.0 — no answers
-   */
   confidence: number;
-  resolvedBy: 'prolog' | 'fallback';
+  resolvedBy: "prolog" | "fallback";
 }
 
 export interface PrologEngineInstance {
@@ -394,7 +471,7 @@ export interface PrologEngineInstance {
   getFacts(): PrologFact[];
 }
 
-// ─── Top-level intelligence result ──────────────────────────────────────────────
+// ─── Final intelligence result ───────────────────────────────────────────────
 
 export interface IntelligenceResult {
   noteId: string;
@@ -407,25 +484,12 @@ export interface IntelligenceResult {
     engine: PrologEngineInstance;
     facts: PrologFact[];
   };
-  /** Knowledge Gap Detection output — see gaps/gap_detector.ts */
   gaps: KnowledgeGap;
-  /** Full weighted breakdown — see confidence/confidence.engine.ts */
   confidenceBreakdown: ConfidenceBreakdown;
-  /**
-   * Set whenever needsAIFallback() was checked, regardless of outcome.
-   * used=false with no skippedReason means confidence was high enough that
-   * fallback was never attempted.
-   */
   aiFallback: AIFallbackResult;
-  /** Weighted overall confidence, in [0, 1] — same as confidenceBreakdown.overall.
-   *  Kept as a top-level field for backwards compatibility with anything
-   *  reading result.confidence directly (e.g. a future needsAIFallback()
-   *  in the entity layer, per the project's "centralize thresholds"
-   *  principle — this file does not itself decide a High/Low branch). */
   confidence: number;
+  stageProgress: IntelligenceStageProgress[];
   processedAt: Date;
 }
 
-
-/** Alias for compatibility with code expecting this name */
 export type GapDetectionResult = KnowledgeGap;

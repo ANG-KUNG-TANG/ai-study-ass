@@ -1,139 +1,29 @@
-// =============================================================================
-// server/intelligence/fallback/ai_fallback.service.ts
-//
-// AI-Assisted Completion (doc's "AI Hybrid (Optional)" branch). Fires only
-// when needsAIFallback(confidence) is true — see intelligence-result.entity.ts.
-//
-// Scope is deliberately narrow: this only fills KnowledgeCore's strict
-// fields (method, dataset, accuracy, problem) that gap_detector.ts flagged
-// as missing. It does NOT generate summaries, does NOT invent sections, and
-// does NOT touch fields that already have a value — the symbolic pipeline's
-// output is trusted wherever it produced one; AI only fills the specific
-// holes it left. This keeps the system's explainability property intact:
-// every field in the final KnowledgeCore is either "the NLP/ontology/graph
-// pipeline found this" or "the AI inferred this because the pipeline
-// couldn't" (tracked via KnowledgeExtras.aiAssisted/aiFilledFields), never
-// an ambiguous mix.
-//
-// This module does not import a concrete AI service — engine.ts doesn't
-// know your real ai.service.ts's module path or call signature, so the
-// caller injects a thin adapter conforming to AIGenerateFn (see types.ts).
-// Retry/backoff/timeout/provider-selection all stay exactly where the
-// roadmap already puts them: inside your real ai.service.ts, not duplicated
-// here.
-// =============================================================================
-
 import type {
-  AIFallbackFields,
   AIFallbackResult,
   AIGenerateFn,
+  ClaimType,
+  EvidenceSpan,
   ExpectedField,
+  ExtractedClaim,
   KnowledgeCore,
   KnowledgeGap,
-} from '../types';
+} from "../types";
 
-// ─── Prompt construction ─────────────────────────────────────────────────────
-// Truncate the source text — this is a targeted "fill these specific gaps"
-// prompt, not a full-document summarization call, so it doesn't need (and
-// shouldn't spend tokens on) the entire paper. 6000 chars comfortably covers
-// an abstract + methodology + results section for most academic papers.
+const MAX_SOURCE_CHARS = 18000;
 
-const MAX_SOURCE_CHARS = 6000;
-
-function buildPrompt(missingFields: ExpectedField[], sourceText: string): string {
-  const fieldDescriptions: Record<ExpectedField, string> = {
-    method: '"method": the primary algorithm/model/technique the paper uses (string, or null if genuinely not determinable)',
-    dataset: '"dataset": the primary dataset used for training/evaluation (string, or null)',
-    accuracy: '"accuracy": the headline accuracy/performance metric as a plain number 0-100, no "%" sign (number, or null)',
-    problem: '"problem": one sentence describing the problem/task the paper addresses (string, or null)',
-  };
-
-  const requestedFields = missingFields.map((f) => `  - ${fieldDescriptions[f]}`).join('\n');
-
-  return [
-    'You are extracting specific structured facts from an academic paper excerpt.',
-    'A symbolic extraction pipeline already processed this paper and could NOT confidently determine the following fields:',
-    requestedFields,
-    '',
-    'Return ONLY a JSON object with exactly these keys, no other text, no markdown code fences.',
-    'If you genuinely cannot determine a field from the text, use null for that field rather than guessing.',
-    '',
-    '--- PAPER EXCERPT ---',
-    sourceText.slice(0, MAX_SOURCE_CHARS),
-    '--- END EXCERPT ---',
-  ].join('\n');
+interface AIClaimPayload {
+  type?: unknown;
+  subject?: unknown;
+  predicate?: unknown;
+  object?: unknown;
+  metric?: unknown;
+  numericValue?: unknown;
+  unit?: unknown;
+  evidenceText?: unknown;
+  pageNumber?: unknown;
+  confidence?: unknown;
 }
 
-// ─── Response parsing ────────────────────────────────────────────────────────
-// Defensive: strip markdown code fences if the model added them despite
-// instructions not to, then parse. Any field with the wrong type or an
-// empty string is treated as null rather than trusted as-is — an AI
-// fallback returning garbage should degrade to "still missing", not
-// silently corrupt KnowledgeCore with a malformed value.
-
-function parseResponse(text: string): AIFallbackFields {
-  const cleaned = text.replace(/```json|```/g, '').trim();
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(cleaned);
-  } catch {
-    return { method: null, dataset: null, accuracy: null, problem: null };
-  }
-
-  if (typeof parsed !== 'object' || parsed === null) {
-    return { method: null, dataset: null, accuracy: null, problem: null };
-  }
-
-  const obj = parsed as Record<string, unknown>;
-
-  const asString = (v: unknown): string | null =>
-    typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
-
-  const asNumber = (v: unknown): number | null => {
-    if (typeof v === 'number' && Number.isFinite(v)) {
-      return v >= 0 && v <= 100 ? v : null;
-    }
-    if (typeof v === 'string') {
-      const parsedNum = parseFloat(v.replace('%', ''));
-      return !Number.isNaN(parsedNum) && parsedNum >= 0 && parsedNum <= 100
-        ? parsedNum
-        : null;
-    }
-    return null;
-  };
-
-  return {
-    method: asString(obj.method),
-    dataset: asString(obj.dataset),
-    accuracy: asNumber(obj.accuracy),
-    problem: asString(obj.problem),
-  };
-}
-
-
-function rebuildKeyPoints(core: KnowledgeCore): KnowledgeCore['keyPoints'] {
-  const points: KnowledgeCore['keyPoints'] = [];
-  if (core.method) points.push({ label: 'Method', value: core.method });
-  if (core.dataset) points.push({ label: 'Dataset', value: core.dataset });
-  if (core.extras?.metric) points.push({ label: 'Metric', value: core.extras.metric });
-  if (core.accuracy !== null) points.push({ label: 'Accuracy', value: `${core.accuracy}%` });
-  return points;
-}
-
-// ─── Public API ──────────────────────────────────────────────────────────────
-
-/**
- * Attempt to fill KnowledgeCore's missing strict fields via AI.
- *
- * Returns both the merged KnowledgeCore (existing non-null values are never
- * overwritten, even if the AI also returned a value for them) and an
- * AIFallbackResult describing what happened, for IntelligenceResult.aiFallback.
- *
- * Never throws — an AI call failure degrades to "fields stay missing",
- * matching the doc's framing of AI Hybrid as an *optional* enhancement, not
- * a required stage the pipeline can fail on.
- */
 export async function completeWithAI(
   core: KnowledgeCore,
   gaps: KnowledgeGap,
@@ -143,59 +33,191 @@ export async function completeWithAI(
   if (gaps.missingFields.length === 0) {
     return {
       core,
-      result: { used: false, filledFields: [], skippedReason: 'no missing fields' },
+      result: { used: false, filledFields: [], skippedReason: "no required fields are missing" },
     };
   }
 
   let response: Awaited<ReturnType<AIGenerateFn>>;
   try {
-    const prompt = buildPrompt(gaps.missingFields, sourceText);
-    response = await generate(prompt);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    response = await generate(buildPrompt(core, gaps.missingFields, sourceText));
+  } catch (error) {
     return {
       core,
-      result: { used: false, filledFields: [], skippedReason: `AI call failed: ${message}` },
+      result: {
+        used: false,
+        filledFields: [],
+        skippedReason: `AI call failed: ${error instanceof Error ? error.message : String(error)}`,
+      },
     };
   }
 
-  const aiFields = parseResponse(response.text);
+  const parsed = parseClaims(response.text);
+  const accepted: ExtractedClaim[] = [];
+  const rejectedClaims: string[] = [];
 
-  // Merge: only fill fields that were actually missing AND the AI actually
-  // returned a non-null value for. Never overwrite an existing value.
-  const filledFields: ExpectedField[] = [];
-  const mergedCore: KnowledgeCore = { ...core };
-
-  for (const field of gaps.missingFields) {
-    const aiValue = aiFields[field];
-    if (aiValue === null) continue;
-
-    if (field === 'accuracy') {
-      mergedCore.accuracy = aiValue as number;
-    } else {
-      (mergedCore as Record<ExpectedField, unknown>)[field] = aiValue;
+  for (const [index, payload] of parsed.entries()) {
+    const claim = toGroundedClaim(payload, index, sourceText);
+    if (!claim) {
+      rejectedClaims.push(`Claim ${index + 1} was rejected because its evidence was absent or malformed.`);
+      continue;
     }
-    filledFields.push(field);
+    accepted.push(claim);
   }
 
-  if (filledFields.length > 0) {
-    mergedCore.keyPoints = rebuildKeyPoints(mergedCore);
-    mergedCore.extras = {
-      ...(mergedCore.extras ?? { metric: null, limitations: null, futureWork: null, topic: null, keywords: [] }),
-      aiAssisted: true,
+  const alreadyPresent = new Set(
+    core.claims
+      .filter((claim) => claim.validationStatus === "valid")
+      .map((claim) => claim.type),
+  );
+  const missingSet = new Set(gaps.missingFields);
+  const usable = accepted.filter(
+    (claim) => missingSet.has(claim.type) && !alreadyPresent.has(claim.type),
+  );
+
+  const filledFields = [...new Set(usable.map((claim) => claim.type))];
+  const mergedCore: KnowledgeCore = {
+    ...core,
+    claims: [...core.claims, ...usable],
+    extras: {
+      ...(core.extras ?? {
+        metric: null,
+        limitations: null,
+        futureWork: null,
+        topic: null,
+        keywords: [],
+      }),
+      aiAssisted: usable.length > 0,
       aiFilledFields: filledFields,
-    };
-  }
+    },
+  };
 
   return {
     core: mergedCore,
     result: {
-      used: filledFields.length > 0,
+      used: usable.length > 0,
       filledFields,
+      acceptedClaimIds: usable.map((claim) => claim.id),
+      rejectedClaims,
       raw: response.text,
       provider: response.provider,
       tokensUsed: response.tokensUsed,
-      ...(filledFields.length === 0 ? { skippedReason: 'AI returned no usable values' } : {}),
+      ...(usable.length === 0 ? { skippedReason: "AI returned no evidence-grounded missing claims" } : {}),
     },
   };
+}
+
+function buildPrompt(
+  core: KnowledgeCore,
+  missingFields: ExpectedField[],
+  sourceText: string,
+): string {
+  return [
+    "You repair missing structured claims in a document intelligence pipeline.",
+    `Document kind: ${core.documentProfile.kind}`,
+    `Missing required claim types: ${missingFields.join(", ")}`,
+    "",
+    "Rules:",
+    "1. Use only information explicitly present in the supplied document text.",
+    "2. Return an exact evidenceText copied from the document for every claim.",
+    "3. Preserve metric meaning. Correlation is not accuracy; inaccuracy is not accuracy.",
+    "4. Do not invent a machine-learning dataset when the document uses projects, participants, systems, or another study sample.",
+    "5. Return no claim for a field that cannot be supported.",
+    "6. Return only JSON, without markdown.",
+    "",
+    "JSON shape:",
+    '{"claims":[{"type":"problem|objective|method|tool|data_source|sample|metric|result|contribution|limitation|future_work|definition","subject":"...","predicate":"...","object":"...","metric":null,"numericValue":null,"unit":null,"evidenceText":"exact sentence","pageNumber":null,"confidence":0.0}]}',
+    "",
+    "DOCUMENT:",
+    sourceText.slice(0, MAX_SOURCE_CHARS),
+  ].join("\n");
+}
+
+function parseClaims(text: string): AIClaimPayload[] {
+  const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
+  try {
+    const value = JSON.parse(cleaned) as unknown;
+    if (!value || typeof value !== "object") return [];
+    const claims = (value as { claims?: unknown }).claims;
+    return Array.isArray(claims) ? claims.filter((item): item is AIClaimPayload => Boolean(item && typeof item === "object")) : [];
+  } catch {
+    return [];
+  }
+}
+
+function toGroundedClaim(
+  payload: AIClaimPayload,
+  index: number,
+  sourceText: string,
+): ExtractedClaim | null {
+  const type = asClaimType(payload.type);
+  const object = asString(payload.object);
+  const evidenceText = asString(payload.evidenceText);
+  if (!type || !object || !evidenceText) return null;
+
+  const sourceIndex = normalise(sourceText).indexOf(normalise(evidenceText));
+  if (sourceIndex < 0) return null;
+
+  const numericValue = asNumber(payload.numericValue);
+  if (numericValue !== undefined && !containsNumber(evidenceText, numericValue)) return null;
+
+  const metric = asString(payload.metric) ?? undefined;
+  if (metric && !evidenceText.toLowerCase().includes(metric.toLowerCase())) {
+    if (!(metric.toLowerCase() === "accuracy" && /accurate|accuracy/i.test(evidenceText))) return null;
+  }
+
+  const evidence: EvidenceSpan = {
+    id: `evidence-ai-${index + 1}`,
+    sectionId: "ai-grounded-source",
+    sectionTitle: "Document evidence",
+    pageNumber: asNumber(payload.pageNumber),
+    text: evidenceText,
+    startOffset: sourceIndex,
+    endOffset: sourceIndex + evidenceText.length,
+  };
+
+  return {
+    id: `claim-ai-${type}-${index + 1}`,
+    type,
+    subject: asString(payload.subject) ?? "Document",
+    predicate: asString(payload.predicate) ?? "states",
+    object,
+    metric,
+    numericValue,
+    unit: asString(payload.unit) ?? undefined,
+    evidence: [evidence],
+    extractionSource: "ai",
+    confidence: Math.max(0.5, Math.min(0.9, asNumber(payload.confidence) ?? 0.7)),
+    validationStatus: "pending",
+    validationMessages: [],
+  };
+}
+
+function asClaimType(value: unknown): ClaimType | null {
+  const allowed: ClaimType[] = [
+    "problem", "objective", "method", "tool", "data_source", "sample", "metric", "result",
+    "contribution", "limitation", "future_work", "definition",
+  ];
+  return typeof value === "string" && allowed.includes(value as ClaimType) ? value as ClaimType : null;
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function asNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseFloat(value.replace("%", ""));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function containsNumber(text: string, value: number): boolean {
+  const escaped = String(value).replace(".", "\\.");
+  return new RegExp(`(^|[^0-9])${escaped}(?:%|\\b)`).test(text);
+}
+
+function normalise(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
 }

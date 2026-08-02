@@ -55,7 +55,7 @@ function makeUnknownConcept(raw: string): OntologyConcept {
     aliases: [],
     ancestors: [],
     relations: [],
-    domain: 'ml', // required by type; semantically irrelevant for unknowns
+    domain: 'general',
   };
 }
 
@@ -149,6 +149,7 @@ class OntologyCache {
       confidence: 0.0,
       matchType: 'unknown',
       rawInput: raw,
+      status: 'unresolved',
     };
   }
 

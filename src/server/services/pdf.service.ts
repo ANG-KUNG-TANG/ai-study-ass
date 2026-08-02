@@ -1,6 +1,5 @@
 // src/server/services/pdf.service.ts
 import { FileError } from "@/server/utils/errors";
-import { MAX_CONTENT_LENGTH } from "@/server/utils/constants";
 import { logger } from "@/server/utils/logger";
 
 // ─── PDF Parser ───────────────────────────────────────────────────────────────
@@ -16,6 +15,7 @@ interface ParsedPDF {
   text: string;
   pageCount: number;
   charCount: number;
+  pages?: Array<{ pageNumber: number; text: string }>;
 }
 
 export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
@@ -50,7 +50,11 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
   // pdf-parse tries to read config fields off the buffer.
   const parser = new PDFParse({ data: buffer });
 
-  let result: { text: string; total?: number };
+  let result: {
+    text: string;
+    total?: number;
+    pages?: Array<{ text?: string }>;
+  };
 
   try {
     result = await parser.getText();
@@ -82,23 +86,24 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     throw new FileError("PDF appears to contain no extractable text — it may be a scanned image");
   }
 
-  const cleaned = cleanText(rawText);
+  const text = cleanText(rawText);
+  const pages = Array.isArray(result.pages)
+    ? result.pages
+        .map((page, index) => ({
+          pageNumber: index + 1,
+          text: cleanText(page.text ?? ""),
+        }))
+        .filter((page) => page.text.length > 0)
+    : undefined;
 
-  const text = cleaned.length > MAX_CONTENT_LENGTH
-    ? cleaned.slice(0, MAX_CONTENT_LENGTH)
-    : cleaned;
-
-  if (cleaned.length > MAX_CONTENT_LENGTH) {
-    logger.warn("PDF content truncated", {
-      original: cleaned.length,
-      limit: MAX_CONTENT_LENGTH,
-    });
-  }
-
+  // Do not silently slice the document. The intelligence engine now controls
+  // size through section-aware chunks, so conclusions and result pages remain
+  // available for evidence validation.
   return {
     text,
-    pageCount: result.total ?? 0,
+    pageCount: result.total ?? pages?.length ?? 0,
     charCount: text.length,
+    pages,
   };
 }
 
@@ -135,19 +140,9 @@ export async function parseDOCX(buffer: Buffer): Promise<ParsedDOCX> {
     throw new FileError("Document appears to be empty");
   }
 
-  const cleaned = cleanText(rawText);
+  const text = cleanText(rawText);
 
-  const text = cleaned.length > MAX_CONTENT_LENGTH
-    ? cleaned.slice(0, MAX_CONTENT_LENGTH)
-    : cleaned;
-
-  if (cleaned.length > MAX_CONTENT_LENGTH) {
-    logger.warn("DOCX content truncated", {
-      original: cleaned.length,
-      limit: MAX_CONTENT_LENGTH,
-    });
-  }
-
+  // Preserve the complete document. Downstream chunking controls prompt size.
   return { text, charCount: text.length };
 }
 

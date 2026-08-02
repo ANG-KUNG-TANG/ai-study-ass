@@ -1,57 +1,60 @@
-/**
- * Pipeline runner — the single entry point for document intelligence.
- *
- * Calling order:
- *   RawDocument
- *     → cleanDocument        (document_cleaner)
- *     → detectSections       (section_detector)
- *     → runNLPPipeline       (nlp_pipeline)
- *     → extractKnowledge     (knowledge_extractor)
- *     → { KnowledgeCore, NLPResult, SectionedDocument }
- *
- * The returned KnowledgeCore matches intelligence/type.ts exactly —
- * method, dataset, accuracy (number), problem, contributions[], keyPoints[],
- * entities[], plus an optional `extras` object for richer fields
- * (metric, limitations, futureWork, topic, keywords) that summary/chat
- * services may use but that ontology/graph/prolog never read.
- *
- * intelligence/engine.ts calls runPipeline() as its first phase, then
- * passes the resulting KnowledgeCore into ontology resolution and graph
- * building.
- */
-
 import { cleanDocument } from "./document_cleaner";
 import { detectSections } from "./section_detector";
+import { classifyDocument } from "./document_classifier";
+import { buildDocumentChunks } from "./chunker";
 import { runNLPPipeline } from "./nlp_pipeline";
 import { extractKnowledge } from "./knowledge_extractor";
+import { validateKnowledge } from "./claim_validator";
 
-import type { RawDocument, SectionedDocument } from "./types";
-import type { NLPResult } from "../types";
-import type { KnowledgeCore } from "../types";
-
-// ─── Output ───────────────────────────────────────────────────────────────────
+import type { DocumentProfile, KnowledgeCore, NLPResult } from "../types";
+import type {
+  DocumentChunk,
+  RawDocument,
+  SectionedDocument,
+} from "./types";
 
 export interface PipelineResult {
-  /** Structured facts — passed into ontology resolution + graph building */
   knowledge: KnowledgeCore;
-  /** Full NLP output — used by summary and chat services */
   nlp: NLPResult;
-  /** Sectioned document — used by summary service for section-aware output */
   document: SectionedDocument;
+  profile: DocumentProfile;
+  chunks: DocumentChunk[];
 }
 
-// ─── Runner ───────────────────────────────────────────────────────────────────
-
+/**
+ * Synchronous compatibility runner. The full engine invokes the same functions
+ * individually so it can publish user-visible progress after every stage.
+ */
 export function runPipeline(raw: RawDocument): PipelineResult {
-  const cleaned   = cleanDocument(raw);
-  const sectioned = detectSections(cleaned);
-  const nlp       = runNLPPipeline(sectioned);
-  const knowledge = extractKnowledge(sectioned, nlp);
+  const cleaned = cleanDocument(raw);
+  const document = detectSections(cleaned);
+  const profile = classifyDocument(document);
+  const chunks = buildDocumentChunks(document);
+  const nlp = runNLPPipeline(document);
+  const extracted = extractKnowledge(document, nlp, profile);
+  const knowledge = validateKnowledge(extracted);
 
-  return { knowledge, nlp, document: sectioned };
+  return { knowledge, nlp, document, profile, chunks };
 }
 
-// ─── Re-exports for convenience ───────────────────────────────────────────────
+export {
+  cleanDocument,
+  detectSections,
+  classifyDocument,
+  buildDocumentChunks,
+  runNLPPipeline,
+  extractKnowledge,
+  validateKnowledge,
+};
 
-export type { RawDocument, SectionedDocument } from "./types";
-export type { NLPResult, KnowledgeCore, KnowledgeExtras } from "../types";
+export type {
+  RawDocument,
+  SectionedDocument,
+  DocumentChunk,
+} from "./types";
+export type {
+  NLPResult,
+  KnowledgeCore,
+  KnowledgeExtras,
+  DocumentProfile,
+} from "../types";

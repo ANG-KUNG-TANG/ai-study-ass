@@ -121,10 +121,22 @@ export async function generateStudyMaterials(
       fileSize: note.fileSize,
     });
 
-  await intelligenceService.runAndPersistPipeline(
-    input.noteId,
-    document,
-  );
+  const intelligence =
+    await intelligenceService.runAndPersistPipeline(
+      input.noteId,
+      document,
+    );
+
+  if (!intelligence || intelligence.hasFailed()) {
+    await generationRepo.updateStage(
+      input.noteId,
+      "failed",
+    );
+
+    throw new Error(
+      "Study-material generation stopped because document intelligence did not complete successfully.",
+    );
+  }
 
   await generationRepo.updateStage(
     input.noteId,

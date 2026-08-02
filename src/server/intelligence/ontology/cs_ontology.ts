@@ -329,7 +329,7 @@ const concepts: OntologyConcept[] = [
   {
     id: 'batch_norm',
     label: 'Batch Normalization',
-    aliases: ['batch norm', 'batch normalization', 'BN', 'batchnorm'],
+    aliases: ['batch norm', 'batch normalization', 'batchnorm'],
     ancestors: ['ai', 'ml', 'deep_learning', 'batch_norm'],
     domain: 'ml',
     relations: [{ type: 'is_a', target: 'deep_learning' }],
@@ -1083,6 +1083,128 @@ const concepts: OntologyConcept[] = [
     relations: [
       { type: 'is_a', target: 'dataset' },
       { type: 'part_of', target: 'nlp' },
+    ],
+  },
+
+
+  // ── Software engineering and probabilistic modelling ─────────────────────
+  {
+    id: 'software_engineering',
+    label: 'Software Engineering',
+    aliases: ['software engineering', 'software development engineering'],
+    ancestors: ['software_engineering'],
+    domain: 'software_engineering',
+    relations: [],
+  },
+  {
+    id: 'software_quality',
+    label: 'Software Quality',
+    aliases: ['software quality', 'quality prediction for software'],
+    ancestors: ['software_engineering', 'software_quality'],
+    domain: 'software_engineering',
+    relations: [{ type: 'is_a', target: 'software_engineering' }],
+  },
+  {
+    id: 'software_defect_prediction',
+    label: 'Software Defect Prediction',
+    aliases: ['software defect prediction', 'defect prediction', 'software quality prediction'],
+    ancestors: ['software_engineering', 'software_quality', 'software_defect_prediction'],
+    domain: 'software_engineering',
+    relations: [
+      { type: 'is_a', target: 'software_quality' },
+      { type: 'related_to', target: 'residual_defects' },
+      { type: 'related_to', target: 'testing_and_rework' },
+    ],
+  },
+  {
+    id: 'bayesian_network',
+    label: 'Bayesian Network',
+    aliases: ['bayesian network', 'Bayesian networks', 'bayesian belief network', 'BN', 'BBN'],
+    ancestors: ['algorithms', 'bayesian_network'],
+    domain: 'algorithms',
+    relations: [
+      { type: 'is_a', target: 'algorithms' },
+      { type: 'related_to', target: 'causal_modelling' },
+      { type: 'solves', target: 'software_defect_prediction' },
+    ],
+  },
+  {
+    id: 'dynamic_bayesian_network',
+    label: 'Dynamic Bayesian Network',
+    aliases: ['dynamic bayesian network', 'dynamic Bayesian networks', 'DBN'],
+    ancestors: ['algorithms', 'bayesian_network', 'dynamic_bayesian_network'],
+    domain: 'algorithms',
+    relations: [
+      { type: 'is_a', target: 'bayesian_network' },
+      { type: 'related_to', target: 'software_lifecycle' },
+    ],
+  },
+  {
+    id: 'causal_modelling',
+    label: 'Causal Modelling',
+    aliases: ['causal modelling', 'causal modeling', 'causal model', 'causal models'],
+    ancestors: ['algorithms', 'causal_modelling'],
+    domain: 'algorithms',
+    relations: [
+      { type: 'is_a', target: 'algorithms' },
+      { type: 'related_to', target: 'bayesian_network' },
+    ],
+  },
+  {
+    id: 'residual_defects',
+    label: 'Residual Defects',
+    aliases: ['residual defects', 'remaining defects', 'undetected defects'],
+    ancestors: ['software_engineering', 'software_quality', 'residual_defects'],
+    domain: 'software_engineering',
+    relations: [
+      { type: 'is_a', target: 'software_quality' },
+      { type: 'related_to', target: 'testing_and_rework' },
+    ],
+  },
+  {
+    id: 'software_lifecycle',
+    label: 'Software Development Lifecycle',
+    aliases: ['software lifecycle', 'software development lifecycle', 'development lifecycle', 'lifecycle phase'],
+    ancestors: ['software_engineering', 'software_lifecycle'],
+    domain: 'software_engineering',
+    relations: [{ type: 'is_a', target: 'software_engineering' }],
+  },
+  {
+    id: 'testing_and_rework',
+    label: 'Testing and Rework',
+    aliases: ['testing and rework', 'testing process quality', 'rework process'],
+    ancestors: ['software_engineering', 'testing_and_rework'],
+    domain: 'software_engineering',
+    relations: [
+      { type: 'is_a', target: 'software_engineering' },
+      { type: 'influences', target: 'residual_defects' },
+    ],
+  },
+  {
+    id: 'quality_indicators',
+    label: 'Quality Indicators',
+    aliases: ['quality indicators', 'process quality indicators', 'indicator variables'],
+    ancestors: ['software_engineering', 'software_quality', 'quality_indicators'],
+    domain: 'software_engineering',
+    relations: [{ type: 'is_a', target: 'software_quality' }],
+  },
+  {
+    id: 'decision_support_system',
+    label: 'Decision Support System',
+    aliases: ['decision support system', 'decision support tool'],
+    ancestors: ['systems', 'decision_support_system'],
+    domain: 'systems',
+    relations: [{ type: 'is_a', target: 'systems' }],
+  },
+  {
+    id: 'agenarisk',
+    label: 'AgenaRisk',
+    aliases: ['AgenaRisk', 'AgenaRisk toolset'],
+    ancestors: ['systems', 'decision_support_system', 'agenarisk'],
+    domain: 'systems',
+    relations: [
+      { type: 'is_a', target: 'decision_support_system' },
+      { type: 'uses', target: 'bayesian_network' },
     ],
   },
 

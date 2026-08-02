@@ -1,211 +1,126 @@
-// =============================================================================
-// server/intelligence/__tests__/full_workflow.test.ts
-//
-// Jest-native end-to-end test of the ENTIRE intelligence engine:
-//   NLP → Ontology → Knowledge Graph (+ algorithms) → Prolog → Gap Detection
-//   → Confidence Engine → AI Fallback branch
-//
-// This calls runPipeline() directly — the same function note.service.ts
-// calls — with no Next.js, no MongoDB, no HTTP server required. Requires
-// `tau-prolog` to be installed (npm install tau-prolog) and Jest configured
-// to actually understand TypeScript (see next/jest note in the repo).
-//
-// Run with:
-//   npx jest src/server/intelligence/__tests__/full_workflow.test.ts
-// =============================================================================
+import { runPipeline } from "../engine";
+import { ontologyCache } from "../ontology/ontology.cache";
+import type { RawDocument } from "../pipeline/types";
+import type { AIGenerateFn } from "../types";
 
-import { runPipeline } from '../engine';
-import { ontologyCache } from '../ontology/ontology.cache';
-import type { RawDocument } from '../pipeline/types';
-import type { AIGenerateFn } from '../types';
-
-// ─── Test fixtures ───────────────────────────────────────────────────────────
-
-const STRONG_PAPER: RawDocument = {
+const DEFECT_PAPER: RawDocument = {
+  fileName: "defect-paper.pdf",
+  mimeType: "application/pdf",
+  fileSize: 1000,
+  pageCount: 10,
   rawText: `Abstract
-We propose a novel Convolutional Neural Network architecture for image classification. We evaluate our approach on CIFAR-10 and achieve 96.2% accuracy, outperforming prior baselines.
+Although approaches have been taken to quality prediction for software, none have achieved widespread applicability. We use Bayesian Networks as the appropriate formalism for representing defect introduction, detection and removal. AgenaRisk is used as a decision support tool. We have found 95% correlation between actual and predicted defects.
 
-Introduction
-Image classification remains a core problem in computer vision.
+1. Introduction
+Causal models allow conflicting evidence to be taken into account.
 
-Methodology
-Our method uses a CNN with residual connections similar to ResNet, trained end to end.
+2. Method
+A Bayesian Network (BN) combines empirical data and expert judgement. A Dynamic Bayesian Network (DBN) links lifecycle phases.
 
-Experiments
-We trained on CIFAR-10 for 200 epochs using standard data augmentation.
+6. Validation
+Initially, 116 software projects were assessed. Thirty-two projects were suitable for the trial.
 
-Results
-Our model achieves 96.2% accuracy on the CIFAR-10 test set.
+6.2 Results
+The linear correlation coefficient is 95%. 0-30% inaccuracy was achieved on 65% of projects.
+
+7. Conclusions
+A retrospective trial of 32 projects showed a good fit between predicted and actual defect counts.
+
+References
+[1] Example reference.`,
+};
+
+const WEAK_NOTE: RawDocument = {
+  fileName: "weak-note.txt",
+  mimeType: "text/plain",
+  fileSize: 200,
+  rawText: `Overview
+Software teams sometimes need better release decisions. The note does not explain the approach.
 
 Conclusion
-We presented a CNN-based approach for image classification that outperforms existing baselines.`,
-  fileName: 'strong_paper.pdf',
-  mimeType: 'application/pdf',
-  fileSize: 900,
+More investigation is required.`,
 };
 
-const WEAK_PAPER: RawDocument = {
-  rawText: `Abstract
-This is a short note about some machine learning stuff without much detail.
-
-Introduction
-We looked at a general classification problem.`,
-  fileName: 'weak_note.pdf',
-  mimeType: 'application/pdf',
-  fileSize: 200,
-};
-
-const mockAIGenerate: AIGenerateFn = async () => ({
+const groundedRepair: AIGenerateFn = async () => ({
   text: JSON.stringify({
-    method: 'Support Vector Machine',
-    dataset: null,
-    accuracy: 91.4,
-    problem: 'classifying handwritten digits under noisy conditions',
+    claims: [
+      {
+        type: "problem",
+        subject: "Document",
+        predicate: "addresses",
+        object: "Software teams sometimes need better release decisions.",
+        evidenceText: "Software teams sometimes need better release decisions.",
+        confidence: 0.8,
+      },
+    ],
   }),
-  tokensUsed: 142,
-  provider: 'openai',
+  provider: "openai",
 });
 
-const throwingAIGenerate: AIGenerateFn = async () => {
-  throw new Error('simulated rate limit');
-};
+describe("Evidence-grounded workflow", () => {
+  beforeAll(() => ontologyCache.load());
 
-const garbageAIGenerate: AIGenerateFn = async () => ({
-  text: 'not json at all',
-});
-
-// ─── Ontology integrity (regression check) ──────────────────────────────────
-
-describe('Ontology integrity', () => {
-  beforeAll(() => {
-    ontologyCache.load();
+  test("ontology contains software-defect concepts", () => {
+    expect(ontologyCache.resolve("Bayesian Network").concept.id).toBe("bayesian_network");
+    expect(ontologyCache.resolve("software defect prediction").concept.id).toBe("software_defect_prediction");
   });
 
-  test('has exactly 101 unique concepts (dedup fix)', () => {
-    expect(ontologyCache.size).toBe(101);
-  });
-
-  test('exact match works', () => {
-    expect(ontologyCache.resolve('cnn').matchType).toBe('exact');
-  });
-
-  test('alias match works', () => {
-    expect(ontologyCache.resolve('CNN').confidence).toBeGreaterThanOrEqual(0.85);
-  });
-
-  test('unknown match returns confidence 0', () => {
-    expect(ontologyCache.resolve('xyzzy_not_real_concept').confidence).toBe(0);
-  });
-});
-
-// ─── Strong paper — symbolic pipeline should be sufficient ──────────────────
-
-describe('Strong paper: symbolic pipeline alone should be sufficient', () => {
-  it('extracts all core fields with no AI needed', async () => {
+  test("preserves correlation semantics and exposes every stage", async () => {
+    const events: string[] = [];
     const result = await runPipeline({
-      noteId: '507f1f77bcf86cd799439011',
-      document: STRONG_PAPER,
+      noteId: "defect-paper",
+      document: DEFECT_PAPER,
+      onProgress: (event) => events.push(`${event.stage}:${event.status}`),
     });
 
-    expect(result.stage).toBe('complete');
-    expect(result.core.method).not.toBeNull();
-    expect(result.core.dataset?.toLowerCase()).toBe('cifar-10');
-    expect(result.core.accuracy).toBe(96.2);
-    expect(result.gaps.missingFields).toHaveLength(0);
-    expect(result.gaps.missingSections).toHaveLength(0);
-    expect(result.aiFallback.used).toBe(false);
-    expect(result.confidenceBreakdown.overall).toBeGreaterThan(0.6);
-    expect(result.prolog.facts.length).toBeGreaterThan(0);
+    expect(result.stage).toBe("complete");
+    expect(result.core.method?.toLowerCase()).toContain("bayesian network");
+    expect(result.core.dataset).toBeNull();
+    expect(result.core.accuracy).toBeNull();
+    expect(result.core.claims).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "sample", numericValue: 32, validationStatus: "valid" }),
+      expect.objectContaining({ type: "result", numericValue: 95, metric: expect.stringContaining("correlation") }),
+    ]));
+    expect(result.stageProgress.at(-1)?.stage).toBe("complete");
+    expect(events).toContain("claim_validation:complete");
+    expect(events).toContain("graph_construction:complete");
+    expect(result.graph.nodes.size).toBeGreaterThan(5);
   });
 
-  it('produces a fully connected, traversable knowledge graph', async () => {
+  test("AI repair accepts only claims with exact source evidence", async () => {
     const result = await runPipeline({
-      noteId: '507f1f77bcf86cd799439011b',
-      document: STRONG_PAPER,
+      noteId: "weak-note",
+      document: WEAK_NOTE,
+      aiGenerate: groundedRepair,
+      aiFallbackThreshold: 0.99,
     });
 
-    const bfsResult = result.graph.bfs(`paper:507f1f77bcf86cd799439011b`, 5);
-    expect(bfsResult.order.length).toBeGreaterThan(3);
-
-    const components = result.graph.connectedComponents();
-    expect(components).toHaveLength(1);
-
-    const centrality = result.graph.centrality();
-    expect(centrality.size).toBe(result.graph.nodes.size);
+    expect(result.stage).toBe("complete");
+    expect(result.core.claims.some((claim) => claim.extractionSource === "ai")).toBe(true);
+    expect(result.aiFallback.used).toBe(true);
   });
-});
 
-// ─── Weak paper, no AI adapter — fallback should be skipped ─────────────────
+  test("unsupported AI evidence is rejected", async () => {
+    const badRepair: AIGenerateFn = async () => ({
+      text: JSON.stringify({
+        claims: [{
+          type: "method",
+          subject: "Document",
+          predicate: "uses",
+          object: "GAN",
+          evidenceText: "The document uses a GAN model.",
+        }],
+      }),
+    });
 
-describe('Weak paper, no AI adapter supplied', () => {
-  it('completes without throwing and reports why fallback was skipped', async () => {
     const result = await runPipeline({
-      noteId: '507f1f77bcf86cd799439012',
-      document: WEAK_PAPER,
+      noteId: "bad-repair",
+      document: WEAK_NOTE,
+      aiGenerate: badRepair,
+      aiFallbackThreshold: 0.99,
     });
 
-    expect(result.stage).toBe('complete');
-    expect(result.confidenceBreakdown.overall).toBeLessThan(0.7);
-    expect(result.aiFallback.used).toBe(false);
-    expect(result.aiFallback.skippedReason).toBeTruthy();
-  });
-});
-
-// ─── Weak paper WITH AI adapter — fallback should fire ──────────────────────
-
-describe('Weak paper with AI adapter', () => {
-  it('fires the fallback and improves confidence', async () => {
-    const before = await runPipeline({
-      noteId: '507f1f77bcf86cd799439013',
-      document: WEAK_PAPER,
-    });
-    const after = await runPipeline({
-      noteId: '507f1f77bcf86cd799439014',
-      document: WEAK_PAPER,
-      aiGenerate: mockAIGenerate,
-    });
-
-    expect(after.aiFallback.used).toBe(true);
-    expect(after.core.method).toBe('Support Vector Machine');
-    expect(after.core.accuracy).toBe(91.4);
-    expect(after.core.extras?.aiAssisted).toBe(true);
-    expect(after.confidenceBreakdown.overall).toBeGreaterThan(before.confidenceBreakdown.overall);
-  });
-
-  it('never creates a method: node for an AI-filled but ontology-unknown method', async () => {
-    const after = await runPipeline({
-      noteId: '507f1f77bcf86cd799439014b',
-      document: WEAK_PAPER,
-      aiGenerate: mockAIGenerate,
-    });
-
-    const methodNodeExists = [...after.graph.nodes.keys()].some((id) => id.startsWith('method:'));
-    expect(methodNodeExists).toBe(false);
-  });
-});
-
-// ─── AI error paths — must never crash the pipeline ─────────────────────────
-
-describe('AI error resilience', () => {
-  it('survives the AI adapter throwing an error', async () => {
-    const result = await runPipeline({
-      noteId: '507f1f77bcf86cd799439015',
-      document: WEAK_PAPER,
-      aiGenerate: throwingAIGenerate,
-    });
-
-    expect(result.stage).toBe('complete');
-    expect(result.aiFallback.used).toBe(false);
-  });
-
-  it('survives the AI adapter returning non-JSON garbage', async () => {
-    const result = await runPipeline({
-      noteId: '507f1f77bcf86cd799439016',
-      document: WEAK_PAPER,
-      aiGenerate: garbageAIGenerate,
-    });
-
-    expect(result.stage).toBe('complete');
     expect(result.core.method).toBeNull();
+    expect(result.aiFallback.used).toBe(false);
   });
 });

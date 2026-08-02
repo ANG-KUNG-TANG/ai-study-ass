@@ -19,7 +19,7 @@
 // of crashing the explanation layer.
 // =============================================================================
 
-import type { OntologyDomain, PrologAnswer, PrologFact } from '../types';
+import type { PrologAnswer, PrologFact } from '../types';
 import { ontologyCache } from '../ontology/ontology.cache';
 
 // ─── Label lookup ──────────────────────────────────────────────────────────────
@@ -60,6 +60,11 @@ const TEMPLATES: Record<string, SentenceTemplate> = {
   dataset: ([, conceptId]) => `the paper is trained on ${label(conceptId)}`,
   accuracy: ([, value]) => `the paper reports ${value}% accuracy`,
   problem: ([, conceptId]) => `the paper addresses ${label(conceptId)}`,
+  tool: ([, toolId]) => `the paper uses the tool ${label(toolId)}`,
+  sample: ([, sampleId, count]) => `the evaluation uses ${count === 'unknown' ? '' : count + ' '}${label(sampleId)}`,
+  metric: ([, metricId]) => `the evaluation reports ${label(metricId)}`,
+  result: ([, resultId, value, metric]) => `the paper reports ${label(resultId)} (${value} ${metric})`,
+  claim: ([, claimType, claimId]) => `the document contains a validated ${claimType} claim (${label(claimId)})`,
   // FIX (audit #5): new functor for the renamed paper→concept edge (was
   // related_to, now mentions — see graph.engine.ts). Paper-level, so this
   // reads naturally alongside method/dataset/problem above.
@@ -126,7 +131,7 @@ function factToSentence(fact: PrologFact): string {
 // cs.rules.pl independently reference it (e.g. both belongs_to/2 and
 // computer_vision_paper/1 may both cite the same is_a fact).
 
-const DIRECT_FUNCTORS = new Set(['method', 'dataset', 'accuracy', 'problem', 'mentions']);
+const DIRECT_FUNCTORS = new Set(['method', 'dataset', 'accuracy', 'problem', 'tool', 'sample', 'metric', 'result', 'claim', 'mentions']);
 const ONTOLOGY_FUNCTORS = new Set([
   'is_a', 'part_of', 'uses', 'solves', 'concept_solves', 'related_to', 'achieves', 'trained_on',
 ]);

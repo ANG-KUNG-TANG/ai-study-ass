@@ -11,8 +11,22 @@ import type {
 // tau-prolog ships no TypeScript types — declare the minimal surface used
 // here. Keeps the file strict-mode clean without depending on @types/tau-prolog
 // (which doesn't exist on npm).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pl: TauProlog = require('tau-prolog');
+let cachedTauProlog: TauProlog | null = null;
+
+function getTauProlog(): TauProlog {
+  if (cachedTauProlog) return cachedTauProlog;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    cachedTauProlog = require('tau-prolog') as TauProlog;
+    return cachedTauProlog;
+  } catch (error) {
+    throw new Error(
+      `tau-prolog is unavailable. Install it with npm install tau-prolog. ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+}
 
 interface TauProlog {
   create(): TauSession;
@@ -123,7 +137,7 @@ function nodePrefix(nodeId: string): string {
 
 export function graphToFacts(graph: KnowledgeGraph, noteId: string): PrologFact[] {
   const facts: PrologFact[] = [];
-  const seen = new Set<string>(); // dedupe identical functor+args combos
+  const seen = new Set<string>();
 
   function pushFact(functor: string, args: string[]): void {
     const key = `${functor}(${args.join(',')})`;
@@ -132,99 +146,90 @@ export function graphToFacts(graph: KnowledgeGraph, noteId: string): PrologFact[
     facts.push({ functor, args });
   }
 
-  // ── paper(noteId). ──────────────────────────────────────────────────────────
   const paperNodeId = `paper:${noteId}`;
-  if (graph.getNode(paperNodeId)) {
-    pushFact('paper', [noteId]);
-  }
-
-  // ── Edges from the paper node → typed core facts ────────────────────────────
-  // paper -[uses]-> method        → method(noteId, conceptId).
-  // paper -[trained_on]-> dataset → dataset(noteId, conceptId).
-  // paper -[achieves]-> metric    → accuracy(noteId, value).
-  // paper -[solves]-> task        → solves(noteId, conceptId).
-  const paperEdges = graph.getEdges(paperNodeId);
-
-  for (const edge of paperEdges) {
-    if (edge.from !== paperNodeId) continue; // only outgoing edges from the paper
-    const targetNode = graph.getNode(edge.to);
-    if (!targetNode) continue;
-
-    const targetSlug = stripPrefix(edge.to);
-
-    switch (edge.type) {
-      case 'uses':
-        // Could be method (most common) — only emit method/2 for method-typed nodes
-        if (targetNode.type === 'method') {
-          pushFact('method', [noteId, targetSlug]);
-        }
-        break;
-      case 'trained_on':
-        if (targetNode.type === 'dataset') {
-          pushFact('dataset', [noteId, targetSlug]);
-        }
-        break;
-      case 'achieves':
-        if (targetNode.type === 'metric') {
-          const value = targetNode.properties?.value;
-          if (typeof value === 'number') {
-            pushFact('accuracy', [noteId, String(value)]);
-          }
-        }
-        break;
-      case 'solves':
-        if (targetNode.type === 'task') {
-          pushFact('solves', [noteId, targetSlug]);
-        }
-        break;
-      case 'mentions':
-        // paper -[mentions]-> concept (extra entities from core.entities).
-        // FIX (audit #5): this used to be emitted as related_to(noteId, conceptId)
-        // — the same functor/arity as the concept-to-concept ontology relation
-        // related_to(conceptA, conceptB) below. Both being related_to/2 meant a
-        // generic query over related_to/2 couldn't distinguish a paper-level
-        // mention from a concept-level relation. graph.engine.ts now emits a
-        // distinct 'mentions' edge type for this case (see RelationType in
-        // types.ts), so the functors never collide.
-        if (targetNode.type === 'concept') {
-          pushFact('mentions', [noteId, targetSlug]);
-        }
-        break;
-      default:
-        break;
-    }
-  }
-
-  // ── All remaining edges (concept-to-concept: is_a, part_of, uses, related_to) ─
-  // These came from addAncestorChain() and addOntologyRelations() in
-  // graph.engine.ts. Both endpoints are 'concept:' prefixed nodes (or method/
-  // dataset/task nodes when a relation target overlaps with one of those).
-  //
-  // FIX (audit #5): 'solves' is also used as a paper-level functor above
-  // (solves(NoteId, TaskId), from core.problem). A concept-level ontology
-  // relation of type 'solves' (e.g. cnn -[solves]-> image_classification,
-  // declared in cs_ontology.ts) would serialise to the exact same functor/
-  // arity — solves(cnn, image_classification) is indistinguishable in shape
-  // from solves(noteId, taskId). It happens not to break the current rules
-  // in cs.rules.pl (they always bind Paper from method/2 first), but it's a
-  // landmine for any future rule or queryAll() that enumerates solves/2
-  // generically. Reserve the paper-level functors and rename the
-  // concept-level relation defensively.
-  const PAPER_LEVEL_FUNCTORS = new Set(['paper', 'method', 'dataset', 'accuracy', 'solves', 'mentions']);
+  if (graph.getNode(paperNodeId)) pushFact('paper', [noteId]);
 
   for (const edge of graph.edges) {
-    if (edge.from === paperNodeId) continue; // already handled above
+    const sourceNode = graph.getNode(edge.from);
+    const targetNode = graph.getNode(edge.to);
+    if (!sourceNode || !targetNode) continue;
 
+    if (edge.from === paperNodeId) {
+      const targetSlug = stripPrefix(edge.to);
+
+      if (edge.type === 'uses' && targetNode.type === 'method') {
+        pushFact('method', [noteId, targetSlug]);
+        continue;
+      }
+      if (edge.type === 'trained_on' && targetNode.type === 'dataset') {
+        pushFact('dataset', [noteId, targetSlug]);
+        continue;
+      }
+      if (edge.type === 'evaluated_on' && targetNode.type === 'dataset') {
+        pushFact('dataset', [noteId, targetSlug]);
+        continue;
+      }
+      if (edge.type === 'evaluated_on' && targetNode.type === 'sample') {
+        const sampleValue = targetNode.properties?.value;
+        pushFact('sample', [noteId, targetSlug, typeof sampleValue === 'number' ? String(sampleValue) : 'unknown']);
+        continue;
+      }
+      if (edge.type === 'uses_tool' && targetNode.type === 'tool') {
+        pushFact('tool', [noteId, targetSlug]);
+        continue;
+      }
+      if (edge.type === 'has_problem') {
+        pushFact('problem', [noteId, targetSlug]);
+        continue;
+      }
+      if (edge.type === 'mentions' && targetNode.type === 'concept') {
+        pushFact('mentions', [noteId, targetSlug]);
+        continue;
+      }
+      if (edge.type === 'achieves' && targetNode.type === 'metric') {
+        const value = targetNode.properties?.value;
+        if (typeof value === 'number') pushFact('accuracy', [noteId, String(value)]);
+        continue;
+      }
+      if (edge.type === 'reports' && targetNode.type === 'metric') {
+        const metric = String(targetNode.properties?.metric ?? targetNode.label).toLowerCase();
+        const value = targetNode.properties?.value;
+        pushFact('metric', [noteId, stripPrefix(edge.to)]);
+        if (metric === 'accuracy' && typeof value === 'number') {
+          pushFact('accuracy', [noteId, String(value)]);
+        }
+        continue;
+      }
+      if ((edge.type === 'reports' || edge.type === 'contains') && (targetNode.type === 'claim' || targetNode.type === 'result')) {
+        const claimType = String(targetNode.properties?.claimType ?? targetNode.type);
+        pushFact('claim', [noteId, claimType, targetSlug]);
+        const numericValue = targetNode.properties?.numericValue;
+        const metric = targetNode.properties?.metric;
+        if (targetNode.type === 'result') {
+          pushFact('result', [
+            noteId,
+            targetSlug,
+            typeof numericValue === 'number' ? String(numericValue) : 'unknown',
+            typeof metric === 'string' ? metric : 'unspecified',
+          ]);
+          if (String(metric).toLowerCase() === 'accuracy' && typeof numericValue === 'number') {
+            pushFact('accuracy', [noteId, String(numericValue)]);
+          }
+        }
+        continue;
+      }
+    }
+
+    if (edge.from === paperNodeId) continue;
     const fromSlug = stripPrefix(edge.from);
     const toSlug = stripPrefix(edge.to);
-
-    // Skip self-loops that can appear from ancestor-chain edge cases
     if (fromSlug === toSlug) continue;
 
-    const functor = PAPER_LEVEL_FUNCTORS.has(edge.type)
-      ? `concept_${edge.type}`
-      : edge.type;
-
+    const reserved = new Set([
+      'paper', 'method', 'dataset', 'accuracy', 'solves', 'mentions',
+      'claim', 'result', 'metric', 'sample', 'tool', 'problem',
+    ]);
+    const functor = reserved.has(edge.type) ? `concept_${edge.type}` : edge.type;
     pushFact(functor, [fromSlug, toSlug]);
   }
 
@@ -373,6 +378,7 @@ export class PrologEngine implements PrologEngineInstance {
     const facts = graphToFacts(graph, noteId);
     const program = `${factsToSource(facts)}\n\n${resolveRulesSource()}`;
 
+    const pl = getTauProlog();
     const session = pl.create();
 
     await new Promise<void>((resolve, reject) => {
@@ -482,6 +488,7 @@ export class PrologEngine implements PrologEngineInstance {
   // Uses the session's own formatter so atoms/numbers print exactly as
   // tau-prolog would render them, then strips the trailing '.' format_answer adds.
   private extractBindings(term: unknown): Record<string, string> {
+    const pl = getTauProlog();
     const bindings: Record<string, string> = {};
     const session = this.session!;
 
