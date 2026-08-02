@@ -12,11 +12,10 @@ export async function getGenerationStatusController(
   auth: AuthContext,
 ) {
   const { id: noteId } = await context.params;
-  const status =
-    await generationService.getGenerationStatus(
-      noteId,
-      auth.userId,
-    );
+  const status = await generationService.getGenerationStatus(
+    noteId,
+    auth.userId,
+  );
 
   return successResponse(status);
 }
@@ -39,10 +38,7 @@ export async function regenerateStudyMaterialsController(
     // Request body is optional.
   }
 
-  await generationService.getGenerationStatus(
-    noteId,
-    auth.userId,
-  );
+  await generationService.getGenerationStatus(noteId, auth.userId);
 
   generationService.generateStudyMaterialsInBackground({
     noteId,
@@ -56,8 +52,7 @@ export async function regenerateStudyMaterialsController(
       data: {
         noteId,
         stage: "pending",
-        message:
-          "Study material regeneration has started.",
+        message: "Study material regeneration has started.",
       },
     },
     { status: 202 },
