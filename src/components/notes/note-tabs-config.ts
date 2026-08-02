@@ -1,11 +1,59 @@
-import { AlignLeft, HelpCircle, Copy, MessageCircle, Network, MessageSquare } from "lucide-react";
+import {
+  AlignLeft,
+  Copy,
+  HelpCircle,
+  Network,
+  MessageSquare,
+} from "lucide-react";
 
-export function noteTabItems(noteId: string) {
-    return [
-        { href: `/student/notes/${noteId}`, label: "Summary", icon: AlignLeft},
-        { href: `/student/notes/${noteId}/quiz`, label: "Quiz", icon: HelpCircle},
-        { href: `/student/notes/${noteId}/flashcard`, label: "Flashcards", icon: Copy},
-        { href: `/student/notes/${noteId}/chat`, label: 'Chat', icon: MessageSquare},
-        { href: `/student/notes/${noteId}/knowledge`, label: 'Knowledge', icon: Network}
-        ]
+export function noteTabItems(
+  noteId: string,
+) {
+  const encodedNoteId =
+    encodeURIComponent(
+      noteId,
+    );
+
+  return [
+    {
+      href:
+        `/student/notes/${encodedNoteId}/summary`,
+      label:
+        "Summary",
+      icon:
+        AlignLeft,
+    },
+    {
+      href:
+        `/student/notes/${encodedNoteId}/quiz`,
+      label:
+        "Quiz",
+      icon:
+        HelpCircle,
+    },
+    {
+      href:
+        `/student/notes/${encodedNoteId}/flashcards`,
+      label:
+        "Flashcards",
+      icon:
+        Copy,
+    },
+    {
+      href:
+        `/student/notes/${encodedNoteId}/chat`,
+      label:
+        "Chat",
+      icon:
+        MessageSquare,
+    },
+    {
+      href:
+        `/student/notes/${encodedNoteId}/knowledge`,
+      label:
+        "Knowledge",
+      icon:
+        Network,
+    },
+  ];
 }
