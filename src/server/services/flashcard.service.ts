@@ -149,6 +149,7 @@ ${content.slice(0, 8_000)}
     temperature: 0.3,
     maxTokens: 1_800,
     jsonMode: true,
+    usageLabel: "flashcards",
   });
 
   const cleaned = result.text

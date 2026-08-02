@@ -1,5 +1,5 @@
 import { generate } from "@/server/services/ai.service";
-import { buildSummaryPrompt } from "@/server/services/summary/summary.promt";
+import { buildSummaryPrompt } from "@/server/services/summary/summary.prompt";
 import * as noteRepo from "@/server/repositories/note.repo";
 import * as intelligenceService from "@/server/services/intelligence.service";
 import { buildSymbolicSummary } from "@/server/services/symbolic-content.service";
@@ -153,6 +153,7 @@ export async function generateSummary(
         jsonMode: true,
         temperature: 0.25,
         maxTokens: 1_600,
+        usageLabel: "summary",
       });
 
       structured = parseSummaryResponse(aiResult.text);

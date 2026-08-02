@@ -11,7 +11,12 @@ import {
 import { logger } from "@/server/utils/logger";
 import type { UserQueryOptions, PaginatedUsers } from "@/server/repositories/user.repo";
 import { buildPaginationMeta, PaginationMeta } from "../utils/response";
-import * as knowledgeRepo from '@/server/repositories/knowldege.repo'
+import * as flashcardService from "@/server/services/flashcard.service";
+import * as chatService from "@/server/services/chat/chat.service";
+import * as intelligenceService from "@/server/services/intelligence.service";
+import * as generationService from "@/server/services/study-material-generation.service";
+import * as intelligenceRepo from "@/server/repositories/intelligence.repo";
+import * as flashcardRepo from "@/server/repositories/flashcard.repo";
 import type { NoteQueryOptions} from "@/server/repositories/note.repo";
 import mongoose from "mongoose";
 import {
@@ -75,7 +80,7 @@ export async function listContent(
 
   const [owners, stages] = await Promise.all([
     userRepo.findManyByIds(userIds),
-    knowledgeRepo.findStagesByNoteIds(noteIds),
+    intelligenceRepo.findStagesByNoteIds(noteIds),
   ]);
   const ownerMap = new Map(owners.map((u) => [u.id, u.toPublic().email]));
 
@@ -98,6 +103,36 @@ export async function listContent(
   return { data, meta: buildPaginationMeta(result.total, result.page, result.limit) };
 }
 
+
+// ─── Delete content ───────────────────────────────────────────────────────────
+
+export async function deleteContent(
+  adminId: string,
+  noteId: string,
+): Promise<{ title: string; ownerId: string }> {
+  const note = await noteRepo.findByIdOrThrow(noteId);
+
+  await Promise.all([
+    noteRepo.deleteById(noteId),
+    quizRepo.deleteByNoteId(noteId),
+    flashcardService.deleteForNote(noteId),
+    chatService.deleteForNote(noteId),
+    intelligenceService.deleteForNote(noteId),
+    generationService.deleteForNote(noteId),
+  ]);
+
+  logger.info("Admin deleted note content", {
+    adminId,
+    noteId,
+    ownerId: note.userId,
+  });
+
+  return {
+    title: note.title,
+    ownerId: note.userId,
+  };
+}
+
 // ─── Update role ──────────────────────────────────────────────────────────────
 
 export async function updateUserRole(
@@ -111,6 +146,13 @@ export async function updateUserRole(
 
   const user = await userRepo.findById(targetUserId);
   if (!user) throw new NotFoundError("User");
+
+  if (user.role === "admin" && role !== "admin") {
+    const adminCount = await userRepo.count({ role: "admin" });
+    if (adminCount <= 1) {
+      throw new ForbiddenError("The last administrator cannot be demoted");
+    }
+  }
 
   await userRepo.updateRole(targetUserId, role);
 
@@ -155,17 +197,26 @@ export async function unbanUser(
 // cascade to notes/quizzes/flashcards/chats (per product decision: user's
 // content is retained after the account is removed).
 //
-// No self-delete or admin-target restriction — any admin may delete any
-// user, including themselves or another admin. If you need to reintroduce
-// a safety rail later (e.g. "must have at least one admin left"), add the
-// check here.
+// Self-deletion is routed through the user account flow. The last remaining
+// administrator cannot be demoted or removed.
 
 export async function deleteUser(
   adminId: string,
   targetUserId: string
 ): Promise<void> {
+  if (adminId === targetUserId) {
+    throw new ForbiddenError("Use account settings to delete your own account");
+  }
+
   const user = await userRepo.findById(targetUserId);
   if (!user) throw new NotFoundError("User");
+
+  if (user.role === "admin") {
+    const adminCount = await userRepo.count({ role: "admin" });
+    if (adminCount <= 1) {
+      throw new ForbiddenError("The last administrator cannot be deleted");
+    }
+  }
 
   await revokeAllUserTokens(targetUserId);
   await userRepo.deleteById(targetUserId);
@@ -209,14 +260,24 @@ export async function getOverviewStats(): Promise<{
   totalUsers: number;
   totalNotes: number;
   totalQuizzes: number;
+  totalFlashcards: number;
+  aiSpendThisMonth: number;
 }> {
-  const [totalUsers, totalNotes, totalQuizzes] = await Promise.all([
-    userRepo.count(),
-    noteRepo.count(),
-    quizRepo.count(),
-  ]);
+  const [totalUsers, totalNotes, totalQuizzes, totalFlashcards] =
+    await Promise.all([
+      userRepo.count(),
+      noteRepo.count(),
+      quizRepo.count(),
+      flashcardRepo.count(),
+    ]);
 
-  return { totalUsers, totalNotes, totalQuizzes };
+  return {
+    totalUsers,
+    totalNotes,
+    totalQuizzes,
+    totalFlashcards,
+    aiSpendThisMonth: 0,
+  };
 }
 
 // ─── AI usage ─────────────────────────────────────────────────────────────────

@@ -10,11 +10,6 @@
 import { z } from 'zod';
 import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from '@/server/utils/constants';
 
-// ASSUMPTION TO VERIFY: guessed the constants module lives at
-// '@/server/utils/constants' (matching note.entity.ts's '@/server/utils/errors'
-// alias style) — adjust the import path if it's actually elsewhere
-// (e.g. '@/server/utils/constants').
-
 // z.coerce.number() on an empty/missing search param yields NaN, so each
 // field is optional at the string level and only coerced+defaulted when
 // actually present — this is what makes ?page=abc fail validation with a

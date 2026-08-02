@@ -322,6 +322,7 @@ export async function generateQuizWithMetadata(
         jsonMode: true,
         temperature: 0.35,
         maxTokens: 2_000,
+        usageLabel: "quiz",
       });
 
       const aiQuestions = parseQuizResponse(aiResult.text);

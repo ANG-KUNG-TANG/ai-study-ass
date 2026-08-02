@@ -1,11 +1,14 @@
 // =============================================================================
 // src/server/services/ai.service.ts
 //
-// Central AI module. Only server-side feature services should import this file.
-// The browser must never call Gemini/OpenAI directly or receive an API key.
+// Central server-side AI gateway. Feature services call this module; browser
+// code must never receive provider API keys or call providers directly.
 // =============================================================================
 
-import { AI_CONFIG, type AIProvider } from "@/server/config/ai_config";
+import {
+  AI_CONFIG,
+  type AIProvider,
+} from "@/server/config/ai_config";
 import { AIError } from "@/server/utils/errors";
 
 // ─── Public contract ──────────────────────────────────────────────────────────
@@ -15,12 +18,10 @@ export interface AIGenerateOptions {
   systemPrompt?: string;
   maxTokens?: number;
   temperature?: number;
-  /**
-   * When true, instructs the provider to return ONLY valid JSON with no
-   * prose/markdown fences — quiz.service.ts and flashcard.service.ts need
-   * this for structured output parsing.
-   */
   jsonMode?: boolean;
+
+  /** Logical feature label shown in the admin AI-usage dashboard. */
+  usageLabel?: string;
 }
 
 export interface AIGenerateResult {
@@ -30,7 +31,45 @@ export interface AIGenerateResult {
   model: string;
 }
 
-// ─── Retry / timeout policy ───────────────────────────────────────────────────
+export interface AIUsageEvent {
+  provider: AIProvider;
+  model: string;
+  usageLabel: string;
+  success: boolean;
+  tokensUsed: number;
+  latencyMs: number;
+  createdAt: Date;
+}
+
+// ─── Process-local telemetry ─────────────────────────────────────────────────
+// Stores operational metadata only. Prompts, responses, document text, API
+// keys and user identifiers are deliberately excluded.
+
+interface AIUsageGlobal {
+  __recallAIUsageEvents?: AIUsageEvent[];
+}
+
+const usageGlobal = globalThis as typeof globalThis & AIUsageGlobal;
+const AI_USAGE_LIMIT = 5_000;
+const usageEvents = usageGlobal.__recallAIUsageEvents ?? [];
+usageGlobal.__recallAIUsageEvents = usageEvents;
+
+function recordAIUsageEvent(event: AIUsageEvent): void {
+  usageEvents.push(event);
+
+  if (usageEvents.length > AI_USAGE_LIMIT) {
+    usageEvents.splice(0, usageEvents.length - AI_USAGE_LIMIT);
+  }
+}
+
+export function getAIUsageEvents(): AIUsageEvent[] {
+  return usageEvents.map((event) => ({
+    ...event,
+    createdAt: new Date(event.createdAt),
+  }));
+}
+
+// ─── Retry / timeout policy ──────────────────────────────────────────────────
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const BASE_BACKOFF_MS = 1_500;
@@ -53,13 +92,21 @@ function addJitter(ms: number): number {
   return ms + Math.floor(Math.random() * RETRY_JITTER_MS);
 }
 
-// ─── Provider errors ──────────────────────────────────────────────────────────
+// ─── Provider errors ─────────────────────────────────────────────────────────
 
 interface AdapterError extends Error {
   status?: number;
   retryAfterMs?: number;
   retryable?: boolean;
   publicMessage?: string;
+}
+
+function asAdapterError(error: unknown): AdapterError {
+  if (error instanceof Error) {
+    return error as AdapterError;
+  }
+
+  return new Error(String(error)) as AdapterError;
 }
 
 function parseRetryAfterHeader(value: string | null): number | undefined {
@@ -100,7 +147,6 @@ function parseGeminiQuotaInfo(responseText: string): GeminiQuotaInfo {
     };
 
     const details = parsed.error?.details ?? [];
-
     const retryInfo = details.find(
       (detail) =>
         detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo",
@@ -111,7 +157,6 @@ function parseGeminiQuotaInfo(responseText: string): GeminiQuotaInfo {
 
     if (retryDelay?.endsWith("s")) {
       const seconds = Number.parseFloat(retryDelay.slice(0, -1));
-
       if (Number.isFinite(seconds) && seconds >= 0) {
         retryAfterMs = Math.ceil(seconds * 1_000);
       }
@@ -134,9 +179,7 @@ function parseGeminiQuotaInfo(responseText: string): GeminiQuotaInfo {
       quotaId: dailyQuotaId,
     };
   } catch {
-    return {
-      dailyQuotaExceeded: false,
-    };
+    return { dailyQuotaExceeded: false };
   }
 }
 
@@ -170,8 +213,7 @@ function logProviderFailure(
   status: number,
   details: string,
 ): void {
-  // Never log an API key. This only logs provider, model, status and response.
-  // eslint-disable-next-line no-console
+  // Provider diagnostics only; API keys are never included.
   console.error("[AI provider error]", {
     provider,
     model,
@@ -180,7 +222,13 @@ function logProviderFailure(
   });
 }
 
-// ─── OpenAI adapter ───────────────────────────────────────────────────────────
+function configuredModel(provider: AIProvider): string {
+  return provider === "openai"
+    ? AI_CONFIG.openai.model
+    : AI_CONFIG.gemini.model.replace(/^models\//, "");
+}
+
+// ─── OpenAI adapter ──────────────────────────────────────────────────────────
 
 async function callOpenAI(
   options: AIGenerateOptions,
@@ -189,7 +237,7 @@ async function callOpenAI(
   const { apiKey, model } = AI_CONFIG.openai;
 
   if (!apiKey.trim()) {
-    throw new AIError("OPENAI_API_KEY is not configured.");
+    throw new AIError("OPENAI_API_KEY is not configured.", "openai");
   }
 
   const messages = [
@@ -225,6 +273,7 @@ async function callOpenAI(
       `OpenAI returned ${response.status}`,
     );
     error.status = response.status;
+    error.retryable = isRetryableStatus(response.status);
     error.retryAfterMs = parseRetryAfterHeader(
       response.headers.get("retry-after"),
     );
@@ -232,13 +281,18 @@ async function callOpenAI(
     throw error;
   }
 
-  const data = await response.json();
-  const text: string = data?.choices?.[0]?.message?.content ?? "";
-  const tokensUsed: number = data?.usage?.total_tokens ?? 0;
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { total_tokens?: number };
+  };
+
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const tokensUsed = data.usage?.total_tokens ?? 0;
 
   if (!text.trim()) {
     const error: AdapterError = new Error("OpenAI returned an empty response");
     error.status = 502;
+    error.retryable = true;
     error.publicMessage = "The AI provider returned an empty response.";
     throw error;
   }
@@ -251,26 +305,23 @@ async function callOpenAI(
   };
 }
 
-// ─── Gemini adapter ───────────────────────────────────────────────────────────
+// ─── Gemini adapter ──────────────────────────────────────────────────────────
 
 async function callGemini(
   options: AIGenerateOptions,
   signal: AbortSignal,
 ): Promise<AIGenerateResult> {
   const apiKey = AI_CONFIG.gemini.apiKey.trim();
-  const model = AI_CONFIG.gemini.model
-    .trim()
-    .replace(/^models\//, "");
+  const model = AI_CONFIG.gemini.model.trim().replace(/^models\//, "");
 
   if (!apiKey) {
-    throw new AIError("GEMINI_API_KEY is not configured.");
+    throw new AIError("GEMINI_API_KEY is not configured.", "gemini");
   }
 
   if (!model) {
-    throw new AIError("GEMINI_MODEL is not configured.");
+    throw new AIError("GEMINI_MODEL is not configured.", "gemini");
   }
 
-  // Keep the key out of the URL so it is less likely to appear in access logs.
   const url =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     `${encodeURIComponent(model)}:generateContent`;
@@ -310,68 +361,64 @@ async function callGemini(
     const details = await response.text().catch(() => "");
     logProviderFailure("gemini", model, response.status, details);
 
-    const headerDelay = parseRetryAfterHeader(
-      response.headers.get("retry-after"),
-    );
-
     const quotaInfo =
       response.status === 429
         ? parseGeminiQuotaInfo(details)
-        : {
-            dailyQuotaExceeded: false,
-            retryAfterMs: undefined,
-            quotaId: undefined,
-          };
+        : { dailyQuotaExceeded: false };
 
     const error: AdapterError = new Error(
       `Gemini returned ${response.status}`,
     );
-
     error.status = response.status;
 
     if (quotaInfo.dailyQuotaExceeded) {
-      // A per-day quota cannot be solved by retrying seconds later. Returning
-      // immediately prevents one student action from consuming more requests.
       error.retryable = false;
       error.publicMessage =
         "The daily AI generation limit has been reached. " +
-        "Please use the saved study materials or try again after the quota resets.";
+        "Please use saved study materials or try again after the quota resets.";
     } else {
-      error.retryable =
-        typeof response.status === "number" &&
-        isRetryableStatus(response.status);
-
+      error.retryable = isRetryableStatus(response.status);
       error.retryAfterMs =
-        headerDelay ?? quotaInfo.retryAfterMs;
-
-      error.publicMessage =
-        publicProviderError("Gemini", response.status);
+        parseRetryAfterHeader(response.headers.get("retry-after")) ??
+        quotaInfo.retryAfterMs;
+      error.publicMessage = publicProviderError("Gemini", response.status);
     }
 
     throw error;
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
+    }>;
+    usageMetadata?: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+    };
+    promptFeedback?: { blockReason?: string };
+  };
 
-  const text: string =
-    data?.candidates?.[0]?.content?.parts
-      ?.map((part: { text?: string }) => part.text ?? "")
+  const text =
+    data.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text ?? "")
       .join("") ?? "";
 
-  const tokensUsed: number =
-    (data?.usageMetadata?.promptTokenCount ?? 0) +
-    (data?.usageMetadata?.candidatesTokenCount ?? 0);
+  const tokensUsed =
+    (data.usageMetadata?.promptTokenCount ?? 0) +
+    (data.usageMetadata?.candidatesTokenCount ?? 0);
 
   if (!text.trim()) {
     const blockReason =
-      data?.promptFeedback?.blockReason ??
-      data?.candidates?.[0]?.finishReason ??
+      data.promptFeedback?.blockReason ??
+      data.candidates?.[0]?.finishReason ??
       "unknown reason";
 
     const error: AdapterError = new Error(
       `Gemini returned an empty response (${blockReason})`,
     );
     error.status = 502;
+    error.retryable = true;
     error.publicMessage = "The AI provider returned an empty response.";
     throw error;
   }
@@ -384,7 +431,7 @@ async function callGemini(
   };
 }
 
-// ─── Public entry points ──────────────────────────────────────────────────────
+// ─── Public entry points ─────────────────────────────────────────────────────
 
 const ADAPTERS: Record<
   AIProvider,
@@ -402,11 +449,11 @@ export async function generate(
 ): Promise<AIGenerateResult> {
   const provider = AI_CONFIG.activeProvider;
   const adapter = ADAPTERS[provider];
-  const maxAttempts = AI_CONFIG.maxRetries + 1; // maxRetries=3 → up to 4 total attempts
+  const maxAttempts = Math.max(1, AI_CONFIG.maxRetries + 1);
+  const startedAt = Date.now();
+  const usageLabel = options.usageLabel?.trim() || "generation";
 
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
@@ -415,24 +462,52 @@ export async function generate(
 
     try {
       const result = await adapter(options, controller.signal);
-      clearTimeout(timeout);
+
+      recordAIUsageEvent({
+        provider: result.provider,
+        model: result.model,
+        usageLabel,
+        success: true,
+        tokensUsed: result.tokensUsed,
+        latencyMs: Date.now() - startedAt,
+        createdAt: new Date(),
+      });
+
       return result;
-    } catch (err) {
-      clearTimeout(timeout);
-      lastError = err;
-
-      const status = (err as AdapterError)?.status;
-      const isAbort = err instanceof Error && err.name === 'AbortError';
-      const retryable = isAbort || (typeof status === 'number' && isRetryableStatus(status));
-
+    } catch (unknownError) {
+      const error = asAdapterError(unknownError);
+      const isAbort = error.name === "AbortError";
+      const status = error.status;
+      const retryable =
+        isAbort ||
+        error.retryable === true ||
+        (error.retryable !== false &&
+          typeof status === "number" &&
+          isRetryableStatus(status));
       const isLastAttempt = attempt === maxAttempts - 1;
 
       if (!retryable || isLastAttempt) {
+        recordAIUsageEvent({
+          provider,
+          model: configuredModel(provider),
+          usageLabel,
+          success: false,
+          tokensUsed: 0,
+          latencyMs: Date.now() - startedAt,
+          createdAt: new Date(),
+        });
+
+        if (isAbort) {
+          throw new AIError(
+            `AI request timed out after ${AI_CONFIG.requestTimeoutMs}ms`,
+            provider,
+          );
+        }
+
         throw new AIError(
-          error.publicMessage ??
-            (unknownError instanceof Error
-              ? unknownError.message
-              : "The AI request could not be completed."),
+          error.publicMessage ?? error.message ??
+            "The AI request could not be completed.",
+          provider,
         );
       }
 
@@ -447,7 +522,24 @@ export async function generate(
     }
   }
 
-  // Unreachable given the loop above always returns or throws, but keeps
-  // TypeScript's control-flow analysis happy without a non-null assertion.
-  throw new AIError('exhausted retries');
+  throw new AIError("The AI request could not be completed.", provider);
+}
+
+/** Adapter matching the intelligence engine's `(prompt) => result` contract. */
+export async function generateForIntelligence(
+  prompt: string,
+): Promise<AIGenerateResult> {
+  return generate({
+    prompt,
+    systemPrompt: [
+      "You assist a symbolic document-intelligence pipeline.",
+      "Extract only facts supported by the supplied document excerpt.",
+      "Do not invent methods, datasets, accuracy values, or research problems.",
+      "Return only valid JSON.",
+    ].join(" "),
+    maxTokens: 1_400,
+    temperature: 0.1,
+    jsonMode: true,
+    usageLabel: "intelligence",
+  });
 }

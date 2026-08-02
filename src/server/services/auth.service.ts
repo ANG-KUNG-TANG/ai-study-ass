@@ -10,7 +10,6 @@ import {
 } from "@/server/utils/jwt";
 import * as userRepo from "@/server/repositories/user.repo"
 import { UserEntity } from "@/server/entities/user.entity";
-import { BCRYPT_ROUNDS } from "@/server/utils/constants";
 import { USER_RULES } from "@/server/entities/user.entity";
 import {
   ConflictError,
@@ -25,6 +24,7 @@ import type {
   ChangePasswordInput,
 } from "@/server/validators/auth.validators";
 import { env } from "../config/env";
+import { logActivity } from "@/server/services/auditLog.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ export async function register(
   const taken = await userRepo.existsByEmail(input.email);
   if (taken) throw new ConflictError("Email already registered");
 
-  const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+  const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
   const verificationToken = randomUUID();
 
   const entity = UserEntity.create({
@@ -54,6 +54,14 @@ export async function register(
   });
 
   await userRepo.create(entity);
+
+  void logActivity({
+    actorId: entity.id,
+    actorEmail: entity.email,
+    action: "auth.register",
+    targetType: "user",
+    targetId: entity.id,
+  });
 
   // Email delivery is best-effort: the account is already created and valid.
   // If sending fails (provider outage, misconfig, etc.), log it and let the
@@ -212,7 +220,7 @@ export async function changePassword(
   const match = await bcrypt.compare(input.currentPassword, user.passwordHash);
   if (!match) throw new UnauthorizedError("Current password is incorrect");
 
-  const newHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
+  const newHash = await bcrypt.hash(input.newPassword, env.BCRYPT_ROUNDS);
 
   // updatePassword clears refreshTokenId — invalidates all sessions
   await userRepo.updatePassword(userId, newHash);
@@ -267,7 +275,7 @@ export async function resetPassword(
     throw new BadRequestError("Reset token has expired — please request a new one");
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  const passwordHash = await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS);
 
   // Update password + clear token + invalidate all sessions
   await userRepo.updatePassword(user.id, passwordHash);

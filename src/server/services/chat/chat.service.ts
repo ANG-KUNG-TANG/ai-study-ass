@@ -99,6 +99,8 @@ async function answerQuestion(
           0.25,
         maxTokens:
           900,
+        usageLabel:
+          "chat",
       });
 
     return {

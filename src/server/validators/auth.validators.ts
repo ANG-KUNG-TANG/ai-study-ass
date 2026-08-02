@@ -70,18 +70,18 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 
 
-//Request a password reset lin
+// Request a password reset link
 export const forgotPasswordSchema = z.object({
   email: emailField,
 });
 
-//subit new password using the reset token
+// Submit a new password using the reset token
 export const resetPasswordSchema = z.object({
   token: z.string({ error: "Reset token is required" }).min(1),
   newPassword: passwordField,
   confirmPassword: z.string({ error: "Please confirm your new password" }),
 }).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Password do not match",
+  message: "Passwords do not match",
   path: ["confirmPassword"],
 });
 
