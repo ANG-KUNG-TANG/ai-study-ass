@@ -8,6 +8,7 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  FileText,
   LogOut,
   Menu,
   X,
@@ -53,10 +54,58 @@ export function Sidebar({
     setIsMobileOpen,
   ] = useState(false);
 
+  const noteMatch =
+    variant === "student"
+      ? pathname?.match(
+          /^\/student\/notes\/([^/]+)(?:\/|$)/,
+        )
+      : null;
+
+  const currentNoteId =
+    noteMatch?.[1];
+
+  const noteSourceItem =
+    currentNoteId
+      ? {
+          href:
+            `/student/notes/${currentNoteId}/original`,
+          label:
+            "Original text",
+          icon:
+            FileText,
+        }
+      : null;
+
   const navItems =
     variant === "student"
-      ? studentNavItems
+      ? [
+          ...studentNavItems,
+          ...(noteSourceItem
+            ? [noteSourceItem]
+            : []),
+        ]
       : adminNavItems;
+
+  const activeHref =
+    navItems
+      .filter(
+        (
+          item,
+        ) =>
+          pathname ===
+            item.href ||
+          pathname?.startsWith(
+            `${item.href}/`,
+          ),
+      )
+      .sort(
+        (
+          left,
+          right,
+        ) =>
+          right.href.length -
+          left.href.length,
+      )[0]?.href;
 
   useEffect(() => {
     setIsMobileOpen(false);
@@ -135,10 +184,8 @@ export function Sidebar({
           <div className="flex flex-col gap-[3px]">
             {navItems.map((item) => {
               const isActive =
-                pathname === item.href ||
-                pathname?.startsWith(
-                  `${item.href}/`,
-                );
+                activeHref ===
+                item.href;
 
               return (
                 <Link

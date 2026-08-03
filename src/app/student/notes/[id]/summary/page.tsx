@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { FileText, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useNoteContext } from "@/context/NoteContext";
 import { useSummary } from "@/hooks/useSummary";
 import { parseSummary } from "@/lib/parse-summary";
@@ -101,14 +101,6 @@ export default function SummaryPage() {
 
       {error && <Card className="border-coral/30"><p className="text-[13px] text-coral">{error}</p></Card>}
 
-      <details>
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-[12px] font-medium text-ink-soft hover:text-ink">
-          <FileText size={14} /> View original extracted PDF text
-        </summary>
-        <Card className="mt-3 max-h-[420px] overflow-y-auto">
-          <p className="whitespace-pre-wrap text-[12px] leading-6 text-ink-soft">{note.content}</p>
-        </Card>
-      </details>
     </div>
   );
 }
