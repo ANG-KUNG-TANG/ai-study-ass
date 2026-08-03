@@ -70,7 +70,9 @@ describe("Evidence-grounded workflow", () => {
     const result = await runPipeline({
       noteId: "defect-paper",
       document: DEFECT_PAPER,
-      onProgress: (event) => events.push(`${event.stage}:${event.status}`),
+      onProgress: (event) => {
+        events.push(`${event.stage}:${event.status}`);
+      },
     });
 
     expect(result.stage).toBe("complete");

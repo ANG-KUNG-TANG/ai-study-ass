@@ -43,11 +43,13 @@ export function toEntity(doc: KnowledgeDocument): KnowledgeEntity {
     stage: doc.stage,
     error: doc.error,
     core: doc.core as KnowledgeEntity["core"],
-    ontologyMatches: doc.ontologyMatches,
+    ontologyMatches:
+      doc.ontologyMatches as KnowledgeEntity["ontologyMatches"],
     graph: doc.graph,
     prologFacts: doc.prologFacts,
     gaps: doc.gaps as KnowledgeEntity["gaps"],
-    confidenceBreakdown: doc.confidenceBreakdown,
+    confidenceBreakdown:
+      doc.confidenceBreakdown as KnowledgeEntity["confidenceBreakdown"],
     confidence: doc.confidence,
     aiFallback: doc.aiFallback as KnowledgeEntity["aiFallback"],
     processedAt: doc.processedAt,
@@ -73,7 +75,11 @@ function toPersistence(input: CreateKnowledgeInput) {
 }
 
 export async function save(input: CreateKnowledgeInput): Promise<KnowledgeEntity> {
-  const doc = await Knowledge.create(toPersistence(input));
+  const doc =
+    await new Knowledge(
+      toPersistence(input),
+    ).save();
+
   return toEntity(doc);
 }
 

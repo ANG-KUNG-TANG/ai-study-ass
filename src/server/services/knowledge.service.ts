@@ -15,50 +15,30 @@ import type {
   OntologyMatchRef,
   PipelineStage,
 } from "@/server/types/Knowledge";
-import type {
-  IntelligenceResult,
-} from "@/server/intelligence/types";
+import type { IntelligenceResult } from "@/server/intelligence/types";
 
-export type KnowledgeStatus =
-  | "not_generated"
-  | "ready"
-  | "partial"
-  | "failed";
+export type KnowledgeStatus = "not_generated" | "ready" | "partial" | "failed";
 
-export interface KnowledgeView
-  extends KnowledgeProps {
+export interface KnowledgeView extends KnowledgeProps {
   status: KnowledgeStatus;
   mode: ConfidenceMode | null;
 }
 
-function asRecord(
-  value: unknown,
-): Record<string, unknown> {
-  return value &&
-    typeof value === "object"
-    ? value as Record<string, unknown>
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
     : {};
 }
 
-function asDate(
-  value: unknown,
-  fallback = new Date(),
-): Date {
+function asDate(value: unknown, fallback = new Date()): Date {
   if (value instanceof Date) {
     return value;
   }
 
-  if (
-    typeof value === "string" ||
-    typeof value === "number"
-  ) {
+  if (typeof value === "string" || typeof value === "number") {
     const parsed = new Date(value);
 
-    if (
-      !Number.isNaN(
-        parsed.getTime(),
-      )
-    ) {
+    if (!Number.isNaN(parsed.getTime())) {
       return parsed;
     }
   }
@@ -66,275 +46,170 @@ function asDate(
   return fallback;
 }
 
-function normalizeGraph(
-  value: unknown,
-): GraphData {
+function normalizeGraph(value: unknown): GraphData {
   const raw = asRecord(value);
   const rawNodes = raw.nodes;
   const rawEdges = raw.edges;
 
   let nodes: GraphData["nodes"] = [];
 
-  if (
-    rawNodes instanceof Map
-  ) {
-    nodes = Array.from(
-      rawNodes.values(),
-    ) as GraphData["nodes"];
-  } else if (
-    Array.isArray(rawNodes)
-  ) {
-    nodes =
-      rawNodes as GraphData["nodes"];
-  } else if (
-    rawNodes &&
-    typeof rawNodes === "object"
-  ) {
-    nodes =
-      Object.values(
-        rawNodes,
-      ) as GraphData["nodes"];
+  if (rawNodes instanceof Map) {
+    nodes = Array.from(rawNodes.values()) as GraphData["nodes"];
+  } else if (Array.isArray(rawNodes)) {
+    nodes = rawNodes as GraphData["nodes"];
+  } else if (rawNodes && typeof rawNodes === "object") {
+    nodes = Object.values(rawNodes) as GraphData["nodes"];
   }
 
   return {
     nodes,
 
-    edges:
-      Array.isArray(rawEdges)
-        ? rawEdges as GraphData["edges"]
-        : [],
+    edges: Array.isArray(rawEdges) ? (rawEdges as GraphData["edges"]) : [],
   };
 }
 
-function normalizeOntology(
-  value: unknown,
-): OntologyMatchRef[] {
+function normalizeOntology(value: unknown): OntologyMatchRef[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return value
-    .map((entry) => {
-      const raw =
-        asRecord(entry);
+  const matches: OntologyMatchRef[] = [];
 
-      const concept =
-        asRecord(raw.concept);
+  for (const entry of value) {
+    const raw = asRecord(entry);
+    const concept = asRecord(raw.concept);
 
-      const conceptId =
-        typeof raw.conceptId === "string"
-          ? raw.conceptId
-          : typeof concept.id === "string"
-            ? concept.id
-            : "";
+    const conceptId =
+      typeof raw.conceptId === "string"
+        ? raw.conceptId
+        : typeof concept.id === "string"
+          ? concept.id
+          : "";
 
-      if (!conceptId) {
-        return null;
-      }
+    if (!conceptId) {
+      continue;
+    }
 
-      const rawMatchType =
-        typeof raw.matchType === "string"
-          ? raw.matchType
-          : "unknown";
+    const rawMatchType =
+      typeof raw.matchType === "string" ? raw.matchType : "unknown";
 
-      const matchType:
-        OntologyMatchRef["matchType"] =
-        rawMatchType === "exact" ||
-        rawMatchType === "alias" ||
-        rawMatchType === "fuzzy"
-          ? rawMatchType
-          : "unknown";
+    const matchType: OntologyMatchRef["matchType"] =
+      rawMatchType === "exact" ||
+      rawMatchType === "alias" ||
+      rawMatchType === "fuzzy" ||
+      rawMatchType === "generated" ||
+      rawMatchType === "unknown"
+        ? rawMatchType
+        : "unknown";
 
-      return {
-        conceptId,
+    matches.push({
+      conceptId,
+      confidence: typeof raw.confidence === "number" ? raw.confidence : 0,
+      matchType,
+      rawInput:
+        typeof raw.rawInput === "string"
+          ? raw.rawInput
+          : typeof concept.label === "string"
+            ? concept.label
+            : "",
+    });
+  }
 
-        confidence:
-          typeof raw.confidence === "number"
-            ? raw.confidence
-            : 0,
-
-        matchType,
-
-        rawInput:
-          typeof raw.rawInput === "string"
-            ? raw.rawInput
-            : typeof concept.label === "string"
-              ? concept.label
-              : "",
-      };
-    })
-    .filter(
-      (
-        value,
-      ): value is OntologyMatchRef =>
-        value !== null,
-    );
+  return matches;
 }
 
-function emptyKnowledge(
-  noteId: string,
-): KnowledgeView {
+function emptyKnowledge(noteId: string): KnowledgeView {
   const now = new Date();
 
   return {
     noteId,
 
-    stage:
-      "pending" as PipelineStage,
+    stage: "pending" as PipelineStage,
 
     graph: {
       nodes: [],
       edges: [],
     },
 
-    ontologyMatches:
-      [],
+    ontologyMatches: [],
 
-    prologFacts:
-      [],
+    prologFacts: [],
 
-    createdAt:
-      now,
+    createdAt: now,
 
-    updatedAt:
-      now,
+    updatedAt: now,
 
-    status:
-      "not_generated",
+    status: "not_generated",
 
-    mode:
-      null,
+    mode: null,
   };
 }
 
-function mapIntelligence(
-  noteId: string,
-  value: unknown,
-): KnowledgeView {
-  const raw =
-    asRecord(value);
+function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
+  const raw = asRecord(value);
 
-  const stage =
-    (
-      typeof raw.stage === "string"
-        ? raw.stage
-        : "pending"
-    ) as PipelineStage;
+  const stage = (
+    typeof raw.stage === "string" ? raw.stage : "pending"
+  ) as PipelineStage;
 
   const confidence =
-    typeof raw.confidence === "number"
-      ? raw.confidence
-      : undefined;
+    typeof raw.confidence === "number" ? raw.confidence : undefined;
 
-  const processedAt =
-    asDate(
-      raw.processedAt,
-    );
+  const processedAt = asDate(raw.processedAt);
 
-  const error =
-    typeof raw.error === "string"
-      ? raw.error
-      : undefined;
+  const error = typeof raw.error === "string" ? raw.error : undefined;
 
-  const isCompleteFunction =
-    raw.isComplete;
+  const isCompleteFunction = raw.isComplete;
 
-  const hasFailedFunction =
-    raw.hasFailed;
+  const hasFailedFunction = raw.hasFailed;
 
   const complete =
     typeof isCompleteFunction === "function"
-      ? Boolean(
-          (
-            isCompleteFunction as
-              () => boolean
-          ).call(value),
-        )
+      ? Boolean((isCompleteFunction as () => boolean).call(value))
       : stage === "complete";
 
   const failed =
     typeof hasFailedFunction === "function"
-      ? Boolean(
-          (
-            hasFailedFunction as
-              () => boolean
-          ).call(value),
-        )
+      ? Boolean((hasFailedFunction as () => boolean).call(value))
       : Boolean(error);
 
-  const status:
-    KnowledgeStatus =
-    complete
-      ? "ready"
-      : failed
-        ? "failed"
-        : "partial";
+  const status: KnowledgeStatus = complete
+    ? "ready"
+    : failed
+      ? "failed"
+      : "partial";
 
   const props: KnowledgeProps = {
-    noteId:
-      typeof raw.noteId === "string"
-        ? raw.noteId
-        : noteId,
+    noteId: typeof raw.noteId === "string" ? raw.noteId : noteId,
 
     stage,
 
     error,
 
-    core:
-      raw.core as
-        KnowledgeProps["core"],
+    core: raw.core as KnowledgeProps["core"],
 
-    ontologyMatches:
-      normalizeOntology(
-        raw.ontology ??
-        raw.ontologyMatches,
-      ),
+    ontologyMatches: normalizeOntology(raw.ontology ?? raw.ontologyMatches),
 
-    graph:
-      normalizeGraph(
-        raw.graph,
-      ),
+    graph: normalizeGraph(raw.graph),
 
-    prologFacts:
-      Array.isArray(raw.facts)
-        ? raw.facts as
-            NonNullable<
-              KnowledgeProps[
-                "prologFacts"
-              ]
-            >
-        : Array.isArray(
-            raw.prologFacts,
-          )
-          ? raw.prologFacts as
-              NonNullable<
-                KnowledgeProps[
-                  "prologFacts"
-                ]
-              >
-          : [],
+    prologFacts: Array.isArray(raw.facts)
+      ? (raw.facts as NonNullable<KnowledgeProps["prologFacts"]>)
+      : Array.isArray(raw.prologFacts)
+        ? (raw.prologFacts as NonNullable<KnowledgeProps["prologFacts"]>)
+        : [],
 
-    gaps:
-      raw.gaps as
-        KnowledgeProps["gaps"],
+    gaps: raw.gaps as KnowledgeProps["gaps"],
 
     confidenceBreakdown:
-      raw.confidenceBreakdown as
-        KnowledgeProps[
-          "confidenceBreakdown"
-        ],
+      raw.confidenceBreakdown as KnowledgeProps["confidenceBreakdown"],
 
     confidence,
 
-    aiFallback:
-      raw.aiFallback as
-        KnowledgeProps["aiFallback"],
+    aiFallback: raw.aiFallback as KnowledgeProps["aiFallback"],
 
-    createdAt:
-      processedAt,
+    createdAt: processedAt,
 
-    updatedAt:
-      processedAt,
+    updatedAt: processedAt,
 
     processedAt,
   };
@@ -359,51 +234,31 @@ function mapIntelligence(
  * React development mode may issue duplicate GET requests, so GET must remain
  * side-effect free. Upload and POST /api/notes/[id]/generate own generation.
  */
-export async function getKnowledge(
-  noteId: string,
-): Promise<KnowledgeView> {
-  const status =
-    await intelligenceService
-      .getStatus(noteId);
+export async function getKnowledge(noteId: string): Promise<KnowledgeView> {
+  const status = await intelligenceService.getStatus(noteId);
 
   if (!status.exists) {
-    return emptyKnowledge(
-      noteId,
-    );
+    return emptyKnowledge(noteId);
   }
 
-  const result =
-    await intelligenceService
-      .getResultOrThrow(
-        noteId,
-      );
+  const result = await intelligenceService.getResultOrThrow(noteId);
 
-  return mapIntelligence(
-    noteId,
-    result,
-  );
+  return mapIntelligence(noteId, result);
 }
 
 /**
  * Compatibility alias. Missing intelligence is represented by
  * status "not_generated" instead of null or a 404.
  */
-export async function ensureKnowledge(
-  noteId: string,
-): Promise<KnowledgeView> {
-  return getKnowledge(
-    noteId,
-  );
+export async function ensureKnowledge(noteId: string): Promise<KnowledgeView> {
+  return getKnowledge(noteId);
 }
 
 /**
  * Delete the canonical intelligence result.
  */
-export async function deleteKnowledge(
-  noteId: string,
-): Promise<boolean> {
-  await intelligenceService
-    .deleteForNote(noteId);
+export async function deleteKnowledge(noteId: string): Promise<boolean> {
+  await intelligenceService.deleteForNote(noteId);
 
   return true;
 }
@@ -417,26 +272,17 @@ export async function deleteKnowledge(
 export async function createKnowledge(
   result: IntelligenceResult,
 ): Promise<KnowledgeEntity> {
-  const mapped =
-    mapIntelligence(
-      result.noteId,
-      {
-        ...result,
+  const mapped = mapIntelligence(result.noteId, {
+    ...result,
 
-        stage:
-          "complete",
+    stage: "complete",
 
-        facts:
-          result.prolog.facts,
+    facts: result.prolog.facts,
 
-        processedAt:
-          result.processedAt,
-      },
-    );
+    processedAt: result.processedAt,
+  });
 
-  return KnowledgeEntity.create(
-    mapped,
-  );
+  return KnowledgeEntity.create(mapped);
 }
 
 /**

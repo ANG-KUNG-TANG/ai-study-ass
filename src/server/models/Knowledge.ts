@@ -14,8 +14,12 @@ import {
   type Model,
 } from "mongoose";
 import type {
+  OntologyMatchRef,
   PipelineStage,
 } from "@/server/types/Knowledge";
+import type {
+  ConfidenceBreakdown,
+} from "@/server/intelligence/types";
 import type {
   AIProvider,
 } from "@/server/entities/chat.entity";
@@ -47,16 +51,7 @@ export interface KnowledgePersistence {
     };
   };
 
-  ontologyMatches?: Array<{
-    conceptId: string;
-    confidence: number;
-    matchType:
-      | "exact"
-      | "alias"
-      | "fuzzy"
-      | "unknown";
-    rawInput: string;
-  }>;
+  ontologyMatches?: OntologyMatchRef[];
 
   graph?: {
     nodes: Array<{
@@ -88,15 +83,7 @@ export interface KnowledgePersistence {
     coverageScore: number;
   };
 
-  confidenceBreakdown?: {
-    nlp: number;
-    ontology: number;
-    graph: number;
-    prolog: number;
-    coverage: number;
-    overall: number;
-    overallOutOf10: number;
-  };
+  confidenceBreakdown?: ConfidenceBreakdown;
 
   confidence?: number;
 
@@ -252,6 +239,7 @@ const ontologyMatchSchema =
           "alias",
           "fuzzy",
           "unknown",
+          "generated",
         ],
         required: true,
       },
@@ -393,49 +381,6 @@ const gapsSchema =
     },
   );
 
-const confidenceBreakdownSchema =
-  new Schema(
-    {
-      nlp: {
-        type: Number,
-        required: true,
-      },
-
-      ontology: {
-        type: Number,
-        required: true,
-      },
-
-      graph: {
-        type: Number,
-        required: true,
-      },
-
-      prolog: {
-        type: Number,
-        required: true,
-      },
-
-      coverage: {
-        type: Number,
-        required: true,
-      },
-
-      overall: {
-        type: Number,
-        required: true,
-      },
-
-      overallOutOf10: {
-        type: Number,
-        required: true,
-      },
-    },
-    {
-      _id: false,
-    },
-  );
-
 const aiFallbackSchema =
   new Schema(
     {
@@ -541,9 +486,11 @@ const knowledgeSchema =
         required: false,
       },
 
+      // The confidence engine evolves independently from this legacy
+      // compatibility model. Mixed preserves the complete canonical
+      // ConfidenceBreakdown instead of silently dropping newly added scores.
       confidenceBreakdown: {
-        type:
-          confidenceBreakdownSchema,
+        type: Schema.Types.Mixed,
         required: false,
       },
 
