@@ -1,3 +1,4 @@
+import { cleanTextForStudyFeatures } from "@/server/intelligence/reliability/text-quality";
 import { NOTE_RULES } from "@/server/entities/note.entity";
 import type { AIGenerateFn } from "@/server/intelligence/types";
 
@@ -12,11 +13,7 @@ export interface GenerateStudyNotesInput {
 }
 
 function normaliseSource(text: string): string {
-  return text
-    .replace(/\r\n?/g, "\n")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return cleanTextForStudyFeatures(text);
 }
 
 function splitByParagraph(text: string, maxLength = CHUNK_SIZE): string[] {

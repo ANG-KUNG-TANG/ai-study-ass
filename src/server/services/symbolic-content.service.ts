@@ -1,3 +1,4 @@
+import { cleanTextForStudyFeatures } from "@/server/intelligence/reliability/text-quality";
 import type { KnowledgeCore } from "@/server/intelligence/types";
 import type { QuizQuestionInput } from "@/server/entities/quiz.entity";
 import type { FlashcardDifficulty } from "@/server/entities/flashcard.entity";
@@ -37,12 +38,7 @@ function clamp(value: number): number {
 }
 
 export function cleanDocumentText(text: string): string {
-  return text
-    .replace(/\u0000/g, "")
-    .replace(/-\s*\n\s*/g, "")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return cleanTextForStudyFeatures(text);
 }
 
 export function extractMeaningfulSentences(
