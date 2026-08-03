@@ -9,36 +9,48 @@ import {
 
 // GET /api/user/me
 export const GET = withAuth(
-  async (req, _context, auth) => {
+  async (req, context, auth) => {
     apiLimiter(
       req,
       `user:${auth.userId}:profile:read`,
     );
 
-    return getProfile(req as NextRequest, auth);
+    return getProfile(
+      req as NextRequest,
+      context,
+      auth,
+    );
   },
 );
 
 // PATCH /api/user/me
 export const PATCH = withAuth(
-  async (req, _context, auth) => {
+  async (req, context, auth) => {
     apiLimiter(
       req,
       `user:${auth.userId}:profile:update`,
     );
 
-    return updateProfile(req as NextRequest, auth);
+    return updateProfile(
+      req as NextRequest,
+      context,
+      auth,
+    );
   },
 );
 
 // DELETE /api/user/me
 export const DELETE = withAuth(
-  async (req, _context, auth) => {
+  async (req, context, auth) => {
     apiLimiter(
       req,
       `user:${auth.userId}:profile:delete`,
     );
 
-    return deleteAccount(req as NextRequest, auth);
+    return deleteAccount(
+      req as NextRequest,
+      context,
+      auth,
+    );
   },
 );
