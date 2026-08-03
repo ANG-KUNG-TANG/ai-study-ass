@@ -33,9 +33,15 @@ import { PrologEngine, quoteAtom } from "./prolog/prolog.engine";
 import { detectGaps } from "./pipeline/gap_detector";
 import { computeConfidenceBreakdown } from "./confidence/confidence.engine";
 import { completeWithAI } from "./fallback/ai_fallback.service";
+import {
+  attachReliableProfile,
+  buildReliableProfile,
+  calibrateConfidenceBreakdown,
+  getReliableProfile,
+} from "./reliability/profile";
 import { createPendingStageProgress } from "./stage-catalog";
 
-const DEFAULT_AI_FALLBACK_THRESHOLD = 0.74;
+const DEFAULT_AI_FALLBACK_THRESHOLD = 0.85;
 
 
 export interface EngineInput {
@@ -127,6 +133,22 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
       validConcepts: value.validation.validConceptIds.length,
       validationPassed: value.validation.passed,
     }));
+    // reliability profile: deterministic quality gate
+    const reliabilityProfile =
+      buildReliableProfile({
+        raw:
+          document,
+        document:
+          sectioned,
+        nlp,
+        core,
+      });
+
+    core =
+      attachReliableProfile(
+        core,
+        reliabilityProfile,
+      );
   } catch (error) {
     throw new PipelineError("extraction", noteId, error);
   }
@@ -139,6 +161,18 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
   }));
 
   let symbolic = await runSymbolicStages({ noteId, core, sectioned, nlp, ontology, tracker });
+
+  // reliability calibration: first symbolic pass
+  symbolic = {
+    ...symbolic,
+    confidenceBreakdown:
+      calibrateConfidenceBreakdown(
+        symbolic.confidenceBreakdown,
+        getReliableProfile(
+          core,
+        ),
+      ),
+  };
 
   let aiFallback: IntelligenceResult["aiFallback"] = { used: false, filledFields: [] };
   const needsRepair = symbolic.gaps.missingFields.length > 0 || symbolic.confidenceBreakdown.overall < threshold;
@@ -172,8 +206,35 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
 
     if (repair.used) {
       core = repair.repairedCore;
+
+      // reliability profile: rebuild after AI repair
+      core =
+        attachReliableProfile(
+          core,
+          buildReliableProfile({
+            raw:
+              document,
+            document:
+              sectioned,
+            nlp,
+            core,
+          }),
+        );
+
       ontology = resolveCoreOntology(core);
       symbolic = await rerunSymbolicStages(noteId, core, sectioned, nlp, ontology);
+
+      // reliability calibration: post-AI pass
+      symbolic = {
+        ...symbolic,
+        confidenceBreakdown:
+          calibrateConfidenceBreakdown(
+            symbolic.confidenceBreakdown,
+            getReliableProfile(
+              core,
+            ),
+          ),
+      };
     }
   }
 

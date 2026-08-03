@@ -2,8 +2,8 @@ import { ValidationError } from "@/server/utils/errors";
 import type { KnowledgeCore, KnowledgeGraph, PrologFact, ResolvedConcept, GapDetectionResult } from "@/server/intelligence/types";
 
 export const INTELLIGENCE_RULES = {
-  symbolicOnlyThreshold: 0.81,
-  aiRequiredThreshold: 0.61,
+  symbolicOnlyThreshold: 0.85,
+  aiRequiredThreshold: 0.70,
 } as const;
 
 export type IntelligenceStage = "extraction" | "ontology" | "graph" | "prolog" | "complete";
@@ -130,7 +130,7 @@ export class IntelligenceResultEntity {
  * through the pipeline and can see where the weighted score actually lands
  * for documents you'd manually judge as "good enough" vs "needs help".
  */
-export const DEFAULT_CONFIDENCE_THRESHOLD = 0.7;
+export const DEFAULT_CONFIDENCE_THRESHOLD = 0.85;
 
 /**
  * The single decision point for the doc's High/Low branch:
