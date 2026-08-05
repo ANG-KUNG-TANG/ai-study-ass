@@ -65,6 +65,7 @@ const eslintConfig = defineConfig([
   },
 
   globalIgnores([
+    ".knowledge-ui-backup/**",
     ".next/**",
     "out/**",
     "build/**",
