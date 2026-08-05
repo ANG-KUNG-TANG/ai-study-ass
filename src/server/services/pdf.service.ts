@@ -1,15 +1,9 @@
-// src/server/services/pdf.service.ts
+import { createRequire } from "node:module";
+
 import { FileError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 
-// ─── PDF Parser ───────────────────────────────────────────────────────────────
-// Extracts raw text from a PDF buffer using pdf-parse v2 (class-based API).
-// v2 is a full rewrite of v1 — it is NOT a callable function anymore:
-//   const { PDFParse } = require("pdf-parse");
-//   const parser = new PDFParse({ data: buffer });   // buffer goes in the constructor
-//   const result = await parser.getText();            // getText() takes ParseParameters, not a buffer
-//   await parser.destroy();                            // always free worker/memory resources
-// install: npm install pdf-parse   (v2.x — this file does not support pdf-parse v1)
+const loadCommonJsModule = createRequire(import.meta.url);
 
 interface ParsedPDF {
   text: string;
@@ -18,64 +12,109 @@ interface ParsedPDF {
   pages?: Array<{ pageNumber: number; text: string }>;
 }
 
-export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
-  let PDFParse: any;
-  let PasswordException: any;
+interface PDFTextResult {
+  text?: string;
+  total?: number;
+  pages?: Array<{ text?: string }>;
+}
 
+interface PDFParserInstance {
+  getText(): Promise<PDFTextResult>;
+  destroy(): Promise<void> | void;
+}
+
+type PDFParserConstructor = new (options: {
+  data: Uint8Array;
+}) => PDFParserInstance;
+
+type PasswordErrorConstructor = new (...args: never[]) => Error;
+
+interface PDFParseModule {
+  PDFParse?: PDFParserConstructor;
+  PasswordException?: PasswordErrorConstructor;
+}
+
+function loadPDFParse(): {
+  PDFParse: PDFParserConstructor;
+  PasswordException?: PasswordErrorConstructor;
+} {
   try {
-    // require, not dynamic import — pdf-parse is CJS and Next's webpack
-    // interop for `import()` on this package doesn't reliably yield the
-    // callable exports. Requires serverExternalPackages: ["pdf-parse"]
-    // in next.config.ts so webpack doesn't try to bundle it at all.
-    const mod = require("pdf-parse");
-    PDFParse = mod.PDFParse;
-    PasswordException = mod.PasswordException;
+    const loaded = loadCommonJsModule("pdf-parse") as unknown;
+    const pdfParseModule = loaded as PDFParseModule;
 
-    if (typeof PDFParse !== "function") {
+    if (typeof pdfParseModule.PDFParse !== "function") {
+      const keys =
+        loaded && typeof loaded === "object"
+          ? Object.keys(loaded as Record<string, unknown>)
+          : [];
+
       throw new Error(
-        `pdf-parse export missing PDFParse class — got keys: ${Object.keys(mod).join(", ")}. ` +
-          `This file targets pdf-parse v2.x; check your installed version.`
+        `pdf-parse export missing PDFParse class — got keys: ${keys.join(", ")}`,
       );
     }
-  } catch (err) {
+
+    return {
+      PDFParse: pdfParseModule.PDFParse,
+      PasswordException: pdfParseModule.PasswordException,
+    };
+  } catch (unknownError: unknown) {
     logger.error("pdf-parse could not be resolved to the v2 PDFParse class", {
-      message: err instanceof Error ? err.message : String(err),
+      message:
+        unknownError instanceof Error
+          ? unknownError.message
+          : String(unknownError),
     });
-    throw new FileError("PDF parser not available — check pdf-parse installation/version");
+
+    throw new FileError(
+      "PDF parser not available — check pdf-parse installation/version",
+    );
   }
+}
 
-  // Buffer is passed to the constructor, not to getText(). getText() itself
-  // takes a ParseParameters options object (e.g. { partial: [1,2] }), so
-  // passing the buffer there is what produces the earlier "verbosity" crash —
-  // pdf-parse tries to read config fields off the buffer.
-  const parser = new PDFParse({ data: buffer });
+export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
+  const {
+    PDFParse,
+    PasswordException,
+  } = loadPDFParse();
 
-  let result: {
-    text: string;
-    total?: number;
-    pages?: Array<{ text?: string }>;
-  };
+  const parser = new PDFParse({
+    data: buffer,
+  });
+
+  let result: PDFTextResult;
 
   try {
     result = await parser.getText();
-  } catch (err) {
+  } catch (unknownError: unknown) {
     const isPasswordProtected =
-      (PasswordException && err instanceof PasswordException) ||
-      (err instanceof Error && err.name === "PasswordException");
+      Boolean(
+        PasswordException &&
+          unknownError instanceof PasswordException,
+      ) ||
+      (unknownError instanceof Error &&
+        unknownError.name === "PasswordException");
 
     if (isPasswordProtected) {
-      throw new FileError("PDF is password-protected — please remove the password and re-upload");
+      throw new FileError(
+        "PDF is password-protected — please remove the password and re-upload",
+      );
     }
 
-    const message = err instanceof Error ? err.message : "Unknown error";
+    const message =
+      unknownError instanceof Error
+        ? unknownError.message
+        : "Unknown error";
+
     throw new FileError(`Failed to parse PDF: ${message}`);
   } finally {
-    // Always release the underlying pdfjs-dist worker/document, even on failure.
     try {
       await parser.destroy();
-    } catch (destroyErr) {
+    } catch (destroyError: unknown) {
       logger.warn("pdf-parse: failed to destroy parser instance", {
-        message: destroyErr instanceof Error ? destroyErr.message : String(destroyErr),
+        message:
+          destroyError instanceof Error
+            ? destroyError.message
+            : String(destroyError),
       });
     }
   }
@@ -83,7 +122,9 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
   const rawText = result.text ?? "";
 
   if (!rawText.trim()) {
-    throw new FileError("PDF appears to contain no extractable text — it may be a scanned image");
+    throw new FileError(
+      "PDF appears to contain no extractable text — it may be a scanned image",
+    );
   }
 
   const text = cleanText(rawText);
@@ -96,9 +137,6 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
         .filter((page) => page.text.length > 0)
     : undefined;
 
-  // Do not silently slice the document. The intelligence engine now controls
-  // size through section-aware chunks, so conclusions and result pages remain
-  // available for evidence validation.
   return {
     text,
     pageCount: result.total ?? pages?.length ?? 0,
@@ -106,9 +144,6 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     pages,
   };
 }
-
-// ─── DOCX Parser ──────────────────────────────────────────────────────────────
-// Unchanged — mammoth's ESM/CJS interop is reliable, not implicated in this bug.
 
 interface ParsedDOCX {
   text: string;
@@ -121,16 +156,25 @@ export async function parseDOCX(buffer: Buffer): Promise<ParsedDOCX> {
   try {
     mammoth = await import("mammoth");
   } catch {
-    throw new FileError("DOCX parser not available — run: npm install mammoth");
+    throw new FileError(
+      "DOCX parser not available — run: npm install mammoth",
+    );
   }
 
-  let result: { value: string; messages: unknown[] };
+  let result: {
+    value: string;
+    messages: unknown[];
+  };
 
   try {
     result = await mammoth.extractRawText({ buffer });
-  } catch (err) {
+  } catch (unknownError: unknown) {
     throw new FileError(
-      `Failed to parse DOCX: ${err instanceof Error ? err.message : "Unknown error"}`
+      `Failed to parse DOCX: ${
+        unknownError instanceof Error
+          ? unknownError.message
+          : "Unknown error"
+      }`,
     );
   }
 
@@ -142,11 +186,11 @@ export async function parseDOCX(buffer: Buffer): Promise<ParsedDOCX> {
 
   const text = cleanText(rawText);
 
-  // Preserve the complete document. Downstream chunking controls prompt size.
-  return { text, charCount: text.length };
+  return {
+    text,
+    charCount: text.length,
+  };
 }
-
-// ─── Text cleaner ─────────────────────────────────────────────────────────────
 
 function cleanText(raw: string): string {
   return raw
