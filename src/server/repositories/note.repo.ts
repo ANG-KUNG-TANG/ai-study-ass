@@ -203,7 +203,7 @@ export async function updateSummary(
       },
     },
     {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     },
   )

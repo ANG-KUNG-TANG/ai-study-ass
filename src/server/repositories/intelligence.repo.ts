@@ -37,7 +37,7 @@ export async function upsert(entity: IntelligenceResultEntity): Promise<void> {
       processedAt: data.processedAt,
       gaps: data.gaps,
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   );
 
   logger.info("Intelligence result persisted", { noteId: data.noteId, stage: data.stage });
@@ -61,7 +61,7 @@ export async function upsertFailed(entity: IntelligenceResultEntity): Promise<vo
       processedAt: data.processedAt,
       gaps: null,
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   );
 
   logger.warn("Intelligence result marked failed", {

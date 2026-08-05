@@ -1,6 +1,5 @@
 import {
   Chat,
-  type ChatDocument,
   type ChatPersistence,
 } from "@/server/models/Chat";
 import {

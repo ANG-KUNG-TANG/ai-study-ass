@@ -249,7 +249,7 @@ export async function updateProfile(
   const doc = await User.findByIdAndUpdate(
     id,
     { ...data, updatedAt: new Date() },
-    { new: true }             // return updated doc
+    { returnDocument: "after" }             // return updated doc
   )
     .lean()
     .exec();
