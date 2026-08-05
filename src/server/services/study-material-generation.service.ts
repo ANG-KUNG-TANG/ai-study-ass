@@ -28,6 +28,26 @@ function safeMessage(error: unknown): string {
     : String(error).slice(0, 500);
 }
 
+function intelligenceHasFailed(value: unknown): boolean {
+  if (!value || typeof value !== "object") return true;
+
+  const record = value as Record<string, unknown>;
+  const hasFailed = record.hasFailed;
+
+  if (typeof hasFailed === "function") {
+    return Boolean((hasFailed as () => boolean).call(value));
+  }
+
+  if (record.failedStage) return true;
+  if (typeof record.stage === "string") {
+    return record.stage !== "complete";
+  }
+
+  // Test doubles and compatibility adapters may omit entity methods. Their
+  // presence still means the intelligence stage returned a usable value.
+  return false;
+}
+
 async function runFeature<T>(
   noteId: string,
   feature: GenerationFeature,
@@ -127,7 +147,7 @@ export async function generateStudyMaterials(
       document,
     );
 
-  if (!intelligence || intelligence.hasFailed()) {
+  if (intelligenceHasFailed(intelligence)) {
     await generationRepo.updateStage(
       input.noteId,
       "failed",

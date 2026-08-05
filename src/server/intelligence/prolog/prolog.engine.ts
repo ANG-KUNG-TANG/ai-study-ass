@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from "node:module";
 import type {
   KnowledgeGraph,
   PrologAnswer,
@@ -11,13 +12,15 @@ import type {
 // tau-prolog ships no TypeScript types — declare the minimal surface used
 // here. Keeps the file strict-mode clean without depending on @types/tau-prolog
 // (which doesn't exist on npm).
+const loadCommonJsModule = createRequire(import.meta.url);
+
 let cachedTauProlog: TauProlog | null = null;
 
 function getTauProlog(): TauProlog {
   if (cachedTauProlog) return cachedTauProlog;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    cachedTauProlog = require('tau-prolog') as TauProlog;
+     
+    cachedTauProlog = loadCommonJsModule("tau-prolog") as TauProlog;
     return cachedTauProlog;
   } catch (error) {
     throw new Error(
@@ -82,29 +85,23 @@ interface TauSession {
 
 let cachedRulesSource: string | null = null;
 
+const RULES_PATH = join(
+  /* turbopackIgnore: true */ process.cwd(),
+  "src/server/intelligence/prolog/cs.rules.pl",
+);
+
 function resolveRulesSource(): string {
   if (cachedRulesSource !== null) return cachedRulesSource;
 
-  const candidates = [
-    join(__dirname, 'cs.rules.pl'),
-    join(process.cwd(), 'src/server/intelligence/prolog/cs.rules.pl'),
-    join(process.cwd(), 'server/intelligence/prolog/cs.rules.pl'),
-  ];
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      cachedRulesSource = readFileSync(candidate, 'utf8');
-      return cachedRulesSource;
-    }
+  if (!existsSync(RULES_PATH)) {
+    throw new Error(
+      `prolog.engine.ts: could not find cs.rules.pl at ${RULES_PATH}. ` +
+        "Ensure next.config.ts includes the Prolog asset in outputFileTracingIncludes.",
+    );
   }
 
-  throw new Error(
-    'prolog.engine.ts: could not find cs.rules.pl. Tried:\n' +
-      candidates.map((c) => `  - ${c}`).join('\n') +
-      '\nIf you are running under Next.js, make sure next.config.ts ships this ' +
-      'non-TS asset with the serverless bundle, e.g.:\n' +
-      "  outputFileTracingIncludes: { '/api/**/*': ['./src/server/intelligence/prolog/*.pl'] }",
-  );
+  cachedRulesSource = readFileSync(RULES_PATH, "utf8");
+  return cachedRulesSource;
 }
 
 // ─── Graph → Facts ──────────────────────────────────────────────────────────────
@@ -130,10 +127,6 @@ function stripPrefix(nodeId: string): string {
   return idx === -1 ? nodeId : nodeId.slice(idx + 1);
 }
 
-function nodePrefix(nodeId: string): string {
-  const idx = nodeId.indexOf(':');
-  return idx === -1 ? '' : nodeId.slice(0, idx);
-}
 
 export function graphToFacts(graph: KnowledgeGraph, noteId: string): PrologFact[] {
   const facts: PrologFact[] = [];

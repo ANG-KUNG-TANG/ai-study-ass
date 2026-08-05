@@ -40,14 +40,37 @@ export async function runAndPersistPipeline(
   progressService.begin(noteId);
 
   try {
-    const result = await runPipeline({
-      noteId,
-      document,
-      aiGenerate: generateForIntelligence,
-      onProgress: (event) => {
-        progressService.record(noteId, event);
-      },
-    });
+    const runAttempt = (withAI: boolean) =>
+      runPipeline({
+        noteId,
+        document,
+        ...(withAI
+          ? { aiGenerate: generateForIntelligence }
+          : {}),
+        onProgress: (event) => {
+          progressService.record(noteId, event);
+        },
+      });
+
+    let result;
+
+    try {
+      result = await runAttempt(true);
+    } catch (aiEnabledError: unknown) {
+      logger.warn(
+        "AI-enabled intelligence run failed; retrying symbolically",
+        {
+          noteId,
+          error:
+            aiEnabledError instanceof Error
+              ? aiEnabledError.message
+              : String(aiEnabledError),
+        },
+      );
+
+      progressService.begin(noteId);
+      result = await runAttempt(false);
+    }
 
     const stillExists = await noteRepo.findById(noteId);
     if (!stillExists) {
@@ -75,9 +98,9 @@ export async function runAndPersistPipeline(
       noteId,
       confidence: result.confidence,
       mode: entity.getConfidenceMode(),
-      validatedClaims: result.core.validation.validClaimIds.length,
-      rejectedClaims: result.core.validation.rejectedClaimIds.length,
-      aiRepairUsed: result.aiFallback.used,
+      validatedClaims: result.core.validation?.validClaimIds?.length ?? 0,
+      rejectedClaims: result.core.validation?.rejectedClaimIds?.length ?? 0,
+      aiRepairUsed: result.aiFallback?.used ?? false,
     });
 
     return entity;

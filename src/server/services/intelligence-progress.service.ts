@@ -21,7 +21,7 @@ const TTL_MS = 60 * 60 * 1000;
 type ProgressStore = Map<string, IntelligenceProgressSnapshot>;
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __intelligenceProgressStore: ProgressStore | undefined;
 }
 

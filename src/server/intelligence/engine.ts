@@ -394,12 +394,22 @@ function ensureOntologyLoaded(): void {
 }
 
 function buildFallbackSource(sectioned: SectionedDocument, chunks: DocumentChunk[]): string {
-  const priority = new Set(["abstract", "method", "implementation", "evaluation", "results", "discussion", "conclusion"]);
-  const focused = chunks
-    .filter((chunk) => priority.has(chunk.semanticRole))
-    .map((chunk) => `[${chunk.sectionTitle}${chunk.pageStart ? `, page ${chunk.pageStart}` : ""}]\n${chunk.text}`)
-    .join("\n\n");
-  return focused.trim() || sectioned.analysisText;
+  // AI repair may be requested for fields that live outside traditional
+  // research-paper sections, such as Business Objective, Requirements,
+  // Recommendation, Exercises, or assignment tasks. Filtering to only
+  // abstract/method/results-style chunks made exact source evidence invisible
+  // to the grounding validator and caused valid repairs to be rejected.
+  const completeChunkSource = chunks
+    .map(
+      (chunk) =>
+        `[${chunk.sectionTitle}${
+          chunk.pageStart ? `, page ${chunk.pageStart}` : ""
+        }]\n${chunk.text}`,
+    )
+    .join("\n\n")
+    .trim();
+
+  return completeChunkSource || sectioned.analysisText;
 }
 
 class ProgressTracker {
