@@ -3,16 +3,24 @@ import type { PaginationMeta } from "@/types/pagination";
 
 const API_BASE = "/api";
 
-// ─── Token refresh ──────────────────────────────────────────────────────────
-// IMPORTANT: this is the ONLY place that should call POST /auth/refresh.
-// AuthContext's mount-time session check also calls this function rather
-// than firing its own fetch — that's what keeps refresh calls deduped
-// app-wide. Two independent refresh calls racing each other will trip the
-// backend's reuse-detection and log the user out of everything, so if you
-// ever need to trigger a refresh from a new call site, import this function
-// instead of writing a new fetch("/api/auth/refresh") anywhere else.
-
 let refreshPromise: Promise<boolean> | null = null;
+
+type JsonRecord = Record<string, unknown>;
+
+interface ApiOptions extends RequestInit {
+  skipAuth?: boolean;
+}
+
+function asRecord(value: unknown): JsonRecord | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as JsonRecord)
+    : null;
+}
+
+async function readJson(response: Response): Promise<JsonRecord | null> {
+  const value: unknown = await response.json().catch(() => null);
+  return asRecord(value);
+}
 
 export async function refreshAccessToken(): Promise<boolean> {
   if (!refreshPromise) {
@@ -20,14 +28,21 @@ export async function refreshAccessToken(): Promise<boolean> {
       method: "POST",
       credentials: "include",
     })
-      .then(async (res) => {
-        if (!res.ok) {
+      .then(async (response) => {
+        if (!response.ok) {
           setAccessToken(null);
           return false;
         }
-        const data = await res.json();
-        setAccessToken(data.data?.accessToken ?? null);
-        return true;
+
+        const body = await readJson(response);
+        const data = asRecord(body?.data);
+        const accessToken =
+          typeof data?.accessToken === "string"
+            ? data.accessToken
+            : null;
+
+        setAccessToken(accessToken);
+        return Boolean(accessToken);
       })
       .catch(() => {
         setAccessToken(null);
@@ -37,17 +52,14 @@ export async function refreshAccessToken(): Promise<boolean> {
         refreshPromise = null;
       });
   }
-  return refreshPromise;
-}
 
-interface ApiOptions extends RequestInit {
-  skipAuth?: boolean;
+  return refreshPromise;
 }
 
 function buildHeaders(
   skipAuth: boolean | undefined,
   headers: HeadersInit | undefined,
-  isFormData: boolean
+  isFormData: boolean,
 ): HeadersInit {
   const token = getAccessToken();
   const base: Record<string, string> = {};
@@ -55,57 +67,78 @@ function buildHeaders(
   if (!isFormData) {
     base["Content-Type"] = "application/json";
   }
+
   if (!skipAuth && token) {
-    base["Authorization"] = `Bearer ${token}`;
+    base.Authorization = `Bearer ${token}`;
   }
 
-  return { ...base, ...headers };
+  return {
+    ...base,
+    ...headers,
+  };
 }
 
-async function rawRequest(path: string, options: ApiOptions): Promise<{ body: any; res: Response }> {
+async function rawRequest(
+  path: string,
+  options: ApiOptions,
+): Promise<{ body: JsonRecord | null; response: Response }> {
   const { skipAuth, headers, ...rest } = options;
   const isFormData = rest.body instanceof FormData;
 
-  let res = await fetch(`${API_BASE}${path}`, {
-    ...rest,
-    headers: buildHeaders(skipAuth, headers, isFormData),
-    credentials: "include",
-  });
+  const execute = () =>
+    fetch(`${API_BASE}${path}`, {
+      ...rest,
+      headers: buildHeaders(skipAuth, headers, isFormData),
+      credentials: "include",
+    });
 
-  // ✅ Skip refresh for auth/logout and auth/refresh to avoid loops
-  const shouldSkipRefresh = path === "/auth/logout" || path === "/auth/refresh";
+  let response = await execute();
 
-  if (res.status === 401 && !skipAuth && !shouldSkipRefresh) {
+  const shouldSkipRefresh =
+    path === "/auth/logout" ||
+    path === "/auth/refresh";
+
+  if (response.status === 401 && !skipAuth && !shouldSkipRefresh) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
-      res = await fetch(`${API_BASE}${path}`, {
-        ...rest,
-        headers: buildHeaders(skipAuth, headers, isFormData),
-        credentials: "include",
-      });
+      response = await execute();
     }
   }
 
-  const body = await res.json().catch(() => null);
+  const body = await readJson(response);
 
-  if (!res.ok) {
-    throw new Error(body?.error?.message ?? `Request failed: ${res.status}`);
+  if (!response.ok) {
+    const error = asRecord(body?.error);
+    const message =
+      typeof error?.message === "string"
+        ? error.message
+        : `Request failed: ${response.status}`;
+
+    throw new Error(message);
   }
 
-  return { body, res };
+  return {
+    body,
+    response,
+  };
 }
 
-// For single-resource endpoints — GET /notes/[id], POST /auth/login, etc.
-export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  options: ApiOptions = {},
+): Promise<T> {
   const { body } = await rawRequest(path, options);
   return body?.data as T;
 }
 
-// For list endpoints using paginatedResponse() on the backend — keeps `meta` intact.
 export async function apiFetchPaginated<T>(
   path: string,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<{ data: T[]; meta: PaginationMeta }> {
   const { body } = await rawRequest(path, options);
-  return { data: body?.data ?? [], meta: body?.meta };
+
+  return {
+    data: Array.isArray(body?.data) ? (body.data as T[]) : [],
+    meta: body?.meta as PaginationMeta,
+  };
 }

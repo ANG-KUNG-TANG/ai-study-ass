@@ -1,76 +1,88 @@
 "use client";
-import { Suspense, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { resetPassword } from "@/services/auth.service";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
+
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { CheckCircle2, LoaderCircle, XCircle } from "lucide-react";
+
 import { Card } from "@/components/ui/Card";
+import { verifyEmail } from "@/services/auth.service";
 
-function ResetPasswordForm() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const token = searchParams.get("token");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+type VerificationState = "verifying" | "verified" | "error";
 
-  if (!token) {
-    return <p className="text-[13px] text-coral">This reset link is missing its token — check the URL from your email.</p>;
-  }
+function VerifyEmailContent() {
+  const token = useSearchParams().get("token");
+  const [state, setState] = useState<VerificationState>(
+    token ? "verifying" : "error",
+  );
+  const [message, setMessage] = useState(
+    token
+      ? "We’re confirming your email address."
+      : "This verification link is missing its token.",
+  );
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
+  useEffect(() => {
+    if (!token) return;
 
-    if (password !== confirmPassword) {
-      setError("Passwords don't match");
-      return;
-    }
+    let active = true;
 
-    setIsSubmitting(true);
-    try {
-      await resetPassword(token as string, password);
-      router.push("/auth/login");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to reset password");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+    void verifyEmail(token)
+      .then((result) => {
+        if (!active) return;
+        setState("verified");
+        setMessage(result.message || "Your email address has been verified.");
+      })
+      .catch((unknownError: unknown) => {
+        if (!active) return;
+        setState("error");
+        setMessage(
+          unknownError instanceof Error && unknownError.message
+            ? unknownError.message
+            : "The verification link is invalid or has expired.",
+        );
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Input
-        label="New password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
-      <Input
-        label="Confirm new password"
-        type="password"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        required
-      />
-      {error && <p className="text-[12.5px] text-coral">{error}</p>}
-      <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Resetting…" : "Reset password"}
-      </Button>
-    </form>
+    <Card className="w-full max-w-[420px] text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-line-soft">
+        {state === "verifying" && (
+          <LoaderCircle className="animate-spin text-ink-soft" size={24} />
+        )}
+        {state === "verified" && <CheckCircle2 className="text-green-700" size={24} />}
+        {state === "error" && <XCircle className="text-coral" size={24} />}
+      </div>
+
+      <h1 className="mt-4 font-serif text-[22px] font-semibold">
+        {state === "verifying"
+          ? "Verifying your email"
+          : state === "verified"
+            ? "Email verified"
+            : "Verification failed"}
+      </h1>
+
+      <p className="mt-2 text-[13px] leading-6 text-ink-soft">{message}</p>
+
+      {state !== "verifying" && (
+        <Link
+          href="/auth/login"
+          className="mt-6 inline-block text-[13px] font-medium text-ink hover:underline"
+        >
+          Continue to login
+        </Link>
+      )}
+    </Card>
   );
 }
 
-export default function ResetPasswordPage() {
+export default function VerifyEmailPage() {
   return (
-    <Card className="w-full max-w-[380px]">
-      <h1 className="mb-1 font-serif text-[22px] font-semibold">Set a new password</h1>
-      <p className="mb-6 text-[13px] text-ink-soft">Choose something you haven't used before.</p>
-      <Suspense fallback={<p className="text-[13px] text-ink-soft">Loading…</p>}>
-        <ResetPasswordForm />
-      </Suspense>
-    </Card>
+    <Suspense fallback={<p className="text-[13px] text-ink-soft">Loading…</p>}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

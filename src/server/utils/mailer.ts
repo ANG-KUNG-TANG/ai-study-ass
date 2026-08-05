@@ -1,6 +1,5 @@
 import { Resend } from "resend";
 import { logger } from "@/server/utils/logger";
-import { z } from "zod";
 
 // ─── Purpose ──────────────────────────────────────────────────────────────────
 // Same exported signatures as before — sendVerificationEmail / sendPasswordResetEmail
@@ -47,7 +46,7 @@ async function send(to: string, subject: string, html: string, text: string): Pr
 // ─── Verification email ────────────────────────────────────────────────────────
 
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
-  const link = `${APP_URL}/verify-email?token=${encodeURIComponent(token)}`;
+  const link = `${APP_URL}/auth/verify-email?token=${encodeURIComponent(token)}`;
   const subject = "Verify your email — AI Study Assistant";
 
   const text = `Welcome to AI Study Assistant!\n\nVerify your email: ${link}\n\nThis link expires in 24 hours.`;
@@ -64,7 +63,7 @@ export async function sendVerificationEmail(email: string, token: string): Promi
 // ─── Password reset email ──────────────────────────────────────────────────────
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
-  const link = `${APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
+  const link = `${APP_URL}/auth/reset-password?token=${encodeURIComponent(token)}`;
   const subject = "Reset your password — AI Study Assistant";
 
   const text = `Reset your password: ${link}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.`;
