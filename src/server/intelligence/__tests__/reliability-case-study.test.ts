@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { runPipeline } from "../pipeline";
 
-const corruptHeader = "ͺΟΥΖΣΟΒΥΚΠΟΒΝ ΃ΖΤΖΒΣΔΙ ͻΠΦΣΟΒΝ ΠΗ AΡΡΝΚΖΕ FΚΟΒΟΔΖ";
+const corruptHeader =
+  "ͺΟΥΖΣΟΒΥΚΠΟΒΝ ΃ΖΤΖΒΣΔΙ ͻΠΦΣΟΒΝ ΠΗ AΡΡΝΚΖΕ FΚΟΒΟΔΖ";
 
 const caseText = [
   `${corruptHeader}\nCase Study Series Case Study Series Case\nPage 1\nExplore Café is an 80-seat restaurant owned by Samantha Myers and Grant Patrick. They are considering installing a brewpub system. Should Explore Café invest in the proposed brewpub system? The project must be evaluated using incremental cash flow, net present value (NPV), internal rate of return (IRR), scenario analysis and sensitivity analysis.`,
@@ -11,36 +12,61 @@ const caseText = [
   `${corruptHeader}\nPage 5\nThe best-case and worst-case scenarios require annual revenue, operating expenses, depreciation, taxes, operating cash flow, terminal cash flow, NPV and IRR. A renovation scenario in Year 5 requires an additional capital expenditure of $1,000,000 and changes the selling price to $7 per pint. Sensitivity analysis should compare different costs of capital. References`,
 ].join("\f");
 
-const result = runPipeline({
-  rawText: caseText,
-  fileName: "Case Study Series Case Study Series Case.pdf",
-  mimeType: "application/pdf",
-  fileSize: 12_000,
-  pageCount: 5,
+describe("case-study reliability", () => {
+  test("extracts the complete capital-budgeting decision profile", () => {
+    const result = runPipeline({
+      rawText: caseText,
+      fileName: "Case Study Series Case Study Series Case.pdf",
+      mimeType: "application/pdf",
+      fileSize: 12_000,
+      pageCount: 5,
+    });
+
+    const profile = result.reliabilityProfile;
+
+    assert.equal(profile.classification.kind, "case_study");
+    assert.equal(profile.classification.domain, "finance");
+    assert.equal(
+      profile.classification.taskType,
+      "capital_budgeting_decision",
+    );
+    assert.match(
+      profile.title.value,
+      /Explore Café Brewpub Investment Case Study/i,
+    );
+    assert.equal(profile.title.generated, true);
+    assert.ok(!result.document.cleanText.includes(corruptHeader));
+    assert.ok(
+      !profile.concepts.some((concept) =>
+        ["future", "per year", "best case", "this", "she"].includes(
+          concept.normalized,
+        ),
+      ),
+    );
+    assert.ok(
+      profile.concepts.some((concept) => /Net Present Value/.test(concept.term)),
+    );
+    assert.ok(profile.caseStudy);
+    assert.ok(profile.caseStudy.financialInputs.length >= 12);
+    assert.equal(
+      profile.caseStudy.derivedCalculations.find(
+        (item) => item.label === "Best-case first-year revenue",
+      )?.value,
+      694_400,
+    );
+    assert.equal(
+      profile.caseStudy.derivedCalculations.find(
+        (item) => item.label === "Worst-case first-year revenue",
+      )?.value,
+      496_000,
+    );
+    assert.ok(profile.coverage.presentFields.includes("npv"));
+    assert.ok(profile.coverage.presentFields.includes("irr"));
+    assert.ok(
+      profile.qualityScore >= 0.85,
+      `Expected >= 0.85, received ${profile.qualityScore}`,
+    );
+    assert.equal(profile.status, "ready");
+    assert.match(result.knowledge.method ?? "", /Capital-budgeting analysis/i);
+  });
 });
-
-assert.equal(result.profile.classification.kind, "case_study");
-assert.equal(result.profile.classification.domain, "finance");
-assert.equal(result.profile.classification.taskType, "capital_budgeting_decision");
-assert.match(result.profile.title.value, /Explore Café Brewpub Investment Case Study/i);
-assert.equal(result.profile.title.generated, true);
-assert.ok(!result.document.cleanText.includes(corruptHeader));
-assert.ok(!result.profile.concepts.some((concept) => ["future", "per year", "best case", "this", "she"].includes(concept.normalized)));
-assert.ok(result.profile.concepts.some((concept) => /Net Present Value/.test(concept.term)));
-assert.ok(result.profile.caseStudy);
-assert.ok(result.profile.caseStudy!.financialInputs.length >= 12);
-assert.equal(
-  result.profile.caseStudy!.derivedCalculations.find((item) => item.label === "Best-case first-year revenue")?.value,
-  694_400,
-);
-assert.equal(
-  result.profile.caseStudy!.derivedCalculations.find((item) => item.label === "Worst-case first-year revenue")?.value,
-  496_000,
-);
-assert.ok(result.profile.coverage.presentFields.includes("npv"));
-assert.ok(result.profile.coverage.presentFields.includes("irr"));
-assert.ok(result.profile.qualityScore >= 0.85, `Expected >= 0.85, received ${result.profile.qualityScore}`);
-assert.equal(result.profile.status, "ready");
-assert.match(result.knowledge.method ?? "", /Capital-budgeting analysis/i);
-
-console.log(`case-study reliability score: ${result.profile.qualityScoreOutOf10}/10`);

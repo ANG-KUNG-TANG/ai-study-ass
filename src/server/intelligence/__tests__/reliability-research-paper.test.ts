@@ -23,22 +23,35 @@ References
 Example reference.
 `;
 
-const result = runPipeline({
-  rawText: text,
-  fileName: "An_empirical_study_toward_dealing_with_n.pdf",
-  mimeType: "application/pdf",
-  fileSize: 4_000,
-  pageCount: 4,
+describe("research-paper reliability", () => {
+  test("classifies, cleans and validates a software-defect paper", () => {
+    const result = runPipeline({
+      rawText: text,
+      fileName: "An_empirical_study_toward_dealing_with_n.pdf",
+      mimeType: "application/pdf",
+      fileSize: 4_000,
+      pageCount: 4,
+    });
+
+    const profile = result.reliabilityProfile;
+
+    assert.equal(profile.classification.kind, "research_paper");
+    assert.equal(profile.classification.domain, "software_engineering");
+    assert.equal(
+      profile.classification.taskType,
+      "software_defect_prediction_analysis",
+    );
+    assert.match(profile.title.value, /Empirical Study/i);
+    assert.ok(
+      profile.concepts.some((concept) => /Class Imbalance/i.test(concept.term)),
+    );
+    assert.ok(
+      profile.concepts.some((concept) =>
+        /Software Defect Prediction/i.test(concept.term),
+      ),
+    );
+    assert.ok(profile.textQuality.passed);
+    assert.ok(profile.qualityScore >= 0.72);
+    assert.ok(!result.document.cleanText.includes("Example reference"));
+  });
 });
-
-assert.equal(result.profile.classification.kind, "research_paper");
-assert.equal(result.profile.classification.domain, "software_engineering");
-assert.equal(result.profile.classification.taskType, "software_defect_prediction_analysis");
-assert.match(result.profile.title.value, /Empirical Study/i);
-assert.ok(result.profile.concepts.some((concept) => /Class Imbalance/i.test(concept.term)));
-assert.ok(result.profile.concepts.some((concept) => /Software Defect Prediction/i.test(concept.term)));
-assert.ok(result.profile.textQuality.passed);
-assert.ok(result.profile.qualityScore >= 0.72);
-assert.ok(!result.document.cleanText.includes("Example reference"));
-
-console.log(`research-paper reliability score: ${result.profile.qualityScoreOutOf10}/10`);

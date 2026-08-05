@@ -30,27 +30,31 @@ References
 [1] Example reference.`,
 };
 
-const WEAK_NOTE: RawDocument = {
-  fileName: "weak-note.txt",
+const REPAIRABLE_REPORT: RawDocument = {
+  fileName: "restaurant-report.txt",
   mimeType: "text/plain",
-  fileSize: 200,
-  rawText: `Overview
-Software teams sometimes need better release decisions. The note does not explain the approach.
+  fileSize: 420,
+  rawText: `Executive Summary
+Manual order recording causes order errors during peak service.
 
-Conclusion
-More investigation is required.`,
+Business Objective
+The objective is to reduce order errors during peak service.
+
+Recommendation
+The restaurant should standardize order checks before tickets reach the kitchen.`,
 };
 
 const groundedRepair: AIGenerateFn = async () => ({
   text: JSON.stringify({
     claims: [
       {
-        type: "problem",
-        subject: "Document",
-        predicate: "addresses",
-        object: "Software teams sometimes need better release decisions.",
-        evidenceText: "Software teams sometimes need better release decisions.",
-        confidence: 0.8,
+        type: "objective",
+        subject: "Restaurant report",
+        predicate: "aims to",
+        object: "reduce order errors during peak service",
+        evidenceText:
+          "The objective is to reduce order errors during peak service.",
+        confidence: 0.86,
       },
     ],
   }),
@@ -61,8 +65,12 @@ describe("Evidence-grounded workflow", () => {
   beforeAll(() => ontologyCache.load());
 
   test("ontology contains software-defect concepts", () => {
-    expect(ontologyCache.resolve("Bayesian Network").concept.id).toBe("bayesian_network");
-    expect(ontologyCache.resolve("software defect prediction").concept.id).toBe("software_defect_prediction");
+    expect(ontologyCache.resolve("Bayesian Network").concept.id).toBe(
+      "bayesian_network",
+    );
+    expect(
+      ontologyCache.resolve("software defect prediction").concept.id,
+    ).toBe("software_defect_prediction");
   });
 
   test("preserves correlation semantics and exposes every stage", async () => {
@@ -79,45 +87,63 @@ describe("Evidence-grounded workflow", () => {
     expect(result.core.method?.toLowerCase()).toContain("bayesian network");
     expect(result.core.dataset).toBeNull();
     expect(result.core.accuracy).toBeNull();
-    expect(result.core.claims).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: "sample", numericValue: 32, validationStatus: "valid" }),
-      expect.objectContaining({ type: "result", numericValue: 95, metric: expect.stringContaining("correlation") }),
-    ]));
+    expect(result.core.claims).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "sample",
+          numericValue: 32,
+          validationStatus: "valid",
+        }),
+        expect.objectContaining({
+          type: "result",
+          numericValue: 95,
+          metric: expect.stringContaining("correlation"),
+        }),
+      ]),
+    );
     expect(result.stageProgress.at(-1)?.stage).toBe("complete");
     expect(events).toContain("claim_validation:complete");
     expect(events).toContain("graph_construction:complete");
     expect(result.graph.nodes.size).toBeGreaterThan(5);
   });
 
-  test("AI repair accepts only claims with exact source evidence", async () => {
+  test("AI repair accepts a missing claim only with exact source evidence", async () => {
     const result = await runPipeline({
-      noteId: "weak-note",
-      document: WEAK_NOTE,
+      noteId: "repairable-report",
+      document: REPAIRABLE_REPORT,
       aiGenerate: groundedRepair,
       aiFallbackThreshold: 0.99,
     });
 
     expect(result.stage).toBe("complete");
-    expect(result.core.claims.some((claim) => claim.extractionSource === "ai")).toBe(true);
+    expect(
+      result.core.claims.some(
+        (claim) =>
+          claim.type === "objective" &&
+          claim.extractionSource === "ai",
+      ),
+    ).toBe(true);
     expect(result.aiFallback.used).toBe(true);
   });
 
   test("unsupported AI evidence is rejected", async () => {
     const badRepair: AIGenerateFn = async () => ({
       text: JSON.stringify({
-        claims: [{
-          type: "method",
-          subject: "Document",
-          predicate: "uses",
-          object: "GAN",
-          evidenceText: "The document uses a GAN model.",
-        }],
+        claims: [
+          {
+            type: "method",
+            subject: "Document",
+            predicate: "uses",
+            object: "GAN",
+            evidenceText: "The document uses a GAN model.",
+          },
+        ],
       }),
     });
 
     const result = await runPipeline({
       noteId: "bad-repair",
-      document: WEAK_NOTE,
+      document: REPAIRABLE_REPORT,
       aiGenerate: badRepair,
       aiFallbackThreshold: 0.99,
     });
