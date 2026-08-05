@@ -217,7 +217,7 @@ function validateQuestions(
 ): QuizQuestionInput[] {
   return questions.filter((question) => {
     try {
-      // eslint-disable-next-line no-new
+       
       new QuizEntity({
         id: "validation-only",
         noteId,

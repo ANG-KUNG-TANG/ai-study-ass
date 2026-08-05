@@ -221,36 +221,3 @@ export default function QuizPage() {
     </div>
   );
 }
-const getQuestionType = (
-  question: {
-    questionType?: string;
-    type?: string;
-    question_type?: string;
-    options?: string[];
-  },
-): string => {
-  const explicitType =
-    question.questionType ??
-    question.type ??
-    question.question_type;
-
-  if (explicitType) {
-    return explicitType;
-  }
-
-  const options = question.options ?? [];
-
-  if (
-    options.length === 2 &&
-    options.includes("True") &&
-    options.includes("False")
-  ) {
-    return "true_false";
-  }
-
-  if (options.length > 0) {
-    return "multiple_choice";
-  }
-
-  return "short_answer";
-};
