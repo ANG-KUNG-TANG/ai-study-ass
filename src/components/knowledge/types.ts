@@ -6,7 +6,12 @@ export type KnowledgeStatus =
   | "partial"
   | "failed";
 
-export type KnowledgeTab = "graph" | "concepts" | "evidence";
+export type KnowledgeTab =
+  | "learn"
+  | "graph"
+  | "concepts"
+  | "evidence";
+
 export type GraphDirection = "LR" | "TB";
 
 export interface KnowledgeGraphNode {
@@ -71,7 +76,11 @@ export interface KnowledgeNodeData extends Record<string, unknown> {
   dimmed?: boolean;
 }
 
-export type KnowledgeFlowNode = Node<KnowledgeNodeData, "knowledge">;
+export type KnowledgeFlowNode = Node<
+  KnowledgeNodeData,
+  "knowledge"
+>;
+
 export type KnowledgeFlowEdge = Edge<{
   relationType: string;
   weight: number;

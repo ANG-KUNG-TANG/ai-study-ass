@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BookOpen,
   Brain,
@@ -10,16 +9,24 @@ import {
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { KnowledgeGraphCanvas } from "@/components/knowledge/KnowledgeGraphCanvas";
 import { KnowledgeInspector } from "@/components/knowledge/KnowledgeInspector";
+import { LearningPath } from "@/components/knowledge/LearningPath";
 import {
   collectEvidence,
   getNodeDescription,
   nodeColor,
   nodeConfidence,
   readableType,
+  relationLabel,
 } from "@/components/knowledge/knowledge-graph.utils";
 import type {
   KnowledgeGraphEdge,
@@ -42,18 +49,28 @@ export default function KnowledgePage() {
   const noteId = params.id;
   const { note } = useNoteContext();
 
-  const [knowledge, setKnowledge] = useState<KnowledgeResponse | null>(null);
+  const [knowledge, setKnowledge] =
+    useState<KnowledgeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<KnowledgeTab>("graph");
+  const [error, setError] =
+    useState<string | null>(null);
+  const [activeTab, setActiveTab] =
+    useState<KnowledgeTab>("learn");
   const [search, setSearch] = useState("");
-  const [nodeType, setNodeType] = useState("all");
-  const [relationType, setRelationType] = useState("all");
-  const [minimumConfidence, setMinimumConfidence] = useState(0);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [nodeType, setNodeType] =
+    useState("all");
+  const [relationType, setRelationType] =
+    useState("all");
+  const [
+    minimumConfidence,
+    setMinimumConfidence,
+  ] = useState(0);
+  const [selectedNodeId, setSelectedNodeId] =
+    useState<string | null>(null);
 
   useEffect(() => {
     if (!noteId) return;
+
     let cancelled = false;
 
     async function fetchKnowledge() {
@@ -61,14 +78,20 @@ export default function KnowledgePage() {
       setError(null);
 
       try {
-        const data = await apiFetch<KnowledgeResponse>(
-          `/notes/${encodeURIComponent(noteId)}/knowledge`,
-        );
+        const data =
+          await apiFetch<KnowledgeResponse>(
+            `/notes/${encodeURIComponent(
+              noteId,
+            )}/knowledge`,
+          );
 
         if (!cancelled) {
           setKnowledge(data);
+
           setSelectedNodeId(
-            data.graph?.nodes.find((node) => node.type === "paper")?.id ??
+            data.graph?.nodes.find(
+              (node) => node.type === "paper",
+            )?.id ??
               data.graph?.nodes[0]?.id ??
               null,
           );
@@ -82,11 +105,14 @@ export default function KnowledgePage() {
           );
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     }
 
     void fetchKnowledge();
+
     return () => {
       cancelled = true;
     };
@@ -96,17 +122,51 @@ export default function KnowledgePage() {
     () => knowledge?.graph?.nodes ?? [],
     [knowledge?.graph?.nodes],
   );
+
   const allEdges = useMemo(
     () => knowledge?.graph?.edges ?? [],
     [knowledge?.graph?.edges],
   );
 
-  const nodeTypes = useMemo(
-    () => [...new Set(allNodes.map((node) => node.type).filter(Boolean))].sort(),
+  const conceptNodes = useMemo(
+    () =>
+      allNodes.filter(
+        (node) =>
+          node.type !== "paper" &&
+          node.type !== "section",
+      ),
     [allNodes],
   );
+
+  const sectionCount = useMemo(
+    () =>
+      allNodes.filter(
+        (node) => node.type === "section",
+      ).length,
+    [allNodes],
+  );
+
+  const nodeTypes = useMemo(
+    () =>
+      [
+        ...new Set(
+          allNodes
+            .map((node) => node.type)
+            .filter(Boolean),
+        ),
+      ].sort(),
+    [allNodes],
+  );
+
   const relationTypes = useMemo(
-    () => [...new Set(allEdges.map((edge) => edge.type).filter(Boolean))].sort(),
+    () =>
+      [
+        ...new Set(
+          allEdges
+            .map((edge) => edge.type)
+            .filter(Boolean),
+        ),
+      ].sort(),
     [allEdges],
   );
 
@@ -120,24 +180,57 @@ export default function KnowledgePage() {
         relationType,
         minimumConfidence,
       }),
-    [allEdges, allNodes, minimumConfidence, nodeType, relationType, search],
+    [
+      allEdges,
+      allNodes,
+      minimumConfidence,
+      nodeType,
+      relationType,
+      search,
+    ],
   );
 
-  const evidence = useMemo(() => collectEvidence(allNodes), [allNodes]);
+  const evidence = useMemo(
+    () => collectEvidence(allNodes),
+    [allNodes],
+  );
+
   const selectedNode =
-    allNodes.find((node) => node.id === selectedNodeId) ?? null;
+    allNodes.find(
+      (node) => node.id === selectedNodeId,
+    ) ?? null;
 
   const averageConfidence = useMemo(() => {
-    const values = allNodes
+    const values = conceptNodes
       .map(nodeConfidence)
-      .filter((value): value is number => typeof value === "number");
+      .filter(
+        (value): value is number =>
+          typeof value === "number",
+      );
 
-    if (values.length === 0) return knowledge?.confidence ?? null;
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-  }, [allNodes, knowledge?.confidence]);
+    if (values.length === 0) {
+      return knowledge?.confidence ?? null;
+    }
+
+    return (
+      values.reduce(
+        (sum, value) => sum + value,
+        0,
+      ) / values.length
+    );
+  }, [conceptNodes, knowledge?.confidence]);
+
+  function openConcept(nodeId: string) {
+    setSelectedNodeId(nodeId);
+    setActiveTab("graph");
+  }
 
   if (!note) {
-    return <p className="text-[13px] text-[#726B5C]">Loading note…</p>;
+    return (
+      <p className="text-[13px] text-[#726B5C]">
+        Loading note…
+      </p>
+    );
   }
 
   return (
@@ -147,21 +240,44 @@ export default function KnowledgePage() {
           <div className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-[#E85D46]">
             Knowledge
           </div>
+
           <h1 className="font-serif text-[28px] font-semibold text-[#221F1A]">
-            Knowledge Graph
+            Learning Knowledge Map
           </h1>
-          <p className="mt-2 max-w-[650px] text-[13px] leading-5 text-[#726B5C]">
-            Explore how concepts, methods, results, evidence, and entities from “{note.title}” are connected.
+
+          <p className="mt-2 max-w-[680px] text-[13px] leading-5 text-[#726B5C]">
+            Understand what “{note.title}” teaches,
+            how its ideas fit together, and where each
+            idea comes from in the source.
           </p>
+
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#CFE3D3] bg-[#F2F8F3] px-3 py-1.5 text-[10.5px] font-medium text-[#4C7A5A]">
+            <ShieldCheck size={13} />
+            Document-grounded knowledge
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2.5">
-          <MetricCard icon={Brain} value={allNodes.length} label="Nodes" />
-          <MetricCard icon={GitBranch} value={allEdges.length} label="Relations" />
+          <MetricCard
+            icon={BookOpen}
+            value={sectionCount || "—"}
+            label="Sections"
+          />
+          <MetricCard
+            icon={Brain}
+            value={conceptNodes.length}
+            label="Knowledge items"
+          />
           <MetricCard
             icon={ShieldCheck}
-            value={averageConfidence === null ? "—" : `${Math.round(averageConfidence * 100)}%`}
-            label="Confidence"
+            value={
+              averageConfidence === null
+                ? "—"
+                : `${Math.round(
+                    averageConfidence * 100,
+                  )}%`
+            }
+            label="Grounding"
           />
         </div>
       </header>
@@ -170,25 +286,36 @@ export default function KnowledgePage() {
 
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
-          <p className="text-[13px] font-medium text-[#E85D46]">Knowledge could not be loaded.</p>
-          <p className="mt-2 text-[12px] text-[#726B5C]">{error}</p>
+          <p className="text-[13px] font-medium text-[#E85D46]">
+            Knowledge could not be loaded.
+          </p>
+          <p className="mt-2 text-[12px] text-[#726B5C]">
+            {error}
+          </p>
         </div>
       )}
 
-      {!isLoading && !error && knowledge?.status === "not_generated" && (
-        <EmptyState
-          title="Knowledge has not been generated yet"
-          description="Run study-material generation for this note, then reload this page."
-        />
-      )}
+      {!isLoading &&
+        !error &&
+        knowledge?.status === "not_generated" && (
+          <EmptyState
+            title="Knowledge has not been generated yet"
+            description="Run study-material generation for this note, then reload this page."
+          />
+        )}
 
-      {!isLoading && !error && knowledge?.status === "failed" && (
-        <EmptyState
-          title="Knowledge processing failed"
-          description={knowledge.error ?? "The intelligence pipeline did not complete."}
-          danger
-        />
-      )}
+      {!isLoading &&
+        !error &&
+        knowledge?.status === "failed" && (
+          <EmptyState
+            title="Knowledge processing failed"
+            description={
+              knowledge.error ??
+              "The intelligence pipeline did not complete."
+            }
+            danger
+          />
+        )}
 
       {!isLoading &&
         !error &&
@@ -197,20 +324,65 @@ export default function KnowledgePage() {
         knowledge.status !== "failed" && (
           <>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="inline-flex rounded-xl border border-[#E6DDC8] bg-white p-1">
-                <TabButton active={activeTab === "graph"} label="Graph View" count={allNodes.length}
-                  onClick={() => setActiveTab("graph")} />
-                <TabButton active={activeTab === "concepts"} label="Concepts" count={allNodes.length}
-                  onClick={() => setActiveTab("concepts")} />
-                <TabButton active={activeTab === "evidence"} label="Evidence" count={evidence.length}
-                  onClick={() => setActiveTab("evidence")} />
+              <div className="inline-flex flex-wrap rounded-xl border border-[#E6DDC8] bg-white p-1">
+                <TabButton
+                  active={activeTab === "learn"}
+                  label="Learning Path"
+                  count={sectionCount}
+                  onClick={() =>
+                    setActiveTab("learn")
+                  }
+                />
+
+                <TabButton
+                  active={activeTab === "graph"}
+                  label="Concept Map"
+                  count={conceptNodes.length}
+                  onClick={() =>
+                    setActiveTab("graph")
+                  }
+                />
+
+                <TabButton
+                  active={activeTab === "concepts"}
+                  label="Concepts"
+                  count={conceptNodes.length}
+                  onClick={() =>
+                    setActiveTab("concepts")
+                  }
+                />
+
+                <TabButton
+                  active={activeTab === "evidence"}
+                  label="Evidence"
+                  count={evidence.length}
+                  onClick={() =>
+                    setActiveTab("evidence")
+                  }
+                />
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <StatusPill label={knowledge.status} />
-                {knowledge.mode && <StatusPill label={readableType(knowledge.mode)} />}
+                <StatusPill
+                  label={knowledge.status}
+                />
+                {knowledge.mode && (
+                  <StatusPill
+                    label={readableType(
+                      knowledge.mode,
+                    )}
+                  />
+                )}
               </div>
             </div>
+
+            {activeTab === "learn" && (
+              <LearningPath
+                nodes={allNodes}
+                edges={allEdges}
+                onOpen={openConcept}
+              />
+            )}
 
             {activeTab === "graph" && (
               <>
@@ -218,21 +390,35 @@ export default function KnowledgePage() {
                   search={search}
                   nodeType={nodeType}
                   relationType={relationType}
-                  minimumConfidence={minimumConfidence}
+                  minimumConfidence={
+                    minimumConfidence
+                  }
                   nodeTypes={nodeTypes}
                   relationTypes={relationTypes}
                   onSearch={setSearch}
                   onNodeType={setNodeType}
-                  onRelationType={setRelationType}
-                  onMinimumConfidence={setMinimumConfidence}
+                  onRelationType={
+                    setRelationType
+                  }
+                  onMinimumConfidence={
+                    setMinimumConfidence
+                  }
                 />
 
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
                   <KnowledgeGraphCanvas
-                    nodes={filteredGraph.nodes}
-                    edges={filteredGraph.edges}
-                    selectedNodeId={selectedNodeId}
-                    onSelectNode={setSelectedNodeId}
+                    nodes={
+                      filteredGraph.nodes
+                    }
+                    edges={
+                      filteredGraph.edges
+                    }
+                    selectedNodeId={
+                      selectedNodeId
+                    }
+                    onSelectNode={
+                      setSelectedNodeId
+                    }
                   />
 
                   <div className="hidden xl:block">
@@ -241,7 +427,11 @@ export default function KnowledgePage() {
                         node={selectedNode}
                         nodes={allNodes}
                         edges={allEdges}
-                        onClose={() => setSelectedNodeId(null)}
+                        onClose={() =>
+                          setSelectedNodeId(
+                            null,
+                          )
+                        }
                       />
                     ) : (
                       <InspectorPlaceholder />
@@ -255,27 +445,35 @@ export default function KnowledgePage() {
                       node={selectedNode}
                       nodes={allNodes}
                       edges={allEdges}
-                      onClose={() => setSelectedNodeId(null)}
+                      onClose={() =>
+                        setSelectedNodeId(null)
+                      }
                       compact
                     />
                   </div>
                 )}
 
-                <GraphLegend nodeTypes={nodeTypes} relationTypes={relationTypes} />
+                <GraphLegend
+                  nodeTypes={nodeTypes}
+                  relationTypes={
+                    relationTypes
+                  }
+                />
               </>
             )}
 
             {activeTab === "concepts" && (
               <ConceptGrid
-                nodes={allNodes}
-                onOpen={(nodeId) => {
-                  setSelectedNodeId(nodeId);
-                  setActiveTab("graph");
-                }}
+                nodes={conceptNodes}
+                onOpen={openConcept}
               />
             )}
 
-            {activeTab === "evidence" && <EvidenceGrid evidence={evidence} />}
+            {activeTab === "evidence" && (
+              <EvidenceGrid
+                evidence={evidence}
+              />
+            )}
           </>
         )}
     </div>
@@ -296,35 +494,79 @@ function filterGraph({
   nodeType: string;
   relationType: string;
   minimumConfidence: number;
-}): { nodes: KnowledgeGraphNode[]; edges: KnowledgeGraphEdge[] } {
-  const query = search.trim().toLowerCase();
-  const matchingNodes = nodes.filter((node) => {
-    const confidence = nodeConfidence(node);
-    const passesConfidence =
-      node.type === "paper" || confidence === undefined || confidence >= minimumConfidence;
-    const passesType = nodeType === "all" || node.type === nodeType;
-    const searchable = `${node.label} ${node.type} ${getNodeDescription(node)}`.toLowerCase();
-    const passesSearch = !query || searchable.includes(query);
-    return passesConfidence && passesType && passesSearch;
-  });
+}): {
+  nodes: KnowledgeGraphNode[];
+  edges: KnowledgeGraphEdge[];
+} {
+  const query = search
+    .trim()
+    .toLowerCase();
 
-  const visibleIds = new Set(matchingNodes.map((node) => node.id));
+  const matchingNodes = nodes.filter(
+    (node) => {
+      const confidence =
+        nodeConfidence(node);
+
+      const passesConfidence =
+        node.type === "paper" ||
+        node.type === "section" ||
+        confidence === undefined ||
+        confidence >=
+          minimumConfidence;
+
+      const passesType =
+        nodeType === "all" ||
+        node.type === nodeType;
+
+      const searchable =
+        `${node.label} ${node.type} ${getNodeDescription(
+          node,
+        )}`.toLowerCase();
+
+      const passesSearch =
+        !query ||
+        searchable.includes(query);
+
+      return (
+        passesConfidence &&
+        passesType &&
+        passesSearch
+      );
+    },
+  );
+
+  const visibleIds = new Set(
+    matchingNodes.map((node) => node.id),
+  );
+
   if (query && matchingNodes.length > 0) {
     for (const edge of edges) {
-      if (visibleIds.has(edge.from)) visibleIds.add(edge.to);
-      if (visibleIds.has(edge.to)) visibleIds.add(edge.from);
+      if (visibleIds.has(edge.from)) {
+        visibleIds.add(edge.to);
+      }
+
+      if (visibleIds.has(edge.to)) {
+        visibleIds.add(edge.from);
+      }
     }
   }
 
-  const visibleNodes = nodes.filter((node) => visibleIds.has(node.id));
+  const visibleNodes = nodes.filter(
+    (node) => visibleIds.has(node.id),
+  );
+
   const visibleEdges = edges.filter(
     (edge) =>
       visibleIds.has(edge.from) &&
       visibleIds.has(edge.to) &&
-      (relationType === "all" || edge.type === relationType),
+      (relationType === "all" ||
+        edge.type === relationType),
   );
 
-  return { nodes: visibleNodes, edges: visibleEdges };
+  return {
+    nodes: visibleNodes,
+    edges: visibleEdges,
+  };
 }
 
 function GraphFilters({
@@ -348,39 +590,88 @@ function GraphFilters({
   onSearch: (value: string) => void;
   onNodeType: (value: string) => void;
   onRelationType: (value: string) => void;
-  onMinimumConfidence: (value: number) => void;
+  onMinimumConfidence: (
+    value: number,
+  ) => void;
 }) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6DDC8] bg-white p-3">
       <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-[#E6DDC8] bg-[#FFFCF6] px-3 py-2.5">
-        <Search size={15} className="shrink-0 text-[#9B927F]" />
+        <Search
+          size={15}
+          className="shrink-0 text-[#9B927F]"
+        />
+
         <input
           type="search"
           value={search}
-          onChange={(event) => onSearch(event.target.value)}
-          placeholder="Search concepts, methods, results…"
+          onChange={(event) =>
+            onSearch(event.target.value)
+          }
+          placeholder="Search what you learned…"
           className="w-full bg-transparent text-[12.5px] text-[#38342C] outline-none placeholder:text-[#B3A98F]"
         />
       </div>
 
-      <FilterSelect value={nodeType} onChange={onNodeType} label="Node type">
-        <option value="all">All node types</option>
-        {nodeTypes.map((type) => <option key={type} value={type}>{readableType(type)}</option>)}
-      </FilterSelect>
+      <FilterSelect
+        value={nodeType}
+        onChange={onNodeType}
+        label="Knowledge type"
+      >
+        <option value="all">
+          All knowledge types
+        </option>
 
-      <FilterSelect value={relationType} onChange={onRelationType} label="Relation type">
-        <option value="all">All relations</option>
-        {relationTypes.map((type) => <option key={type} value={type}>{readableType(type)}</option>)}
+        {nodeTypes.map((type) => (
+          <option
+            key={type}
+            value={type}
+          >
+            {readableType(type)}
+          </option>
+        ))}
       </FilterSelect>
 
       <FilterSelect
-        value={String(minimumConfidence)}
-        onChange={(value) => onMinimumConfidence(Number(value))}
+        value={relationType}
+        onChange={onRelationType}
+        label="Relationship"
+      >
+        <option value="all">
+          All relationships
+        </option>
+
+        {relationTypes.map((type) => (
+          <option
+            key={type}
+            value={type}
+          >
+            {relationLabel(type)}
+          </option>
+        ))}
+      </FilterSelect>
+
+      <FilterSelect
+        value={String(
+          minimumConfidence,
+        )}
+        onChange={(value) =>
+          onMinimumConfidence(
+            Number(value),
+          )
+        }
         label="Minimum confidence"
       >
-        {MIN_CONFIDENCE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
+        {MIN_CONFIDENCE_OPTIONS.map(
+          (option) => (
+            <option
+              key={option.value}
+              value={option.value}
+            >
+              {option.label}
+            </option>
+          ),
+        )}
       </FilterSelect>
     </div>
   );
@@ -399,16 +690,24 @@ function FilterSelect({
 }) {
   return (
     <label className="relative">
-      <span className="sr-only">{label}</span>
+      <span className="sr-only">
+        {label}
+      </span>
+
       <select
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         className="h-[42px] min-w-[155px] appearance-none rounded-xl border border-[#E6DDC8] bg-[#FFFCF6] py-2 pl-3 pr-9 text-[12px] font-medium text-[#514B40] outline-none focus:border-[#4D7DF3]"
       >
         {children}
       </select>
-      <SlidersHorizontal size={13}
-        className="pointer-events-none absolute right-3 top-3.5 text-[#9B927F]" />
+
+      <SlidersHorizontal
+        size={13}
+        className="pointer-events-none absolute right-3 top-3.5 text-[#9B927F]"
+      />
     </label>
   );
 }
@@ -428,9 +727,15 @@ function MetricCard({
         <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#4D7DF3]">
           <Icon size={15} />
         </div>
+
         <div>
-          <p className="text-[16px] font-semibold leading-5 text-[#221F1A]">{value}</p>
-          <p className="text-[9.5px] text-[#726B5C]">{label}</p>
+          <p className="text-[16px] font-semibold leading-5 text-[#221F1A]">
+            {value}
+          </p>
+
+          <p className="text-[9.5px] text-[#726B5C]">
+            {label}
+          </p>
         </div>
       </div>
     </div>
@@ -454,15 +759,24 @@ function TabButton({
       onClick={onClick}
       className={[
         "rounded-lg px-3.5 py-2 text-[12px] font-medium transition",
-        active ? "bg-[#EEF4FF] text-[#255FD6]" : "text-[#726B5C] hover:bg-[#F4EFE4]",
+        active
+          ? "bg-[#EEF4FF] text-[#255FD6]"
+          : "text-[#726B5C] hover:bg-[#F4EFE4]",
       ].join(" ")}
     >
-      {label} <span className="opacity-65">({count})</span>
+      {label}{" "}
+      <span className="opacity-65">
+        ({count})
+      </span>
     </button>
   );
 }
 
-function StatusPill({ label }: { label: string }) {
+function StatusPill({
+  label,
+}: {
+  label: string;
+}) {
   return (
     <span className="rounded-full border border-[#E6DDC8] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">
       {readableType(label)}
@@ -478,41 +792,81 @@ function ConceptGrid({
   onOpen: (nodeId: string) => void;
 }) {
   if (nodes.length === 0) {
-    return <EmptyState title="No concepts were extracted" description="The analysis completed without graph nodes." />;
+    return (
+      <EmptyState
+        title="No concepts were extracted"
+        description="The analysis completed without document-grounded knowledge items."
+      />
+    );
   }
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {nodes.map((node) => {
-        const confidence = nodeConfidence(node);
-        const accent = nodeColor(node.type);
+        const confidence =
+          nodeConfidence(node);
+        const accent = nodeColor(
+          node.type,
+        );
 
         return (
-          <Card key={node.id}
+          <Card
+            key={node.id}
             className="group cursor-pointer transition hover:-translate-y-1 hover:shadow-lg"
-            onClick={() => onOpen(node.id)}>
+            onClick={() =>
+              onOpen(node.id)
+            }
+          >
             <div className="flex items-start justify-between gap-3">
-              <span className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
-                style={{ color: accent, background: `${accent}18` }}>
+              <span
+                className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
+                style={{
+                  color: accent,
+                  background: `${accent}18`,
+                }}
+              >
                 {readableType(node.type)}
               </span>
-              <ChevronRight size={16}
-                className="text-[#B3A98F] transition group-hover:translate-x-0.5 group-hover:text-[#4D7DF3]" />
+
+              <ChevronRight
+                size={16}
+                className="text-[#B3A98F] transition group-hover:translate-x-0.5 group-hover:text-[#4D7DF3]"
+              />
             </div>
 
-            <h3 className="mt-3 font-serif text-[16px] font-semibold leading-6 text-[#221F1A]">{node.label}</h3>
+            <h3 className="mt-3 font-serif text-[16px] font-semibold leading-6 text-[#221F1A]">
+              {node.label}
+            </h3>
+
             <p className="mt-2 max-h-[66px] overflow-hidden text-[12.5px] leading-[22px] text-[#726B5C]">
               {getNodeDescription(node)}
             </p>
 
-            {typeof confidence === "number" && (
+            {typeof confidence ===
+              "number" && (
               <div className="mt-4">
                 <div className="flex justify-between text-[10px] text-[#726B5C]">
-                  <span>Confidence</span><span>{Math.round(confidence * 100)}%</span>
+                  <span>
+                    Source confidence
+                  </span>
+                  <span>
+                    {Math.round(
+                      confidence * 100,
+                    )}
+                    %
+                  </span>
                 </div>
+
                 <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#EFE8D6]">
-                  <div className="h-full rounded-full"
-                    style={{ width: `${confidence * 100}%`, background: accent }} />
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${
+                        confidence * 100
+                      }%`,
+                      background: accent,
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -523,12 +877,18 @@ function ConceptGrid({
   );
 }
 
-function EvidenceGrid({ evidence }: { evidence: ReturnType<typeof collectEvidence> }) {
+function EvidenceGrid({
+  evidence,
+}: {
+  evidence: ReturnType<
+    typeof collectEvidence
+  >;
+}) {
   if (evidence.length === 0) {
     return (
       <EmptyState
         title="No evidence snippets are available"
-        description="Evidence appears when graph claims include grounded source spans."
+        description="Evidence appears when knowledge items include grounded source spans."
       />
     );
   }
@@ -536,20 +896,34 @@ function EvidenceGrid({ evidence }: { evidence: ReturnType<typeof collectEvidenc
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {evidence.map((item) => (
-        <article key={item.id} className="rounded-2xl border border-[#E6DDC8] bg-white p-5">
+        <article
+          key={item.id}
+          className="rounded-2xl border border-[#E6DDC8] bg-white p-5"
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F4EFE4] px-2.5 py-1 text-[10px] font-medium text-[#726B5C]">
-              <BookOpen size={12} />{item.pageNumber ? `Page ${item.pageNumber}` : "Source evidence"}
+              <BookOpen size={12} />
+              {item.pageNumber
+                ? `Page ${item.pageNumber}`
+                : "Source evidence"}
             </span>
+
             <span className="rounded-full bg-[#EEF4FF] px-2 py-1 text-[10px] font-medium text-[#255FD6]">
-              {readableType(item.nodeType)}
+              {readableType(
+                item.nodeType,
+              )}
             </span>
           </div>
+
           <blockquote className="mt-4 border-l-2 border-[#FFCE3E] pl-4 text-[13px] leading-6 text-[#514B40]">
             “{item.text}”
           </blockquote>
+
           <p className="mt-4 text-[11px] font-medium text-[#726B5C]">
-            Supports: <span className="text-[#38342C]">{item.nodeLabel}</span>
+            Supports:{" "}
+            <span className="text-[#38342C]">
+              {item.nodeLabel}
+            </span>
           </p>
         </article>
       ))}
@@ -557,14 +931,32 @@ function EvidenceGrid({ evidence }: { evidence: ReturnType<typeof collectEvidenc
   );
 }
 
-function GraphLegend({ nodeTypes, relationTypes }: { nodeTypes: string[]; relationTypes: string[] }) {
+function GraphLegend({
+  nodeTypes,
+  relationTypes,
+}: {
+  nodeTypes: string[];
+  relationTypes: string[];
+}) {
   return (
     <div className="mt-4 rounded-2xl border border-[#E6DDC8] bg-white p-4">
       <div className="flex flex-wrap gap-x-5 gap-y-3">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">Node types</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">
+          Knowledge types
+        </span>
+
         {nodeTypes.map((type) => (
-          <span key={type} className="inline-flex items-center gap-1.5 text-[10.5px] text-[#514B40]">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: nodeColor(type) }} />
+          <span
+            key={type}
+            className="inline-flex items-center gap-1.5 text-[10.5px] text-[#514B40]"
+          >
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{
+                background:
+                  nodeColor(type),
+              }}
+            />
             {readableType(type)}
           </span>
         ))}
@@ -572,10 +964,20 @@ function GraphLegend({ nodeTypes, relationTypes }: { nodeTypes: string[]; relati
 
       {relationTypes.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-3 border-t border-[#EFE8D6] pt-3">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">Relations</span>
-          {relationTypes.slice(0, 10).map((type) => (
-            <span key={type} className="text-[10.5px] text-[#514B40]">{readableType(type)}</span>
-          ))}
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">
+            Relationships
+          </span>
+
+          {relationTypes
+            .slice(0, 10)
+            .map((type) => (
+              <span
+                key={type}
+                className="text-[10.5px] text-[#514B40]"
+              >
+                {relationLabel(type)}
+              </span>
+            ))}
         </div>
       )}
     </div>
@@ -586,10 +988,18 @@ function InspectorPlaceholder() {
   return (
     <div className="sticky top-5 flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-[#E6DDC8] bg-white p-8 text-center">
       <div>
-        <GitBranch size={28} className="mx-auto text-[#B3A98F]" />
-        <p className="mt-3 text-[13px] font-medium text-[#38342C]">Select a graph node</p>
+        <GitBranch
+          size={28}
+          className="mx-auto text-[#B3A98F]"
+        />
+
+        <p className="mt-3 text-[13px] font-medium text-[#38342C]">
+          Select a knowledge item
+        </p>
+
         <p className="mt-2 text-[12px] leading-5 text-[#726B5C]">
-          Its properties, relationships, confidence, and evidence will appear here.
+          You will see what it means, why it connects
+          to other ideas, and the source evidence.
         </p>
       </div>
     </div>
@@ -615,15 +1025,28 @@ function EmptyState({
   danger?: boolean;
 }) {
   return (
-    <div className={[
-      "rounded-2xl border border-dashed bg-white p-10 text-center",
-      danger ? "border-red-200" : "border-[#E6DDC8]",
-    ].join(" ")}>
-      <p className={[
-        "text-[13px] font-semibold",
-        danger ? "text-[#E85D46]" : "text-[#38342C]",
-      ].join(" ")}>{title}</p>
-      <p className="mx-auto mt-2 max-w-[520px] text-[12px] leading-5 text-[#726B5C]">{description}</p>
+    <div
+      className={[
+        "rounded-2xl border border-dashed bg-white p-10 text-center",
+        danger
+          ? "border-red-200"
+          : "border-[#E6DDC8]",
+      ].join(" ")}
+    >
+      <p
+        className={[
+          "text-[13px] font-semibold",
+          danger
+            ? "text-[#E85D46]"
+            : "text-[#38342C]",
+        ].join(" ")}
+      >
+        {title}
+      </p>
+
+      <p className="mx-auto mt-2 max-w-[520px] text-[12px] leading-5 text-[#726B5C]">
+        {description}
+      </p>
     </div>
   );
 }
