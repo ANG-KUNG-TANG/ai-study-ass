@@ -2,6 +2,13 @@ services:
   mongo:
     image: mongo:8.0
     container_name: ai-study-mongo
+
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
+
+
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
