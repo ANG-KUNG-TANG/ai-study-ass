@@ -1,120 +1,86 @@
-import { createRequire } from "node:module";
-
 import { FileError } from "@/server/utils/errors";
+import { MAX_CONTENT_LENGTH } from "@/server/utils/constants";
 import { logger } from "@/server/utils/logger";
-
-const loadCommonJsModule = createRequire(import.meta.url);
 
 interface ParsedPDF {
   text: string;
   pageCount: number;
   charCount: number;
-  pages?: Array<{ pageNumber: number; text: string }>;
-}
-
-interface PDFTextResult {
-  text?: string;
-  total?: number;
-  pages?: Array<{ text?: string }>;
-}
-
-interface PDFParserInstance {
-  getText(): Promise<PDFTextResult>;
-  destroy(): Promise<void> | void;
-}
-
-type PDFParserConstructor = new (options: {
-  data: Uint8Array;
-}) => PDFParserInstance;
-
-type PasswordErrorConstructor = new (...args: never[]) => Error;
-
-interface PDFParseModule {
-  PDFParse?: PDFParserConstructor;
-  PasswordException?: PasswordErrorConstructor;
-}
-
-function loadPDFParse(): {
-  PDFParse: PDFParserConstructor;
-  PasswordException?: PasswordErrorConstructor;
-} {
-  try {
-    const loaded = loadCommonJsModule("pdf-parse") as unknown;
-    const pdfParseModule = loaded as PDFParseModule;
-
-    if (typeof pdfParseModule.PDFParse !== "function") {
-      const keys =
-        loaded && typeof loaded === "object"
-          ? Object.keys(loaded as Record<string, unknown>)
-          : [];
-
-      throw new Error(
-        `pdf-parse export missing PDFParse class — got keys: ${keys.join(", ")}`,
-      );
-    }
-
-    return {
-      PDFParse: pdfParseModule.PDFParse,
-      PasswordException: pdfParseModule.PasswordException,
-    };
-  } catch (unknownError: unknown) {
-    logger.error("pdf-parse could not be resolved to the v2 PDFParse class", {
-      message:
-        unknownError instanceof Error
-          ? unknownError.message
-          : String(unknownError),
-    });
-
-    throw new FileError(
-      "PDF parser not available — check pdf-parse installation/version",
-    );
-  }
 }
 
 export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
-  const {
-    PDFParse,
-    PasswordException,
-  } = loadPDFParse();
+  let PDFParse: (typeof import("pdf-parse"))["PDFParse"] | undefined;
+
+  let PasswordException:
+    | (typeof import("pdf-parse"))["PasswordException"]
+    | undefined;
+
+  let CanvasFactory:
+    | (typeof import("pdf-parse/worker"))["CanvasFactory"]
+    | undefined;
+
+  try {
+    // Important:
+    // load the worker/canvas implementation BEFORE pdf-parse.
+    const worker = await import("pdf-parse/worker");
+
+    CanvasFactory = worker.CanvasFactory;
+
+    const pdfModule = await import("pdf-parse");
+
+    PDFParse = pdfModule.PDFParse;
+
+    PasswordException = pdfModule.PasswordException;
+
+    if (typeof PDFParse !== "function" || !CanvasFactory) {
+      throw new Error("PDFParse or CanvasFactory is unavailable");
+    }
+  } catch (error) {
+    logger.error("pdf-parse initialization failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+
+    throw new FileError(
+      "PDF parser not available — check pdf-parse/canvas installation",
+    );
+  }
 
   const parser = new PDFParse({
     data: buffer,
+    CanvasFactory,
   });
 
-  let result: PDFTextResult;
+  let result: {
+    text: string;
+    total?: number;
+  };
 
   try {
     result = await parser.getText();
-  } catch (unknownError: unknown) {
+  } catch (error) {
     const isPasswordProtected =
-      Boolean(
-        PasswordException &&
-          unknownError instanceof PasswordException,
-      ) ||
-      (unknownError instanceof Error &&
-        unknownError.name === "PasswordException");
+      PasswordException && error instanceof PasswordException;
 
-    if (isPasswordProtected) {
+    if (
+      isPasswordProtected ||
+      (error instanceof Error && error.name === "PasswordException")
+    ) {
       throw new FileError(
         "PDF is password-protected — please remove the password and re-upload",
       );
     }
 
-    const message =
-      unknownError instanceof Error
-        ? unknownError.message
-        : "Unknown error";
-
-    throw new FileError(`Failed to parse PDF: ${message}`);
+    throw new FileError(
+      `Failed to parse PDF: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+    );
   } finally {
     try {
       await parser.destroy();
-    } catch (destroyError: unknown) {
+    } catch (error) {
       logger.warn("pdf-parse: failed to destroy parser instance", {
-        message:
-          destroyError instanceof Error
-            ? destroyError.message
-            : String(destroyError),
+        message: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -127,21 +93,24 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     );
   }
 
-  const text = cleanText(rawText);
-  const pages = Array.isArray(result.pages)
-    ? result.pages
-        .map((page, index) => ({
-          pageNumber: index + 1,
-          text: cleanText(page.text ?? ""),
-        }))
-        .filter((page) => page.text.length > 0)
-    : undefined;
+  const cleaned = cleanText(rawText);
+
+  const text =
+    cleaned.length > MAX_CONTENT_LENGTH
+      ? cleaned.slice(0, MAX_CONTENT_LENGTH)
+      : cleaned;
+
+  if (cleaned.length > MAX_CONTENT_LENGTH) {
+    logger.warn("PDF content truncated", {
+      original: cleaned.length,
+      limit: MAX_CONTENT_LENGTH,
+    });
+  }
 
   return {
     text,
-    pageCount: result.total ?? pages?.length ?? 0,
+    pageCount: result.total ?? 0,
     charCount: text.length,
-    pages,
   };
 }
 
@@ -150,7 +119,9 @@ interface ParsedDOCX {
   charCount: number;
 }
 
-export async function parseDOCX(buffer: Buffer): Promise<ParsedDOCX> {
+export async function parseDOCX(
+  buffer: Buffer,
+): Promise<ParsedDOCX> {
   let mammoth: typeof import("mammoth");
 
   try {
@@ -168,12 +139,10 @@ export async function parseDOCX(buffer: Buffer): Promise<ParsedDOCX> {
 
   try {
     result = await mammoth.extractRawText({ buffer });
-  } catch (unknownError: unknown) {
+  } catch (error: unknown) {
     throw new FileError(
       `Failed to parse DOCX: ${
-        unknownError instanceof Error
-          ? unknownError.message
-          : "Unknown error"
+        error instanceof Error ? error.message : "Unknown error"
       }`,
     );
   }

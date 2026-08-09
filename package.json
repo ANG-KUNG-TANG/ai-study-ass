@@ -12,10 +12,16 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "check": "npm run typecheck && npm run lint && npm test -- --runInBand && npm run build"
+    "check": "npm run typecheck && npm run lint && npm test -- --runInBand && npm run build",
+    "docker:build": "docker build -t ai-study-assistant .",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f app",
+    "docker:prod": "docker compose -f compose.prod.yaml up --build -d"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",
+    "@napi-rs/canvas": "^0.1.80",
     "@xyflow/react": "^12.11.2",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.4.0",
