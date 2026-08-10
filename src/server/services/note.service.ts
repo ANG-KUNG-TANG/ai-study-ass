@@ -11,11 +11,27 @@ import { logger } from "@/server/utils/logger";
 import { buildPaginationMeta } from "@/server/utils/response";
 import type { ProcessedFile } from "@/server/services/upload.service";
 import type { NoteQueryOptions } from "@/server/repositories/note.repo";
+import type { StudyGenerationState } from "@/server/types/generation";
+
+export type PublicNote = ReturnType<NoteEntity["toPublic"]>;
+
+export interface CreateNoteOptions {
+  onGenerationComplete?: (
+    note: PublicNote,
+    state: StudyGenerationState,
+  ) => void | Promise<void>;
+
+  onGenerationError?: (
+    note: PublicNote,
+    error: unknown,
+  ) => void | Promise<void>;
+}
 
 export async function createNote(
   userId: string,
   file: ProcessedFile,
-): Promise<ReturnType<NoteEntity["toPublic"]>> {
+  options: CreateNoteOptions = {},
+): Promise<PublicNote> {
   const title = file.fileName
     .replace(/\.(pdf|docx)$/i, "")
     .replace(/_/g, " ")
@@ -32,6 +48,7 @@ export async function createNote(
   });
 
   const saved = await noteRepo.create(entity);
+  const publicNote = saved.toPublic();
 
   logger.info("Note created from upload", {
     noteId: saved.id,
@@ -48,13 +65,34 @@ export async function createNote(
     pageCount: file.pageCount,
   });
 
-  generationService.generateStudyMaterialsInBackground({
-    noteId: saved.id,
-    userId,
-    document,
-  });
+  generationService.generateStudyMaterialsInBackground(
+    {
+      noteId: saved.id,
+      userId,
+      document,
+    },
+    {
+      onComplete: options.onGenerationComplete
+        ? async (state) => {
+            await options.onGenerationComplete?.(
+              publicNote,
+              state,
+            );
+          }
+        : undefined,
 
-  return saved.toPublic();
+      onError: options.onGenerationError
+        ? async (error) => {
+            await options.onGenerationError?.(
+              publicNote,
+              error,
+            );
+          }
+        : undefined,
+    },
+  );
+
+  return publicNote;
 }
 
 export async function getNoteById(

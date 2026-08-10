@@ -22,6 +22,16 @@ export interface GenerateStudyMaterialsInput {
   force?: boolean;
 }
 
+export interface BackgroundGenerationHooks {
+  onComplete?: (
+    state: StudyGenerationState,
+  ) => void | Promise<void>;
+
+  onError?: (
+    error: unknown,
+  ) => void | Promise<void>;
+}
+
 function safeMessage(error: unknown): string {
   return error instanceof Error
     ? error.message.slice(0, 500)
@@ -259,19 +269,80 @@ export async function generateStudyMaterials(
   return finalState;
 }
 
-export function generateStudyMaterialsInBackground(
+async function runCompletionHook(
   input: GenerateStudyMaterialsInput,
-): void {
-  void generateStudyMaterials(input).catch((error: unknown) => {
+  hook: BackgroundGenerationHooks["onComplete"],
+  state: StudyGenerationState,
+): Promise<void> {
+  if (!hook) {
+    return;
+  }
+
+  try {
+    await hook(state);
+  } catch (error) {
     logger.error(
-      "Background study material generation failed",
+      "Background generation completion hook failed",
       {
         noteId: input.noteId,
         userId: input.userId,
         error: safeMessage(error),
       },
     );
-  });
+  }
+}
+
+async function runErrorHook(
+  input: GenerateStudyMaterialsInput,
+  hook: BackgroundGenerationHooks["onError"],
+  error: unknown,
+): Promise<void> {
+  if (!hook) {
+    return;
+  }
+
+  try {
+    await hook(error);
+  } catch (hookError) {
+    logger.error(
+      "Background generation error hook failed",
+      {
+        noteId: input.noteId,
+        userId: input.userId,
+        error: safeMessage(hookError),
+      },
+    );
+  }
+}
+
+export function generateStudyMaterialsInBackground(
+  input: GenerateStudyMaterialsInput,
+  hooks: BackgroundGenerationHooks = {},
+): void {
+  void generateStudyMaterials(input)
+    .then(async (state) => {
+      await runCompletionHook(
+        input,
+        hooks.onComplete,
+        state,
+      );
+    })
+    .catch(async (error: unknown) => {
+      logger.error(
+        "Background study material generation failed",
+        {
+          noteId: input.noteId,
+          userId: input.userId,
+          error: safeMessage(error),
+        },
+      );
+
+      await runErrorHook(
+        input,
+        hooks.onError,
+        error,
+      );
+    });
 }
 
 export async function getGenerationStatus(

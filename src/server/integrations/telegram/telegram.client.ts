@@ -1,6 +1,18 @@
-import type { TelegramApiResponse, TelegramFile } from "./telegram.types";
+import type {
+  TelegramApiResponse,
+  TelegramFile,
+} from "./telegram.types";
 
 const TELEGRAM_API_URL = "https://api.telegram.org";
+
+export interface TelegramInlineButton {
+  text: string;
+  url: string;
+}
+
+export interface TelegramSendMessageOptions {
+  buttons?: TelegramInlineButton[][];
+}
 
 function getBotToken(): string {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -22,25 +34,38 @@ function createTelegramFileUrl(filePath: string): string {
 
 // ─── Send Message ─────────────────────────────────────────────────────────────
 
-export async function sendMessage(chatId: number, text: string): Promise<void> {
+export async function sendMessage(
+  chatId: number,
+  text: string,
+  options: TelegramSendMessageOptions = {},
+): Promise<void> {
+  const body: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+  };
+
+  if (options.buttons?.length) {
+    body.reply_markup = {
+      inline_keyboard: options.buttons,
+    };
+  }
+
   const response = await fetch(createTelegramApiUrl("sendMessage"), {
     method: "POST",
-
     headers: {
       "Content-Type": "application/json",
     },
-
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-    }),
+    body: JSON.stringify(body),
   });
 
-  const data = (await response.json()) as TelegramApiResponse<unknown>;
+  const data =
+    (await response.json()) as TelegramApiResponse<unknown>;
 
   if (!response.ok || !data.ok) {
     throw new Error(
-      `Telegram sendMessage failed: ${data.description ?? response.statusText}`,
+      `Telegram sendMessage failed: ${
+        data.description ?? response.statusText
+      }`,
     );
   }
 }
@@ -50,21 +75,22 @@ export async function sendMessage(chatId: number, text: string): Promise<void> {
 export async function getFile(fileId: string): Promise<TelegramFile> {
   const response = await fetch(createTelegramApiUrl("getFile"), {
     method: "POST",
-
     headers: {
       "Content-Type": "application/json",
     },
-
     body: JSON.stringify({
       file_id: fileId,
     }),
   });
 
-  const data = (await response.json()) as TelegramApiResponse<TelegramFile>;
+  const data =
+    (await response.json()) as TelegramApiResponse<TelegramFile>;
 
   if (!response.ok || !data.ok || !data.result) {
     throw new Error(
-      `Telegram getFile failed: ${data.description ?? response.statusText}`,
+      `Telegram getFile failed: ${
+        data.description ?? response.statusText
+      }`,
     );
   }
 

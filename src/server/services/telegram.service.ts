@@ -3,213 +3,212 @@ import type {
   TelegramMessage,
   TelegramUpdate,
 } from "@/server/integrations/telegram/telegram.types";
-import { linkTelegramAccount } from "@/server/services/telegramLink.service";
+
 import {
   sendMessage,
   getFile,
   downloadFile,
 } from "@/server/integrations/telegram/telegram.client";
 
+import { linkTelegramAccount } from "@/server/services/telegramLink.service";
+import { processUpload } from "@/server/services/upload.service";
+import { createNote } from "@/server/services/note.service";
+import {
+  notifyTelegramGenerationComplete,
+  notifyTelegramGenerationFailure,
+} from "@/server/services/telegramGenerationNotification.service";
+
+import * as telegramIntegrationRepo from
+  "@/server/repositories/telegramIntegration.repo";
+
+import { logger } from "@/server/utils/logger";
+
 const PDF_MIME_TYPE = "application/pdf";
+const TELEGRAM_DOWNLOAD_LIMIT_BYTES = 20 * 1024 * 1024;
 
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+function getPublicAppUrl(): string {
+  const url = process.env.APP_PUBLIC_URL?.trim();
 
-async function handleStart(message: TelegramMessage): Promise<void> {
-  const chatId = message.chat.id;
+  if (!url) {
+    throw new Error("APP_PUBLIC_URL is not configured");
+  }
 
-  await sendMessage(
-    chatId,
-    [
-      "👋 Welcome to AI Study Assistant!",
-      "",
-      "Upload a PDF and I will generate:",
-      "",
-      "📝 Summary",
-      "🧠 Knowledge Concepts",
-      "❓ Quiz",
-      "🃏 Flashcards",
-      "",
-      "Use /help if you need instructions.",
-    ].join("\n"),
-  );
+  return url.replace(/\/+$/, "");
 }
 
-async function handleHelp(message: TelegramMessage): Promise<void> {
+function buildDashboardUrl(): string {
+  return `${getPublicAppUrl()}/student/dashboard`;
+}
+
+function buildLoginUrl(): string {
+  const destination = encodeURIComponent("/student/dashboard");
+
+  return `${getPublicAppUrl()}/auth/login?from=${destination}`;
+}
+
+function buildNoteUrl(noteId: string): string {
+  return `${getPublicAppUrl()}/student/notes/${noteId}/summary`;
+}
+
+function looksLikePdf(document: TelegramDocument): boolean {
+  const mimeIsPdf = document.mime_type === PDF_MIME_TYPE;
+  const extensionIsPdf =
+    document.file_name?.toLowerCase().endsWith(".pdf") ?? false;
+
+  return mimeIsPdf || extensionIsPdf;
+}
+
+function hasPdfSignature(buffer: Buffer): boolean {
+  if (buffer.length < 5) {
+    return false;
+  }
+
+  return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+}
+
+function parseStartCommand(
+  text: string,
+): {
+  isStart: boolean;
+  payload?: string;
+} {
+  const match = text
+    .trim()
+    .match(/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+(.+))?$/);
+
+  if (!match) {
+    return {
+      isStart: false,
+    };
+  }
+
+  const payload = match[1]?.trim();
+
+  return {
+    isStart: true,
+    payload:
+      payload && payload.length > 0
+        ? payload
+        : undefined,
+  };
+}
+
+// ─── Start / onboarding ───────────────────────────────────────────────────────
+
+async function handleStart(
+  message: TelegramMessage,
+): Promise<void> {
+  const sender = message.from;
+
+  if (!sender) {
+    await sendMessage(
+      message.chat.id,
+      "❌ Unable to identify your Telegram account.",
+    );
+    return;
+  }
+
+  const integration =
+    await telegramIntegrationRepo.findByTelegramUserId(sender.id);
+
+  if (!integration) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "👋 Welcome to AI Study Assistant!",
+        "",
+        "Turn PDF documents into:",
+        "",
+        "📝 Summaries",
+        "🧠 Knowledge Concepts",
+        "❓ Quizzes",
+        "🃏 Flashcards",
+        "",
+        "Your Telegram account is not connected yet.",
+        "",
+        "Open AI Study Assistant, sign in or create an account, then connect Telegram.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🔗 Open AI Study Assistant",
+              url: buildLoginUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  await telegramIntegrationRepo.updateLastActive(sender.id);
+
   await sendMessage(
     message.chat.id,
     [
-      "📚 How to use AI Study Assistant",
+      `👋 Welcome back, ${sender.first_name}!`,
       "",
-      "1. Upload a PDF document.",
-      "2. Wait while the document is processed.",
-      "3. Receive your generated study materials.",
+      "✅ Your Telegram account is connected.",
       "",
-      "Available features:",
+      "Send me a PDF and I will create:",
+      "",
       "📝 Summary",
       "🧠 Knowledge Concepts",
       "❓ Quiz",
       "🃏 Flashcards",
     ].join("\n"),
+    {
+      buttons: [
+        [
+          {
+            text: "🏠 Open Dashboard",
+            url: buildDashboardUrl(),
+          },
+        ],
+      ],
+    },
   );
 }
 
-async function handleDocument(
+// ─── Help ─────────────────────────────────────────────────────────────────────
+
+async function handleHelp(
   message: TelegramMessage,
-  document: TelegramDocument,
 ): Promise<void> {
-  const chatId = message.chat.id;
-
-  // ─── 1. Validate file type ────────────────────────────────────────────────
-
-  if (!looksLikePdf(document)) {
-    await sendMessage(
-      chatId,
-      ["❌ Unsupported file type.", "", "Please upload a PDF document."].join(
-        "\n",
-      ),
-    );
-
-    return;
-  }
-
-  // ─── 2. Validate Telegram file size ──────────────────────────────────────
-
-  if (document.file_size && document.file_size > MAX_FILE_SIZE_BYTES) {
-    await sendMessage(
-      chatId,
-      [
-        "❌ PDF is too large.",
-        "",
-        "Telegram uploads are currently limited to 20 MB for this bot.",
-      ].join("\n"),
-    );
-
-    return;
-  }
-
-  const fileName = document.file_name ?? "document.pdf";
-
   await sendMessage(
-    chatId,
+    message.chat.id,
     [
-      "📄 PDF received!",
+      "📚 AI Study Assistant Help",
       "",
-      `File: ${fileName}`,
+      "1. Connect your Telegram account.",
+      "2. Upload a PDF.",
+      "3. The PDF is validated and extracted.",
+      "4. A study note is created in your web account.",
+      "5. Summary, Knowledge, Quiz and Flashcards are generated automatically.",
       "",
-      "⏳ Validating document...",
+      "Commands:",
+      "/start - Start or reopen the bot",
+      "/account - Check connection",
+      "/status - Check connection",
+      "/myfiles - Document list (next stage)",
+      "/help - Show this help",
     ].join("\n"),
+    {
+      buttons: [
+        [
+          {
+            text: "🏠 Open Dashboard",
+            url: buildDashboardUrl(),
+          },
+        ],
+      ],
+    },
   );
-
-  // ─── 3. Ask Telegram for file path ───────────────────────────────────────
-
-  const telegramFile = await getFile(document.file_id);
-
-  // ─── 4. Download PDF ─────────────────────────────────────────────────────
-
-  const pdfBuffer = await downloadFile(telegramFile.file_path!);
-
-  // ─── 5. Check downloaded size ────────────────────────────────────────────
-
-  if (pdfBuffer.length > MAX_FILE_SIZE_BYTES) {
-    await sendMessage(chatId, "❌ The downloaded PDF exceeds the 20 MB limit.");
-
-    return;
-  }
-
-  // ─── 6. Verify actual PDF data ───────────────────────────────────────────
-
-  if (!hasPdfSignature(pdfBuffer)) {
-    await sendMessage(
-      chatId,
-      [
-        "❌ This file does not appear to be a valid PDF.",
-        "",
-        "Please upload another document.",
-      ].join("\n"),
-    );
-
-    return;
-  }
-
-  // ─── 7. Temporary success response ───────────────────────────────────────
-
-  const sizeMb = pdfBuffer.length / (1024 * 1024);
-
-  await sendMessage(
-    chatId,
-    [
-      "✅ PDF validated successfully!",
-      "",
-      `📄 ${fileName}`,
-      `📦 ${sizeMb.toFixed(2)} MB`,
-      "",
-      "The document is ready for processing.",
-    ].join("\n"),
-  );
-
-  // NEXT STAGE:
-  //
-  // await documentIngestionService.ingest({
-  //   buffer: pdfBuffer,
-  //   fileName,
-  //   mimeType: PDF_MIME_TYPE,
-  //   source: "telegram",
-  //   ...
-  // });
 }
 
-async function handleText(message: TelegramMessage): Promise<void> {
-  const text = message.text?.trim();
-
-  if (!text) {
-    return;
-  }
-
-  // Supports:
-  // /start
-  // /start TOKEN
-  // /start@aistudyassbot TOKEN
-  const startMatch = text.match(/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+(.+))?$/);
-
-  if (startMatch) {
-    const token = startMatch[1]?.trim();
-
-    if (token) {
-      await handleAccountLink(message, token);
-      return;
-    }
-
-    await handleStart(message);
-    return;
-  }
-
-  switch (text) {
-    case "/help":
-      await handleHelp(message);
-      return;
-
-    default:
-      await sendMessage(message.chat.id, "Please upload a PDF or use /help.");
-  }
-}
-
-export async function processUpdate(update: TelegramUpdate): Promise<void> {
-  const message = update.message;
-
-  if (!message) {
-    return;
-  }
-
-  if (message.document) {
-    await handleDocument(message, message.document);
-
-    return;
-  }
-
-  if (message.text) {
-    await handleText(message);
-  }
-}
+// ─── Account link ─────────────────────────────────────────────────────────────
 
 async function handleAccountLink(
   message: TelegramMessage,
@@ -226,15 +225,16 @@ async function handleAccountLink(
   }
 
   try {
-    const integration = await linkTelegramAccount({
-      token,
-      telegramUserId: sender.id,
-      telegramChatId: message.chat.id,
-      telegramUsername: sender.username,
-      telegramFirstName: sender.first_name,
-    });
+    const integration =
+      await linkTelegramAccount({
+        token,
+        telegramUserId: sender.id,
+        telegramChatId: message.chat.id,
+        telegramUsername: sender.username,
+        telegramFirstName: sender.first_name,
+      });
 
-    console.info("[telegram] account linked", {
+    logger.info("[telegram] account linked", {
       userId: integration.userId,
       telegramUserId: sender.id,
     });
@@ -248,11 +248,24 @@ async function handleAccountLink(
         "",
         "You can upload PDFs directly here.",
       ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🏠 Open Dashboard",
+              url: buildDashboardUrl(),
+            },
+          ],
+        ],
+      },
     );
   } catch (error) {
-    console.error("[telegram] account linking failed", {
+    logger.error("[telegram] account linking failed", {
       telegramUserId: sender.id,
-      error: error instanceof Error ? error.message : String(error),
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
     });
 
     await sendMessage(
@@ -260,27 +273,470 @@ async function handleAccountLink(
       [
         "❌ Unable to connect Telegram.",
         "",
-        "The link may be invalid, expired, or already used.",
+        "The connection link may be invalid, expired, or already used.",
         "",
-        "Generate a new connection link and try again.",
+        "Generate a new connection link from AI Study Assistant and try again.",
       ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🌐 Open AI Study Assistant",
+              url: buildLoginUrl(),
+            },
+          ],
+        ],
+      },
     );
   }
 }
 
-function looksLikePdf(document: TelegramDocument): boolean {
-  const mimeIsPdf = document.mime_type === PDF_MIME_TYPE;
+// ─── Account status ───────────────────────────────────────────────────────────
 
-  const extensionIsPdf =
-    document.file_name?.toLowerCase().endsWith(".pdf") ?? false;
+async function handleAccount(
+  message: TelegramMessage,
+): Promise<void> {
+  const sender = message.from;
 
-  return mimeIsPdf || extensionIsPdf;
-}
-
-function hasPdfSignature(buffer: Buffer): boolean {
-  if (buffer.length < 5) {
-    return false;
+  if (!sender) {
+    await sendMessage(
+      message.chat.id,
+      "❌ Unable to identify your Telegram account.",
+    );
+    return;
   }
 
-  return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+  const integration =
+    await telegramIntegrationRepo.findByTelegramUserId(sender.id);
+
+  if (!integration) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "🔐 Telegram is not connected.",
+        "",
+        "Open AI Study Assistant to sign in or create an account.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🔗 Connect Account",
+              url: buildLoginUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  await telegramIntegrationRepo.updateLastActive(sender.id);
+
+  await sendMessage(
+    message.chat.id,
+    [
+      "✅ Telegram connected",
+      "",
+      `Name: ${sender.first_name}`,
+      sender.username
+        ? `Telegram: @${sender.username}`
+        : "",
+      "",
+      "PDF uploads from this chat are saved to your AI Study Assistant account.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    {
+      buttons: [
+        [
+          {
+            text: "🏠 Open Dashboard",
+            url: buildDashboardUrl(),
+          },
+        ],
+      ],
+    },
+  );
+}
+
+// ─── PDF upload ───────────────────────────────────────────────────────────────
+
+async function handleDocument(
+  message: TelegramMessage,
+  document: TelegramDocument,
+): Promise<void> {
+  const chatId = message.chat.id;
+  const sender = message.from;
+
+  if (!sender) {
+    await sendMessage(
+      chatId,
+      "❌ Unable to identify your Telegram account.",
+    );
+    return;
+  }
+
+  const integration =
+    await telegramIntegrationRepo.findByTelegramUserId(sender.id);
+
+  if (!integration) {
+    await sendMessage(
+      chatId,
+      [
+        "🔐 Connect your account first",
+        "",
+        "Your Telegram account is not linked to AI Study Assistant.",
+        "",
+        "Open AI Study Assistant, sign in or create an account, connect Telegram, then upload this PDF again.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🔗 Open AI Study Assistant",
+              url: buildLoginUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  const userId = integration.userId;
+
+  await telegramIntegrationRepo.updateLastActive(sender.id);
+
+  if (!looksLikePdf(document)) {
+    await sendMessage(
+      chatId,
+      [
+        "❌ Unsupported file type.",
+        "",
+        "Please upload a PDF document.",
+      ].join("\n"),
+    );
+    return;
+  }
+
+  if (
+    document.file_size &&
+    document.file_size > TELEGRAM_DOWNLOAD_LIMIT_BYTES
+  ) {
+    await sendMessage(
+      chatId,
+      [
+        "❌ PDF is too large.",
+        "",
+        "Telegram PDF uploads are currently limited to 20 MB.",
+      ].join("\n"),
+    );
+    return;
+  }
+
+  const fileName = document.file_name ?? "document.pdf";
+
+  await sendMessage(
+    chatId,
+    [
+      "📄 PDF received!",
+      "",
+      `File: ${fileName}`,
+      "",
+      "⏳ Downloading and validating...",
+    ].join("\n"),
+  );
+
+  try {
+    const telegramFile =
+      await getFile(document.file_id);
+
+    if (!telegramFile.file_path) {
+      throw new Error(
+        "Telegram did not provide a downloadable file path.",
+      );
+    }
+
+    const pdfBuffer =
+      await downloadFile(telegramFile.file_path);
+
+    if (pdfBuffer.length === 0) {
+      throw new Error("Downloaded PDF is empty.");
+    }
+
+    if (
+      pdfBuffer.length > TELEGRAM_DOWNLOAD_LIMIT_BYTES
+    ) {
+      await sendMessage(
+        chatId,
+        "❌ The downloaded PDF exceeds the Telegram 20 MB limit.",
+      );
+      return;
+    }
+
+    if (!hasPdfSignature(pdfBuffer)) {
+      await sendMessage(
+        chatId,
+        [
+          "❌ This file does not appear to be a valid PDF.",
+          "",
+          "Please upload another document.",
+        ].join("\n"),
+      );
+      return;
+    }
+
+    await sendMessage(
+      chatId,
+      [
+        "✅ PDF validated!",
+        "",
+        "⏳ Extracting document content...",
+      ].join("\n"),
+    );
+
+    const processed =
+      await processUpload({
+        buffer: pdfBuffer,
+        originalName: fileName,
+        mimeType:
+          document.mime_type ?? PDF_MIME_TYPE,
+        size: pdfBuffer.length,
+      });
+
+    if (!processed.content.trim()) {
+      throw new Error(
+        "No readable text could be extracted from this PDF.",
+      );
+    }
+
+    await sendMessage(
+      chatId,
+      [
+        "📖 Document extracted successfully.",
+        "",
+        `Pages: ${processed.pageCount ?? "Unknown"}`,
+        `Characters: ${processed.charCount.toLocaleString()}`,
+        "",
+        "⏳ Creating your study note...",
+      ].join("\n"),
+    );
+
+    const note =
+      await createNote(
+        userId,
+        processed,
+        {
+          onGenerationComplete:
+            async (
+              createdNote,
+              state,
+            ) => {
+              await notifyTelegramGenerationComplete(
+                chatId,
+                createdNote,
+                state,
+              );
+            },
+
+          onGenerationError:
+            async (
+              createdNote,
+              error,
+            ) => {
+              await notifyTelegramGenerationFailure(
+                chatId,
+                createdNote,
+                error,
+              );
+            },
+        },
+      );
+
+    logger.info(
+      "[telegram] note created from PDF",
+      {
+        noteId: note.id,
+        userId,
+        telegramUserId: sender.id,
+        fileName,
+        fileSize: pdfBuffer.length,
+        pageCount: processed.pageCount,
+        charCount: processed.charCount,
+      },
+    );
+
+    await sendMessage(
+      chatId,
+      [
+        "✅ Document uploaded successfully!",
+        "",
+        `📚 ${note.title}`,
+        "",
+        "🧠 AI Study Assistant is generating:",
+        "",
+        "📝 Summary",
+        "🧠 Knowledge Concepts",
+        "❓ Quiz",
+        "🃏 Flashcards",
+        "",
+        "I will notify you here when generation finishes.",
+        "",
+        "Open the note directly or return to your dashboard.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "📚 Open Study Note",
+              url: buildNoteUrl(note.id),
+            },
+          ],
+          [
+            {
+              text: "🏠 Open Dashboard",
+              url: buildDashboardUrl(),
+            },
+          ],
+        ],
+      },
+    );
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unexpected document processing error";
+
+    logger.error(
+      "[telegram] PDF processing failed",
+      {
+        userId,
+        telegramUserId: sender.id,
+        fileName,
+        error: errorMessage,
+      },
+    );
+
+    await sendMessage(
+      chatId,
+      [
+        "❌ Unable to process this document.",
+        "",
+        errorMessage,
+        "",
+        "Please check the PDF and try again.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🏠 Open Dashboard",
+              url: buildDashboardUrl(),
+            },
+          ],
+        ],
+      },
+    );
+  }
+}
+
+// ─── Text commands ────────────────────────────────────────────────────────────
+
+async function handleText(
+  message: TelegramMessage,
+): Promise<void> {
+  const text = message.text?.trim();
+
+  if (!text) {
+    return;
+  }
+
+  const startCommand =
+    parseStartCommand(text);
+
+  if (startCommand.isStart) {
+    if (startCommand.payload) {
+      await handleAccountLink(
+        message,
+        startCommand.payload,
+      );
+      return;
+    }
+
+    await handleStart(message);
+    return;
+  }
+
+  switch (text) {
+    case "/help":
+      await handleHelp(message);
+      return;
+
+    case "/account":
+    case "/status":
+      await handleAccount(message);
+      return;
+
+    case "/myfiles":
+      await sendMessage(
+        message.chat.id,
+        [
+          "📚 My Files",
+          "",
+          "Document listing will be connected in the next stage.",
+          "",
+          "For now, open your dashboard to view all uploaded documents.",
+        ].join("\n"),
+        {
+          buttons: [
+            [
+              {
+                text: "🏠 Open Dashboard",
+                url: buildDashboardUrl(),
+              },
+            ],
+          ],
+        },
+      );
+      return;
+
+    default:
+      await sendMessage(
+        message.chat.id,
+        [
+          "I did not recognise that command.",
+          "",
+          "Upload a PDF or use:",
+          "/help",
+          "/account",
+        ].join("\n"),
+      );
+  }
+}
+
+// ─── Dispatcher ───────────────────────────────────────────────────────────────
+
+export async function processUpdate(
+  update: TelegramUpdate,
+): Promise<void> {
+  const message = update.message;
+
+  if (!message) {
+    return;
+  }
+
+  if (message.document) {
+    await handleDocument(
+      message,
+      message.document,
+    );
+    return;
+  }
+
+  if (message.text) {
+    await handleText(message);
+  }
 }
