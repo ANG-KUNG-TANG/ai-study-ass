@@ -24,6 +24,31 @@ services:
     networks:
       - ai-study-network
 
+  redis:
+    image: redis:8-alpine
+    container_name: ai-study-redis
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory-policy
+      - noeviction
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+    networks:
+      - ai-study-network
+
   app:
     build:
       context: .
@@ -44,8 +69,9 @@ services:
       NODE_ENV: production
 
       APP_URL: http://localhost:3000
-
       APP_PUBLIC_URL: ${APP_PUBLIC_URL}
+
+      REDIS_URL: redis://redis:6379
 
       HOSTNAME: 0.0.0.0
       PORT: 3000
@@ -56,6 +82,8 @@ services:
 
     depends_on:
       mongo:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
     healthcheck:
@@ -76,6 +104,7 @@ services:
 
 volumes:
   mongo_data:
+  redis_data:
 
 networks:
   ai-study-network:
