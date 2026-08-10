@@ -49,6 +49,39 @@ services:
     networks:
       - ai-study-network
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+
+    container_name: ai-study-worker
+    restart: unless-stopped
+    init: true
+
+    env_file:
+      - .env.docker
+
+    environment:
+      NODE_ENV: production
+      APP_URL: http://localhost:3000
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL}
+      REDIS_URL: redis://redis:6379
+      GENERATION_WORKER_CONCURRENCY: 1
+
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
+
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    networks:
+      - ai-study-network
+
   app:
     build:
       context: .

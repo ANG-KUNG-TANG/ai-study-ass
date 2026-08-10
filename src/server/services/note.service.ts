@@ -5,26 +5,18 @@ import * as flashcardService from "@/server/services/flashcard.service";
 import * as chatService from "@/server/services/chat/chat.service";
 import * as intelligenceService from "@/server/services/intelligence.service";
 import * as generationService from "@/server/services/study-material-generation.service";
+import { enqueueStudyGeneration } from "@/server/queues/study-generation.queue";
 import { NoteEntity } from "@/server/entities/note.entity";
 import { ForbiddenError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import { buildPaginationMeta } from "@/server/utils/response";
 import type { ProcessedFile } from "@/server/services/upload.service";
 import type { NoteQueryOptions } from "@/server/repositories/note.repo";
-import type { StudyGenerationState } from "@/server/types/generation";
 
 export type PublicNote = ReturnType<NoteEntity["toPublic"]>;
 
 export interface CreateNoteOptions {
-  onGenerationComplete?: (
-    note: PublicNote,
-    state: StudyGenerationState,
-  ) => void | Promise<void>;
-
-  onGenerationError?: (
-    note: PublicNote,
-    error: unknown,
-  ) => void | Promise<void>;
+  telegramChatId?: number;
 }
 
 export async function createNote(
@@ -57,40 +49,36 @@ export async function createNote(
     charCount: file.charCount,
   });
 
-  const document = intelligenceService.toRawDocument({
-    content: file.content,
-    fileName: file.fileName,
-    fileType: file.fileType,
-    fileSize: file.fileSize,
-    pageCount: file.pageCount,
-  });
-
-  generationService.generateStudyMaterialsInBackground(
-    {
+  try {
+    await enqueueStudyGeneration({
       noteId: saved.id,
       userId,
-      document,
-    },
-    {
-      onComplete: options.onGenerationComplete
-        ? async (state) => {
-            await options.onGenerationComplete?.(
-              publicNote,
-              state,
-            );
-          }
-        : undefined,
+      telegramChatId: options.telegramChatId,
+    });
+  } catch (error) {
+    logger.error("Failed to enqueue study generation", {
+      noteId: saved.id,
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
 
-      onError: options.onGenerationError
-        ? async (error) => {
-            await options.onGenerationError?.(
-              publicNote,
-              error,
-            );
-          }
-        : undefined,
-    },
-  );
+    // The upload endpoint should not report success when no generation
+    // job exists. Roll back the just-created note if enqueueing fails.
+    try {
+      await noteRepo.deleteById(saved.id);
+    } catch (rollbackError) {
+      logger.error("Failed to roll back note after queue error", {
+        noteId: saved.id,
+        userId,
+        error:
+          rollbackError instanceof Error
+            ? rollbackError.message
+            : String(rollbackError),
+      });
+    }
+
+    throw error;
+  }
 
   return publicNote;
 }
@@ -112,18 +100,11 @@ export async function listNotes(
   userId: string,
   options: NoteQueryOptions = {},
 ) {
-  const result = await noteRepo.findManyByUser(
-    userId,
-    options,
-  );
+  const result = await noteRepo.findManyByUser(userId, options);
 
   return {
     data: result.data.map((note) => note.toPublic()),
-    meta: buildPaginationMeta(
-      result.total,
-      result.page,
-      result.limit,
-    ),
+    meta: buildPaginationMeta(result.total, result.page, result.limit),
   };
 }
 
@@ -164,10 +145,7 @@ export async function updateNoteSummary(
   }
 
   note.updateSummary(summary);
-  await noteRepo.updateSummary(
-    noteId,
-    note.summary!,
-  );
+  await noteRepo.updateSummary(noteId, note.summary!);
 }
 
 export async function getNoteContent(

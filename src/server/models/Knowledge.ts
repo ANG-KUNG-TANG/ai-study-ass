@@ -6,10 +6,10 @@
 // intelligence.service.ts. Do not reconnect automatic generation to this
 // collection. Keep this model only while older code or data is migrated.
 
+import mongoose from "mongoose";
 import {
   Schema,
   model,
-  models,
   type HydratedDocument,
   type Model,
 } from "mongoose";
@@ -520,7 +520,7 @@ const knowledgeSchema =
 
 export const Knowledge:
   Model<KnowledgePersistence> =
-  (models.Knowledge as
+  (mongoose.models.Knowledge as
     | Model<KnowledgePersistence>
     | undefined) ??
   model<KnowledgePersistence>(

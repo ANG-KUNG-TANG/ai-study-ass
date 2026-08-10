@@ -1,5 +1,9 @@
 // server/models/AuditLog.ts
-import { Schema, model, models } from "mongoose";
+import mongoose from "mongoose";
+import {
+  Schema,
+  model,
+} from "mongoose";
 import type { AuditAction } from "@/server/entities/auditLog.entity";
 
 export interface AuditLogDocument {
@@ -38,4 +42,4 @@ const AuditLogSchema = new Schema<AuditLogDocument>(
 AuditLogSchema.index({ createdAt: -1 });
 
 
-export const AuditLog = models.AuditLog || model<AuditLogDocument>("AuditLog", AuditLogSchema);
+export const AuditLog = mongoose.models.AuditLog || model<AuditLogDocument>("AuditLog", AuditLogSchema);

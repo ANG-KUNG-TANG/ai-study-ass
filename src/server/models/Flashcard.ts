@@ -1,7 +1,7 @@
+import mongoose from "mongoose";
 import {
   Schema,
   model,
-  models,
   type HydratedDocument,
   type Model,
 } from "mongoose";
@@ -99,7 +99,7 @@ flashcardSchema.index({
 
 export const Flashcard:
   Model<FlashcardPersistence> =
-  (models.Flashcard as
+  (mongoose.models.Flashcard as
     | Model<FlashcardPersistence>
     | undefined) ??
   model<FlashcardPersistence>(

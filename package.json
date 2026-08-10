@@ -17,14 +17,17 @@
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f app",
-    "docker:prod": "docker compose -f compose.prod.yaml up --build -d"
+    "docker:prod": "docker compose -f compose.prod.yaml up --build -d",
+    "worker": "tsx src/server/workers/study-generation.worker.ts"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",
     "@napi-rs/canvas": "^0.1.80",
     "@xyflow/react": "^12.11.2",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^6.0.9",
     "date-fns": "^4.4.0",
+    "ioredis": "^6.0.0",
     "jose": "^6.2.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.25.0",
@@ -39,6 +42,7 @@
     "resend": "^6.16.0",
     "sooner": "^1.1.4",
     "tau-prolog": "^0.3.4",
+    "tsx": "^4.23.12",
     "zod": "^4.4.3"
   },
   "devDependencies": {

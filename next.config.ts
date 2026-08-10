@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
     "@napi-rs/canvas",
     "mammoth",
     "tau-prolog",
+    "bullmq",
+    "ioredis",
   ],
 
   outputFileTracingIncludes: {

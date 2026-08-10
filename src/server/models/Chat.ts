@@ -1,7 +1,7 @@
+import mongoose from "mongoose";
 import {
   Schema,
   model,
-  models,
   type HydratedDocument,
   type Model,
 } from "mongoose";
@@ -95,7 +95,7 @@ chatSchema.index({
 
 export const Chat:
   Model<ChatPersistence> =
-  (models.Chat as
+  (mongoose.models.Chat as
     | Model<ChatPersistence>
     | undefined) ??
   model<ChatPersistence>(

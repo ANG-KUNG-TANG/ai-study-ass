@@ -1,14 +1,11 @@
-import {
-  Schema,
-  model,
-  models,
-  type HydratedDocument,
-  type Model,
-} from "mongoose";
+import mongoose from "mongoose";
+import type { HydratedDocument, Model } from "mongoose";
 import {
   QUESTION_TYPES,
   type QuestionType,
 } from "@/server/entities/quiz.entity";
+
+const { Schema } = mongoose;
 
 export interface QuizQuestionDocument {
   question: string;
@@ -26,78 +23,72 @@ export interface QuizPersistence {
   updatedAt: Date;
 }
 
-export type QuizDocument =
-  HydratedDocument<QuizPersistence>;
+export type QuizDocument = HydratedDocument<QuizPersistence>;
 
-const quizQuestionSchema =
-  new Schema<QuizQuestionDocument>(
-    {
-      question: {
-        type: String,
-        required: true,
-        trim: true,
-      },
+const quizQuestionSchema = new Schema<QuizQuestionDocument>(
+  {
+    question: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-      questionType: {
-        type: String,
-        enum: QUESTION_TYPES,
-        required: true,
-      },
+    questionType: {
+      type: String,
+      enum: QUESTION_TYPES,
+      required: true,
+    },
 
-      options: {
-        type: [String],
-        default: [],
-      },
+    options: {
+      type: [String],
+      default: [],
+    },
 
-      answer: {
-        type: String,
-        required: true,
-        trim: true,
-      },
+    answer: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-      explanation: {
-        type: String,
-        required: false,
-        trim: true,
+    explanation: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
+const quizSchema = new Schema<QuizPersistence>(
+  {
+    noteId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    userId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    questions: {
+      type: [quizQuestionSchema],
+      required: true,
+      validate: {
+        validator: (value: QuizQuestionDocument[]) => value.length > 0,
+        message: "Quiz must contain at least one question",
       },
     },
-    {
-      _id: false,
-    },
-  );
-
-const quizSchema =
-  new Schema<QuizPersistence>(
-    {
-      noteId: {
-        type: String,
-        required: true,
-        index: true,
-      },
-
-      userId: {
-        type: String,
-        required: true,
-        index: true,
-      },
-
-      questions: {
-        type: [quizQuestionSchema],
-        required: true,
-        validate: {
-          validator: (
-            value: QuizQuestionDocument[],
-          ) => value.length > 0,
-          message:
-            "Quiz must contain at least one question",
-        },
-      },
-    },
-    {
-      timestamps: true,
-      versionKey: false,
-    },
-  );
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+  },
+);
 
 quizSchema.index({
   noteId: 1,
@@ -106,10 +97,5 @@ quizSchema.index({
 });
 
 export const Quiz: Model<QuizPersistence> =
-  (models.Quiz as
-    | Model<QuizPersistence>
-    | undefined) ??
-  model<QuizPersistence>(
-    "Quiz",
-    quizSchema,
-  );
+  (mongoose.models.Quiz as Model<QuizPersistence> | undefined) ??
+  mongoose.model<QuizPersistence>("Quiz", quizSchema);

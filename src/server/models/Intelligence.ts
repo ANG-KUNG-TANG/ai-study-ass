@@ -1,4 +1,7 @@
-import { Schema, model, models, type Document } from "mongoose";
+import mongoose from "mongoose";
+import type { Document } from "mongoose";
+
+const { Schema } = mongoose;
 
 // ─── Purpose ──────────────────────────────────────────────────────────────────
 // Persists the storable subset of IntelligenceResult (engine.ts). We deliberately
@@ -21,12 +24,12 @@ export type IntelligenceStage =
 export interface PaperIntelligenceDoc extends Document {
   noteId: string;
   stage: IntelligenceStage;
-  core: Record<string, unknown> | null;       // KnowledgeCore, once typed
-  ontology: Record<string, unknown>[];         // ResolvedConcept[], once typed
-  graph: Record<string, unknown> | null;       // KnowledgeGraph, once typed
-  facts: Record<string, unknown>[];            // PrologFact[], once typed
+  core: Record<string, unknown> | null;
+  ontology: Record<string, unknown>[];
+  graph: Record<string, unknown> | null;
+  facts: Record<string, unknown>[];
   confidence: number | null;
-  failedStage: IntelligenceStage | null;       // set only when stage !== 'complete'
+  failedStage: IntelligenceStage | null;
   failedReason: string | null;
   processedAt: Date;
   gaps?: Record<string, unknown> | null;
@@ -36,30 +39,79 @@ export interface PaperIntelligenceDoc extends Document {
 
 const PaperIntelligenceSchema = new Schema<PaperIntelligenceDoc>(
   {
-    noteId: { type: String, required: true, unique: true, index: true },
+    noteId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
     stage: {
       type: String,
-      enum: ["extraction", "ontology", "graph", "prolog", "complete"],
+      enum: [
+        "extraction",
+        "ontology",
+        "graph",
+        "prolog",
+        "complete",
+      ],
       required: true,
     },
-    core: { type: Schema.Types.Mixed, default: null },
-    // Use a type-cast to satisfy Mongoose+TypeScript typing for arrays of Mixed
-    ontology: { type: [Schema.Types.Mixed] as unknown as any, default: [] },
-    graph: { type: Schema.Types.Mixed, default: null },
-    facts: { type: [Schema.Types.Mixed] as unknown as any, default: [] },
-    confidence: { type: Number, default: null },
-    failedStage: {
-      type: String,
-      enum: ["extraction", "ontology", "graph", "prolog", "complete", null],
+    core: {
+      type: Schema.Types.Mixed,
       default: null,
     },
-    failedReason: { type: String, default: null },
-    processedAt: { type: Date, required: true },
-    gaps: { type: Schema.Types.Mixed, default: null },
+    ontology: {
+      type: [Schema.Types.Mixed] as unknown as any,
+      default: [],
+    },
+    graph: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+    facts: {
+      type: [Schema.Types.Mixed] as unknown as any,
+      default: [],
+    },
+    confidence: {
+      type: Number,
+      default: null,
+    },
+    failedStage: {
+      type: String,
+      enum: [
+        "extraction",
+        "ontology",
+        "graph",
+        "prolog",
+        "complete",
+        null,
+      ],
+      default: null,
+    },
+    failedReason: {
+      type: String,
+      default: null,
+    },
+    processedAt: {
+      type: Date,
+      required: true,
+    },
+    gaps: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  },
 );
 
-// Prevent model overwrite errors on Next.js hot-reload
+// Prevent model overwrite errors on Next.js hot reload and worker restarts.
+// Access model registry through the Mongoose default export so the same file
+// works in both Next.js bundling and direct Node/tsx ESM execution.
 export const PaperIntelligence =
-  models.PaperIntelligence || model<PaperIntelligenceDoc>("PaperIntelligence", PaperIntelligenceSchema);
+  mongoose.models.PaperIntelligence ??
+  mongoose.model<PaperIntelligenceDoc>(
+    "PaperIntelligence",
+    PaperIntelligenceSchema,
+  );

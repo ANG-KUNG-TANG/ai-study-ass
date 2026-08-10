@@ -13,13 +13,8 @@ import {
 import { linkTelegramAccount } from "@/server/services/telegramLink.service";
 import { processUpload } from "@/server/services/upload.service";
 import { createNote } from "@/server/services/note.service";
-import {
-  notifyTelegramGenerationComplete,
-  notifyTelegramGenerationFailure,
-} from "@/server/services/telegramGenerationNotification.service";
 
-import * as telegramIntegrationRepo from
-  "@/server/repositories/telegramIntegration.repo";
+import * as telegramIntegrationRepo from "@/server/repositories/telegramIntegration.repo";
 
 import { logger } from "@/server/utils/logger";
 
@@ -66,15 +61,11 @@ function hasPdfSignature(buffer: Buffer): boolean {
   return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
 }
 
-function parseStartCommand(
-  text: string,
-): {
+function parseStartCommand(text: string): {
   isStart: boolean;
   payload?: string;
 } {
-  const match = text
-    .trim()
-    .match(/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+(.+))?$/);
+  const match = text.trim().match(/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+(.+))?$/);
 
   if (!match) {
     return {
@@ -86,18 +77,13 @@ function parseStartCommand(
 
   return {
     isStart: true,
-    payload:
-      payload && payload.length > 0
-        ? payload
-        : undefined,
+    payload: payload && payload.length > 0 ? payload : undefined,
   };
 }
 
 // ─── Start / onboarding ───────────────────────────────────────────────────────
 
-async function handleStart(
-  message: TelegramMessage,
-): Promise<void> {
+async function handleStart(message: TelegramMessage): Promise<void> {
   const sender = message.from;
 
   if (!sender) {
@@ -108,8 +94,9 @@ async function handleStart(
     return;
   }
 
-  const integration =
-    await telegramIntegrationRepo.findByTelegramUserId(sender.id);
+  const integration = await telegramIntegrationRepo.findByTelegramUserId(
+    sender.id,
+  );
 
   if (!integration) {
     await sendMessage(
@@ -174,9 +161,7 @@ async function handleStart(
 
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
-async function handleHelp(
-  message: TelegramMessage,
-): Promise<void> {
+async function handleHelp(message: TelegramMessage): Promise<void> {
   await sendMessage(
     message.chat.id,
     [
@@ -225,14 +210,13 @@ async function handleAccountLink(
   }
 
   try {
-    const integration =
-      await linkTelegramAccount({
-        token,
-        telegramUserId: sender.id,
-        telegramChatId: message.chat.id,
-        telegramUsername: sender.username,
-        telegramFirstName: sender.first_name,
-      });
+    const integration = await linkTelegramAccount({
+      token,
+      telegramUserId: sender.id,
+      telegramChatId: message.chat.id,
+      telegramUsername: sender.username,
+      telegramFirstName: sender.first_name,
+    });
 
     logger.info("[telegram] account linked", {
       userId: integration.userId,
@@ -262,10 +246,7 @@ async function handleAccountLink(
   } catch (error) {
     logger.error("[telegram] account linking failed", {
       telegramUserId: sender.id,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
+      error: error instanceof Error ? error.message : String(error),
     });
 
     await sendMessage(
@@ -293,9 +274,7 @@ async function handleAccountLink(
 
 // ─── Account status ───────────────────────────────────────────────────────────
 
-async function handleAccount(
-  message: TelegramMessage,
-): Promise<void> {
+async function handleAccount(message: TelegramMessage): Promise<void> {
   const sender = message.from;
 
   if (!sender) {
@@ -306,8 +285,9 @@ async function handleAccount(
     return;
   }
 
-  const integration =
-    await telegramIntegrationRepo.findByTelegramUserId(sender.id);
+  const integration = await telegramIntegrationRepo.findByTelegramUserId(
+    sender.id,
+  );
 
   if (!integration) {
     await sendMessage(
@@ -340,9 +320,7 @@ async function handleAccount(
       "✅ Telegram connected",
       "",
       `Name: ${sender.first_name}`,
-      sender.username
-        ? `Telegram: @${sender.username}`
-        : "",
+      sender.username ? `Telegram: @${sender.username}` : "",
       "",
       "PDF uploads from this chat are saved to your AI Study Assistant account.",
     ]
@@ -371,15 +349,13 @@ async function handleDocument(
   const sender = message.from;
 
   if (!sender) {
-    await sendMessage(
-      chatId,
-      "❌ Unable to identify your Telegram account.",
-    );
+    await sendMessage(chatId, "❌ Unable to identify your Telegram account.");
     return;
   }
 
-  const integration =
-    await telegramIntegrationRepo.findByTelegramUserId(sender.id);
+  const integration = await telegramIntegrationRepo.findByTelegramUserId(
+    sender.id,
+  );
 
   if (!integration) {
     await sendMessage(
@@ -413,11 +389,9 @@ async function handleDocument(
   if (!looksLikePdf(document)) {
     await sendMessage(
       chatId,
-      [
-        "❌ Unsupported file type.",
-        "",
-        "Please upload a PDF document.",
-      ].join("\n"),
+      ["❌ Unsupported file type.", "", "Please upload a PDF document."].join(
+        "\n",
+      ),
     );
     return;
   }
@@ -451,25 +425,19 @@ async function handleDocument(
   );
 
   try {
-    const telegramFile =
-      await getFile(document.file_id);
+    const telegramFile = await getFile(document.file_id);
 
     if (!telegramFile.file_path) {
-      throw new Error(
-        "Telegram did not provide a downloadable file path.",
-      );
+      throw new Error("Telegram did not provide a downloadable file path.");
     }
 
-    const pdfBuffer =
-      await downloadFile(telegramFile.file_path);
+    const pdfBuffer = await downloadFile(telegramFile.file_path);
 
     if (pdfBuffer.length === 0) {
       throw new Error("Downloaded PDF is empty.");
     }
 
-    if (
-      pdfBuffer.length > TELEGRAM_DOWNLOAD_LIMIT_BYTES
-    ) {
+    if (pdfBuffer.length > TELEGRAM_DOWNLOAD_LIMIT_BYTES) {
       await sendMessage(
         chatId,
         "❌ The downloaded PDF exceeds the Telegram 20 MB limit.",
@@ -491,26 +459,18 @@ async function handleDocument(
 
     await sendMessage(
       chatId,
-      [
-        "✅ PDF validated!",
-        "",
-        "⏳ Extracting document content...",
-      ].join("\n"),
+      ["✅ PDF validated!", "", "⏳ Extracting document content..."].join("\n"),
     );
 
-    const processed =
-      await processUpload({
-        buffer: pdfBuffer,
-        originalName: fileName,
-        mimeType:
-          document.mime_type ?? PDF_MIME_TYPE,
-        size: pdfBuffer.length,
-      });
+    const processed = await processUpload({
+      buffer: pdfBuffer,
+      originalName: fileName,
+      mimeType: document.mime_type ?? PDF_MIME_TYPE,
+      size: pdfBuffer.length,
+    });
 
     if (!processed.content.trim()) {
-      throw new Error(
-        "No readable text could be extracted from this PDF.",
-      );
+      throw new Error("No readable text could be extracted from this PDF.");
     }
 
     await sendMessage(
@@ -525,49 +485,19 @@ async function handleDocument(
       ].join("\n"),
     );
 
-    const note =
-      await createNote(
-        userId,
-        processed,
-        {
-          onGenerationComplete:
-            async (
-              createdNote,
-              state,
-            ) => {
-              await notifyTelegramGenerationComplete(
-                chatId,
-                createdNote,
-                state,
-              );
-            },
+    const note = await createNote(userId, processed, {
+      telegramChatId: chatId,
+    });
 
-          onGenerationError:
-            async (
-              createdNote,
-              error,
-            ) => {
-              await notifyTelegramGenerationFailure(
-                chatId,
-                createdNote,
-                error,
-              );
-            },
-        },
-      );
-
-    logger.info(
-      "[telegram] note created from PDF",
-      {
-        noteId: note.id,
-        userId,
-        telegramUserId: sender.id,
-        fileName,
-        fileSize: pdfBuffer.length,
-        pageCount: processed.pageCount,
-        charCount: processed.charCount,
-      },
-    );
+    logger.info("[telegram] note created from PDF", {
+      noteId: note.id,
+      userId,
+      telegramUserId: sender.id,
+      fileName,
+      fileSize: pdfBuffer.length,
+      pageCount: processed.pageCount,
+      charCount: processed.charCount,
+    });
 
     await sendMessage(
       chatId,
@@ -610,15 +540,12 @@ async function handleDocument(
         ? error.message
         : "Unexpected document processing error";
 
-    logger.error(
-      "[telegram] PDF processing failed",
-      {
-        userId,
-        telegramUserId: sender.id,
-        fileName,
-        error: errorMessage,
-      },
-    );
+    logger.error("[telegram] PDF processing failed", {
+      userId,
+      telegramUserId: sender.id,
+      fileName,
+      error: errorMessage,
+    });
 
     await sendMessage(
       chatId,
@@ -645,24 +572,18 @@ async function handleDocument(
 
 // ─── Text commands ────────────────────────────────────────────────────────────
 
-async function handleText(
-  message: TelegramMessage,
-): Promise<void> {
+async function handleText(message: TelegramMessage): Promise<void> {
   const text = message.text?.trim();
 
   if (!text) {
     return;
   }
 
-  const startCommand =
-    parseStartCommand(text);
+  const startCommand = parseStartCommand(text);
 
   if (startCommand.isStart) {
     if (startCommand.payload) {
-      await handleAccountLink(
-        message,
-        startCommand.payload,
-      );
+      await handleAccountLink(message, startCommand.payload);
       return;
     }
 
@@ -719,9 +640,7 @@ async function handleText(
 
 // ─── Dispatcher ───────────────────────────────────────────────────────────────
 
-export async function processUpdate(
-  update: TelegramUpdate,
-): Promise<void> {
+export async function processUpdate(update: TelegramUpdate): Promise<void> {
   const message = update.message;
 
   if (!message) {
@@ -729,10 +648,7 @@ export async function processUpdate(
   }
 
   if (message.document) {
-    await handleDocument(
-      message,
-      message.document,
-    );
+    await handleDocument(message, message.document);
     return;
   }
 
