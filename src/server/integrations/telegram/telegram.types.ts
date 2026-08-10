@@ -28,7 +28,6 @@ export interface TelegramMessage {
   from?: TelegramUser;
   chat: TelegramChat;
   date: number;
-
   text?: string;
   document?: TelegramDocument;
 }
@@ -38,8 +37,15 @@ export interface TelegramUpdate {
   message?: TelegramMessage;
 }
 
-export interface TelegramSendMessageResponse {
+export interface TelegramFile {
+  file_id: string;
+  file_unique_id: string;
+  file_size?: number;
+  file_path?: string;
+}
+
+export interface TelegramApiResponse<T> {
   ok: boolean;
-  result?: unknown;
+  result?: T;
   description?: string;
 }

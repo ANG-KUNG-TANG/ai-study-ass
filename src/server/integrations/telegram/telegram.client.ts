@@ -1,4 +1,4 @@
-import type { TelegramSendMessageResponse } from "./telegram.types";
+import type { TelegramApiResponse, TelegramFile } from "./telegram.types";
 
 const TELEGRAM_API_URL = "https://api.telegram.org";
 
@@ -12,15 +12,18 @@ function getBotToken(): string {
   return token;
 }
 
-function createTelegramUrl(method: string): string {
+function createTelegramApiUrl(method: string): string {
   return `${TELEGRAM_API_URL}/bot${getBotToken()}/${method}`;
 }
 
-export async function sendMessage(
-  chatId: number,
-  text: string,
-): Promise<TelegramSendMessageResponse> {
-  const response = await fetch(createTelegramUrl("sendMessage"), {
+function createTelegramFileUrl(filePath: string): string {
+  return `${TELEGRAM_API_URL}/file/bot${getBotToken()}/${filePath}`;
+}
+
+// ─── Send Message ─────────────────────────────────────────────────────────────
+
+export async function sendMessage(chatId: number, text: string): Promise<void> {
+  const response = await fetch(createTelegramApiUrl("sendMessage"), {
     method: "POST",
 
     headers: {
@@ -33,13 +36,57 @@ export async function sendMessage(
     }),
   });
 
-  const data = (await response.json()) as TelegramSendMessageResponse;
+  const data = (await response.json()) as TelegramApiResponse<unknown>;
 
   if (!response.ok || !data.ok) {
     throw new Error(
-      `Telegram API error: ${data.description ?? response.statusText}`,
+      `Telegram sendMessage failed: ${data.description ?? response.statusText}`,
+    );
+  }
+}
+
+// ─── Get File ─────────────────────────────────────────────────────────────────
+
+export async function getFile(fileId: string): Promise<TelegramFile> {
+  const response = await fetch(createTelegramApiUrl("getFile"), {
+    method: "POST",
+
+    headers: {
+      "Content-Type": "application/json",
+    },
+
+    body: JSON.stringify({
+      file_id: fileId,
+    }),
+  });
+
+  const data = (await response.json()) as TelegramApiResponse<TelegramFile>;
+
+  if (!response.ok || !data.ok || !data.result) {
+    throw new Error(
+      `Telegram getFile failed: ${data.description ?? response.statusText}`,
     );
   }
 
-  return data;
+  if (!data.result.file_path) {
+    throw new Error("Telegram did not return a file path");
+  }
+
+  return data.result;
+}
+
+// ─── Download File ────────────────────────────────────────────────────────────
+
+export async function downloadFile(filePath: string): Promise<Buffer> {
+  const response = await fetch(createTelegramFileUrl(filePath));
+
+  if (!response.ok) {
+    throw new Error(
+      `Telegram file download failed with status ${response.status}`,
+    );
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+
+  return Buffer.from(arrayBuffer);
 }
