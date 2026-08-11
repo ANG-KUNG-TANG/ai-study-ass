@@ -15,6 +15,7 @@ import { processUpload } from "@/server/services/upload.service";
 import { createNote } from "@/server/services/note.service";
 
 import * as telegramIntegrationRepo from "@/server/repositories/telegramIntegration.repo";
+import * as noteRepo from "@/server/repositories/note.repo";
 
 import { logger } from "@/server/utils/logger";
 
@@ -177,7 +178,7 @@ async function handleHelp(message: TelegramMessage): Promise<void> {
       "/start - Start or reopen the bot",
       "/account - Check connection",
       "/status - Check connection",
-      "/myfiles - Document list (next stage)",
+      "/myfiles - View your recent documents",
       "/help - Show this help",
     ].join("\n"),
     {
@@ -570,6 +571,127 @@ async function handleDocument(
   }
 }
 
+// ─── My Files ─────────────────────────────────────────────────────────────────
+
+async function handleMyFiles(message: TelegramMessage): Promise<void> {
+  const sender = message.from;
+
+  if (!sender) {
+    await sendMessage(
+      message.chat.id,
+      "❌ Unable to identify your Telegram account.",
+    );
+    return;
+  }
+
+  const integration =
+    await telegramIntegrationRepo.findByTelegramUserId(sender.id);
+
+  if (!integration) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "🔐 Telegram is not connected.",
+        "",
+        "Connect your AI Study Assistant account first to view your documents.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🔗 Connect Account",
+              url: buildLoginUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  await telegramIntegrationRepo.updateLastActive(sender.id);
+
+  const result = await noteRepo.findManyByUser(integration.userId, {
+    page: 1,
+    limit: 5,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
+
+  if (result.data.length === 0) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "📚 My Files",
+        "",
+        "You have not uploaded any documents yet.",
+        "",
+        "Send me a PDF to create your first study note.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🏠 Open Dashboard",
+              url: buildDashboardUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  const fileLines = result.data.flatMap((note, index) => {
+    const createdAt = note.createdAt.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+    return [
+      `${index + 1}. ${note.title}`,
+      `   ${note.fileType.toUpperCase()} • ${createdAt}`,
+      "",
+    ];
+  });
+
+  const noteButtons = result.data.map((note) => [
+    {
+      text:
+        note.title.length > 40
+          ? `📖 ${note.title.slice(0, 37)}...`
+          : `📖 ${note.title}`,
+      url: buildNoteUrl(note.id),
+    },
+  ]);
+
+  await sendMessage(
+    message.chat.id,
+    [
+      "📚 Your Recent Files",
+      "",
+      ...fileLines,
+      result.total > result.data.length
+        ? `Showing ${result.data.length} of ${result.total} documents.`
+        : `${result.total} document${result.total === 1 ? "" : "s"} total.`,
+    ].join("\n"),
+    {
+      buttons: [
+        ...noteButtons,
+        [
+          {
+            text: "🏠 View All Documents",
+            url: buildDashboardUrl(),
+          },
+        ],
+      ],
+    },
+  );
+}
+
 // ─── Text commands ────────────────────────────────────────────────────────────
 
 async function handleText(message: TelegramMessage): Promise<void> {
@@ -602,26 +724,7 @@ async function handleText(message: TelegramMessage): Promise<void> {
       return;
 
     case "/myfiles":
-      await sendMessage(
-        message.chat.id,
-        [
-          "📚 My Files",
-          "",
-          "Document listing will be connected in the next stage.",
-          "",
-          "For now, open your dashboard to view all uploaded documents.",
-        ].join("\n"),
-        {
-          buttons: [
-            [
-              {
-                text: "🏠 Open Dashboard",
-                url: buildDashboardUrl(),
-              },
-            ],
-          ],
-        },
-      );
+      await handleMyFiles(message); 
       return;
 
     default:
