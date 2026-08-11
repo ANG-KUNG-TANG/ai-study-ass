@@ -5,6 +5,7 @@ import * as flashcardService from "@/server/services/flashcard.service";
 import * as chatService from "@/server/services/chat/chat.service";
 import * as intelligenceService from "@/server/services/intelligence.service";
 import * as generationService from "@/server/services/study-material-generation.service";
+import * as recentNotesCache from "@/server/services/cache/recent-notes-cache.service";
 import { enqueueStudyGeneration } from "@/server/queues/study-generation.queue";
 import { NoteEntity } from "@/server/entities/note.entity";
 import { ForbiddenError } from "@/server/utils/errors";
@@ -17,6 +18,19 @@ export type PublicNote = ReturnType<NoteEntity["toPublic"]>;
 
 export interface CreateNoteOptions {
   telegramChatId?: number;
+}
+
+function isDashboardRecentNotesQuery(
+  options: NoteQueryOptions,
+): boolean {
+  return (
+    (options.page ?? 1) === 1 &&
+    (options.limit ?? 10) === 3 &&
+    (options.sortBy ?? "createdAt") === "createdAt" &&
+    (options.sortOrder ?? "desc") === "desc" &&
+    !options.search?.trim() &&
+    !options.fileType
+  );
 }
 
 export async function createNote(
@@ -41,6 +55,8 @@ export async function createNote(
 
   const saved = await noteRepo.create(entity);
   const publicNote = saved.toPublic();
+
+  await recentNotesCache.invalidateRecentNotesCache(userId);
 
   logger.info("Note created from upload", {
     noteId: saved.id,
@@ -100,11 +116,39 @@ export async function listNotes(
   userId: string,
   options: NoteQueryOptions = {},
 ) {
-  const result = await noteRepo.findManyByUser(userId, options);
+  const cacheable = isDashboardRecentNotesQuery(options);
+
+  if (cacheable) {
+    const cached = await recentNotesCache.getRecentNotesCache(userId);
+
+    if (cached) {
+      return {
+        data: cached.data,
+        meta: buildPaginationMeta(
+          cached.total,
+          cached.page,
+          cached.limit,
+        ),
+      };
+    }
+  }
+
+  const result = await noteRepo.findManyByUser(
+    userId,
+    options,
+  );
+
+  if (cacheable) {
+    await recentNotesCache.setRecentNotesCache(userId, result);
+  }
 
   return {
-    data: result.data.map((note) => note.toPublic()),
-    meta: buildPaginationMeta(result.total, result.page, result.limit),
+    data: result.data,
+    meta: buildPaginationMeta(
+      result.total,
+      result.page,
+      result.limit,
+    ),
   };
 }
 
@@ -126,6 +170,8 @@ export async function deleteNote(
     intelligenceService.deleteForNote(noteId),
     generationService.deleteForNote(noteId),
   ]);
+
+  await recentNotesCache.invalidateRecentNotesCache(userId);
 
   logger.info("Note and associated study data deleted", {
     noteId,

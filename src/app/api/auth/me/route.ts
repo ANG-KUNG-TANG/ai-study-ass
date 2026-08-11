@@ -5,6 +5,6 @@ import { getMe } from "@/server/controller/auth.controller";
 
 // GET /api/auth/me
 export const GET = withAuth(async (req, context, auth) => {
-  apiLimiter(req, 'me');
+  await apiLimiter(req, 'me');
   return getMe(req as NextRequest, context, auth);
 });

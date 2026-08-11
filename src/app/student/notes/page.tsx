@@ -1,11 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  FilePlus,
-} from "lucide-react";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, FilePlus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { NoteCard } from "@/components/notes/NoteCard";
 import { DeleteNoteDialog } from "@/components/notes/DeleteNoteDialog";
@@ -34,15 +30,10 @@ export default function NotesPage() {
     search: search.trim() || undefined,
   });
 
-  useEffect(() => {
+  function handleSearchChange(value: string): void {
+    setSearch(value);
     setPage(1);
-  }, [search]);
-
-  useEffect(() => {
-    if (meta && meta.totalPages > 0 && page > meta.totalPages) {
-      setPage(meta.totalPages);
-    }
-  }, [meta, page]);
+  }
 
   function requestDelete(noteId: string): void {
     const note = notes.find((item) => item.id === noteId);
@@ -70,10 +61,15 @@ export default function NotesPage() {
     try {
       await deleteNote(deleteTarget.id);
       setDeleteTarget(null);
-      refetch();
-    } catch (cause) {
+
+      if (notes.length === 1 && page > 1) {
+        setPage((current) => Math.max(1, current - 1));
+      } else {
+        refetch();
+      }
+    } catch (error) {
       setDeleteError(
-        cause instanceof Error ? cause.message : "Failed to delete paper",
+        error instanceof Error ? error.message : "Failed to delete the paper."
       );
     } finally {
       setIsDeleting(false);
@@ -84,9 +80,7 @@ export default function NotesPage() {
     meta && meta.total > 0 ? (meta.page - 1) * meta.limit + 1 : 0;
 
   const lastVisible =
-    meta && meta.total > 0
-      ? Math.min(meta.page * meta.limit, meta.total)
-      : 0;
+    meta && meta.total > 0 ? Math.min(meta.page * meta.limit, meta.total) : 0;
 
   return (
     <>
@@ -94,7 +88,7 @@ export default function NotesPage() {
         title="All papers"
         search={{
           value: search,
-          onChange: setSearch,
+          onChange: handleSearchChange,
           placeholder: "Search all papers…",
         }}
       />
@@ -204,9 +198,7 @@ export default function NotesPage() {
                 type="button"
                 disabled={!meta.hasNext || isLoading}
                 onClick={() =>
-                  setPage((current) =>
-                    Math.min(meta.totalPages, current + 1),
-                  )
+                  setPage((current) => Math.min(meta.totalPages, current + 1))
                 }
                 className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-paper-raised px-3 py-2 text-[12px] font-medium text-ink transition hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-40"
               >

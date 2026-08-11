@@ -2,6 +2,7 @@ import { generate } from "@/server/services/ai.service";
 import { buildSummaryPrompt } from "@/server/services/summary/summary.prompt";
 import * as noteRepo from "@/server/repositories/note.repo";
 import * as intelligenceService from "@/server/services/intelligence.service";
+import * as recentNotesCache from "@/server/services/cache/recent-notes-cache.service";
 import {
   buildReliableSymbolicSummary,
   isReliableCachedSummary,
@@ -165,6 +166,7 @@ export async function generateSummary(
   }
 
   await noteRepo.updateSummary(noteId, result.summary);
+  await recentNotesCache.invalidateRecentNotesCache(note.userId);
 
   return {
     summary: result.summary,

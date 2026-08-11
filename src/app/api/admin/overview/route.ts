@@ -6,7 +6,7 @@ import { getOverviewStats } from "@/server/controller/admin.controller";
 
 // GET /api/admin/overview
 export const GET = withRole("admin")(async (req, _context, auth) => {
-  apiLimiter(req, 'admin:overview');
+  await apiLimiter(req, 'admin:overview');
   return getOverviewStats(
     req as NextRequest,
     { params: Promise.resolve({} as Record<string, string>) },

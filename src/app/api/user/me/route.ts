@@ -10,7 +10,7 @@ import {
 // GET /api/user/me
 export const GET = withAuth(
   async (req, context, auth) => {
-    apiLimiter(
+    await apiLimiter(
       req,
       `user:${auth.userId}:profile:read`,
     );
@@ -26,7 +26,7 @@ export const GET = withAuth(
 // PATCH /api/user/me
 export const PATCH = withAuth(
   async (req, context, auth) => {
-    apiLimiter(
+    await apiLimiter(
       req,
       `user:${auth.userId}:profile:update`,
     );
@@ -42,7 +42,7 @@ export const PATCH = withAuth(
 // DELETE /api/user/me
 export const DELETE = withAuth(
   async (req, context, auth) => {
-    apiLimiter(
+    await apiLimiter(
       req,
       `user:${auth.userId}:profile:delete`,
     );

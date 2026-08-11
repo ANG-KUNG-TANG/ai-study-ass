@@ -5,7 +5,7 @@ import { getUser, deleteUser } from "@/server/controller/admin.controller";
 
 // GET /api/admin/users/[id]
 export const GET = withRole("admin")(async (req, context, auth) => {
-  apiLimiter(req, "admin:get-user");
+  await apiLimiter(req, "admin:get-user");
   const params = await context.params;
   return getUser(
     req as NextRequest,
@@ -16,7 +16,7 @@ export const GET = withRole("admin")(async (req, context, auth) => {
 
 // DELETE /api/admin/users/[id]
 export const DELETE = withRole("admin")(async (req, context, auth) => {
-  apiLimiter(req, "admin:delete-user");
+  await apiLimiter(req, "admin:delete-user");
   const params = await context.params;
   return deleteUser(
     req as NextRequest,

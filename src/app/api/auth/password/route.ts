@@ -7,7 +7,7 @@ import { authLimiter } from "@/server/middleware/rate_limiter.middleware";
 
 export const PATCH = withErrorHandler(
   withAuth(async (request, context: RouteContext, auth) => {
-    authLimiter(request, "change-password");
+    await authLimiter(request, "change-password");
 
     return changePassword(
       request as NextRequest,

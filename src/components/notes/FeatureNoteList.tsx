@@ -26,7 +26,7 @@ import {
   useNotes,
 } from "@/hooks/useNotes";
 import type {
-  Note,
+  NoteListItem,
 } from "@/types/notes";
 
 export type StudyFeature =
@@ -197,7 +197,7 @@ function formatFileSize(
 }
 
 function summaryPreview(
-  note: Note,
+  note: NoteListItem,
 ): string {
   const summary =
     note.summary?.trim();
@@ -214,7 +214,7 @@ function FeatureCard({
   feature,
   config,
 }: {
-  note: Note;
+  note: NoteListItem;
   feature: StudyFeature;
   config: FeatureConfig;
 }) {

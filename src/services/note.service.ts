@@ -1,5 +1,5 @@
 import { apiFetch, apiFetchPaginated } from "@/lib/api";
-import type { Note, NoteListParams } from "@/types/notes";
+import type { Note, NoteListItem, NoteListParams } from "@/types/notes";
 import type { PaginationMeta } from "@/types/pagination";
 
 function buildQuery(params: NoteListParams = {}): string {
@@ -15,8 +15,8 @@ function buildQuery(params: NoteListParams = {}): string {
 
 export function listNotes(
   params?: NoteListParams
-): Promise<{ data: Note[]; meta: PaginationMeta }> {
-  return apiFetchPaginated<Note>(`/notes${buildQuery(params)}`);
+): Promise<{ data: NoteListItem[]; meta: PaginationMeta }> {
+  return apiFetchPaginated<NoteListItem>(`/notes${buildQuery(params)}`);
 }
 
 export function getNoteById(id: string): Promise<Note> {

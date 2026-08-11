@@ -9,7 +9,7 @@ export const POST = withRole("admin")(
     const params = await context.params;
     const id = params.id;
 
-    apiLimiter(
+    await apiLimiter(
       req,
       `admin:${auth.userId}:user:${id}:unban`,
     );

@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { listNotes, getNoteById } from "@/services/note.service";
-import type { Note, NoteListParams } from "@/types/notes";
+import type { Note, NoteListItem, NoteListParams } from "@/types/notes";
 import type { PaginationMeta } from "@/types/pagination";
 
 // ─── useNotes — list of notes, paginated ──────────────────────────────────────
 
 interface UseNotesResult {
-  notes: Note[];
+  notes: NoteListItem[];
   meta: PaginationMeta | null;
   isLoading: boolean;
   error: string | null;
@@ -16,7 +16,7 @@ interface UseNotesResult {
 }
 
 export function useNotes(params?: NoteListParams): UseNotesResult {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

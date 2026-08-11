@@ -6,6 +6,6 @@ import { login } from "@/server/controller/auth.controller";
 // POST /api/auth/login
 // Public. authLimiter is the brute-force guard here.
 export const POST = withErrorHandler(async (req) => {
-  authLimiter(req, 'login');
+  await authLimiter(req, 'login');
   return login(req as NextRequest);
 });

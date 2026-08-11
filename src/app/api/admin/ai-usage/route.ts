@@ -19,7 +19,7 @@ export const GET =
       _context,
       auth,
     ) => {
-      apiLimiter(
+      await apiLimiter(
         req,
         "admin:ai-usage",
       );

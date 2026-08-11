@@ -14,6 +14,25 @@ export interface NoteQueryOptions {
   sortOrder?: "asc" | "desc";
 }
 
+export interface NoteListItem {
+  id: string;
+  userId: string;
+  title: string;
+  fileName: string;
+  fileType: "pdf" | "docx";
+  fileSize: number;
+  summary: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PaginatedNoteList {
+  data: NoteListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface PaginatedNotes {
   data: NoteEntity[];
   total: number;
@@ -57,6 +76,30 @@ function toEntity(doc: {
   });
 }
 
+function toListItem(doc: {
+  _id: unknown;
+  userId: unknown;
+  title: string;
+  fileName: string;
+  fileType: "pdf" | "docx";
+  fileSize: number;
+  summary?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): NoteListItem {
+  return {
+    id: String(doc._id),
+    userId: String(doc.userId),
+    title: doc.title,
+    fileName: doc.fileName,
+    fileType: doc.fileType,
+    fileSize: doc.fileSize,
+    summary: doc.summary ?? null,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  };
+}
+
 // ─── Read — single record ─────────────────────────────────────────────────────
 export async function findById(id: string): Promise<NoteEntity | null> {
   const doc = await Note.findById(id).lean().exec();
@@ -85,7 +128,7 @@ export async function existsById(id: string): Promise<boolean> {
 export async function findManyByUser(
   userId: string,
   options: NoteQueryOptions = {},
-): Promise<PaginatedNotes> {
+): Promise<PaginatedNoteList> {
   const page = Math.max(1, options.page ?? DEFAULT_PAGE);
   const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
   const skip = (page - 1) * limit;
@@ -103,6 +146,16 @@ export async function findManyByUser(
 
   const [docs, total] = await Promise.all([
     Note.find(filter)
+      .select({
+        userId: 1,
+        title: 1,
+        fileName: 1,
+        fileType: 1,
+        fileSize: 1,
+        summary: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      })
       .sort({ [sortBy]: sortOrder })
       .skip(skip)
       .limit(limit)
@@ -112,7 +165,7 @@ export async function findManyByUser(
   ]);
 
   return {
-    data: docs.map(toEntity),
+    data: docs.map(toListItem),
     total,
     page,
     limit,
