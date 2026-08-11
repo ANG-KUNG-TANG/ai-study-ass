@@ -5,10 +5,17 @@ import type {
 
 const TELEGRAM_API_URL = "https://api.telegram.org";
 
-export interface TelegramInlineButton {
-  text: string;
-  url: string;
-}
+export type TelegramInlineButton =
+  | {
+      text: string;
+      url: string;
+      callback_data?: never;
+    }
+  | {
+      text: string;
+      callback_data: string;
+      url?: never;
+    };
 
 export interface TelegramSendMessageOptions {
   buttons?: TelegramInlineButton[][];
@@ -115,4 +122,34 @@ export async function downloadFile(filePath: string): Promise<Buffer> {
   const arrayBuffer = await response.arrayBuffer();
 
   return Buffer.from(arrayBuffer);
+}
+
+export async function answerCallbackQuery(
+  callbackQueryId: string,
+  text?: string,
+): Promise<void> {
+  const response = await fetch(
+    createTelegramApiUrl("answerCallbackQuery"),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        callback_query_id: callbackQueryId,
+        ...(text ? { text } : {}),
+      }),
+    },
+  );
+
+  const data =
+    (await response.json()) as TelegramApiResponse<unknown>;
+
+  if (!response.ok || !data.ok) {
+    throw new Error(
+      `Telegram answerCallbackQuery failed: ${
+        data.description ?? response.statusText
+      }`,
+    );
+  }
 }

@@ -94,6 +94,28 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
   }
 
   const cleaned = cleanText(rawText);
+  
+  const pageCount = result.total ?? 0;
+
+  const averageCharsPerPage =
+    pageCount > 0 ? cleaned.length / pageCount : cleaned.length;
+
+  const looksLikeLowTextPdf =
+    pageCount >= 5 &&
+    cleaned.length < 1000 &&
+    averageCharsPerPage < 40;
+
+  if (looksLikeLowTextPdf) {
+    logger.warn("PDF has insufficient extractable text", {
+      pageCount,
+      charCount: cleaned.length,
+      averageCharsPerPage: Math.round(averageCharsPerPage),
+    });
+
+    throw new FileError(
+      "This PDF contains too little extractable text to generate reliable study materials. It may be scanned or image-based. Please upload a text-based PDF.",
+    );
+  }
 
   const text =
     cleaned.length > MAX_CONTENT_LENGTH
@@ -170,3 +192,4 @@ function cleanText(raw: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+

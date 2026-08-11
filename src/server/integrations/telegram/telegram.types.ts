@@ -35,6 +35,7 @@ export interface TelegramMessage {
 export interface TelegramUpdate {
   update_id: number;
   message?: TelegramMessage;
+  callback_query?: TelegramCallbackQuery;
 }
 
 export interface TelegramFile {
@@ -48,4 +49,11 @@ export interface TelegramApiResponse<T> {
   ok: boolean;
   result?: T;
   description?: string;
+}
+
+export interface TelegramCallbackQuery {
+  id: string;
+  from: TelegramUser;
+  message?: TelegramMessage;
+  data?: string;
 }

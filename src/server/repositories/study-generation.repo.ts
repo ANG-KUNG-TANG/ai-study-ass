@@ -7,10 +7,10 @@ import {
   GENERATION_FEATURES,
   type FeatureGenerationState,
   type GenerationFeature,
+  type GenerationStep,
   type StudyGenerationStage,
   type StudyGenerationState,
 } from "@/server/types/generation";
-import { type GenerationStep } from "@/server/types/generation";
 
 
 function freshFeatureState(): FeatureGenerationState {
@@ -77,12 +77,10 @@ export async function initialise(
           features: freshFeatures(),
           startedAt: now,
           completedAt: null,
-          updatedAt: now,
         },
         $setOnInsert: {
           _id: noteId,
           noteId,
-          createdAt: now,
         },
       }
     : {
@@ -95,14 +93,12 @@ export async function initialise(
           features: freshFeatures(),
           startedAt: now,
           completedAt: null,
-          createdAt: now,
-          updatedAt: now,
         },
       };
 
   const doc = await StudyGeneration.findOneAndUpdate({ _id: noteId }, update, {
     upsert: true,
-    new: true,
+    returnDocument: "after",
     setDefaultsOnInsert: true,
   })
     .lean()
@@ -130,7 +126,6 @@ export async function updateStage(
       $set: {
         stage,
         completedAt,
-        updatedAt: new Date(),
       },
     },
   ).exec();
@@ -177,7 +172,6 @@ export async function updateCurrentStep(
     {
       $set: {
         currentStep,
-        updatedAt: new Date(),
       },
     },
   ).exec();

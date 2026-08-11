@@ -48,6 +48,8 @@ function getProducerConnection(): IORedis {
   const connection = new IORedis(getRedisUrl(), {
     maxRetriesPerRequest: 1,
     enableReadyCheck: true,
+    enableOfflineQueue: false,
+    connectTimeout: 3_000,
   });
 
   connection.on("error", (error) => {

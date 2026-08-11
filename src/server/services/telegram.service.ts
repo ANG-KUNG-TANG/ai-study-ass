@@ -2,9 +2,11 @@ import type {
   TelegramDocument,
   TelegramMessage,
   TelegramUpdate,
+  TelegramCallbackQuery,
 } from "@/server/integrations/telegram/telegram.types";
 
 import {
+  answerCallbackQuery,
   sendMessage,
   getFile,
   downloadFile,
@@ -27,6 +29,26 @@ import { logger } from "@/server/utils/logger";
 
 const PDF_MIME_TYPE = "application/pdf";
 const TELEGRAM_DOWNLOAD_LIMIT_BYTES = 20 * 1024 * 1024;
+
+type NoteCallbackAction = "status" | "retry";
+
+interface NoteCallback {
+  action: NoteCallbackAction;
+  noteId: string;
+}
+
+function parseNoteCallback(data: string): NoteCallback | null {
+  const match = data.match(/^(status|retry):(.+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    action: match[1] as NoteCallbackAction,
+    noteId: match[2],
+  };
+}
 
 function getPublicAppUrl(): string {
   const url = process.env.APP_PUBLIC_URL?.trim();
@@ -598,6 +620,166 @@ async function handleGenerationStatus(message: TelegramMessage): Promise<void> {
     },
   );
 }
+
+async function sendGenerationStatusForNote(
+  chatId: number,
+  userId: string,
+  noteId: string,
+): Promise<void> {
+  const note = await noteRepo.findByIdOrThrow(noteId);
+
+  if (!note.belongsTo(userId)) {
+    await sendMessage(chatId, "❌ You do not have access to this document.");
+    return;
+  }
+
+  const generation = await generationRepo.findByNoteId(note.id);
+
+  if (!generation) {
+    await sendMessage(
+      chatId,
+      [
+        "📊 Study Generation Status",
+        "",
+        `📄 ${note.title}`,
+        "",
+        "⏳ Generation is waiting to start.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "📖 Open Note",
+              url: buildNoteUrl(note.id),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  const { features } = generation;
+
+  await sendMessage(
+    chatId,
+    [
+      "📊 Study Generation Status",
+      "",
+      `📄 ${note.title}`,
+      "",
+      `Current phase: ${generationStepLabel(generation.currentStep)}`,
+      "",
+      `${intelligenceStatusIcon(generation.stage)} Intelligence`,
+      `${featureStatusIcon(features.summary.status)} Summary`,
+      `${featureStatusIcon(features.chatKnowledge.status)} Knowledge`,
+      `${featureStatusIcon(features.quiz.status)} Quiz`,
+      `${featureStatusIcon(features.flashcards.status)} Flashcards`,
+      "",
+      `Overall: ${generationStageLabel(generation.stage)}`,
+    ].join("\n"),
+    {
+      buttons: [
+        [
+          {
+            text: "📖 Open Note",
+            url: buildNoteUrl(note.id),
+          },
+        ],
+      ],
+    },
+  );
+}
+
+async function retryGenerationForNote(
+  chatId: number,
+  userId: string,
+  noteId: string,
+): Promise<void> {
+  const note = await noteRepo.findByIdOrThrow(noteId);
+
+  if (!note.belongsTo(userId)) {
+    await sendMessage(chatId, "❌ You do not have access to this document.");
+    return;
+  }
+
+  const generation = await generationRepo.findByNoteId(note.id);
+
+  if (
+    generation &&
+    (generation.stage === "pending" ||
+      generation.stage === "analyzing" ||
+      generation.stage === "generating")
+  ) {
+    await sendMessage(
+      chatId,
+      [
+        "⏳ Generation is already running.",
+        "",
+        `📄 ${note.title}`,
+        "",
+        `Current phase: ${generationStepLabel(generation.currentStep)}`,
+        "",
+        "Use /status to check progress.",
+      ].join("\n"),
+    );
+
+    return;
+  }
+
+  if (generation?.stage === "complete") {
+    await sendMessage(
+      chatId,
+      ["✅ Generation is already complete.", "", `📄 ${note.title}`].join("\n"),
+    );
+
+    return;
+  }
+
+  const result = await retryStudyGeneration({
+    noteId: note.id,
+    userId,
+    telegramChatId: chatId,
+    force: true,
+  });
+
+  if (result.status === "already-running") {
+    await sendMessage(
+      chatId,
+      [
+        "⏳ Generation is already queued or running.",
+        "",
+        `📄 ${note.title}`,
+      ].join("\n"),
+    );
+
+    return;
+  }
+
+  await sendMessage(
+    chatId,
+    [
+      "🔄 Generation retry started!",
+      "",
+      `📄 ${note.title}`,
+      "",
+      "The document has been placed back in the generation queue.",
+      "",
+      "Use /status to follow progress.",
+    ].join("\n"),
+    {
+      buttons: [
+        [
+          {
+            text: "📖 Open Note",
+            url: buildNoteUrl(note.id),
+          },
+        ],
+      ],
+    },
+  );
+}
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
 async function handleHelp(message: TelegramMessage): Promise<void> {
@@ -617,6 +799,7 @@ async function handleHelp(message: TelegramMessage): Promise<void> {
       "/account - Check connection",
       "/status - Check latest document generation",
       "/myfiles - View your recent documents",
+      "/retry - Retry failed or partial generation",
       "/help - Show this help",
     ].join("\n"),
     {
@@ -1099,11 +1282,16 @@ async function handleMyFiles(message: TelegramMessage): Promise<void> {
 
   const noteButtons = result.data.map((note) => [
     {
-      text:
-        note.title.length > 40
-          ? `📖 ${note.title.slice(0, 37)}...`
-          : `📖 ${note.title}`,
+      text: "📖 Open",
       url: buildNoteUrl(note.id),
+    },
+    {
+      text: "📊 Status",
+      callback_data: `status:${note.id}`,
+    },
+    {
+      text: "🔄 Retry",
+      callback_data: `retry:${note.id}`,
     },
   ]);
 
@@ -1168,7 +1356,7 @@ async function handleText(message: TelegramMessage): Promise<void> {
     case "/myfiles":
       await handleMyFiles(message);
       return;
-    
+
     case "/retry":
       await handleRetry(message);
       return;
@@ -1190,9 +1378,79 @@ async function handleText(message: TelegramMessage): Promise<void> {
   }
 }
 
+async function handleCallbackQuery(
+  query: TelegramCallbackQuery,
+): Promise<void> {
+  const message = query.message;
+  const data = query.data;
+
+  if (!message || !data) {
+    await answerCallbackQuery(query.id, "Action unavailable.");
+    return;
+  }
+
+  const callback = parseNoteCallback(data);
+
+  if (!callback) {
+    await answerCallbackQuery(query.id, "Unknown action.");
+    return;
+  }
+
+  const integration = await telegramIntegrationRepo.findByTelegramUserId(
+    query.from.id,
+  );
+
+  if (!integration) {
+    await answerCallbackQuery(query.id, "Connect your account first.");
+
+    await sendMessage(message.chat.id, "🔐 Telegram is not connected.");
+
+    return;
+  }
+
+  await telegramIntegrationRepo.updateLastActive(query.from.id);
+
+  // Stop Telegram's button-loading animation immediately.
+  await answerCallbackQuery(query.id);
+
+  try {
+    switch (callback.action) {
+      case "status":
+        await sendGenerationStatusForNote(
+          message.chat.id,
+          integration.userId,
+          callback.noteId,
+        );
+        return;
+
+      case "retry":
+        await retryGenerationForNote(
+          message.chat.id,
+          integration.userId,
+          callback.noteId,
+        );
+        return;
+    }
+  } catch (error) {
+    logger.error("[telegram] callback action failed", {
+      telegramUserId: query.from.id,
+      action: callback.action,
+      noteId: callback.noteId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    await sendMessage(message.chat.id, "❌ Unable to complete that action.");
+  }
+}
+
 // ─── Dispatcher ───────────────────────────────────────────────────────────────
 
 export async function processUpdate(update: TelegramUpdate): Promise<void> {
+  if (update.callback_query) {
+    await handleCallbackQuery(update.callback_query);
+    return;
+  }
+
   const message = update.message;
 
   if (!message) {

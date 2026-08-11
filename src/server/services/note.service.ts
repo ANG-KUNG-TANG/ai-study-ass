@@ -8,7 +8,7 @@ import * as generationService from "@/server/services/study-material-generation.
 import * as recentNotesCache from "@/server/services/cache/recent-notes-cache.service";
 import { enqueueStudyGeneration } from "@/server/queues/study-generation.queue";
 import { NoteEntity } from "@/server/entities/note.entity";
-import { ForbiddenError } from "@/server/utils/errors";
+import { ForbiddenError, ServiceUnavailableError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import { buildPaginationMeta } from "@/server/utils/response";
 import type { ProcessedFile } from "@/server/services/upload.service";
@@ -20,9 +20,7 @@ export interface CreateNoteOptions {
   telegramChatId?: number;
 }
 
-function isDashboardRecentNotesQuery(
-  options: NoteQueryOptions,
-): boolean {
+function isDashboardRecentNotesQuery(options: NoteQueryOptions): boolean {
   return (
     (options.page ?? 1) === 1 &&
     (options.limit ?? 10) === 3 &&
@@ -93,7 +91,9 @@ export async function createNote(
       });
     }
 
-    throw error;
+    throw new ServiceUnavailableError(
+      "Study generation is temporarily unavailable. Please try uploading the document again shortly.",
+    );
   }
 
   return publicNote;
@@ -124,19 +124,12 @@ export async function listNotes(
     if (cached) {
       return {
         data: cached.data,
-        meta: buildPaginationMeta(
-          cached.total,
-          cached.page,
-          cached.limit,
-        ),
+        meta: buildPaginationMeta(cached.total, cached.page, cached.limit),
       };
     }
   }
 
-  const result = await noteRepo.findManyByUser(
-    userId,
-    options,
-  );
+  const result = await noteRepo.findManyByUser(userId, options);
 
   if (cacheable) {
     await recentNotesCache.setRecentNotesCache(userId, result);
@@ -144,11 +137,7 @@ export async function listNotes(
 
   return {
     data: result.data,
-    meta: buildPaginationMeta(
-      result.total,
-      result.page,
-      result.limit,
-    ),
+    meta: buildPaginationMeta(result.total, result.page, result.limit),
   };
 }
 
