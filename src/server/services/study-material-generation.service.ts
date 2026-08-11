@@ -118,6 +118,17 @@ function calculateFinalStage(
   return "failed";
 }
 
+async function setCurrentStep(
+  noteId: string,
+  step: StudyGenerationState["currentStep"],
+): Promise<void> {
+  await generationRepo.updateCurrentStep(noteId, step);
+
+  await generationStatusCache.invalidateGenerationStatusCache(
+    noteId,
+  );
+}
+
 export async function generateStudyMaterials(
   input: GenerateStudyMaterialsInput,
 ): Promise<StudyGenerationState> {
@@ -136,6 +147,8 @@ export async function generateStudyMaterials(
 
   await generationRepo.updateStage(input.noteId, "analyzing");
   await generationStatusCache.invalidateGenerationStatusCache(input.noteId);
+  await setCurrentStep(input.noteId, "intelligence");
+
 
   const document =
     input.document ??

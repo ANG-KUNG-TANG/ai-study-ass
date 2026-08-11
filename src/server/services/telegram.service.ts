@@ -20,6 +20,7 @@ import * as generationRepo from "@/server/repositories/study-generation.repo";
 import type {
   FeatureGenerationStatus,
   StudyGenerationStage,
+  StudyGenerationState,
 } from "@/server/types/generation";
 
 import { logger } from "@/server/utils/logger";
@@ -149,6 +150,36 @@ function generationStageLabel(stage: StudyGenerationStage): string {
 
     case "failed":
       return "Failed";
+
+    default:
+      return "Unknown";
+  }
+}
+
+function generationStepLabel(
+  step: StudyGenerationState["currentStep"],
+): string {
+  switch (step) {
+    case "queued":
+      return "Waiting in queue";
+
+    case "intelligence":
+      return "Analyzing document";
+
+    case "summary":
+      return "Generating summary";
+
+    case "chatKnowledge":
+      return "Generating knowledge concepts";
+
+    case "quiz":
+      return "Generating quiz";
+
+    case "flashcards":
+      return "Generating flashcards";
+
+    case "complete":
+      return "Complete";
 
     default:
       return "Unknown";
@@ -346,6 +377,8 @@ async function handleGenerationStatus(message: TelegramMessage): Promise<void> {
       "📊 Study Generation Status",
       "",
       `📄 ${note.title}`,
+      "",
+      `Current phase: ${generationStepLabel(generation.currentStep)}`,
       "",
       `${intelligenceStatusIcon(generation.stage)} Intelligence`,
       `${featureStatusIcon(features.summary.status)} Summary`,

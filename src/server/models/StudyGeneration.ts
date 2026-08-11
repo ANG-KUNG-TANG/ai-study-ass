@@ -34,8 +34,24 @@ const featureStateSchema = new Schema(
     aiFallbackUsed: { type: Boolean, required: true, default: false },
     itemCount: { type: Number, min: 0, default: null },
     error: { type: String, default: null },
-    updatedAt: { type: Date, required: true, default: Date.now },
+    updatedAt: { type: Date, required: true, default: Date.now 
+    },
+
+    currentStep: {
+      type: String,
+          enum: [
+            "queued",
+            "intelligence",
+            "summary",
+            "quiz",
+            "flashcards",
+            "chatKnowledge",
+            "complete",
+          ],
+      default: "queued",
+},
   },
+
   { _id: false },
 );
 
@@ -58,7 +74,14 @@ const studyGenerationSchema = new Schema(
     userId: { type: String, required: true, index: true },
     stage: {
       type: String,
-      enum: ["pending", "analyzing", "generating", "complete", "partial", "failed"],
+      enum: [
+        "pending",
+        "analyzing",
+        "generating",
+        "complete",
+        "partial",
+        "failed",
+      ],
       required: true,
       default: "pending",
     },

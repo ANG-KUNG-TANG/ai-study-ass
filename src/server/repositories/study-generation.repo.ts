@@ -10,6 +10,8 @@ import {
   type StudyGenerationStage,
   type StudyGenerationState,
 } from "@/server/types/generation";
+import { type GenerationStep } from "@/server/types/generation";
+
 
 function freshFeatureState(): FeatureGenerationState {
   return {
@@ -38,6 +40,7 @@ function toState(value: unknown): StudyGenerationState {
     noteId: string;
     userId: string;
     stage: StudyGenerationStage;
+    currentStep: GenerationStep;
     features: StudyGenerationState["features"];
     startedAt: Date;
     completedAt?: Date | null;
@@ -49,6 +52,7 @@ function toState(value: unknown): StudyGenerationState {
     noteId: doc.noteId ?? doc._id,
     userId: doc.userId,
     stage: doc.stage,
+    currentStep: doc.currentStep ?? "queued",
     features: doc.features,
     startedAt: doc.startedAt,
     completedAt: doc.completedAt ?? null,
@@ -69,6 +73,7 @@ export async function initialise(
         $set: {
           userId,
           stage: "pending",
+          currentStep: "queued",
           features: freshFeatures(),
           startedAt: now,
           completedAt: null,
@@ -86,6 +91,7 @@ export async function initialise(
           noteId,
           userId,
           stage: "pending",
+          currentStep: "queued",
           features: freshFeatures(),
           startedAt: now,
           completedAt: null,
@@ -94,11 +100,11 @@ export async function initialise(
         },
       };
 
-  const doc = await StudyGeneration.findOneAndUpdate(
-    { _id: noteId },
-    update,
-    { upsert: true, new: true, setDefaultsOnInsert: true },
-  )
+  const doc = await StudyGeneration.findOneAndUpdate({ _id: noteId }, update, {
+    upsert: true,
+    new: true,
+    setDefaultsOnInsert: true,
+  })
     .lean()
     .exec();
 
@@ -160,4 +166,19 @@ export async function findByNoteId(
 
 export async function deleteByNoteId(noteId: string): Promise<void> {
   await StudyGeneration.deleteOne({ _id: noteId }).exec();
+}
+
+export async function updateCurrentStep(
+  noteId: string,
+  currentStep: GenerationStep,
+): Promise<void> {
+  await StudyGeneration.updateOne(
+    { _id: noteId },
+    {
+      $set: {
+        currentStep,
+        updatedAt: new Date(),
+      },
+    },
+  ).exec();
 }

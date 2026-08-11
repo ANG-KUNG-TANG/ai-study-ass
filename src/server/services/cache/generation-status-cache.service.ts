@@ -5,6 +5,7 @@ import {
   type FeatureGenerationState,
   type GenerationFeature,
   type StudyGenerationState,
+  type GenerationStep,
 } from "@/server/types/generation";
 
 const CACHE_PREFIX = "ai-study:note";
@@ -53,6 +54,29 @@ function reviveFeature(
   };
 }
 
+function inferCurrentStep(
+  stage: StudyGenerationState["stage"],
+): GenerationStep {
+  switch (stage) {
+    case "pending":
+      return "queued";
+
+    case "analyzing":
+      return "intelligence";
+
+    case "generating":
+      return "summary";
+
+    case "complete":
+    case "partial":
+    case "failed":
+      return "complete";
+
+    default:
+      return "queued";
+  }
+}
+
 function parseCachedState(
   raw: string,
 ): StudyGenerationState {
@@ -84,6 +108,12 @@ function parseCachedState(
     noteId: value.noteId,
     userId: value.userId,
     stage: value.stage as StudyGenerationState["stage"],
+    currentStep:
+      typeof value.currentStep === "string"
+        ? (value.currentStep as GenerationStep)
+        : inferCurrentStep(
+            value.stage as StudyGenerationState["stage"],
+          ),
     features,
     startedAt: toDate(value.startedAt),
     completedAt:

@@ -53,9 +53,23 @@ export interface StudyGenerationState {
   noteId: string;
   userId: string;
   stage: StudyGenerationStage;
+  currentStep: GenerationStep;
   features: Record<GenerationFeature, FeatureGenerationState>;
   startedAt: Date;
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
+
+export const GENERATION_STEPS = [
+  "queued",
+  "intelligence",
+  "summary",
+  "quiz",
+  "flashcards",
+  "chatKnowledge",
+  "complete",
+] as const;
+
+export type GenerationStep =
+  (typeof GENERATION_STEPS)[number];
