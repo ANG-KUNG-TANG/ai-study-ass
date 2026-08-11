@@ -22,7 +22,7 @@ import type {
   StudyGenerationStage,
   StudyGenerationState,
 } from "@/server/types/generation";
-
+import { retryStudyGeneration } from "@/server/queues/study-generation.queue";
 import { logger } from "@/server/utils/logger";
 
 const PDF_MIME_TYPE = "application/pdf";
@@ -262,6 +262,198 @@ async function handleStart(message: TelegramMessage): Promise<void> {
       ],
     },
   );
+}
+// --- retry / retry
+async function handleRetry(message: TelegramMessage): Promise<void> {
+  const sender = message.from;
+
+  if (!sender) {
+    await sendMessage(
+      message.chat.id,
+      "❌ Unable to identify your Telegram account.",
+    );
+    return;
+  }
+
+  const integration = await telegramIntegrationRepo.findByTelegramUserId(
+    sender.id,
+  );
+
+  if (!integration) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "🔐 Telegram is not connected.",
+        "",
+        "Connect your AI Study Assistant account before retrying generation.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🔗 Connect Account",
+              url: buildLoginUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  await telegramIntegrationRepo.updateLastActive(sender.id);
+
+  const notes = await noteRepo.findManyByUser(integration.userId, {
+    page: 1,
+    limit: 1,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
+
+  const note = notes.data[0];
+
+  if (!note) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "🔄 Retry Generation",
+        "",
+        "You do not have any uploaded documents yet.",
+        "",
+        "Upload a PDF first.",
+      ].join("\n"),
+    );
+
+    return;
+  }
+
+  const generation = await generationRepo.findByNoteId(note.id);
+
+  if (
+    generation &&
+    (generation.stage === "pending" ||
+      generation.stage === "analyzing" ||
+      generation.stage === "generating")
+  ) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "⏳ Generation is already running.",
+        "",
+        `📄 ${note.title}`,
+        "",
+        `Current phase: ${generationStepLabel(generation.currentStep)}`,
+        "",
+        "Use /status to check progress.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "📖 Open Note",
+              url: buildNoteUrl(note.id),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  if (generation?.stage === "complete") {
+    await sendMessage(
+      message.chat.id,
+      [
+        "✅ Generation is already complete.",
+        "",
+        `📄 ${note.title}`,
+        "",
+        "All study materials have already been generated.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "📖 Open Note",
+              url: buildNoteUrl(note.id),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  try {
+    const result = await retryStudyGeneration({
+      noteId: note.id,
+      userId: integration.userId,
+      telegramChatId: message.chat.id,
+      force: true,
+    });
+
+    if (result.status === "already-running") {
+      await sendMessage(
+        message.chat.id,
+        [
+          "⏳ Generation is already queued or running.",
+          "",
+          `📄 ${note.title}`,
+          "",
+          "Use /status to check progress.",
+        ].join("\n"),
+      );
+
+      return;
+    }
+
+    await sendMessage(
+      message.chat.id,
+      [
+        "🔄 Generation retry started!",
+        "",
+        `📄 ${note.title}`,
+        "",
+        "The document has been placed back in the generation queue.",
+        "",
+        "📝 Summary",
+        "🧠 Knowledge",
+        "❓ Quiz",
+        "🃏 Flashcards",
+        "",
+        "Use /status to follow the progress.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "📖 Open Note",
+              url: buildNoteUrl(note.id),
+            },
+          ],
+        ],
+      },
+    );
+  } catch (error) {
+    logger.error("[telegram] generation retry failed", {
+      noteId: note.id,
+      userId: integration.userId,
+      telegramUserId: sender.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    await sendMessage(
+      message.chat.id,
+      [
+        "❌ Unable to retry generation.",
+        "",
+        "Please try again later or check /status.",
+      ].join("\n"),
+    );
+  }
 }
 
 // ─── Generation status ────────────────────────────────────────────────────────
@@ -976,6 +1168,10 @@ async function handleText(message: TelegramMessage): Promise<void> {
     case "/myfiles":
       await handleMyFiles(message);
       return;
+    
+    case "/retry":
+      await handleRetry(message);
+      return;
 
     default:
       await sendMessage(
@@ -988,6 +1184,7 @@ async function handleText(message: TelegramMessage): Promise<void> {
           "/account",
           "/status",
           "/myfiles",
+          "/retry",
         ].join("\n"),
       );
   }

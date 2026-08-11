@@ -67,29 +67,111 @@ export function getStudyGenerationQueue(): StudyGenerationQueue {
     return queueGlobal.__studyGenerationQueue;
   }
 
-  const queue = new Queue<
-    StudyGenerationJobData,
-    StudyGenerationJobResult
-  >(STUDY_GENERATION_QUEUE_NAME, {
-    connection: getProducerConnection(),
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: {
-        type: "exponential",
-        delay: 5_000,
-      },
-      removeOnComplete: {
-        count: 100,
-      },
-      removeOnFail: {
-        count: 100,
+  const queue = new Queue<StudyGenerationJobData, StudyGenerationJobResult>(
+    STUDY_GENERATION_QUEUE_NAME,
+    {
+      connection: getProducerConnection(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 5_000,
+        },
+        removeOnComplete: {
+          count: 100,
+        },
+        removeOnFail: {
+          count: 100,
+        },
       },
     },
-  });
+  );
 
   queueGlobal.__studyGenerationQueue = queue;
 
   return queue;
+}
+
+export interface StudyGenerationRetryResult {
+  status: "queued" | "already-running";
+  jobId: string;
+  state?: string;
+}
+
+export async function retryStudyGeneration(
+  data: StudyGenerationJobData,
+): Promise<StudyGenerationRetryResult> {
+  const queue = getStudyGenerationQueue();
+  const jobId = `study-${data.noteId}`;
+
+  const retryData: StudyGenerationJobData = {
+    ...data,
+    force: true,
+  };
+
+  const existing = await queue.getJob(jobId);
+
+  // Old job may already have been auto-removed.
+  if (!existing) {
+    const newJobId = await enqueueStudyGeneration(retryData);
+
+    return {
+      status: "queued",
+      jobId: newJobId,
+    };
+  }
+
+  const state = await existing.getState();
+
+  // The job disappeared between getJob() and getState().
+  if (state === "unknown") {
+    const newJobId = await enqueueStudyGeneration(retryData);
+
+    return {
+      status: "queued",
+      jobId: newJobId,
+    };
+  }
+
+  // BullMQ can manually retry both failed and completed jobs.
+  if (state === "failed" || state === "completed") {
+    await existing.updateData({
+      ...existing.data,
+      ...retryData,
+    });
+
+    await existing.retry(state, {
+      resetAttemptsMade: true,
+      resetAttemptsStarted: true,
+    });
+
+    logger.info("[queue] study generation manually retried", {
+      queue: STUDY_GENERATION_QUEUE_NAME,
+      jobId: existing.id,
+      noteId: data.noteId,
+      userId: data.userId,
+      previousState: state,
+    });
+
+    return {
+      status: "queued",
+      jobId: String(existing.id),
+    };
+  }
+
+  // Do not create another copy while one is already waiting/running.
+  logger.info("[queue] study generation retry skipped", {
+    queue: STUDY_GENERATION_QUEUE_NAME,
+    jobId: existing.id,
+    noteId: data.noteId,
+    state,
+  });
+
+  return {
+    status: "already-running",
+    jobId: String(existing.id),
+    state,
+  };
 }
 
 export async function enqueueStudyGeneration(
@@ -97,13 +179,9 @@ export async function enqueueStudyGeneration(
 ): Promise<string> {
   const queue = getStudyGenerationQueue();
 
-  const job = await queue.add(
-    STUDY_GENERATION_JOB_NAME,
-    data,
-    {
-      jobId: `study-${data.noteId}`,
-    },
-  );
+  const job = await queue.add(STUDY_GENERATION_JOB_NAME, data, {
+    jobId: `study-${data.noteId}`,
+  });
 
   logger.info("[queue] study generation job queued", {
     queue: STUDY_GENERATION_QUEUE_NAME,
