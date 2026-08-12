@@ -1,4 +1,4 @@
-import { Worker, type Job } from "bullmq";
+import { Worker, type Job, UnrecoverableError } from "bullmq";
 
 import IORedis from "ioredis";
 
@@ -25,6 +25,10 @@ import {
 import { enqueueStudyGeneration } from "@/server/queues/study-generation.queue";
 
 import { logger } from "@/server/utils/logger";
+import {
+  classifyProviderFailure,
+  PDF_OCR_QUOTA_EXHAUSTED_PREFIX,
+} from "@/server/utils/provider-error";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Redis
@@ -148,15 +152,53 @@ async function processPdfIngestionJob(
      * → reconstruction
      * → canonical content
      */
-    const processed = await processUpload({
-      buffer,
+    let processed;
 
-      originalName: note.fileName,
+    try {
+      processed = await processUpload({
+        buffer,
 
-      mimeType: "application/pdf",
+        originalName: note.fileName,
 
-      size: note.fileSize,
-    });
+        mimeType: "application/pdf",
+
+        size: note.fileSize,
+      });
+    } catch (error) {
+      const failure = classifyProviderFailure(error);
+
+      // ───────────────────────────────────────────────────────────
+      // Explicit quota exhaustion
+      //
+      // Do not waste attempt 2 and attempt 3.
+      // Preserve the PDF so this exact job can be retried later.
+      // ───────────────────────────────────────────────────────────
+
+      if (failure.kind === "quota-exhausted") {
+        logger.warn(
+          "[pdf-worker] provider quota exhausted; stopping automatic retries",
+          {
+            jobId: job.id,
+
+            noteId,
+
+            providerFailure: failure.kind,
+
+            statusCode: failure.statusCode,
+
+            storageKey,
+          },
+        );
+
+        throw new UnrecoverableError(
+          `${PDF_OCR_QUOTA_EXHAUSTED_PREFIX}: ${failure.message}`,
+        );
+      }
+
+      // 429 rate limits, 5xx and timeouts remain ordinary Errors.
+      // BullMQ will apply the configured retry/backoff policy.
+      throw error;
+    }
 
     if (processed.fileType !== "pdf") {
       throw new Error("PDF ingestion worker received a non-PDF result");
@@ -314,6 +356,96 @@ async function handleFinalFailure(
   }
 }
 
+async function handleJobFailure(
+  job: Job<PdfIngestionJobData, PdfIngestionJobResult>,
+  error: Error,
+): Promise<void> {
+  const failure = classifyProviderFailure(error);
+
+  const maxAttempts =
+    typeof job.opts.attempts === "number" ? job.opts.attempts : 1;
+
+  const automaticAttemptsRemain = job.attemptsMade < maxAttempts;
+
+  // ─────────────────────────────────────────────────────────────
+  // Explicit quota exhaustion
+  //
+  // UnrecoverableError stops BullMQ immediately.
+  // Mark UI state failed, but KEEP the original PDF.
+  // ─────────────────────────────────────────────────────────────
+
+  if (failure.kind === "quota-exhausted") {
+    await generationRepo.updateStage(job.data.noteId, "failed");
+
+    logger.warn(
+      "[pdf-worker] PDF ingestion paused because provider quota is exhausted",
+      {
+        jobId: job.id,
+
+        noteId: job.data.noteId,
+
+        storageKey: job.data.storageKey,
+
+        preservedUpload: true,
+      },
+    );
+
+    return;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Ordinary retryable errors
+  //
+  // Let BullMQ perform remaining retries.
+  // ─────────────────────────────────────────────────────────────
+
+  if (automaticAttemptsRemain) {
+    return;
+  }
+
+  await generationRepo.updateStage(job.data.noteId, "failed");
+
+  // ─────────────────────────────────────────────────────────────
+  // Provider outage/rate limit still recoverable later.
+  //
+  // Preserve the PDF even after automatic attempts are exhausted.
+  // ─────────────────────────────────────────────────────────────
+
+  if (failure.preserveUpload) {
+    logger.warn(
+      "[pdf-worker] recoverable PDF ingestion failure; upload preserved for manual retry",
+      {
+        jobId: job.id,
+
+        noteId: job.data.noteId,
+
+        failureKind: failure.kind,
+
+        statusCode: failure.statusCode,
+
+        storageKey: job.data.storageKey,
+      },
+    );
+
+    return;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Real permanent/non-provider failure.
+  //
+  // Safe to clean up.
+  // ─────────────────────────────────────────────────────────────
+
+  await deleteTemporaryUpload(job.data.storageKey);
+
+  logger.info("[pdf-worker] failed upload removed", {
+    jobId: job.id,
+
+    noteId: job.data.noteId,
+
+    storageKey: job.data.storageKey,
+  });
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // Worker startup
 // ─────────────────────────────────────────────────────────────────────────────
@@ -356,19 +488,34 @@ async function main(): Promise<void> {
   });
 
   worker.on("failed", (job, error) => {
+    if (!job) {
+      return;
+    }
+
     logger.error("[pdf-worker] BullMQ job attempt failed", {
-      jobId: job?.id,
+      jobId: job.id,
 
-      noteId: job?.data.noteId,
+      noteId: job.data.noteId,
 
-      attemptsMade: job?.attemptsMade,
+      attemptsMade: job.attemptsMade,
 
-      attempts: job?.opts.attempts,
+      attempts: job.opts.attempts,
 
       error: error.message,
     });
 
-    void handleFinalFailure(job, error);
+    void handleJobFailure(job, error).catch((handlingError) => {
+      logger.error("[pdf-worker] failure handling failed", {
+        jobId: job.id,
+
+        noteId: job.data.noteId,
+
+        error:
+          handlingError instanceof Error
+            ? handlingError.message
+            : String(handlingError),
+      });
+    });
   });
 
   worker.on("error", (error) => {

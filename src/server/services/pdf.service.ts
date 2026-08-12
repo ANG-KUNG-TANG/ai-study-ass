@@ -202,38 +202,65 @@ export async function parseDOCX(buffer: Buffer): Promise<ParsedDOCX> {
     charCount: text.length,
   };
 }
-
 export function analysePdfExtraction(
   pageCount: number,
   charCount: number,
 ): PdfExtractionAnalysis {
   const safePageCount = Math.max(pageCount, 1);
-  const charsPerPage = charCount / safePageCount;
 
-  // Strong signal that most visible page content is probably image-based.
-  if (pageCount >= 3 && charsPerPage < 40) {
+  const safeCharCount = Math.max(charCount, 0);
+
+  const charsPerPage = safeCharCount / safePageCount;
+
+  // ─────────────────────────────────────────────────────────────
+  // Image-heavy / scanned PDF
+  //
+  // IMPORTANT:
+  // Do NOT require 3+ pages.
+  //
+  // A 1-page or 2-page scanned PDF still needs OCR.
+  // ─────────────────────────────────────────────────────────────
+
+  if (safeCharCount === 0 || charsPerPage < 40) {
     return {
       quality: "image-heavy",
+
       charsPerPage,
+
       requiresVisionFallback: true,
     };
   }
 
-  // Text exists, but the amount is suspiciously small.
-  if (pageCount >= 3 && charsPerPage < 120) {
+  // ─────────────────────────────────────────────────────────────
+  // Low-text PDF
+  //
+  // Some native text exists, but not enough to trust as the
+  // complete document.
+  // ─────────────────────────────────────────────────────────────
+
+  if (charsPerPage < 120) {
     return {
       quality: "low-text",
+
       charsPerPage,
+
       requiresVisionFallback: true,
     };
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // Native extraction is sufficient
+  // ─────────────────────────────────────────────────────────────
 
   return {
     quality: "normal",
+
     charsPerPage,
+
     requiresVisionFallback: false,
   };
 }
+
 function cleanText(raw: string): string {
   return raw
     .replace(/\r\n/g, "\n")

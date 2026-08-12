@@ -134,3 +134,37 @@ export async function enqueuePdfIngestion(
 
   return String(job.id);
 }
+
+export async function retryPdfIngestion(noteId: string): Promise<void> {
+  const queue = getPdfIngestionQueue();
+
+  const jobId = `pdf-ingest-${noteId}`;
+
+  const job = await queue.getJob(jobId);
+
+  if (!job) {
+    throw new Error(`PDF ingestion job not found for note ${noteId}`);
+  }
+
+  const state = await job.getState();
+
+  if (state !== "failed") {
+    throw new Error(
+      `PDF ingestion job ${jobId} cannot be retried from state "${state}"`,
+    );
+  }
+
+  await job.retry("failed", {
+    resetAttemptsMade: true,
+
+    resetAttemptsStarted: true,
+  });
+
+  logger.info("[queue] PDF ingestion manually retried", {
+    queue: PDF_INGESTION_QUEUE_NAME,
+
+    jobId,
+
+    noteId,
+  });
+}
