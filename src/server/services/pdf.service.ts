@@ -6,6 +6,18 @@ interface ParsedPDF {
   text: string;
   pageCount: number;
   charCount: number;
+
+  extractionQuality: PdfExtractionQuality;
+  charsPerPage: number;
+  requiresVisionFallback: boolean;
+}
+
+export type PdfExtractionQuality = "normal" | "low-text" | "image-heavy";
+
+export interface PdfExtractionAnalysis {
+  quality: PdfExtractionQuality;
+  charsPerPage: number;
+  requiresVisionFallback: boolean;
 }
 
 export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
@@ -94,16 +106,25 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
   }
 
   const cleaned = cleanText(rawText);
-  
+
   const pageCount = result.total ?? 0;
 
+  const extraction = analysePdfExtraction(pageCount, cleaned.length);
+
+  if (extraction.requiresVisionFallback) {
+    logger.warn("PDF has low native text extraction", {
+      pageCount,
+      charCount: cleaned.length,
+      charsPerPage: Math.round(extraction.charsPerPage),
+      extractionQuality: extraction.quality,
+      requiresVisionFallback: true,
+    });
+  }
   const averageCharsPerPage =
     pageCount > 0 ? cleaned.length / pageCount : cleaned.length;
 
   const looksLikeLowTextPdf =
-    pageCount >= 5 &&
-    cleaned.length < 1000 &&
-    averageCharsPerPage < 40;
+    pageCount >= 5 && cleaned.length < 1000 && averageCharsPerPage < 40;
 
   if (looksLikeLowTextPdf) {
     logger.warn("PDF has insufficient extractable text", {
@@ -131,8 +152,11 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
 
   return {
     text,
-    pageCount: result.total ?? 0,
+    pageCount,
     charCount: text.length,
+    extractionQuality: extraction.quality,
+    charsPerPage: extraction.charsPerPage,
+    requiresVisionFallback: extraction.requiresVisionFallback,
   };
 }
 
@@ -141,17 +165,13 @@ interface ParsedDOCX {
   charCount: number;
 }
 
-export async function parseDOCX(
-  buffer: Buffer,
-): Promise<ParsedDOCX> {
+export async function parseDOCX(buffer: Buffer): Promise<ParsedDOCX> {
   let mammoth: typeof import("mammoth");
 
   try {
     mammoth = await import("mammoth");
   } catch {
-    throw new FileError(
-      "DOCX parser not available — run: npm install mammoth",
-    );
+    throw new FileError("DOCX parser not available — run: npm install mammoth");
   }
 
   let result: {
@@ -183,6 +203,37 @@ export async function parseDOCX(
   };
 }
 
+export function analysePdfExtraction(
+  pageCount: number,
+  charCount: number,
+): PdfExtractionAnalysis {
+  const safePageCount = Math.max(pageCount, 1);
+  const charsPerPage = charCount / safePageCount;
+
+  // Strong signal that most visible page content is probably image-based.
+  if (pageCount >= 3 && charsPerPage < 40) {
+    return {
+      quality: "image-heavy",
+      charsPerPage,
+      requiresVisionFallback: true,
+    };
+  }
+
+  // Text exists, but the amount is suspiciously small.
+  if (pageCount >= 3 && charsPerPage < 120) {
+    return {
+      quality: "low-text",
+      charsPerPage,
+      requiresVisionFallback: true,
+    };
+  }
+
+  return {
+    quality: "normal",
+    charsPerPage,
+    requiresVisionFallback: false,
+  };
+}
 function cleanText(raw: string): string {
   return raw
     .replace(/\r\n/g, "\n")
@@ -192,4 +243,3 @@ function cleanText(raw: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
-

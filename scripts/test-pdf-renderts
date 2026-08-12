@@ -1,0 +1,33 @@
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { renderPdfPages } from "../src/server/services/pdf-render.service";
+
+async function main() {
+  const buffer = await readFile(
+    "./DTI324-Chapter7.pdf",
+  );
+
+  const pages = await renderPdfPages(
+    buffer,
+    [1, 5, 10],
+  );
+
+  await mkdir("./tmp/pdf-render-test", {
+    recursive: true,
+  });
+
+  for (const page of pages) {
+    await writeFile(
+      `./tmp/pdf-render-test/page-${page.pageNumber}.png`,
+      page.buffer,
+    );
+  }
+
+  console.log(
+    pages.map((page) => ({
+      pageNumber: page.pageNumber,
+      bytes: page.buffer.length,
+    })),
+  );
+}
+
+void main();
