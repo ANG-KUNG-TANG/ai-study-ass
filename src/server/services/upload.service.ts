@@ -12,6 +12,9 @@ import {
 import { logger } from "@/server/utils/logger";
 import type { FileType } from "@/server/entities/note.entity";
 import path from "path";
+import { selectVisionPages } from "./pdf-page-selection.service";
+import { reconstructPdfText } from "./pdf-reconstruction.service";
+import { renderPdfPages } from "./pdf-render.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,14 +30,18 @@ export interface ProcessedFile {
   fileType: FileType;
   fileSize: number;
   content: string;
+
   pageCount?: number;
   charCount: number;
 
   extractionQuality?: PdfExtractionQuality;
   charsPerPage?: number;
-  requiresVisionFallback?: boolean;
-}
 
+  requiresVisionFallback?: boolean;
+
+  // True when OCR/vision was actually executed successfully.
+  visionFallbackUsed?: boolean;
+}
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 function validateFile(file: UploadedFile): void {
@@ -94,17 +101,117 @@ export async function processUpload(
   if (ext === ".pdf") {
     const parsed = await parsePDF(file.buffer);
 
+    logger.info("PDF native extraction completed", {
+      fileName,
+      pageCount: parsed.pageCount,
+      charCount: parsed.charCount,
+      charsPerPage: parsed.charsPerPage,
+      extractionQuality: parsed.extractionQuality,
+      requiresVisionFallback: parsed.requiresVisionFallback,
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Native extraction is good enough.
+    // Do not spend AI/vision resources.
+    // ─────────────────────────────────────────────────────────────
+
+    if (!parsed.requiresVisionFallback) {
+      return {
+        fileName,
+        fileType: "pdf",
+        fileSize: file.size,
+
+        content: parsed.text,
+
+        pageCount: parsed.pageCount,
+        charCount: parsed.charCount,
+
+        extractionQuality: parsed.extractionQuality,
+        charsPerPage: parsed.charsPerPage,
+
+        requiresVisionFallback: false,
+        visionFallbackUsed: false,
+      };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Native extraction is poor.
+    // Select only a limited number of pages for vision.
+    // ─────────────────────────────────────────────────────────────
+
+    const selectedPages = selectVisionPages(
+      parsed.pageCount,
+      parsed.extractionQuality,
+    );
+
+    if (selectedPages.length === 0) {
+      throw new FileError(
+        "PDF requires vision fallback but no pages could be selected.",
+      );
+    }
+
+    logger.info("PDF vision fallback required", {
+      fileName,
+      pageCount: parsed.pageCount,
+      selectedPages,
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Render selected PDF pages into images.
+    // ─────────────────────────────────────────────────────────────
+
+    const renderedPages = await renderPdfPages(file.buffer, selectedPages);
+
+    if (renderedPages.length === 0) {
+      throw new FileError(
+        "PDF pages could not be rendered for vision processing.",
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // OCR + reconstruction
+    // ─────────────────────────────────────────────────────────────
+
+    const reconstructed = await reconstructPdfText({
+      native: {
+        text: parsed.text,
+        pageCount: parsed.pageCount,
+      },
+
+      renderedPages,
+    });
+
+    logger.info("PDF vision reconstruction completed", {
+      fileName,
+
+      nativeCharCount: parsed.charCount,
+      reconstructedCharCount: reconstructed.charCount,
+
+      renderedPages: renderedPages.length,
+      visionUsed: reconstructed.visionUsed,
+    });
+
     return {
       fileName,
       fileType: "pdf",
       fileSize: file.size,
-      content: parsed.text,
+
+      // VERY IMPORTANT:
+      // downstream intelligence receives reconstructed text,
+      // not the poor original native extraction.
+      content: reconstructed.text,
+
       pageCount: parsed.pageCount,
-      charCount: parsed.charCount,
+      charCount: reconstructed.charCount,
 
       extractionQuality: parsed.extractionQuality,
       charsPerPage: parsed.charsPerPage,
-      requiresVisionFallback: parsed.requiresVisionFallback,
+
+      // Native extraction originally required fallback.
+      requiresVisionFallback: true,
+
+      // Vision successfully ran.
+      visionFallbackUsed: reconstructed.visionUsed,
     };
   }
 

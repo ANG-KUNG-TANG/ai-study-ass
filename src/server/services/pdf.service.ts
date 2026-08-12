@@ -19,7 +19,6 @@ export interface PdfExtractionAnalysis {
   charsPerPage: number;
   requiresVisionFallback: boolean;
 }
-
 export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
   let PDFParse: (typeof import("pdf-parse"))["PDFParse"] | undefined;
 
@@ -32,8 +31,6 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     | undefined;
 
   try {
-    // Important:
-    // load the worker/canvas implementation BEFORE pdf-parse.
     const worker = await import("pdf-parse/worker");
 
     CanvasFactory = worker.CanvasFactory;
@@ -41,7 +38,6 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     const pdfModule = await import("pdf-parse");
 
     PDFParse = pdfModule.PDFParse;
-
     PasswordException = pdfModule.PasswordException;
 
     if (typeof PDFParse !== "function" || !CanvasFactory) {
@@ -97,46 +93,48 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     }
   }
 
+  // ------------------------------------------------------------
+  // Native extraction
+  // ------------------------------------------------------------
+
   const rawText = result.text ?? "";
 
-  if (!rawText.trim()) {
-    throw new FileError(
-      "PDF appears to contain no extractable text — it may be a scanned image",
-    );
-  }
-
-  const cleaned = cleanText(rawText);
+  // Important:
+  // an empty native result is NOT automatically an error anymore.
+  // It can be a scanned/image-based PDF and should go to vision.
+  const cleaned = rawText.trim() ? cleanText(rawText) : "";
 
   const pageCount = result.total ?? 0;
 
   const extraction = analysePdfExtraction(pageCount, cleaned.length);
 
   if (extraction.requiresVisionFallback) {
-    logger.warn("PDF has low native text extraction", {
+    logger.warn("PDF requires vision fallback", {
       pageCount,
       charCount: cleaned.length,
-      charsPerPage: Math.round(extraction.charsPerPage),
+
+      charsPerPage: Math.round(extraction.charsPerPage * 100) / 100,
+
       extractionQuality: extraction.quality,
+
       requiresVisionFallback: true,
     });
-  }
-  const averageCharsPerPage =
-    pageCount > 0 ? cleaned.length / pageCount : cleaned.length;
-
-  const looksLikeLowTextPdf =
-    pageCount >= 5 && cleaned.length < 1000 && averageCharsPerPage < 40;
-
-  if (looksLikeLowTextPdf) {
-    logger.warn("PDF has insufficient extractable text", {
+  } else {
+    logger.info("PDF native extraction is sufficient", {
       pageCount,
       charCount: cleaned.length,
-      averageCharsPerPage: Math.round(averageCharsPerPage),
-    });
 
-    throw new FileError(
-      "This PDF contains too little extractable text to generate reliable study materials. It may be scanned or image-based. Please upload a text-based PDF.",
-    );
+      charsPerPage: Math.round(extraction.charsPerPage * 100) / 100,
+
+      extractionQuality: extraction.quality,
+
+      requiresVisionFallback: false,
+    });
   }
+
+  // ------------------------------------------------------------
+  // Content limit
+  // ------------------------------------------------------------
 
   const text =
     cleaned.length > MAX_CONTENT_LENGTH
@@ -154,12 +152,14 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     text,
     pageCount,
     charCount: text.length,
+
     extractionQuality: extraction.quality,
+
     charsPerPage: extraction.charsPerPage,
+
     requiresVisionFallback: extraction.requiresVisionFallback,
   };
 }
-
 interface ParsedDOCX {
   text: string;
   charCount: number;
