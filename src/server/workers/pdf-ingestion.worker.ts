@@ -298,64 +298,6 @@ async function processPdfIngestionJob(
 // Final failure
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function handleFinalFailure(
-  job: Job<PdfIngestionJobData, PdfIngestionJobResult> | undefined,
-
-  error: Error,
-): Promise<void> {
-  if (!job) {
-    return;
-  }
-
-  const maxAttempts =
-    typeof job.opts.attempts === "number" ? job.opts.attempts : 1;
-
-  /**
-   * BullMQ is going to retry.
-   *
-   * Do not mark the note failed yet.
-   */
-  if (job.attemptsMade < maxAttempts) {
-    return;
-  }
-
-  logger.error("[pdf-worker] PDF ingestion permanently failed", {
-    jobId: job.id,
-
-    noteId: job.data.noteId,
-
-    attemptsMade: job.attemptsMade,
-
-    error: error.message,
-  });
-
-  try {
-    await generationRepo.updateStage(job.data.noteId, "failed");
-  } catch (stageError) {
-    logger.error("[pdf-worker] failed to update ingestion failure state", {
-      noteId: job.data.noteId,
-
-      error:
-        stageError instanceof Error ? stageError.message : String(stageError),
-    });
-  }
-
-  try {
-    await deleteTemporaryUpload(job.data.storageKey);
-  } catch (cleanupError) {
-    logger.error("[pdf-worker] failed to clean temporary PDF", {
-      noteId: job.data.noteId,
-
-      storageKey: job.data.storageKey,
-
-      error:
-        cleanupError instanceof Error
-          ? cleanupError.message
-          : String(cleanupError),
-    });
-  }
-}
-
 async function handleJobFailure(
   job: Job<PdfIngestionJobData, PdfIngestionJobResult>,
   error: Error,
@@ -375,7 +317,7 @@ async function handleJobFailure(
   // ─────────────────────────────────────────────────────────────
 
   if (failure.kind === "quota-exhausted") {
-    await generationRepo.updateStage(job.data.noteId, "failed");
+    await generationRepo.updateStage(job.data.noteId, "ocr_failed");
 
     logger.warn(
       "[pdf-worker] PDF ingestion paused because provider quota is exhausted",
@@ -403,7 +345,7 @@ async function handleJobFailure(
     return;
   }
 
-  await generationRepo.updateStage(job.data.noteId, "failed");
+  await generationRepo.updateStage(job.data.noteId, "ocr_failed");
 
   // ─────────────────────────────────────────────────────────────
   // Provider outage/rate limit still recoverable later.

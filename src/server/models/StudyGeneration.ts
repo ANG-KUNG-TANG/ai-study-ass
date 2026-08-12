@@ -76,6 +76,7 @@ const studyGenerationSchema = new Schema(
       enum: [
         "extracting",
         "vision_ocr",
+        "ocr_failed",
         "pending",
         "analyzing",
         "generating",

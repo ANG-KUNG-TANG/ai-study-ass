@@ -116,7 +116,7 @@ export async function updateStage(
   stage: StudyGenerationStage,
 ): Promise<void> {
   const completedAt =
-    stage === "complete" || stage === "partial" || stage === "failed"
+    stage === "complete" || stage === "partial" || stage === "failed" || stage === "ocr_failed"
       ? new Date()
       : null;
 

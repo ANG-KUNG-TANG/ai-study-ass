@@ -21,11 +21,24 @@ export function regenerateStudyMaterials(
     noteId: string;
     stage: "pending";
     message: string;
-  }>(
-    `/notes/${encodeURIComponent(noteId)}/generate`,
-    {
-      method: "POST",
-      body: JSON.stringify({ force }),
-    },
-  );
+  }>(`/notes/${encodeURIComponent(noteId)}/generate`, {
+    method: "POST",
+    body: JSON.stringify({ force }),
+  });
+}
+
+export function retryPdfOcr(noteId: string): Promise<{
+  noteId: string;
+  jobId: string;
+  stage: "vision_ocr";
+  message: string;
+}> {
+  return apiFetch<{
+    noteId: string;
+    jobId: string;
+    stage: "vision_ocr";
+    message: string;
+  }>(`/notes/${encodeURIComponent(noteId)}/ocr/retry`, {
+    method: "POST",
+  });
 }

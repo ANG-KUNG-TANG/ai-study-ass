@@ -1,5 +1,11 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-
+import {
+  access,
+  mkdir,
+  readFile,
+  rename,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -112,5 +118,19 @@ export async function deleteTemporaryUpload(storageKey: string): Promise<void> {
     }
 
     throw error;
+  }
+}
+
+export async function temporaryUploadExists(
+  storageKey: string,
+): Promise<boolean> {
+  const filePath = resolveStoragePath(storageKey);
+
+  try {
+    await access(filePath);
+
+    return true;
+  } catch {
+    return false;
   }
 }

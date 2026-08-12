@@ -19,8 +19,11 @@ type FeatureName = keyof StudyGenerationState["features"];
 
 const FEATURE_LABELS: Record<FeatureName, string> = {
   summary: "Summary",
+
   quiz: "Quiz",
+
   flashcards: "Flashcards",
+
   chatKnowledge: "Knowledge",
 };
 
@@ -40,6 +43,9 @@ function getStageLabel(stage: StudyGenerationStage): string {
 
     case "vision_ocr":
       return "Recovering scanned pages";
+
+    case "ocr_failed":
+      return "Text recovery paused";
 
     case "pending":
       return "Waiting to start";
@@ -69,6 +75,9 @@ function getStageDescription(stage: StudyGenerationStage): string {
     case "vision_ocr":
       return "The PDF contains scanned or image-based pages. Vision OCR is recovering the document text.";
 
+    case "ocr_failed":
+      return "The scanned document could not be processed right now. The original PDF was preserved and text recovery can be retried.";
+
     case "pending":
       return "Document processing is complete and the generation worker is waiting to start.";
 
@@ -85,7 +94,7 @@ function getStageDescription(stage: StudyGenerationStage): string {
       return "Some study materials were created, but one or more features could not be completed.";
 
     case "failed":
-      return "The document could not be processed successfully.";
+      return "Study material generation could not be completed successfully.";
   }
 }
 
@@ -139,6 +148,9 @@ function calculateProgress(state: StudyGenerationState): number {
     case "vision_ocr":
       return 25;
 
+    case "ocr_failed":
+      return 25;
+
     case "pending":
       return 35;
 
@@ -175,6 +187,7 @@ function FeatureRow({
   state,
 }: {
   name: FeatureName;
+
   state: FeatureGenerationState;
 }) {
   return (
@@ -222,10 +235,16 @@ function FeatureRow({
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export function StudyGenerationProgress({ noteId }: { noteId: string }) {
-  const { status, isLoading, error, refetch } = useGenerationStatus(
-    noteId,
-    2_000,
-  );
+  const {
+    status,
+    isLoading,
+    isRegenerating,
+    isRetryingOcr,
+    error,
+    refetch,
+    regenerate,
+    retryOcr,
+  } = useGenerationStatus(noteId, 2_000);
 
   const progress = useMemo(
     () => (status ? calculateProgress(status) : 0),
@@ -288,8 +307,13 @@ export function StudyGenerationProgress({ noteId }: { noteId: string }) {
     status.stage === "pending" ||
     status.stage === "analyzing" ||
     status.stage === "generating";
+
+  const canRetryOcr = status.stage === "ocr_failed";
+
+  const canRegenerate = status.stage === "partial" || status.stage === "failed";
+
   // ─────────────────────────────────────────────────────────────
-  // Complete state can stay compact
+  // Complete
   // ─────────────────────────────────────────────────────────────
 
   if (status.stage === "complete") {
@@ -344,6 +368,74 @@ export function StudyGenerationProgress({ noteId }: { noteId: string }) {
         {isRunning ? (
           <div className="mt-2 text-[10px] text-ink-soft">
             Status updates automatically.
+          </div>
+        ) : null}
+
+        {/* API/action error while status already exists */}
+        {error ? (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        {/* OCR-specific retry */}
+        {canRetryOcr ? (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <div className="text-[11px] leading-5 text-amber-800">
+              The original PDF is still available. You can retry text recovery
+              without uploading the document again.
+            </div>
+
+            <button
+              type="button"
+              disabled={isRetryingOcr}
+              onClick={() => {
+                void retryOcr();
+              }}
+              className="
+                mt-2 rounded-md
+                border border-amber-300
+                bg-white
+                px-3 py-1.5
+                text-[11px]
+                font-medium
+                text-amber-800
+                transition
+                hover:bg-amber-100
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+            >
+              {isRetryingOcr ? "Retrying OCR…" : "Retry OCR"}
+            </button>
+          </div>
+        ) : null}
+
+        {/* Normal generation retry */}
+        {canRegenerate ? (
+          <div className="mt-4">
+            <button
+              type="button"
+              disabled={isRegenerating}
+              onClick={() => {
+                void regenerate();
+              }}
+              className="
+                rounded-md
+                border border-black/[0.1]
+                bg-white
+                px-3 py-1.5
+                text-[11px]
+                font-medium
+                text-ink
+                transition
+                hover:bg-black/[0.03]
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+            >
+              {isRegenerating ? "Regenerating…" : "Regenerate study materials"}
+            </button>
           </div>
         ) : null}
       </div>

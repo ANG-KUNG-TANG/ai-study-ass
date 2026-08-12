@@ -30,6 +30,15 @@ export interface PdfIngestionJobResult {
   visionUsed: boolean;
 }
 
+export interface PdfIngestionRetryResult {
+  jobId: string;
+  noteId: string;
+  userId: string;
+  storageKey: string;
+  previousState: string;
+}
+
+
 type PdfIngestionQueue = Queue<PdfIngestionJobData, PdfIngestionJobResult>;
 
 type QueueGlobal = typeof globalThis & {
@@ -135,7 +144,9 @@ export async function enqueuePdfIngestion(
   return String(job.id);
 }
 
-export async function retryPdfIngestion(noteId: string): Promise<void> {
+export async function retryPdfIngestion(
+  noteId: string,
+): Promise<PdfIngestionRetryResult> {
   const queue = getPdfIngestionQueue();
 
   const jobId = `pdf-ingest-${noteId}`;
@@ -150,8 +161,14 @@ export async function retryPdfIngestion(noteId: string): Promise<void> {
 
   if (state !== "failed") {
     throw new Error(
-      `PDF ingestion job ${jobId} cannot be retried from state "${state}"`,
+      `PDF ingestion job cannot be retried from state "${state}".`,
     );
+  }
+
+  const { userId, storageKey } = job.data;
+
+  if (!userId || !storageKey) {
+    throw new Error("PDF ingestion job is missing retry metadata.");
   }
 
   await job.retry("failed", {
@@ -166,5 +183,19 @@ export async function retryPdfIngestion(noteId: string): Promise<void> {
     jobId,
 
     noteId,
+
+    userId,
+
+    storageKey,
+
+    previousState: state,
   });
+
+  return {
+    jobId,
+    noteId,
+    userId,
+    storageKey,
+    previousState: state,
+  };
 }
