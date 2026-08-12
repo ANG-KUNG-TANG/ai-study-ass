@@ -18,7 +18,8 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f app",
     "docker:prod": "docker compose -f compose.prod.yaml up --build -d",
-    "worker": "tsx src/server/workers/study-generation.worker.ts"
+    "worker": "tsx src/server/workers/study-generation.worker.ts",
+    "worker:pdf": "tsx src/server/workers/pdf-ingestion.worker.ts"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",

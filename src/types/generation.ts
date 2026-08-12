@@ -11,13 +11,15 @@ export type FeatureGenerationStatus =
   | "failed";
 
 export type StudyGenerationStage =
+  | "extracting"
+  | "vision_ocr"
   | "pending"
   | "analyzing"
   | "generating"
   | "complete"
   | "partial"
   | "failed";
-
+  
 export interface FeatureGenerationState {
   status: FeatureGenerationStatus;
   source: GenerationSource | null;

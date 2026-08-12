@@ -1,5 +1,10 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Mocks
+// ─────────────────────────────────────────────────────────────────────────────
+
 jest.mock("@/server/services/pdf.service", () => ({
   parsePDF: jest.fn(),
+
   parseDOCX: jest.fn(),
 }));
 
@@ -15,6 +20,10 @@ jest.mock("@/server/services/pdf-reconstruction.service", () => ({
   reconstructPdfText: jest.fn(),
 }));
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Imports
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { parsePDF, parseDOCX } from "@/server/services/pdf.service";
 
 import { selectVisionPages } from "@/server/services/pdf-page-selection.service";
@@ -24,6 +33,10 @@ import { renderPdfPages } from "@/server/services/pdf-render.service";
 import { reconstructPdfText } from "@/server/services/pdf-reconstruction.service";
 
 import { processUpload } from "@/server/services/upload.service";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Typed mocks
+// ─────────────────────────────────────────────────────────────────────────────
 
 const mockedParsePDF = parsePDF as jest.MockedFunction<typeof parsePDF>;
 
@@ -41,25 +54,33 @@ const mockedReconstructPdfText = reconstructPdfText as jest.MockedFunction<
   typeof reconstructPdfText
 >;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests
+// ─────────────────────────────────────────────────────────────────────────────
+
 describe("upload.service - PDF vision pipeline", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // ==========================================================
+  // ═════════════════════════════════════════════════════════════════════════
   // TEST 1
-  // Normal PDF:
-  // Native extraction is sufficient.
-  // Vision must NOT run.
-  // ==========================================================
+  //
+  // NORMAL PDF
+  //
+  // Native extraction should be used directly.
+  // Vision pipeline must not execute.
+  // ═════════════════════════════════════════════════════════════════════════
 
-  it("returns native PDF text without vision when extraction quality is normal", async () => {
+  it("uses native content directly for normal PDFs", async () => {
+    const nativeText = "This is clean native PDF content.";
+
     mockedParsePDF.mockResolvedValue({
-      text: "This is clean native PDF content.",
+      text: nativeText,
 
       pageCount: 10,
 
-      charCount: 33,
+      charCount: nativeText.length,
 
       extractionQuality: "normal",
 
@@ -84,7 +105,8 @@ describe("upload.service - PDF vision pipeline", () => {
 
     expect(mockedParsePDF).toHaveBeenCalledWith(file.buffer);
 
-    // Vision path must not run.
+    // Vision pipeline must not execute.
+
     expect(mockedSelectVisionPages).not.toHaveBeenCalled();
 
     expect(mockedRenderPdfPages).not.toHaveBeenCalled();
@@ -93,11 +115,11 @@ describe("upload.service - PDF vision pipeline", () => {
 
     expect(result.fileType).toBe("pdf");
 
-    expect(result.content).toBe("This is clean native PDF content.");
+    expect(result.content).toBe(nativeText);
 
     expect(result.pageCount).toBe(10);
 
-    expect(result.charCount).toBe(33);
+    expect(result.charCount).toBe(nativeText.length);
 
     expect(result.extractionQuality).toBe("normal");
 
@@ -106,19 +128,27 @@ describe("upload.service - PDF vision pipeline", () => {
     expect(result.visionFallbackUsed).toBe(false);
   });
 
-  // ==========================================================
+  // ═════════════════════════════════════════════════════════════════════════
   // TEST 2
-  // Low-text PDF:
-  // Uses representative page sampling.
-  // ==========================================================
+  //
+  // LOW-TEXT PDF
+  //
+  // Representative pages are OCR'd.
+  //
+  // Final canonical content:
+  //
+  // native + OCR
+  // ═════════════════════════════════════════════════════════════════════════
 
-  it("uses vision reconstruction when native PDF extraction is low-text", async () => {
+  it("keeps native and vision content for low-text PDFs", async () => {
+    const nativeText = "Chapter 7";
+
     mockedParsePDF.mockResolvedValue({
-      text: "Chapter 7",
+      text: nativeText,
 
       pageCount: 31,
 
-      charCount: 9,
+      charCount: nativeText.length,
 
       extractionQuality: "low-text",
 
@@ -131,60 +161,17 @@ describe("upload.service - PDF vision pipeline", () => {
 
     mockedSelectVisionPages.mockReturnValue(selectedPages);
 
-    const renderedPages = [
-      {
-        pageNumber: 1,
-        buffer: Buffer.from("page-one"),
-      },
+    const renderedPages = selectedPages.map((pageNumber) => ({
+      pageNumber,
 
-      {
-        pageNumber: 4,
-        buffer: Buffer.from("page-four"),
-      },
-
-      {
-        pageNumber: 9,
-        buffer: Buffer.from("page-nine"),
-      },
-
-      {
-        pageNumber: 13,
-        buffer: Buffer.from("page-thirteen"),
-      },
-
-      {
-        pageNumber: 18,
-        buffer: Buffer.from("page-eighteen"),
-      },
-
-      {
-        pageNumber: 22,
-        buffer: Buffer.from("page-twenty-two"),
-      },
-
-      {
-        pageNumber: 27,
-        buffer: Buffer.from("page-twenty-seven"),
-      },
-
-      {
-        pageNumber: 31,
-        buffer: Buffer.from("page-thirty-one"),
-      },
-    ];
+      buffer: Buffer.from(`page-${pageNumber}`),
+    }));
 
     mockedRenderPdfPages.mockResolvedValue(renderedPages);
 
-    const reconstructedText = [
-      "Chapter 7",
-      "",
-      "--- VISION RECOVERED CONTENT ---",
-      "",
+    const visionText = [
       "--- PAGE 1 ---",
-      "System Requirements",
-      "",
-      "--- PAGE 4 ---",
-      "Validated Learning",
+      "Scientific Validation",
       "",
       "--- PAGE 9 ---",
       "Customer Discovery",
@@ -193,24 +180,19 @@ describe("upload.service - PDF vision pipeline", () => {
       "Recommendation",
     ].join("\n");
 
+    const reconstructedText = [
+      nativeText,
+      "",
+      "--- VISION RECOVERED CONTENT ---",
+      visionText,
+    ].join("\n");
+
     mockedReconstructPdfText.mockResolvedValue({
       text: reconstructedText,
 
-      nativeText: "Chapter 7",
+      nativeText,
 
-      visionText: [
-        "--- PAGE 1 ---",
-        "System Requirements",
-        "",
-        "--- PAGE 4 ---",
-        "Validated Learning",
-        "",
-        "--- PAGE 9 ---",
-        "Customer Discovery",
-        "",
-        "--- PAGE 31 ---",
-        "Recommendation",
-      ].join("\n"),
+      visionText,
 
       visionUsed: true,
 
@@ -229,21 +211,22 @@ describe("upload.service - PDF vision pipeline", () => {
 
     const result = await processUpload(file);
 
-    // Native extraction first.
-    expect(mockedParsePDF).toHaveBeenCalledWith(file.buffer);
+    // Correct new selector signature.
 
-    // IMPORTANT:
-    // New function signature includes extraction quality.
     expect(mockedSelectVisionPages).toHaveBeenCalledWith(31, "low-text");
+
+    // Correct pages rendered.
 
     expect(mockedRenderPdfPages).toHaveBeenCalledWith(
       file.buffer,
       selectedPages,
     );
 
+    // Reconstruction receives native + images.
+
     expect(mockedReconstructPdfText).toHaveBeenCalledWith({
       native: {
-        text: "Chapter 7",
+        text: nativeText,
 
         pageCount: 31,
       },
@@ -251,38 +234,56 @@ describe("upload.service - PDF vision pipeline", () => {
       renderedPages,
     });
 
-    expect(result.fileType).toBe("pdf");
+    // IMPORTANT:
+    //
+    // Low-text keeps BOTH native + OCR.
 
-    expect(result.content).toContain("System Requirements");
+    expect(result.content).toBe(reconstructedText);
 
-    expect(result.content).toContain("Customer Discovery");
+    expect(result.content).toContain(nativeText);
+
+    expect(result.content).toContain("Scientific Validation");
 
     expect(result.content).toContain("Recommendation");
 
-    expect(result.pageCount).toBe(31);
+    expect(result.charCount).toBe(reconstructedText.length);
 
     expect(result.extractionQuality).toBe("low-text");
 
     expect(result.requiresVisionFallback).toBe(true);
 
     expect(result.visionFallbackUsed).toBe(true);
-
-    expect(result.charCount).toBe(reconstructedText.length);
   });
 
-  // ==========================================================
+  // ═════════════════════════════════════════════════════════════════════════
   // TEST 3
-  // Image-heavy PDF:
+  //
+  // IMAGE-HEAVY PDF
+  //
   // Every page should be selected.
-  // ==========================================================
+  //
+  // Native extraction is assumed to be noise.
+  //
+  // Final canonical content:
+  //
+  // OCR ONLY
+  // ═════════════════════════════════════════════════════════════════════════
 
-  it("uses every page for image-heavy PDFs", async () => {
+  it("uses OCR-only canonical content for image-heavy PDFs", async () => {
+    const nativeNoise = [
+      "-- 1 of 31 --",
+      "-- 2 of 31 --",
+      "-- 3 of 31 --",
+      "Case Study",
+      "-- 31 of 31 --",
+    ].join("\n");
+
     mockedParsePDF.mockResolvedValue({
-      text: "Case Study",
+      text: nativeNoise,
 
       pageCount: 31,
 
-      charCount: 497,
+      charCount: nativeNoise.length,
 
       extractionQuality: "image-heavy",
 
@@ -292,7 +293,9 @@ describe("upload.service - PDF vision pipeline", () => {
     });
 
     const allPages = Array.from(
-      { length: 31 },
+      {
+        length: 31,
+      },
 
       (_, index) => index + 1,
     );
@@ -307,37 +310,65 @@ describe("upload.service - PDF vision pipeline", () => {
 
     mockedRenderPdfPages.mockResolvedValue(renderedPages);
 
+    const visionText = [
+      "--- PAGE 1 ---",
+      "# Scientific Validation of the Business Model",
+      "",
+      "--- PAGE 2 ---",
+      "# Startups do not fail because of bad technology.",
+      "",
+      "--- PAGE 31 ---",
+      "# Recommendation: Persevere with MVP Development",
+    ].join("\n");
+
+    const reconstructedText = [
+      nativeNoise,
+      "",
+      "--- VISION RECOVERED CONTENT ---",
+      visionText,
+    ].join("\n");
+
     mockedReconstructPdfText.mockResolvedValue({
-      text: "Recovered complete Chapter 7 document",
+      text: reconstructedText,
 
-      nativeText: "Case Study",
+      nativeText: nativeNoise,
 
-      visionText: "Recovered complete Chapter 7 document",
+      visionText,
 
       visionUsed: true,
 
-      charCount: 37,
+      charCount: reconstructedText.length,
     });
 
     const file = {
       buffer: Buffer.from("%PDF-image-heavy"),
 
-      originalName: "image-heavy.pdf",
+      originalName: "DTI324-Chapter7.pdf",
 
       mimeType: "application/pdf",
 
-      size: 4096,
+      size: 4_366_878,
     };
 
     const result = await processUpload(file);
 
+    // Image-heavy selection receives quality.
+
     expect(mockedSelectVisionPages).toHaveBeenCalledWith(31, "image-heavy");
+
+    // All pages are rendered.
 
     expect(mockedRenderPdfPages).toHaveBeenCalledWith(file.buffer, allPages);
 
+    expect(allPages).toHaveLength(31);
+
+    // Reconstruction still receives native
+    // extraction because reconstruction owns
+    // normalization/recovery.
+
     expect(mockedReconstructPdfText).toHaveBeenCalledWith({
       native: {
-        text: "Case Study",
+        text: nativeNoise,
 
         pageCount: 31,
       },
@@ -345,22 +376,44 @@ describe("upload.service - PDF vision pipeline", () => {
       renderedPages,
     });
 
+    // ───────────────────────────────────────────────────────
+    // CRITICAL ASSERTION
+    //
+    // Image-heavy PDF canonical content must be OCR only.
+    // ───────────────────────────────────────────────────────
+
+    expect(result.content).toBe(visionText);
+
+    // Native page-marker noise must NOT reach intelligence.
+
+    expect(result.content).not.toContain("-- 1 of 31 --");
+
+    expect(result.content).not.toContain("VISION RECOVERED CONTENT");
+
+    expect(result.content).toContain("Scientific Validation");
+
+    expect(result.content).toContain("Persevere with MVP Development");
+
+    // charCount now represents canonical content.
+
+    expect(result.charCount).toBe(visionText.length);
+
     expect(result.extractionQuality).toBe("image-heavy");
 
     expect(result.requiresVisionFallback).toBe(true);
 
     expect(result.visionFallbackUsed).toBe(true);
-
-    expect(result.content).toBe("Recovered complete Chapter 7 document");
   });
 
-  // ==========================================================
+  // ═════════════════════════════════════════════════════════════════════════
   // TEST 4
-  // OCR / reconstruction failure:
-  // Must propagate.
-  // ==========================================================
+  //
+  // OCR/reconstruction errors must propagate.
+  //
+  // Do NOT silently fall back to poor native text.
+  // ═════════════════════════════════════════════════════════════════════════
 
-  it("propagates reconstruction failure for a PDF that requires vision", async () => {
+  it("propagates reconstruction failure when vision is required", async () => {
     mockedParsePDF.mockResolvedValue({
       text: "Very little text",
 
@@ -376,7 +429,9 @@ describe("upload.service - PDF vision pipeline", () => {
     });
 
     const selectedPages = Array.from(
-      { length: 20 },
+      {
+        length: 20,
+      },
 
       (_, index) => index + 1,
     );
@@ -411,21 +466,16 @@ describe("upload.service - PDF vision pipeline", () => {
 
     expect(mockedSelectVisionPages).toHaveBeenCalledWith(20, "image-heavy");
 
-    expect(mockedRenderPdfPages).toHaveBeenCalledWith(
-      file.buffer,
-      selectedPages,
-    );
-
     expect(mockedReconstructPdfText).toHaveBeenCalledTimes(1);
   });
 
-  // ==========================================================
+  // ═════════════════════════════════════════════════════════════════════════
   // TEST 5
-  // No selected pages:
-  // Upload service should reject inconsistent fallback state.
-  // ==========================================================
+  //
+  // Fallback required but page selector returns nothing.
+  // ═════════════════════════════════════════════════════════════════════════
 
-  it("throws when vision fallback is required but no pages are selected", async () => {
+  it("throws when vision fallback is required but no pages can be selected", async () => {
     mockedParsePDF.mockResolvedValue({
       text: "",
 
@@ -443,7 +493,7 @@ describe("upload.service - PDF vision pipeline", () => {
     mockedSelectVisionPages.mockReturnValue([]);
 
     const file = {
-      buffer: Buffer.from("%PDF-empty-pages"),
+      buffer: Buffer.from("%PDF-empty"),
 
       originalName: "broken.pdf",
 
@@ -463,22 +513,23 @@ describe("upload.service - PDF vision pipeline", () => {
     expect(mockedReconstructPdfText).not.toHaveBeenCalled();
   });
 
-  // ==========================================================
+  // ═════════════════════════════════════════════════════════════════════════
   // TEST 6
-  // Renderer returns nothing.
-  // ==========================================================
+  //
+  // Renderer fails to return pages.
+  // ═════════════════════════════════════════════════════════════════════════
 
   it("throws when selected PDF pages cannot be rendered", async () => {
     mockedParsePDF.mockResolvedValue({
-      text: "Very little content",
+      text: "Limited text",
 
       pageCount: 10,
 
-      charCount: 19,
+      charCount: 12,
 
       extractionQuality: "low-text",
 
-      charsPerPage: 1.9,
+      charsPerPage: 1.2,
 
       requiresVisionFallback: true,
     });
@@ -506,16 +557,19 @@ describe("upload.service - PDF vision pipeline", () => {
     expect(mockedReconstructPdfText).not.toHaveBeenCalled();
   });
 
-  // ==========================================================
+  // ═════════════════════════════════════════════════════════════════════════
   // TEST 7
-  // DOCX is unaffected by PDF vision changes.
-  // ==========================================================
+  //
+  // DOCX must remain completely independent from PDF vision processing.
+  // ═════════════════════════════════════════════════════════════════════════
 
   it("processes DOCX without entering the PDF vision pipeline", async () => {
-    mockedParseDOCX.mockResolvedValue({
-      text: "DOCX document content",
+    const docxText = "DOCX document content";
 
-      charCount: 21,
+    mockedParseDOCX.mockResolvedValue({
+      text: docxText,
+
+      charCount: docxText.length,
     });
 
     const file = {
@@ -543,6 +597,12 @@ describe("upload.service - PDF vision pipeline", () => {
 
     expect(result.fileType).toBe("docx");
 
-    expect(result.content).toBe("DOCX document content");
+    expect(result.content).toBe(docxText);
+
+    expect(result.charCount).toBe(docxText.length);
+
+    expect(result.requiresVisionFallback).toBe(false);
+
+    expect(result.visionFallbackUsed).toBe(false);
   });
 });

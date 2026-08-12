@@ -11,10 +11,8 @@ import {
   getFile,
   downloadFile,
 } from "@/server/integrations/telegram/telegram.client";
-
+import { ingestDocument } from "@/server/services/document-ingestion.service";
 import { linkTelegramAccount } from "@/server/services/telegramLink.service";
-import { processUpload } from "@/server/services/upload.service";
-import { createNote } from "@/server/services/note.service";
 
 import * as telegramIntegrationRepo from "@/server/repositories/telegramIntegration.repo";
 import * as noteRepo from "@/server/repositories/note.repo";
@@ -962,18 +960,27 @@ async function handleAccount(message: TelegramMessage): Promise<void> {
 }
 
 // ─── PDF upload ───────────────────────────────────────────────────────────────
-
 async function handleDocument(
   message: TelegramMessage,
   document: TelegramDocument,
 ): Promise<void> {
   const chatId = message.chat.id;
+
   const sender = message.from;
+
+  // ─────────────────────────────────────────────────────────────
+  // Sender validation
+  // ─────────────────────────────────────────────────────────────
 
   if (!sender) {
     await sendMessage(chatId, "❌ Unable to identify your Telegram account.");
+
     return;
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // Account link
+  // ─────────────────────────────────────────────────────────────
 
   const integration = await telegramIntegrationRepo.findByTelegramUserId(
     sender.id,
@@ -994,6 +1001,7 @@ async function handleDocument(
           [
             {
               text: "🔗 Open AI Study Assistant",
+
               url: buildLoginUrl(),
             },
           ],
@@ -1008,6 +1016,10 @@ async function handleDocument(
 
   await telegramIntegrationRepo.updateLastActive(sender.id);
 
+  // ─────────────────────────────────────────────────────────────
+  // File type
+  // ─────────────────────────────────────────────────────────────
+
   if (!looksLikePdf(document)) {
     await sendMessage(
       chatId,
@@ -1015,8 +1027,13 @@ async function handleDocument(
         "\n",
       ),
     );
+
     return;
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // Telegram size limit
+  // ─────────────────────────────────────────────────────────────
 
   if (
     document.file_size &&
@@ -1030,6 +1047,7 @@ async function handleDocument(
         "Telegram PDF uploads are currently limited to 20 MB.",
       ].join("\n"),
     );
+
     return;
   }
 
@@ -1042,16 +1060,24 @@ async function handleDocument(
       "",
       `File: ${fileName}`,
       "",
-      "⏳ Downloading and validating...",
+      "⏳ Downloading and checking the document...",
     ].join("\n"),
   );
 
   try {
+    // ───────────────────────────────────────────────────────────
+    // Download metadata
+    // ───────────────────────────────────────────────────────────
+
     const telegramFile = await getFile(document.file_id);
 
     if (!telegramFile.file_path) {
       throw new Error("Telegram did not provide a downloadable file path.");
     }
+
+    // ───────────────────────────────────────────────────────────
+    // Download PDF
+    // ───────────────────────────────────────────────────────────
 
     const pdfBuffer = await downloadFile(telegramFile.file_path);
 
@@ -1064,8 +1090,13 @@ async function handleDocument(
         chatId,
         "❌ The downloaded PDF exceeds the Telegram 20 MB limit.",
       );
+
       return;
     }
+
+    // ───────────────────────────────────────────────────────────
+    // Real PDF signature
+    // ───────────────────────────────────────────────────────────
 
     if (!hasPdfSignature(pdfBuffer)) {
       await sendMessage(
@@ -1076,50 +1107,129 @@ async function handleDocument(
           "Please upload another document.",
         ].join("\n"),
       );
+
       return;
     }
 
     await sendMessage(
       chatId,
-      ["✅ PDF validated!", "", "⏳ Extracting document content..."].join("\n"),
-    );
-
-    const processed = await processUpload({
-      buffer: pdfBuffer,
-      originalName: fileName,
-      mimeType: document.mime_type ?? PDF_MIME_TYPE,
-      size: pdfBuffer.length,
-    });
-
-    if (!processed.content.trim()) {
-      throw new Error("No readable text could be extracted from this PDF.");
-    }
-
-    await sendMessage(
-      chatId,
       [
-        "📖 Document extracted successfully.",
+        "✅ PDF validated!",
         "",
-        `Pages: ${processed.pageCount ?? "Unknown"}`,
-        `Characters: ${processed.charCount.toLocaleString()}`,
-        "",
-        "⏳ Creating your study note...",
+        "🔍 Checking document extraction quality...",
       ].join("\n"),
     );
 
-    const note = await createNote(userId, processed, {
-      telegramChatId: chatId,
+    // ───────────────────────────────────────────────────────────
+    // Unified ingestion
+    //
+    // NORMAL PDF
+    // → native content
+    // → create note
+    // → study generation queue
+    //
+    // SCANNED / IMAGE-HEAVY PDF
+    // → create pending note
+    // → save original PDF
+    // → PDF ingestion queue
+    // → OCR worker
+    // → study generation queue
+    // ───────────────────────────────────────────────────────────
+
+    const result = await ingestDocument(
+      userId,
+      {
+        buffer: pdfBuffer,
+
+        originalName: fileName,
+
+        mimeType: document.mime_type ?? PDF_MIME_TYPE,
+
+        size: pdfBuffer.length,
+      },
+      {
+        telegramChatId: chatId,
+      },
+    );
+
+    const note = result.note;
+
+    logger.info("[telegram] document ingestion accepted", {
+      noteId: note.id,
+
+      userId,
+
+      telegramUserId: sender.id,
+
+      fileName,
+
+      fileSize: pdfBuffer.length,
+
+      pageCount: result.pageCount,
+
+      extractionQuality: result.extractionQuality,
+
+      backgroundProcessing: result.backgroundProcessing,
     });
 
-    logger.info("[telegram] note created from PDF", {
-      noteId: note.id,
-      userId,
-      telegramUserId: sender.id,
-      fileName,
-      fileSize: pdfBuffer.length,
-      pageCount: processed.pageCount,
-      charCount: processed.charCount,
-    });
+    // ═══════════════════════════════════════════════════════════
+    // Scanned/image-heavy PDF
+    // ═══════════════════════════════════════════════════════════
+
+    if (result.backgroundProcessing) {
+      await sendMessage(
+        chatId,
+        [
+          "✅ Document uploaded successfully!",
+          "",
+          `📚 ${note.title}`,
+          "",
+          `📄 Pages: ${result.pageCount ?? "Unknown"}`,
+          "",
+          "🔎 This PDF contains scanned or image-based pages.",
+          "",
+          "The document has been sent to the background processing system.",
+          "",
+          "Current process:",
+          "",
+          "1️⃣ Recovering document text",
+          "2️⃣ Analyzing concepts",
+          "3️⃣ Creating summary",
+          "4️⃣ Creating knowledge concepts",
+          "5️⃣ Creating quiz",
+          "6️⃣ Creating flashcards",
+          "",
+          "You do not need to keep this chat open.",
+          "",
+          "I will notify you here when study generation finishes.",
+        ].join("\n"),
+        {
+          buttons: [
+            [
+              {
+                text: "📚 Open Study Note",
+
+                url: buildNoteUrl(note.id),
+              },
+            ],
+
+            [
+              {
+                text: "🏠 Open Dashboard",
+
+                url: buildDashboardUrl(),
+              },
+            ],
+          ],
+        },
+      );
+
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Native-readable PDF
+    // ═══════════════════════════════════════════════════════════
 
     await sendMessage(
       chatId,
@@ -1128,7 +1238,11 @@ async function handleDocument(
         "",
         `📚 ${note.title}`,
         "",
-        "🧠 AI Study Assistant is generating:",
+        `📄 Pages: ${result.pageCount ?? "Unknown"}`,
+        "",
+        "📖 Document text was extracted successfully.",
+        "",
+        "🧠 AI Study Assistant is now generating:",
         "",
         "📝 Summary",
         "🧠 Knowledge Concepts",
@@ -1136,20 +1250,21 @@ async function handleDocument(
         "🃏 Flashcards",
         "",
         "I will notify you here when generation finishes.",
-        "",
-        "Open the note directly or return to your dashboard.",
       ].join("\n"),
       {
         buttons: [
           [
             {
               text: "📚 Open Study Note",
+
               url: buildNoteUrl(note.id),
             },
           ],
+
           [
             {
               text: "🏠 Open Dashboard",
+
               url: buildDashboardUrl(),
             },
           ],
@@ -1162,10 +1277,13 @@ async function handleDocument(
         ? error.message
         : "Unexpected document processing error";
 
-    logger.error("[telegram] PDF processing failed", {
+    logger.error("[telegram] PDF ingestion failed", {
       userId,
+
       telegramUserId: sender.id,
+
       fileName,
+
       error: errorMessage,
     });
 
@@ -1183,6 +1301,7 @@ async function handleDocument(
           [
             {
               text: "🏠 Open Dashboard",
+
               url: buildDashboardUrl(),
             },
           ],

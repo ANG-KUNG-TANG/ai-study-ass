@@ -208,13 +208,8 @@ export async function findManyAdmin(
   };
 }
 
-export async function findIdsByUserId(
-  userId: string,
-): Promise<string[]> {
-  const docs = await Note.find(
-    { userId },
-    { _id: 1 },
-  ).lean().exec();
+export async function findIdsByUserId(userId: string): Promise<string[]> {
+  const docs = await Note.find({ userId }, { _id: 1 }).lean().exec();
 
   return docs.map((doc: { _id: unknown }) => String(doc._id));
 }
@@ -277,6 +272,46 @@ export async function count(): Promise<number> {
   return Note.countDocuments();
 }
 
+export async function updateContent(
+  id: string,
+  content: string,
+): Promise<NoteEntity> {
+  const cleaned = content.trim();
+
+  if (!cleaned) {
+    throw new Error("Cannot update note with empty document content");
+  }
+
+  const doc = await Note.findByIdAndUpdate(
+    id,
+    {
+      $set: {
+        content: cleaned,
+
+        updatedAt: new Date(),
+      },
+    },
+    {
+      returnDocument: "after",
+
+      runValidators: true,
+    },
+  )
+    .lean()
+    .exec();
+
+  if (!doc) {
+    throw new NotFoundError("Note");
+  }
+
+  logger.info("Note document content updated", {
+    noteId: id,
+
+    charCount: cleaned.length,
+  });
+
+  return toEntity(doc);
+}
 // ─── Delete ───────────────────────────────────────────────────────────────────
 export async function deleteById(id: string): Promise<void> {
   await Note.findByIdAndDelete(id);

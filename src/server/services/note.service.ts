@@ -18,6 +18,15 @@ export type PublicNote = ReturnType<NoteEntity["toPublic"]>;
 
 export interface CreateNoteOptions {
   telegramChatId?: number;
+
+  /**
+   * Used when the document still needs
+   * background OCR.
+   *
+   * The PDF ingestion worker will enqueue
+   * study generation after OCR completes.
+   */
+  deferGeneration?: boolean;
 }
 
 function isDashboardRecentNotesQuery(options: NoteQueryOptions): boolean {
@@ -63,6 +72,15 @@ export async function createNote(
     charCount: file.charCount,
   });
 
+  if (options.deferGeneration) {
+    logger.info("Study generation deferred for note", {
+      noteId: saved.id,
+      userId,
+    });
+    
+    return publicNote;
+  }
+  
   try {
     await enqueueStudyGeneration({
       noteId: saved.id,

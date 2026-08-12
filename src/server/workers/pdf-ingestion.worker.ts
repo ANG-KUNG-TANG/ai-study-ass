@@ -1,0 +1,429 @@
+import { Worker, type Job } from "bullmq";
+
+import IORedis from "ioredis";
+
+import {
+  PDF_INGESTION_JOB_NAME,
+  PDF_INGESTION_QUEUE_NAME,
+  type PdfIngestionJobData,
+  type PdfIngestionJobResult,
+} from "@/server/queues/pdf-ingestion.queue";
+
+import { connectDb, disconnectDB } from "@/server/config/database";
+
+import * as noteRepo from "@/server/repositories/note.repo";
+
+import * as generationRepo from "@/server/repositories/study-generation.repo";
+
+import { processUpload } from "@/server/services/upload.service";
+
+import {
+  readTemporaryUpload,
+  deleteTemporaryUpload,
+} from "@/server/services/document-storage.service";
+
+import { enqueueStudyGeneration } from "@/server/queues/study-generation.queue";
+
+import { logger } from "@/server/utils/logger";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Redis
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getRedisUrl(): string {
+  const url = process.env.REDIS_URL?.trim();
+
+  if (!url) {
+    throw new Error("REDIS_URL is not configured");
+  }
+
+  return url;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Concurrency
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getConcurrency(): number {
+  const parsed = Number.parseInt(process.env.PDF_WORKER_CONCURRENCY ?? "1", 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+
+  /**
+   * Vision OCR is expensive.
+   *
+   * Keep this deliberately conservative.
+   */
+  return Math.min(parsed, 2);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Progress
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PdfJobProgress {
+  stage: "vision-ocr" | "ocr-complete" | "generation-queued";
+}
+
+function hasCompletedOcr(
+  job: Job<PdfIngestionJobData, PdfIngestionJobResult>,
+): boolean {
+  const progress = job.progress;
+
+  if (!progress || typeof progress !== "object") {
+    return false;
+  }
+
+  const value = progress as Partial<PdfJobProgress>;
+
+  return value.stage === "ocr-complete" || value.stage === "generation-queued";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Processor
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function processPdfIngestionJob(
+  job: Job<PdfIngestionJobData, PdfIngestionJobResult>,
+): Promise<PdfIngestionJobResult> {
+  if (job.name !== PDF_INGESTION_JOB_NAME) {
+    throw new Error(`Unsupported PDF ingestion job: ${job.name}`);
+  }
+
+  const { noteId, userId, storageKey, telegramChatId } = job.data;
+
+  logger.info("[pdf-worker] ingestion started", {
+    jobId: job.id,
+
+    noteId,
+
+    userId,
+
+    attempt: job.attemptsMade + 1,
+
+    storageKey,
+  });
+
+  const note = await noteRepo.findByIdOrThrow(noteId);
+
+  if (!note.belongsTo(userId)) {
+    throw new Error("PDF ingestion user does not own this note");
+  }
+
+  let pageCount = 0;
+
+  let charCount = note.content.length;
+
+  let visionUsed = true;
+
+  // ─────────────────────────────────────────────────────────────
+  // OCR stage
+  //
+  // If OCR already completed in an earlier attempt,
+  // do NOT spend Gemini quota doing it again.
+  // ─────────────────────────────────────────────────────────────
+
+  if (!hasCompletedOcr(job)) {
+    await generationRepo.updateStage(noteId, "vision_ocr");
+
+    await job.updateProgress({
+      stage: "vision-ocr",
+    } satisfies PdfJobProgress);
+
+    const buffer = await readTemporaryUpload(storageKey);
+
+    /**
+     * IMPORTANT:
+     *
+     * This uses the exact PDF pipeline we already
+     * tested successfully:
+     *
+     * native extraction
+     * → quality classification
+     * → page selection
+     * → rendering
+     * → adaptive OCR batching
+     * → reconstruction
+     * → canonical content
+     */
+    const processed = await processUpload({
+      buffer,
+
+      originalName: note.fileName,
+
+      mimeType: "application/pdf",
+
+      size: note.fileSize,
+    });
+
+    if (processed.fileType !== "pdf") {
+      throw new Error("PDF ingestion worker received a non-PDF result");
+    }
+
+    if (!processed.content.trim()) {
+      throw new Error("PDF OCR completed without readable content");
+    }
+
+    await noteRepo.updateContent(noteId, processed.content);
+
+    pageCount = processed.pageCount ?? 0;
+
+    charCount = processed.charCount;
+
+    visionUsed = Boolean(processed.visionFallbackUsed);
+
+    /**
+     * This marker prevents unnecessary OCR
+     * if enqueueStudyGeneration fails and
+     * BullMQ retries this ingestion job.
+     */
+    await job.updateProgress({
+      stage: "ocr-complete",
+    } satisfies PdfJobProgress);
+
+    logger.info("[pdf-worker] OCR completed", {
+      jobId: job.id,
+
+      noteId,
+
+      pageCount,
+
+      charCount,
+
+      visionUsed,
+    });
+  } else {
+    logger.info(
+      "[pdf-worker] OCR already completed, skipping repeated vision processing",
+      {
+        jobId: job.id,
+
+        noteId,
+      },
+    );
+
+    const refreshedNote = await noteRepo.findByIdOrThrow(noteId);
+
+    charCount = refreshedNote.content.length;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Queue intelligence + feature generation
+  // ─────────────────────────────────────────────────────────────
+
+  await generationRepo.updateStage(noteId, "pending");
+
+  await enqueueStudyGeneration({
+    noteId,
+    userId,
+    telegramChatId,
+  });
+
+  await job.updateProgress({
+    stage: "generation-queued",
+  } satisfies PdfJobProgress);
+
+  // ─────────────────────────────────────────────────────────────
+  // Raw PDF is no longer needed.
+  // ─────────────────────────────────────────────────────────────
+
+  await deleteTemporaryUpload(storageKey);
+
+  logger.info("[pdf-worker] ingestion completed", {
+    jobId: job.id,
+
+    noteId,
+
+    charCount,
+
+    generationQueued: true,
+  });
+
+  return {
+    noteId,
+
+    pageCount,
+
+    charCount,
+
+    visionUsed,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Final failure
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function handleFinalFailure(
+  job: Job<PdfIngestionJobData, PdfIngestionJobResult> | undefined,
+
+  error: Error,
+): Promise<void> {
+  if (!job) {
+    return;
+  }
+
+  const maxAttempts =
+    typeof job.opts.attempts === "number" ? job.opts.attempts : 1;
+
+  /**
+   * BullMQ is going to retry.
+   *
+   * Do not mark the note failed yet.
+   */
+  if (job.attemptsMade < maxAttempts) {
+    return;
+  }
+
+  logger.error("[pdf-worker] PDF ingestion permanently failed", {
+    jobId: job.id,
+
+    noteId: job.data.noteId,
+
+    attemptsMade: job.attemptsMade,
+
+    error: error.message,
+  });
+
+  try {
+    await generationRepo.updateStage(job.data.noteId, "failed");
+  } catch (stageError) {
+    logger.error("[pdf-worker] failed to update ingestion failure state", {
+      noteId: job.data.noteId,
+
+      error:
+        stageError instanceof Error ? stageError.message : String(stageError),
+    });
+  }
+
+  try {
+    await deleteTemporaryUpload(job.data.storageKey);
+  } catch (cleanupError) {
+    logger.error("[pdf-worker] failed to clean temporary PDF", {
+      noteId: job.data.noteId,
+
+      storageKey: job.data.storageKey,
+
+      error:
+        cleanupError instanceof Error
+          ? cleanupError.message
+          : String(cleanupError),
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Worker startup
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function main(): Promise<void> {
+  await connectDb();
+
+  const connection = new IORedis(getRedisUrl(), {
+    maxRetriesPerRequest: null,
+
+    enableReadyCheck: true,
+  });
+
+  connection.on("error", (error) => {
+    logger.error("[pdf-worker] Redis connection error", {
+      error: error.message,
+    });
+  });
+
+  const worker = new Worker<PdfIngestionJobData, PdfIngestionJobResult>(
+    PDF_INGESTION_QUEUE_NAME,
+    processPdfIngestionJob,
+    {
+      connection,
+
+      concurrency: getConcurrency(),
+    },
+  );
+
+  worker.on("completed", (job, result) => {
+    logger.info("[pdf-worker] BullMQ job completed", {
+      jobId: job.id,
+
+      noteId: result.noteId,
+
+      charCount: result.charCount,
+
+      visionUsed: result.visionUsed,
+    });
+  });
+
+  worker.on("failed", (job, error) => {
+    logger.error("[pdf-worker] BullMQ job attempt failed", {
+      jobId: job?.id,
+
+      noteId: job?.data.noteId,
+
+      attemptsMade: job?.attemptsMade,
+
+      attempts: job?.opts.attempts,
+
+      error: error.message,
+    });
+
+    void handleFinalFailure(job, error);
+  });
+
+  worker.on("error", (error) => {
+    logger.error("[pdf-worker] BullMQ worker error", {
+      error: error.message,
+    });
+  });
+
+  await worker.waitUntilReady();
+
+  logger.info("[pdf-worker] PDF ingestion worker ready", {
+    queue: PDF_INGESTION_QUEUE_NAME,
+
+    concurrency: getConcurrency(),
+  });
+
+  let shuttingDown = false;
+
+  const shutdown = async (signal: string): Promise<void> => {
+    if (shuttingDown) {
+      return;
+    }
+
+    shuttingDown = true;
+
+    logger.info("[pdf-worker] shutting down", {
+      signal,
+    });
+
+    try {
+      await worker.close();
+
+      await connection.quit();
+
+      await disconnectDB();
+    } catch (error) {
+      logger.error("[pdf-worker] shutdown error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  process.once("SIGTERM", () => {
+    void shutdown("SIGTERM");
+  });
+
+  process.once("SIGINT", () => {
+    void shutdown("SIGINT");
+  });
+}
+
+void main().catch((error) => {
+  logger.error("[pdf-worker] startup failed", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+
+  process.exitCode = 1;
+});

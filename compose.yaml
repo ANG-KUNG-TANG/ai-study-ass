@@ -1,4 +1,7 @@
 services:
+  # ────────────────────────────────────────────────────────────────────────────
+  # MongoDB
+  # ────────────────────────────────────────────────────────────────────────────
   mongo:
     image: mongo:8.0
     container_name: ai-study-mongo
@@ -24,6 +27,9 @@ services:
     networks:
       - ai-study-network
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # Redis
+  # ────────────────────────────────────────────────────────────────────────────
   redis:
     image: redis:8-alpine
     container_name: ai-study-redis
@@ -40,7 +46,12 @@ services:
       - redis_data:/data
 
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,6 +60,16 @@ services:
     networks:
       - ai-study-network
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # Study Generation Worker
+  #
+  # Handles:
+  # intelligence
+  # summary
+  # quiz
+  # flashcards
+  # chat knowledge
+  # ────────────────────────────────────────────────────────────────────────────
   worker:
     build:
       context: .
@@ -64,9 +85,12 @@ services:
 
     environment:
       NODE_ENV: production
+
       APP_URL: http://localhost:3000
       APP_PUBLIC_URL: ${APP_PUBLIC_URL}
+
       REDIS_URL: redis://redis:6379
+
       GENERATION_WORKER_CONCURRENCY: 1
 
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
@@ -76,12 +100,76 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+
       redis:
         condition: service_healthy
 
     networks:
       - ai-study-network
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # PDF Ingestion / OCR Worker
+  #
+  # Handles:
+  # PDF rendering
+  # vision OCR
+  # reconstruction
+  # canonical content
+  #
+  # Then queues study-generation.
+  # ────────────────────────────────────────────────────────────────────────────
+  pdf-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+
+    container_name: ai-study-pdf-worker
+    restart: unless-stopped
+    init: true
+
+    command:
+      [
+        "./node_modules/.bin/tsx",
+        "src/server/workers/pdf-ingestion.worker.ts"
+      ]
+
+    env_file:
+      - .env.docker
+
+    environment:
+      NODE_ENV: production
+
+      APP_URL: http://localhost:3000
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL}
+
+      REDIS_URL: redis://redis:6379
+
+      PDF_WORKER_CONCURRENCY: 1
+
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
+
+      # Same directory mounted into app + pdf-worker.
+      UPLOAD_STORAGE_DIR: /app/storage/uploads
+
+    volumes:
+      - upload_data:/app/storage/uploads
+
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    networks:
+      - ai-study-network
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Next.js Application
+  # ────────────────────────────────────────────────────────────────────────────
   app:
     build:
       context: .
@@ -113,9 +201,18 @@ services:
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
 
+      # MUST match pdf-worker.
+      UPLOAD_STORAGE_DIR: /app/storage/uploads
+
+    # Critical:
+    # the app writes raw PDFs here and pdf-worker reads them.
+    volumes:
+      - upload_data:/app/storage/uploads
+
     depends_on:
       mongo:
         condition: service_healthy
+
       redis:
         condition: service_healthy
 
@@ -135,10 +232,17 @@ services:
     networks:
       - ai-study-network
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Persistent Volumes
+# ──────────────────────────────────────────────────────────────────────────────
 volumes:
   mongo_data:
   redis_data:
+  upload_data:
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Network
+# ──────────────────────────────────────────────────────────────────────────────
 networks:
   ai-study-network:
     driver: bridge

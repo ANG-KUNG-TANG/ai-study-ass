@@ -23,6 +23,8 @@ export type FeatureGenerationStatus =
   | "failed";
 
 export type StudyGenerationStage =
+  | "extracting"
+  | "vision_ocr"
   | "pending"
   | "analyzing"
   | "generating"
