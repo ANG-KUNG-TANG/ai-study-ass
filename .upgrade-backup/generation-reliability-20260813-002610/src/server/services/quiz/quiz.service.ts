@@ -24,12 +24,14 @@ import type {
   ResolvedConcept,
 } from "@/server/intelligence/types";
 import { buildQuestionsFromSource } from "@/server/services/symbolic-content.service";
-import { sampleDocumentContent } from "@/server/services/document-sampling.service";
-import { parseStructuredArray } from "@/server/utils/structured-output";
 import type {
   GenerationMetadata,
   GenerationSource,
 } from "@/server/types/generation";
+
+interface RawQuizJSON {
+  questions?: unknown;
+}
 
 interface RawQuestionJSON {
   question?: unknown;
@@ -39,90 +41,55 @@ interface RawQuestionJSON {
   explanation?: unknown;
 }
 
-function normalizeQuestionType(
-  value: unknown,
-): QuizQuestionInput["questionType"] | null {
-  if (typeof value !== "string") return null;
-  const normalized = value
-    .toLowerCase()
+function parseQuizResponse(rawText: string): QuizQuestionInput[] {
+  const cleaned = rawText
     .trim()
-    .replace(/[\s/-]+/g, "_");
+    .replace(/^```json\s*/i, "")
+    .replace(/```\s*$/, "");
 
-  const aliases: Record<string, QuizQuestionInput["questionType"]> = {
-    multiple_choice: "multiple_choice",
-    multiplechoice: "multiple_choice",
-    mcq: "multiple_choice",
-    true_false: "true_false",
-    truefalse: "true_false",
-    short_answer: "short_answer",
-    shortanswer: "short_answer",
-  };
+  const parsed = JSON.parse(cleaned) as RawQuizJSON;
 
-  return aliases[normalized] ?? null;
-}
-
-function parseQuizQuestion(raw: unknown): QuizQuestionInput | null {
-  if (!raw || typeof raw !== "object") return null;
-  const question = raw as RawQuestionJSON;
-
-  if (
-    typeof question.question !== "string" ||
-    typeof question.answer !== "string"
-  ) {
-    return null;
+  if (!Array.isArray(parsed.questions)) {
+    throw new Error('AI quiz response is missing a "questions" array.');
   }
 
-  const questionType = normalizeQuestionType(question.questionType);
-  if (!questionType || !QUESTION_TYPES.includes(questionType)) return null;
+  return parsed.questions.map((raw, index): QuizQuestionInput => {
+    const question = raw as RawQuestionJSON;
 
-  if (!Array.isArray(question.options)) return null;
-  const options = question.options
-    .filter((option): option is string => typeof option === "string")
-    .map((option) => option.trim())
-    .filter(Boolean);
+    if (typeof question.question !== "string") {
+      throw new Error(`questions[${index}].question must be a string.`);
+    }
 
-  const questionText = question.question.trim();
-  let answer = question.answer.trim();
-  if (!questionText || !answer) return null;
+    if (
+      typeof question.questionType !== "string" ||
+      !QUESTION_TYPES.includes(question.questionType as never)
+    ) {
+      throw new Error(`questions[${index}].questionType is invalid.`);
+    }
 
-  if (questionType === "multiple_choice") {
-    const matchedOption = options.find(
-      (option) => option.toLowerCase() === answer.toLowerCase(),
-    );
-    if (!matchedOption || options.length < 2 || options.length > 6) return null;
-    answer = matchedOption;
-  }
+    if (
+      !Array.isArray(question.options) ||
+      !question.options.every((option) => typeof option === "string")
+    ) {
+      throw new Error(`questions[${index}].options must be a string array.`);
+    }
 
-  if (questionType === "true_false") {
-    const normalizedAnswer = answer.toLowerCase();
-    if (normalizedAnswer !== "true" && normalizedAnswer !== "false")
-      return null;
-    answer = normalizedAnswer === "true" ? "True" : "False";
-  }
+    if (typeof question.answer !== "string") {
+      throw new Error(`questions[${index}].answer must be a string.`);
+    }
 
-  return {
-    question: questionText.slice(0, 600),
-    questionType,
-    options:
-      questionType === "short_answer"
-        ? []
-        : questionType === "true_false"
-          ? ["True", "False"]
-          : options,
-    answer: answer.slice(0, 500),
-    explanation:
-      typeof question.explanation === "string"
-        ? question.explanation.trim().slice(0, 700)
-        : undefined,
-  };
-}
-
-function parseQuizResponse(rawText: string): {
-  questions: QuizQuestionInput[];
-  recovered: boolean;
-} {
-  const result = parseStructuredArray(rawText, "questions", parseQuizQuestion);
-  return { questions: result.items, recovered: result.recovered };
+    return {
+      question: question.question.trim(),
+      questionType:
+        question.questionType as QuizQuestionInput["questionType"],
+      options: question.options,
+      answer: question.answer.trim(),
+      explanation:
+        typeof question.explanation === "string"
+          ? question.explanation.trim()
+          : undefined,
+    };
+  });
 }
 
 function pickDistractors(
@@ -131,7 +98,10 @@ function pickDistractors(
   count: number,
 ): string[] {
   return pool
-    .filter((candidate) => candidate.toLowerCase() !== correct.toLowerCase())
+    .filter(
+      (candidate) =>
+        candidate.toLowerCase() !== correct.toLowerCase(),
+    )
     .slice(0, count);
 }
 
@@ -149,6 +119,7 @@ export function buildQuestionsFromCore(
 
   if (core.method && types.includes("multiple_choice")) {
     const distractors = pickDistractors(distractorPool, core.method, 3);
+
     if (distractors.length > 0) {
       questions.push({
         question: "Which method does this document propose or evaluate?",
@@ -180,7 +151,10 @@ export function buildQuestionsFromCore(
     });
   }
 
-  if (core.accuracy !== null && types.includes("short_answer")) {
+  if (
+    core.accuracy !== null &&
+    types.includes("short_answer")
+  ) {
     questions.push({
       question: "What performance result is reported?",
       questionType: "short_answer",
@@ -199,11 +173,13 @@ export function buildQuestionsFromCore(
         answer: point.value.slice(0, 300),
         explanation: "This key point was extracted from the document.",
       });
+
       if (questions.length >= count) break;
     }
 
     for (const contribution of core.contributions) {
       if (questions.length >= count) break;
+
       questions.push({
         question: "Name one contribution of this work.",
         questionType: "short_answer",
@@ -223,7 +199,11 @@ function deduplicateQuestions(
   const seen = new Set<string>();
 
   return questions.filter((question) => {
-    const key = question.question.toLowerCase().replace(/\s+/g, " ").trim();
+    const key = question.question
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -237,6 +217,7 @@ function validateQuestions(
 ): QuizQuestionInput[] {
   return questions.filter((question) => {
     try {
+       
       new QuizEntity({
         id: "validation-only",
         noteId,
@@ -268,7 +249,10 @@ export async function generateQuizWithMetadata(
   options: GenerateQuizOptions = {},
 ): Promise<QuizGenerationResult> {
   const note = await noteRepo.findByIdOrThrow(noteId);
-  if (!note.belongsTo(userId)) throw new ForbiddenError();
+
+  if (!note.belongsTo(userId)) {
+    throw new ForbiddenError();
+  }
 
   if (!note.content.trim()) {
     throw new ValidationError(
@@ -297,23 +281,26 @@ export async function generateQuizWithMetadata(
     .getOrRunPipeline(noteId)
     .catch(() => null);
 
-  const coreQuestions = intelligence?.core
-    ? buildQuestionsFromCore(
-        intelligence.core,
-        intelligence.ontology ?? [],
-        types,
-        count,
-      )
-    : [];
+  const coreQuestions =
+    intelligence?.core
+      ? buildQuestionsFromCore(
+          intelligence.core,
+          intelligence.ontology ?? [],
+          types,
+          count,
+        )
+      : [];
 
-  const sourceQuestions = buildQuestionsFromSource(note.content, count, types);
+  const sourceQuestions = buildQuestionsFromSource(
+    note.content,
+    count,
+    types,
+  );
 
   let questions = deduplicateQuestions([
     ...coreQuestions,
     ...sourceQuestions,
   ]).slice(0, count);
-
-  questions = validateQuestions(noteId, userId, questions);
 
   const symbolicCount = questions.length;
   let source: GenerationSource = "symbolic";
@@ -324,8 +311,7 @@ export async function generateQuizWithMetadata(
 
   if (missingCount > 0) {
     try {
-      const sample = sampleDocumentContent(note.content, 20_000);
-      const { systemPrompt, prompt } = buildQuizPrompt(sample.text, {
+      const { systemPrompt, prompt } = buildQuizPrompt(note.content, {
         ...options,
         questionCount: missingCount,
       });
@@ -334,42 +320,33 @@ export async function generateQuizWithMetadata(
         prompt,
         systemPrompt,
         jsonMode: true,
-        temperature: 0.25,
-        maxTokens: 3_000,
+        temperature: 0.35,
+        maxTokens: 2_000,
         usageLabel: "quiz",
       });
 
-      const parsed = parseQuizResponse(aiResult.text);
-      const validAIQuestions = validateQuestions(
-        noteId,
-        userId,
-        parsed.questions,
-      );
-
+      const aiQuestions = parseQuizResponse(aiResult.text);
       questions = deduplicateQuestions([
         ...questions,
-        ...validAIQuestions,
+        ...aiQuestions,
       ]).slice(0, count);
 
-      if (validAIQuestions.length > 0) {
-        source = symbolicCount > 0 ? "hybrid" : "ai_fallback";
-        aiFallbackUsed = true;
-        tokensUsed = aiResult.tokensUsed;
-      }
-
-      if (parsed.recovered) {
-        logger.warn("Recovered valid quiz questions from incomplete AI JSON", {
-          noteId,
-          recoveredCount: validAIQuestions.length,
-        });
-      }
+      source = symbolicCount > 0 ? "hybrid" : "ai_fallback";
+      aiFallbackUsed = true;
+      tokensUsed = aiResult.tokensUsed;
     } catch (error) {
-      logger.warn("AI quiz fallback unavailable; keeping symbolic questions", {
-        noteId,
-        requested: count,
-        symbolicCount,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        "AI quiz fallback unavailable; keeping symbolic questions",
+        {
+          noteId,
+          requested: count,
+          symbolicCount,
+          error:
+            error instanceof Error
+              ? error.message
+              : String(error),
+        },
+      );
     }
   }
 
@@ -385,7 +362,11 @@ export async function generateQuizWithMetadata(
     await quizRepository.deleteByNoteId(noteId);
   }
 
-  const quiz = await quizRepository.create({ noteId, userId, questions });
+  const quiz = await quizRepository.create({
+    noteId,
+    userId,
+    questions,
+  });
 
   const confidence = Math.min(
     1,
@@ -403,7 +384,6 @@ export async function generateQuizWithMetadata(
     noteId,
     userId,
     count: questions.length,
-    requested: count,
     source,
     aiFallbackUsed,
   });
@@ -440,11 +420,13 @@ export async function getLatestQuizByNote(
   userId: string,
 ): Promise<QuizEntity> {
   const quiz = await quizRepository.findLatestByNote(noteId, userId);
+
   if (!quiz) {
     throw new NotFoundError(
       `No quiz has been generated yet for note ${noteId}`,
     );
   }
+
   return quiz;
 }
 
@@ -469,8 +451,12 @@ export async function deleteQuiz(
   userId: string,
 ): Promise<void> {
   const quiz = await quizRepository.findById(quizId);
+
   if (!quiz || quiz.userId !== userId) {
-    throw new ForbiddenError("You do not have access to this quiz.");
+    throw new ForbiddenError(
+      "You do not have access to this quiz.",
+    );
   }
+
   await quizRepository.deleteById(quizId);
 }

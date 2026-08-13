@@ -19,7 +19,6 @@ export async function getGenerationStatusController(
 
   return successResponse(status);
 }
-
 export async function regenerateStudyMaterialsController(
   req: Request,
   context: RouteContext,
@@ -33,28 +32,36 @@ export async function regenerateStudyMaterialsController(
     const body = (await req.json()) as {
       force?: boolean;
     };
+
     force = body.force ?? true;
   } catch {
     // Request body is optional.
   }
 
-  await generationService.getGenerationStatus(noteId, auth.userId);
-
-  generationService.generateStudyMaterialsInBackground({
+  const queued = await generationService.queueStudyMaterials({
     noteId,
+
     userId: auth.userId,
+
     force,
   });
 
   return NextResponse.json(
     {
       success: true,
+
       data: {
         noteId,
-        stage: "pending",
-        message: "Study material regeneration has started.",
+
+        jobId: queued.jobId,
+
+        stage: queued.stage,
+
+        message: "Study material regeneration has been queued.",
       },
     },
-    { status: 202 },
+    {
+      status: 202,
+    },
   );
 }

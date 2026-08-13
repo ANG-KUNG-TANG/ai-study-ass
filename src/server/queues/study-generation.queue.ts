@@ -181,15 +181,69 @@ export async function enqueueStudyGeneration(
 ): Promise<string> {
   const queue = getStudyGenerationQueue();
 
+  const jobId = `study-${data.noteId}`;
+
+  const existing = await queue.getJob(jobId);
+
+  if (existing) {
+    const state = await existing.getState();
+
+    const isTerminal = state === "completed" || state === "failed";
+
+    /**
+     * Completed/failed jobs are retained by BullMQ.
+     * A manual force-regeneration must remove the old
+     * terminal job before reusing the canonical job id.
+     */
+    if (data.force && isTerminal) {
+      await existing.remove();
+
+      logger.info(
+        "[queue] removed terminal study generation job for regeneration",
+        {
+          queue: STUDY_GENERATION_QUEUE_NAME,
+
+          jobId,
+
+          noteId: data.noteId,
+
+          previousState: state,
+        },
+      );
+    } else {
+      /**
+       * A waiting/active/delayed job already owns this
+       * note. Do not create duplicate generation work.
+       */
+      logger.info("[queue] study generation job already exists", {
+        queue: STUDY_GENERATION_QUEUE_NAME,
+
+        jobId: existing.id,
+
+        noteId: data.noteId,
+
+        state,
+      });
+
+      return String(existing.id);
+    }
+  }
+
   const job = await queue.add(STUDY_GENERATION_JOB_NAME, data, {
-    jobId: `study-${data.noteId}`,
+    jobId,
   });
 
   logger.info("[queue] study generation job queued", {
     queue: STUDY_GENERATION_QUEUE_NAME,
+
     jobId: job.id,
+
     noteId: data.noteId,
+
     userId: data.userId,
+
+    force: Boolean(data.force),
+
     telegramNotification: Boolean(data.telegramChatId),
   });
 

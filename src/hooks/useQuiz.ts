@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { subscribeStudyGenerationUpdated } from "@/lib/study-generation-events";
 import {
   listQuizzesByNote,
   generateQuiz,
@@ -49,6 +50,15 @@ export function useQuiz(noteId: string) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    return subscribeStudyGenerationUpdated(
+      noteId,
+      () => {
+        void load();
+      },
+    );
+  }, [load, noteId]);
 
   const generate = useCallback(
     async (

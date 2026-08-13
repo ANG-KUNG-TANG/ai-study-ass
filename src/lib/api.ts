@@ -2,6 +2,8 @@ import { getAccessToken, setAccessToken } from "./auth-token-store";
 import type { PaginationMeta } from "@/types/pagination";
 
 const API_BASE = "/api";
+const SESSION_EXPIRED_MESSAGE =
+  "Your session has expired. Please log in again.";
 
 let refreshPromise: Promise<boolean> | null = null;
 
@@ -12,13 +14,18 @@ interface ApiOptions extends RequestInit {
 }
 
 function asRecord(value: unknown): JsonRecord | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
+  return value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
     ? (value as JsonRecord)
     : null;
 }
 
-async function readJson(response: Response): Promise<JsonRecord | null> {
-  const value: unknown = await response.json().catch(() => null);
+async function readJson(
+  response: Response,
+): Promise<JsonRecord | null> {
+  const value: unknown =
+    await response.json().catch(() => null);
   return asRecord(value);
 }
 
@@ -72,10 +79,16 @@ function buildHeaders(
     base.Authorization = `Bearer ${token}`;
   }
 
-  return {
-    ...base,
-    ...headers,
-  };
+  return { ...base, ...headers };
+}
+
+function shouldSkipTokenRefresh(
+  path: string,
+  skipAuth: boolean | undefined,
+): boolean {
+  return Boolean(skipAuth) ||
+    path === "/auth/refresh" ||
+    path === "/auth/logout";
 }
 
 async function rawRequest(
@@ -84,6 +97,14 @@ async function rawRequest(
 ): Promise<{ body: JsonRecord | null; response: Response }> {
   const { skipAuth, headers, ...rest } = options;
   const isFormData = rest.body instanceof FormData;
+  const skipRefresh = shouldSkipTokenRefresh(path, skipAuth);
+
+  if (!skipRefresh && !getAccessToken()) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) {
+      throw new Error(SESSION_EXPIRED_MESSAGE);
+    }
+  }
 
   const execute = () =>
     fetch(`${API_BASE}${path}`, {
@@ -94,14 +115,19 @@ async function rawRequest(
 
   let response = await execute();
 
-  const shouldSkipRefresh =
-    path === "/auth/logout" ||
-    path === "/auth/refresh";
-
-  if (response.status === 401 && !skipAuth && !shouldSkipRefresh) {
+  if (response.status === 401 && !skipRefresh) {
     const refreshed = await refreshAccessToken();
-    if (refreshed) {
-      response = await execute();
+
+    if (!refreshed) {
+      setAccessToken(null);
+      throw new Error(SESSION_EXPIRED_MESSAGE);
+    }
+
+    response = await execute();
+
+    if (response.status === 401) {
+      setAccessToken(null);
+      throw new Error(SESSION_EXPIRED_MESSAGE);
     }
   }
 
@@ -117,10 +143,7 @@ async function rawRequest(
     throw new Error(message);
   }
 
-  return {
-    body,
-    response,
-  };
+  return { body, response };
 }
 
 export async function apiFetch<T>(
@@ -138,7 +161,9 @@ export async function apiFetchPaginated<T>(
   const { body } = await rawRequest(path, options);
 
   return {
-    data: Array.isArray(body?.data) ? (body.data as T[]) : [],
+    data: Array.isArray(body?.data)
+      ? (body.data as T[])
+      : [],
     meta: body?.meta as PaginationMeta,
   };
 }

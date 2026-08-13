@@ -2,6 +2,7 @@ import { generate } from "@/server/services/ai.service";
 import { buildSummaryPrompt } from "@/server/services/summary/summary.prompt";
 import * as noteRepo from "@/server/repositories/note.repo";
 import * as intelligenceService from "@/server/services/intelligence.service";
+import * as recentNotesCache from "@/server/services/cache/recent-notes-cache.service";
 import {
   buildReliableSymbolicSummary,
   isReliableCachedSummary,
@@ -9,8 +10,6 @@ import {
   validateAIDraft,
   type AIStudyNotesDraft,
 } from "@/server/services/summary/reliable-summary.service";
-import { sampleDocumentContent } from "@/server/services/document-sampling.service";
-import { parseJsonObject } from "@/server/utils/structured-output";
 import { NotFoundError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type {
@@ -35,29 +34,20 @@ interface RawAIDraft {
   unresolvedAssumptions?: unknown;
 }
 
-function cleanString(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}
-
 function parseStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-
-  return value
-    .filter((item): item is string => typeof item === "string")
-    .map(cleanString)
-    .filter((item) => {
-      const key = item.toLowerCase();
-      if (!item || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function parseAIDraft(rawText: string): AIStudyNotesDraft {
-  const parsed = parseJsonObject(rawText) as RawAIDraft;
+  const cleaned = rawText
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/```\s*$/, "");
+  const parsed = JSON.parse(cleaned) as RawAIDraft;
 
-  if (typeof parsed.overview !== "string" || !parsed.overview.trim()) {
+  if (typeof parsed.overview !== "string") {
     throw new Error('AI summary response is missing "overview".');
   }
 
@@ -66,27 +56,15 @@ function parseAIDraft(rawText: string): AIStudyNotesDraft {
         .map((item) => {
           if (!item || typeof item !== "object") return null;
           const object = item as Record<string, unknown>;
-
-          if (
-            typeof object.term !== "string" ||
-            typeof object.definition !== "string"
-          ) {
-            return null;
-          }
-
-          const term = cleanString(object.term);
-          const definition = cleanString(object.definition);
-          if (!term || !definition) return null;
-
-          return { term, definition };
+          return typeof object.term === "string" && typeof object.definition === "string"
+            ? { term: object.term, definition: object.definition }
+            : null;
         })
-        .filter(
-          (item): item is { term: string; definition: string } => item !== null,
-        )
+        .filter((item): item is { term: string; definition: string } => item !== null)
     : [];
 
   return {
-    overview: cleanString(parsed.overview),
+    overview: parsed.overview,
     keyPoints: parseStringArray(parsed.keyPoints),
     importantConcepts: parseStringArray(parsed.importantConcepts),
     keyTerms,
@@ -150,25 +128,24 @@ export async function generateSummary(
 
   if (needsFallback && result.profile?.status !== "rejected") {
     try {
-      const groundingText = result.profile?.cleanedText ?? note.content;
-      const sample = sampleDocumentContent(groundingText, 28_000);
       const prompt = buildSummaryPrompt({
-        content: sample.text,
+        content: result.profile?.cleanedText ?? note.content,
         profile: result.profile,
         symbolicDraft: result.summary,
       });
-
       const aiResult = await generate({
         prompt: prompt.prompt,
         systemPrompt: prompt.systemPrompt,
         jsonMode: true,
         temperature: 0.1,
-        maxTokens: 2_600,
+        maxTokens: 2_000,
         usageLabel: "summary",
       });
-
       const parsed = parseAIDraft(aiResult.text);
-      const validated = validateAIDraft(parsed, groundingText);
+      const validated = validateAIDraft(
+        parsed,
+        result.profile?.cleanedText ?? note.content,
+      );
 
       if (validated) {
         result = mergeAIDraft(result, validated);
@@ -181,25 +158,15 @@ export async function generateSummary(
         });
       }
     } catch (error) {
-      logger.warn(
-        "AI summary fallback unavailable; keeping deterministic notes",
-        {
-          noteId,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      );
+      logger.warn("AI summary fallback unavailable; keeping deterministic notes", {
+        noteId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
   await noteRepo.updateSummary(noteId, result.summary);
-
-  logger.info("Summary generated", {
-    noteId,
-    source,
-    aiFallbackUsed,
-    summaryLength: result.summary.length,
-    status: result.status,
-  });
+  await recentNotesCache.invalidateRecentNotesCache(note.userId);
 
   return {
     summary: result.summary,

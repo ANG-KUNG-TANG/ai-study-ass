@@ -14,11 +14,13 @@ export function regenerateStudyMaterials(
   force = true,
 ): Promise<{
   noteId: string;
+  jobId: string;
   stage: "pending";
   message: string;
 }> {
   return apiFetch<{
     noteId: string;
+    jobId: string;
     stage: "pending";
     message: string;
   }>(`/notes/${encodeURIComponent(noteId)}/generate`, {
@@ -27,7 +29,9 @@ export function regenerateStudyMaterials(
   });
 }
 
-export function retryPdfOcr(noteId: string): Promise<{
+export function retryPdfOcr(
+  noteId: string,
+): Promise<{
   noteId: string;
   jobId: string;
   stage: "vision_ocr";

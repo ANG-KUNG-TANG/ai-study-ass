@@ -318,12 +318,65 @@ export function StudyGenerationProgress({ noteId }: { noteId: string }) {
 
   if (status.stage === "complete") {
     return (
-      <div className="mb-5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-        <span className="text-[12px]">✓</span>
+      <div className="mb-5 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50">
+        <div className="flex items-center justify-between gap-4 p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-emerald-700">✓</span>
 
-        <span className="text-[12px] font-medium text-emerald-700">
-          All study materials are ready
-        </span>
+            <div>
+              <div className="text-[12px] font-medium text-emerald-700">
+                All study materials are ready
+              </div>
+
+              <div className="mt-0.5 text-[10px] text-emerald-700/70">
+                Summary, quiz, flashcards, and knowledge have finished
+                generating.
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={isRegenerating}
+            onClick={() => {
+              void regenerate();
+            }}
+            className="
+            shrink-0
+            rounded-md
+            border border-emerald-300
+            bg-white
+            px-3 py-1.5
+            text-[11px]
+            font-medium
+            text-emerald-800
+            transition
+            hover:bg-emerald-100
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+          "
+          >
+            {isRegenerating
+              ? "Regenerating…"
+              : "Regenerate all study materials"}
+          </button>
+        </div>
+
+        {error ? (
+          <div className="mx-4 mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="border-t border-emerald-200/70 bg-white px-4">
+          {FEATURE_ORDER.map((feature) => (
+            <FeatureRow
+              key={feature}
+              name={feature}
+              state={status.features[feature]}
+            />
+          ))}
+        </div>
       </div>
     );
   }
@@ -434,7 +487,9 @@ export function StudyGenerationProgress({ noteId }: { noteId: string }) {
                 disabled:opacity-50
               "
             >
-              {isRegenerating ? "Regenerating…" : "Regenerate study materials"}
+              {isRegenerating
+                ? "Regenerating…"
+                : "Regenerate all study materials"}
             </button>
           </div>
         ) : null}

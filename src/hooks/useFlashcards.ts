@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { subscribeStudyGenerationUpdated } from "@/lib/study-generation-events";
 import {
   listFlashcards,
   generateFlashcards,
@@ -44,6 +45,15 @@ export function useFlashcards(noteId: string) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    return subscribeStudyGenerationUpdated(
+      noteId,
+      () => {
+        void load();
+      },
+    );
+  }, [load, noteId]);
 
   const generate = useCallback(
     async (count?: number): Promise<Flashcard[]> => {

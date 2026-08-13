@@ -6,14 +6,15 @@ import {
   FlashcardEntity,
   type FlashcardDifficulty,
 } from "@/server/entities/flashcard.entity";
-import { ForbiddenError, BadRequestError } from "@/server/utils/errors";
+import {
+  ForbiddenError,
+  BadRequestError,
+} from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type { KnowledgeCore } from "@/server/intelligence/types";
 import { generate } from "@/server/services/ai.service";
 import { DEFAULT_FLASHCARDS } from "@/server/utils/constants";
 import { buildFlashcardsFromSource } from "@/server/services/symbolic-content.service";
-import { sampleDocumentContent } from "@/server/services/document-sampling.service";
-import { parseStructuredArray } from "@/server/utils/structured-output";
 import type {
   GenerationMetadata,
   GenerationSource,
@@ -28,10 +29,6 @@ interface FlashcardPair {
 export interface FlashcardGenerationResult {
   flashcards: ReturnType<FlashcardEntity["toPublic"]>[];
   metadata: GenerationMetadata;
-}
-
-function normalize(value: string): string {
-  return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function buildCardsFromCore(
@@ -80,17 +77,19 @@ function buildCardsFromCore(
     });
   }
 
-  core.contributions.forEach((contribution, index) => {
-    if (cards.length >= count) return;
+  for (const contribution of core.contributions) {
     cards.push({
-      front: `What is contribution ${index + 1} identified in the document?`,
+      front: "What is one contribution of this work?",
       back: contribution.slice(0, 350),
       difficulty: "hard",
     });
-  });
+
+    if (cards.length >= count) break;
+  }
 
   for (const point of core.keyPoints) {
     if (cards.length >= count) break;
+
     cards.push({
       front: `What is important about "${point.label}"?`,
       back: point.value.slice(0, 350),
@@ -102,49 +101,18 @@ function buildCardsFromCore(
 }
 
 function deduplicateCards(cards: FlashcardPair[]): FlashcardPair[] {
-  const seenFronts = new Set<string>();
-  const seenAnswers = new Set<string>();
+  const seen = new Set<string>();
 
   return cards.filter((card) => {
-    const front = normalize(card.front);
-    const back = normalize(card.back);
+    const key = card.front
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
 
-    if (!front || !back || seenFronts.has(front) || seenAnswers.has(back)) {
-      return false;
-    }
-
-    seenFronts.add(front);
-    seenAnswers.add(back);
+    if (!key || !card.back.trim() || seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
-}
-
-function parseFlashcard(value: unknown): FlashcardPair | null {
-  if (!value || typeof value !== "object") return null;
-  const card = value as Record<string, unknown>;
-
-  if (typeof card.front !== "string" || typeof card.back !== "string") {
-    return null;
-  }
-
-  const front = card.front.trim();
-  const back = card.back.trim();
-  const difficulty = card.difficulty;
-
-  if (front.length < 5 || back.length < 3) return null;
-  if (
-    difficulty !== "easy" &&
-    difficulty !== "medium" &&
-    difficulty !== "hard"
-  ) {
-    return null;
-  }
-
-  return {
-    front: front.slice(0, 300),
-    back: back.slice(0, 500),
-    difficulty,
-  };
 }
 
 async function generateCardsViaAI(
@@ -154,62 +122,63 @@ async function generateCardsViaAI(
 ): Promise<{
   cards: FlashcardPair[];
   tokensUsed: number;
-  recovered: boolean;
 }> {
-  const sample = sampleDocumentContent(content, 20_000);
-
   const result = await generate({
     systemPrompt:
       "Create factual study flashcards using only the uploaded document. " +
-      "Return only valid JSON. Prefer fewer valid cards over invented content.",
+      "Return a JSON object and do not use markdown fences.",
     prompt: `
-Generate up to ${count} additional flashcards.
+Generate exactly ${count} additional flashcards.
 
-Rules:
-- Test one useful concept or fact per card.
-- Every question must be specific and unique.
-- Every answer must be directly supported by the document.
-- Avoid vague prompts such as "What important fact is explained?".
-- Do not duplicate information already implied by another card.
-
-Return exactly this object shape:
+Return:
 {
   "flashcards": [
     {
       "front": "question",
       "back": "answer",
-      "difficulty": "easy"
+      "difficulty": "easy" | "medium" | "hard"
     }
   ]
 }
 
-Allowed difficulty values: "easy", "medium", "hard".
-
 Title: ${title}
 
-Document sample${sample.truncated ? " (sampled across the full document)" : ""}:
-${sample.text}
+Document:
+${content.slice(0, 8_000)}
 `.trim(),
-    temperature: 0.2,
-    maxTokens: 3_000,
+    temperature: 0.3,
+    maxTokens: 1_800,
     jsonMode: true,
     usageLabel: "flashcards",
   });
 
-  const parsed = parseStructuredArray(
-    result.text,
-    "flashcards",
-    parseFlashcard,
-  );
+  const cleaned = result.text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/```\s*$/, "");
 
-  if (parsed.items.length === 0) {
-    throw new Error("AI returned no valid flashcards.");
+  const parsed = JSON.parse(cleaned) as {
+    flashcards?: unknown;
+  };
+
+  if (!Array.isArray(parsed.flashcards)) {
+    throw new Error('AI flashcard response is missing "flashcards".');
   }
 
+  const cards = parsed.flashcards
+    .map((value) => value as Partial<FlashcardPair>)
+    .filter(
+      (card): card is FlashcardPair =>
+        typeof card.front === "string" &&
+        typeof card.back === "string" &&
+        ["easy", "medium", "hard"].includes(
+          String(card.difficulty),
+        ),
+    );
+
   return {
-    cards: parsed.items,
+    cards,
     tokensUsed: result.tokensUsed,
-    recovered: parsed.recovered,
   };
 }
 
@@ -245,13 +214,20 @@ export async function generateFlashcardsWithMetadata(
     .getOrRunPipeline(noteId)
     .catch(() => null);
 
-  const coreCards = intelligence?.core
-    ? buildCardsFromCore(intelligence.core, count)
-    : [];
+  const coreCards =
+    intelligence?.core
+      ? buildCardsFromCore(intelligence.core, count)
+      : [];
 
-  const sourceCards = buildFlashcardsFromSource(note.content, count);
+  const sourceCards = buildFlashcardsFromSource(
+    note.content,
+    count,
+  );
 
-  let pairs = deduplicateCards([...coreCards, ...sourceCards]).slice(0, count);
+  let pairs = deduplicateCards([
+    ...coreCards,
+    ...sourceCards,
+  ]).slice(0, count);
 
   const symbolicCount = pairs.length;
   let source: GenerationSource = "symbolic";
@@ -268,24 +244,30 @@ export async function generateFlashcardsWithMetadata(
         missingCount,
       );
 
-      pairs = deduplicateCards([...pairs, ...ai.cards]).slice(0, count);
-      source = symbolicCount > 0 ? "hybrid" : "ai_fallback";
-      aiFallbackUsed = ai.cards.length > 0;
-      tokensUsed = ai.tokensUsed;
+      pairs = deduplicateCards([
+        ...pairs,
+        ...ai.cards,
+      ]).slice(0, count);
 
-      if (ai.recovered) {
-        logger.warn("Recovered valid flashcards from incomplete AI JSON", {
-          noteId,
-          recoveredCount: ai.cards.length,
-        });
-      }
+      source =
+        symbolicCount > 0
+          ? "hybrid"
+          : "ai_fallback";
+      aiFallbackUsed = true;
+      tokensUsed = ai.tokensUsed;
     } catch (error) {
-      logger.warn("AI flashcard fallback unavailable; keeping symbolic cards", {
-        noteId,
-        requested: count,
-        symbolicCount,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        "AI flashcard fallback unavailable; keeping symbolic cards",
+        {
+          noteId,
+          requested: count,
+          symbolicCount,
+          error:
+            error instanceof Error
+              ? error.message
+              : String(error),
+        },
+      );
     }
   }
 
@@ -328,7 +310,6 @@ export async function generateFlashcardsWithMetadata(
     noteId,
     userId,
     count: entities.length,
-    requested: count,
     source,
     aiFallbackUsed,
   });
@@ -351,8 +332,13 @@ export async function generateFlashcards(
   userId: string,
   count = DEFAULT_FLASHCARDS,
 ): Promise<ReturnType<FlashcardEntity["toPublic"]>[]> {
-  return (await generateFlashcardsWithMetadata(noteId, userId, count))
-    .flashcards;
+  return (
+    await generateFlashcardsWithMetadata(
+      noteId,
+      userId,
+      count,
+    )
+  ).flashcards;
 }
 
 export async function getFlashcardsByNote(
@@ -360,9 +346,14 @@ export async function getFlashcardsByNote(
   userId: string,
 ): Promise<ReturnType<FlashcardEntity["toPublic"]>[]> {
   const note = await noteRepo.findByIdOrThrow(noteId);
-  if (!note.belongsTo(userId)) throw new ForbiddenError();
 
-  const flashcards = await flashcardRepo.findManyByNoteId(noteId);
+  if (!note.belongsTo(userId)) {
+    throw new ForbiddenError();
+  }
+
+  const flashcards =
+    await flashcardRepo.findManyByNoteId(noteId);
+
   return flashcards.map((card) => card.toPublic());
 }
 
@@ -371,14 +362,26 @@ export async function updateReview(
   userId: string,
   difficulty: FlashcardDifficulty,
 ): Promise<ReturnType<FlashcardEntity["toPublic"]>> {
-  const flashcard = await flashcardRepo.findByIdOrThrow(flashcardId);
-  if (!flashcard.belongsTo(userId)) throw new ForbiddenError();
+  const flashcard =
+    await flashcardRepo.findByIdOrThrow(flashcardId);
 
-  await flashcardRepo.updateReview(flashcardId, difficulty);
-  return (await flashcardRepo.findByIdOrThrow(flashcardId)).toPublic();
+  if (!flashcard.belongsTo(userId)) {
+    throw new ForbiddenError();
+  }
+
+  await flashcardRepo.updateReview(
+    flashcardId,
+    difficulty,
+  );
+
+  return (
+    await flashcardRepo.findByIdOrThrow(flashcardId)
+  ).toPublic();
 }
 
-export async function deleteForNote(noteId: string): Promise<void> {
+export async function deleteForNote(
+  noteId: string,
+): Promise<void> {
   await flashcardRepo.deleteByNoteId(noteId);
   logger.info("Flashcard data deleted", { noteId });
 }

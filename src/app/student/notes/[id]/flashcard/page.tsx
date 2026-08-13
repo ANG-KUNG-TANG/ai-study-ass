@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNoteContext } from "@/context/NoteContext";
 import { useFlashcards } from "@/hooks/useFlashcards";
 import { Button } from "@/components/ui/Button";
@@ -15,10 +15,8 @@ export default function FlashcardPage() {
   const {
     flashcards,
     isLoading,
-    isGenerating,
     isRating,
     error,
-    generate,
     rate,
   } = useFlashcards(noteId);
 
@@ -32,12 +30,9 @@ export default function FlashcardPage() {
 
   if (!note) return null;
 
-  async function handleGenerate() {
-    await generate(12);
-  }
-
   async function handleRate(difficulty: FlashcardDifficulty) {
     const card = flashcards[currentIndex];
+
     if (!card) return;
 
     await rate(card.id, difficulty);
@@ -51,31 +46,34 @@ export default function FlashcardPage() {
   }
 
   if (isLoading) {
-    return <p className="text-[13px] text-ink-soft">Loading flashcards…</p>;
+    return (
+      <p className="text-[13px] text-ink-soft">
+        Loading flashcards…
+      </p>
+    );
   }
 
   if (flashcards.length === 0) {
     return (
       <Card className="flex min-h-[260px] flex-col items-center justify-center text-center">
         <h2 className="font-serif text-[18px] font-semibold">
-          No flashcards generated yet
+          Flashcards are not available yet
         </h2>
 
         <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-soft">
-          Generate a deck from the selected document and review each concept
-          using spaced-repetition difficulty ratings.
+          Flashcards are generated automatically with the other study
+          materials.
         </p>
 
-        <Button
-          className="mt-5"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-        >
-          {isGenerating ? "Generating flashcards…" : "Generate flashcards"}
-        </Button>
+        <p className="mt-4 max-w-md text-[12px] leading-relaxed text-ink-faint">
+          Use &quot;Regenerate all study materials&quot; in the generation
+          status panel if generation needs to be retried.
+        </p>
 
         {error && (
-          <p className="mt-3 text-[12px] text-coral">{error}</p>
+          <p className="mt-3 text-[12px] text-coral">
+            {error}
+          </p>
         )}
       </Card>
     );
@@ -85,28 +83,14 @@ export default function FlashcardPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Review deck
-          </p>
-          <h2 className="mt-1 font-serif text-[20px] font-semibold">
-            Card {currentIndex + 1} of {flashcards.length}
-          </h2>
-        </div>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+          Review deck
+        </p>
 
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
-        >
-          <RefreshCw
-            size={14}
-            className={isGenerating ? "animate-spin" : ""}
-          />
-          {isGenerating ? "Regenerating" : "Regenerate deck"}
-        </button>
+        <h2 className="mt-1 font-serif text-[20px] font-semibold">
+          Card {currentIndex + 1} of {flashcards.length}
+        </h2>
       </div>
 
       <button
@@ -163,8 +147,8 @@ export default function FlashcardPage() {
         <button
           type="button"
           onClick={() => {
-            setCurrentIndex((current) =>
-              (current + 1) % flashcards.length,
+            setCurrentIndex(
+              (current) => (current + 1) % flashcards.length,
             );
             setRevealed(false);
           }}
@@ -175,7 +159,11 @@ export default function FlashcardPage() {
         </button>
       </div>
 
-      {error && <p className="text-[12px] text-coral">{error}</p>}
+      {error && (
+        <p className="text-[12px] text-coral">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

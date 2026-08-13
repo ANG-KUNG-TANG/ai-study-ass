@@ -22,6 +22,14 @@ export interface GenerateStudyMaterialsInput {
   document?: RawDocument;
   force?: boolean;
 }
+import { enqueueStudyGeneration } from "@/server/queues/study-generation.queue";
+
+export interface QueueStudyMaterialsInput {
+  noteId: string;
+  userId: string;
+  force?: boolean;
+  telegramChatId?: number;
+}
 
 export interface BackgroundGenerationHooks {
   onComplete?: (state: StudyGenerationState) => void | Promise<void>;
@@ -124,11 +132,81 @@ async function setCurrentStep(
 ): Promise<void> {
   await generationRepo.updateCurrentStep(noteId, step);
 
-  await generationStatusCache.invalidateGenerationStatusCache(
-    noteId,
-  );
+  await generationStatusCache.invalidateGenerationStatusCache(noteId);
 }
 
+export async function queueStudyMaterials(
+  input: QueueStudyMaterialsInput,
+): Promise<{
+  jobId: string;
+  stage: "pending";
+}> {
+  const note = await noteRepo.findByIdOrThrow(input.noteId);
+
+  if (!note.belongsTo(input.userId)) {
+    throw new ForbiddenError();
+  }
+
+  /**
+   * Reset the persisted progress immediately.
+   *
+   * This is important for the browser because the old
+   * state may be "partial" or "failed", both of which
+   * are terminal polling states.
+   */
+  await generationRepo.initialise(
+    input.noteId,
+    input.userId,
+    Boolean(input.force),
+  );
+
+  try {
+    const jobId = await enqueueStudyGeneration({
+      noteId: input.noteId,
+
+      userId: input.userId,
+
+      force: input.force,
+
+      ...(input.telegramChatId
+        ? {
+            telegramChatId: input.telegramChatId,
+          }
+        : {}),
+    });
+
+    logger.info("[generation] study materials dispatched to worker", {
+      noteId: input.noteId,
+
+      userId: input.userId,
+
+      jobId,
+
+      force: Boolean(input.force),
+    });
+
+    return {
+      jobId,
+      stage: "pending",
+    };
+  } catch (error) {
+    /**
+     * Avoid leaving the UI stuck forever at "pending"
+     * if Redis/BullMQ dispatch itself fails.
+     */
+    await generationRepo.updateStage(input.noteId, "failed");
+
+    logger.error("[generation] failed to dispatch study generation job", {
+      noteId: input.noteId,
+
+      userId: input.userId,
+
+      error: safeMessage(error),
+    });
+
+    throw error;
+  }
+}
 export async function generateStudyMaterials(
   input: GenerateStudyMaterialsInput,
 ): Promise<StudyGenerationState> {
@@ -148,7 +226,6 @@ export async function generateStudyMaterials(
   await generationRepo.updateStage(input.noteId, "analyzing");
   await generationStatusCache.invalidateGenerationStatusCache(input.noteId);
   await setCurrentStep(input.noteId, "intelligence");
-
 
   const document =
     input.document ??

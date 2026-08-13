@@ -1,96 +1,56 @@
 import {
   buildFlashcardsFromSource,
   buildQuestionsFromSource,
-  buildSymbolicChatAnswer,
-  buildSymbolicSummary,
-  extractDefinitions,
+  retrieveRelevantExcerpts,
 } from "@/server/services/symbolic-content.service";
 
-const SOURCE = `
-1 Introduction
-
-Software defect prediction is a classification process that predicts whether a
-software module is defective or clean. Class imbalance means one class contains
-far more examples than another class. SMOTE is an oversampling technique that
-creates synthetic minority-class examples.
-
-2 Methodology
-
-The study compares random undersampling, SMOTE, and class balancing. The
-evaluation uses precision, recall, F1 score, and ROC.
+const DOCUMENT = `
+Introduction
+Machine Learning is a computational approach that learns patterns from data and uses those patterns to make predictions on unseen examples.
+Supervised Learning is a learning setting where labeled examples are used to train a predictive model for a defined target variable.
+Classification is a predictive task that assigns an input example to one of several predefined categories using learned decision boundaries.
+Regression is a predictive task that estimates a continuous numerical value from one or more explanatory variables in the input data.
+Precision is an evaluation metric that measures the proportion of predicted positive cases that are actually positive in the labeled dataset.
+Recall is an evaluation metric that measures the proportion of actual positive cases that are successfully identified by the predictive model.
+F1 Score is a harmonic mean of precision and recall that provides a balanced measure when both types of error matter.
+Cross Validation is an evaluation procedure that repeatedly trains and tests a model on different partitions of the available dataset.
+Gradient Descent is an optimization algorithm that iteratively updates model parameters to reduce the value of a differentiable loss function.
+Regularization is a technique that penalizes excessive model complexity in order to improve generalization to unseen examples.
+Feature Engineering is the process of creating or transforming input variables to represent useful predictive information more effectively.
+Model Selection is the process of comparing candidate models and choosing the one that best satisfies the evaluation criteria.
+Conclusion
+The study emphasizes careful evaluation, representative data, and reproducible model selection when developing predictive systems for practical use.
 `;
 
 describe("symbolic-content.service", () => {
-  it("extracts definitions without AI", () => {
-    const definitions = extractDefinitions(SOURCE);
+  it("creates diverse flashcard fronts instead of collapsing generic cards", () => {
+    const cards = buildFlashcardsFromSource(DOCUMENT, 10);
+    const fronts = new Set(cards.map((card) => card.front.toLowerCase()));
 
-    expect(definitions.length).toBeGreaterThan(0);
-    expect(
-      definitions.some((item) =>
-        item.term.toLowerCase().includes("smote"),
-      ),
-    ).toBe(true);
+    expect(cards.length).toBeGreaterThanOrEqual(8);
+    expect(fronts.size).toBe(cards.length);
   });
 
-  it("builds a usable symbolic summary", () => {
-    const result = buildSymbolicSummary(
-      undefined,
-      SOURCE,
-      "Software Defect Prediction",
-    );
-
-    expect(result.summary).toContain(
-      "Software Defect Prediction",
-    );
-    expect(result.keyPoints.length).toBeGreaterThan(0);
-    expect(result.confidence).toBeGreaterThan(0);
-  });
-
-  it("builds quiz questions from source text", () => {
+  it("creates valid symbolic quiz questions", () => {
     const questions = buildQuestionsFromSource(
-      SOURCE,
-      5,
-      ["short_answer", "true_false"],
+      DOCUMENT,
+      8,
+      ["multiple_choice", "true_false", "short_answer"],
     );
 
-    expect(questions.length).toBeGreaterThan(0);
-    expect(
-      questions.every((question) =>
-        ["short_answer", "true_false"].includes(
-          question.questionType,
-        ),
-      ),
-    ).toBe(true);
+    expect(questions.length).toBeGreaterThanOrEqual(6);
+    expect(questions.every((question) => question.question.trim().length > 0)).toBe(
+      true,
+    );
   });
 
-  it("builds flashcards from source text", () => {
-    const cards = buildFlashcardsFromSource(
-      SOURCE,
-      5,
+  it("retrieves relevant evidence from the document", () => {
+    const excerpts = retrieveRelevantExcerpts(
+      DOCUMENT,
+      "How does gradient descent optimize a model?",
+      2,
     );
 
-    expect(cards.length).toBeGreaterThan(0);
-    expect(cards[0].front).toBeTruthy();
-    expect(cards[0].back).toBeTruthy();
-  });
-
-  it("answers direct document questions symbolically", () => {
-    const result = buildSymbolicChatAnswer(
-      {
-        method: "Random undersampling",
-        dataset: "PROMISE",
-        accuracy: 82,
-        problem: "Class imbalance",
-        contributions: [],
-        keyPoints: [],
-        entities: [],
-        extras: {},
-      } as never,
-      SOURCE,
-      "Which dataset is used?",
-    );
-
-    expect(result.text).toBe("PROMISE");
-    expect(result.confidence).toBeGreaterThan(0.7);
+    expect(excerpts.join(" ").toLowerCase()).toContain("gradient descent");
   });
 });

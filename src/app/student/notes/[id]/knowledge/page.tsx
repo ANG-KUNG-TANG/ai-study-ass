@@ -36,6 +36,7 @@ import type {
 } from "@/components/knowledge/types";
 import { useNoteContext } from "@/context/NoteContext";
 import { apiFetch } from "@/lib/api";
+import { subscribeStudyGenerationUpdated } from "@/lib/study-generation-events";
 
 const MIN_CONFIDENCE_OPTIONS = [
   { value: "0", label: "All confidence" },
@@ -67,6 +68,22 @@ export default function KnowledgePage() {
   ] = useState(0);
   const [selectedNodeId, setSelectedNodeId] =
     useState<string | null>(null);
+
+  const [
+    generationRefreshCycle,
+    setGenerationRefreshCycle,
+  ] = useState(0);
+
+  useEffect(() => {
+    return subscribeStudyGenerationUpdated(
+      noteId,
+      () => {
+        setGenerationRefreshCycle(
+          (current) => current + 1,
+        );
+      },
+    );
+  }, [noteId]);
 
   useEffect(() => {
     if (!noteId) return;
@@ -116,7 +133,7 @@ export default function KnowledgePage() {
     return () => {
       cancelled = true;
     };
-  }, [noteId]);
+  }, [noteId, generationRefreshCycle]);
 
   const allNodes = useMemo(
     () => knowledge?.graph?.nodes ?? [],

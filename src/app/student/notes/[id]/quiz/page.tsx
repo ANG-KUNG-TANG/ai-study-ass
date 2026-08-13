@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, RefreshCw } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useNoteContext } from "@/context/NoteContext";
 import { useQuiz } from "@/hooks/useQuiz";
 import { Button } from "@/components/ui/Button";
@@ -14,9 +14,7 @@ export default function QuizPage() {
   const {
     quiz,
     isLoading,
-    isGenerating,
     error,
-    generate,
   } = useQuiz(noteId);
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -28,49 +26,41 @@ export default function QuizPage() {
     return quiz.questions.reduce((total, question) => {
       const given = (answers[question.id] ?? "").trim().toLowerCase();
       const expected = question.answer.trim().toLowerCase();
+
       return total + (given === expected ? 1 : 0);
     }, 0);
   }, [answers, quiz, submitted]);
 
   if (!note) return null;
 
-  async function handleGenerate() {
-    setAnswers({});
-    setSubmitted(false);
-
-    await generate({
-      questionCount: 10,
-      questionTypes: ["multiple_choice", "true_false"],
-      dropInvalidQuestions: true,
-    });
-  }
-
   if (isLoading) {
-    return <p className="text-[13px] text-ink-soft">Loading quiz…</p>;
+    return (
+      <p className="text-[13px] text-ink-soft">
+        Loading quiz…
+      </p>
+    );
   }
 
   if (!quiz) {
     return (
       <Card className="flex min-h-[260px] flex-col items-center justify-center text-center">
         <h2 className="font-serif text-[18px] font-semibold">
-          No quiz generated yet
+          Quiz is not available yet
         </h2>
 
         <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-soft">
-          Generate a quiz from the selected document. Questions will be based
-          on its study notes and extracted content.
+          The quiz is generated automatically with the other study materials.
         </p>
 
-        <Button
-          className="mt-5"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-        >
-          {isGenerating ? "Generating quiz…" : "Generate quiz"}
-        </Button>
+        <p className="mt-4 max-w-md text-[12px] leading-relaxed text-ink-faint">
+          Use &quot;Regenerate all study materials&quot; in the generation
+          status panel if generation needs to be retried.
+        </p>
 
         {error && (
-          <p className="mt-3 text-[12px] text-coral">{error}</p>
+          <p className="mt-3 text-[12px] text-coral">
+            {error}
+          </p>
         )}
       </Card>
     );
@@ -78,32 +68,19 @@ export default function QuizPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Practice
-          </p>
-          <h2 className="mt-1 font-serif text-[20px] font-semibold">
-            {quiz.questions.length}-question quiz
-          </h2>
-        </div>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+          Practice
+        </p>
 
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
-        >
-          <RefreshCw
-            size={14}
-            className={isGenerating ? "animate-spin" : ""}
-          />
-          {isGenerating ? "Regenerating" : "Regenerate"}
-        </button>
+        <h2 className="mt-1 font-serif text-[20px] font-semibold">
+          {quiz.questions.length}-question quiz
+        </h2>
       </div>
 
       {quiz.questions.map((question, index) => {
         const selectedAnswer = answers[question.id] ?? "";
+
         const isCorrect =
           submitted &&
           selectedAnswer.trim().toLowerCase() ===
@@ -120,6 +97,7 @@ export default function QuizPage() {
                 <h3 className="text-[14px] font-semibold leading-relaxed">
                   {question.question}
                 </h3>
+
                 <p className="mt-1 text-[11px] uppercase tracking-wide text-ink-faint">
                   {question.questionType.replaceAll("_", " ")}
                 </p>
@@ -159,6 +137,7 @@ export default function QuizPage() {
                         }))
                       }
                     />
+
                     <span>{option}</span>
                   </label>
                 ))}
@@ -175,6 +154,7 @@ export default function QuizPage() {
               >
                 <div className="flex items-center gap-2 font-semibold">
                   <CheckCircle2 size={14} />
+
                   {isCorrect
                     ? "Correct"
                     : `Correct answer: ${question.answer}`}
@@ -202,6 +182,7 @@ export default function QuizPage() {
               <p className="text-[11px] uppercase tracking-wide text-ink-faint">
                 Result
               </p>
+
               <p className="font-serif text-[20px] font-semibold">
                 {score} / {quiz.questions.length}
               </p>
@@ -217,7 +198,11 @@ export default function QuizPage() {
         </Button>
       </Card>
 
-      {error && <p className="text-[12px] text-coral">{error}</p>}
+      {error && (
+        <p className="text-[12px] text-coral">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
