@@ -1,6 +1,8 @@
 import type {
   TelegramApiResponse,
   TelegramFile,
+  TelegramUser,
+  TelegramWebhookInfo,
 } from "./telegram.types";
 
 import { logger } from "@/server/utils/logger";
@@ -189,6 +191,51 @@ async function telegramFetch(
   throw lastError instanceof Error
     ? lastError
     : new Error(`Telegram ${operation} request failed`);
+}
+
+// ─── Health / Read-only Bot Metadata ─────────────────────────────────────────
+
+export async function getMe(): Promise<TelegramUser> {
+  const response = await telegramFetch(
+    "getMe",
+    createTelegramApiUrl("getMe"),
+    { method: "GET" },
+  );
+
+  const data =
+    (await response.json()) as TelegramApiResponse<TelegramUser>;
+
+  if (!response.ok || !data.ok || !data.result) {
+    throw new Error(
+      `Telegram getMe failed: ${
+        data.description ?? response.statusText
+      }`,
+    );
+  }
+
+  return data.result;
+}
+
+export async function getWebhookInfo():
+Promise<TelegramWebhookInfo> {
+  const response = await telegramFetch(
+    "getWebhookInfo",
+    createTelegramApiUrl("getWebhookInfo"),
+    { method: "GET" },
+  );
+
+  const data =
+    (await response.json()) as TelegramApiResponse<TelegramWebhookInfo>;
+
+  if (!response.ok || !data.ok || !data.result) {
+    throw new Error(
+      `Telegram getWebhookInfo failed: ${
+        data.description ?? response.statusText
+      }`,
+    );
+  }
+
+  return data.result;
 }
 
 // ─── Send Message ─────────────────────────────────────────────────────────────

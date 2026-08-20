@@ -28,6 +28,10 @@ import {
   type RedisHealthSnapshot,
   type WorkerHealthSnapshot,
 } from "@/server/services/system-health.service";
+import {
+  getTelegramHealth,
+  type TelegramHealthSnapshot,
+} from "@/server/services/telegram-health.service";
 import { AI_CONFIG, type AIProvider } from "@/server/config/ai_config";
 import { getUsageSince } from "@/server/services/ai-usage.service";
 import { generate } from "@/server/services/ai.service";
@@ -480,6 +484,8 @@ export interface AdminHealthCheck {
     checkMode: "configuration";
   };
 
+  telegram: TelegramHealthSnapshot;
+
   memory: {
     used: number;
     total: number;
@@ -530,9 +536,14 @@ async function databaseHealth(): Promise<AdminHealthCheck["database"]> {
 
 export async function getSystemHealth():
   Promise<AdminHealthCheck> {
-  const [database, infrastructure] = await Promise.all([
+  const [
+    database,
+    infrastructure,
+    telegram,
+  ] = await Promise.all([
     databaseHealth(),
     getInfrastructureHealth(),
+    getTelegramHealth(),
   ]);
 
   const provider = AI_CONFIG.activeProvider;
@@ -551,10 +562,18 @@ export async function getSystemHealth():
     infrastructure.queues.studyGeneration.available &&
     infrastructure.queues.pdfIngestion.available;
 
+  const telegramAvailable =
+    telegram.configured &&
+    telegram.reachable &&
+    telegram.webhook.configured &&
+    telegram.webhook.matchesExpectedUrl !== false;
+
   const status: AdminHealthCheck["status"] =
     !coreAvailable
       ? "unhealthy"
-      : !workersAvailable || !queuesAvailable
+      : !workersAvailable ||
+          !queuesAvailable ||
+          !telegramAvailable
         ? "degraded"
         : "healthy";
 
@@ -577,6 +596,7 @@ export async function getSystemHealth():
           : AI_CONFIG.gemini.model,
       checkMode: "configuration",
     },
+    telegram,
     memory: {
       used: memory.heapUsed,
       total: memory.heapTotal,

@@ -615,6 +615,105 @@ export default function AdminHealthPage() {
             </div>
           </Card>
 
+          <section>
+            <h3 className="mb-2 text-[13px] font-semibold text-ink">
+              Telegram integration
+            </h3>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <Card>
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-[12px] font-medium text-ink-soft">
+                    Telegram bot
+                  </h4>
+
+                  <StatusIcon ok={health.telegram.reachable} />
+                </div>
+
+                <p className="text-[13px]">
+                  {health.telegram.reachable
+                    ? "Online"
+                    : health.telegram.configured
+                      ? "Unavailable"
+                      : "Not configured"}
+                </p>
+
+                <p className="mt-1 text-[11px] text-ink-faint">
+                  {health.telegram.bot.username
+                    ? `@${health.telegram.bot.username}`
+                    : health.telegram.bot.displayName ?? "—"}
+                </p>
+              </Card>
+
+              <Card>
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-[12px] font-medium text-ink-soft">
+                    Telegram webhook
+                  </h4>
+
+                  <StatusIcon
+                    ok={
+                      health.telegram.webhook.configured &&
+                      health.telegram.webhook.matchesExpectedUrl !== false
+                    }
+                  />
+                </div>
+
+                <p className="text-[13px]">
+                  {health.telegram.webhook.configured
+                    ? health.telegram.webhook.matchesExpectedUrl === false
+                      ? "URL mismatch"
+                      : "Active"
+                    : "Not configured"}
+                </p>
+
+                <p className="mt-1 truncate text-[11px] text-ink-faint">
+                  {health.telegram.webhook.url ?? "—"}
+                </p>
+              </Card>
+
+              <Card>
+                <h4 className="mb-2 text-[12px] font-medium text-ink-soft">
+                  Pending updates
+                </h4>
+
+                <p className="text-[13px]">
+                  {health.telegram.webhook.pendingUpdates === null
+                    ? "—"
+                    : health.telegram.webhook.pendingUpdates}
+                </p>
+
+                <p className="mt-1 text-[11px] text-ink-faint">
+                  Webhook secret:{" "}
+                  {health.telegram.webhook.secretConfigured
+                    ? "Configured"
+                    : "Missing"}
+                </p>
+              </Card>
+
+              <Card>
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-[12px] font-medium text-ink-soft">
+                    Last webhook error
+                  </h4>
+
+                  <StatusIcon
+                    ok={!health.telegram.webhook.lastErrorMessage}
+                  />
+                </div>
+
+                <p className="truncate text-[13px]">
+                  {health.telegram.webhook.lastErrorMessage ?? "None"}
+                </p>
+
+                <p className="mt-1 text-[11px] text-ink-faint">
+                  {health.telegram.webhook.lastErrorAt ??
+                    "No recent Telegram error"}
+                </p>
+              </Card>
+            </div>
+          </section>
+
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Card>
               <h4 className="mb-2 text-[12px] font-medium text-ink-soft">

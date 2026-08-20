@@ -13,6 +13,30 @@ export interface WorkerHealth {
   ageMs: number | null;
 }
 
+export interface TelegramHealth {
+  configured: boolean;
+  reachable: boolean;
+
+  bot: {
+    id: number | null;
+    username: string | null;
+    displayName: string | null;
+  };
+
+  webhook: {
+    configured: boolean;
+    secretConfigured: boolean;
+    matchesExpectedUrl: boolean | null;
+    url: string | null;
+    expectedUrl: string | null;
+    pendingUpdates: number | null;
+    lastErrorAt: string | null;
+    lastErrorMessage: string | null;
+  };
+
+  checkedAt: string;
+}
+
 export interface HealthCheck {
   status:
     | "healthy"
@@ -51,6 +75,8 @@ export interface HealthCheck {
     model: string;
     checkMode: "configuration";
   };
+
+  telegram: TelegramHealth;
 
   memory: {
     used: number;
