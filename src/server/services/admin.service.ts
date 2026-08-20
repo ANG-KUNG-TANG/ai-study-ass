@@ -299,16 +299,46 @@ export interface AdminAIProviderUsage {
   provider: AIProvider;
   status: AdminAIProviderStatus;
   requestsToday: number;
+  successesToday: number;
+  failuresToday: number;
+  quotaExceededToday: number;
   tokensToday: number;
   averageLatencyMs: number;
   spendToday: number;
-  failuresToday: number;
+  lastRequestAt: string | null;
+}
+
+export interface AdminAIUsageActivity {
+  id: string;
+  userId: string | null;
+  noteId: string | null;
+  provider: AIProvider;
+  model: string;
+  usageLabel: string;
+  success: boolean;
+  tokensUsed: number;
+  latencyMs: number;
+  statusCode: number | null;
+  quotaExceeded: boolean;
+  createdAt: string;
 }
 
 export interface AdminAIUsage {
+  summary: {
+    requestsToday: number;
+    successesToday: number;
+    failuresToday: number;
+    quotaExceededToday: number;
+    tokensToday: number;
+    averageLatencyMs: number;
+    successRate: number;
+    lastSuccessAt: string | null;
+    lastFailureAt: string | null;
+  };
   providers: AdminAIProviderUsage[];
   monthlySpend: number;
   requestsLastSevenDays: Array<{
+    date: string;
     label: string;
     value: number;
   }>;
@@ -316,6 +346,16 @@ export interface AdminAIUsage {
     route: string;
     count: number;
   }>;
+  models: Array<{
+    provider: AIProvider;
+    model: string;
+    requests: number;
+    successes: number;
+    failures: number;
+    tokens: number;
+    averageLatencyMs: number;
+  }>;
+  recentActivity: AdminAIUsageActivity[];
   warning: string;
 }
 
@@ -330,11 +370,19 @@ function providerStatus(provider: AIProvider): AdminAIProviderStatus {
     return "not_configured";
   }
 
-  return provider === AI_CONFIG.activeProvider ? "operational" : "configured";
+  return provider === AI_CONFIG.activeProvider
+    ? "operational"
+    : "configured";
 }
 
-function beginningOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function beginningOfUtcDay(date: Date): Date {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+    ),
+  );
 }
 
 function averageNumber(values: number[]): number {
@@ -347,75 +395,141 @@ function averageNumber(values: number[]): number {
   );
 }
 
+function latestIso(values: Date[]): string | null {
+  if (values.length === 0) {
+    return null;
+  }
+
+  return values
+    .reduce((latest, value) =>
+      value.getTime() > latest.getTime() ? value : latest,
+    )
+    .toISOString();
+}
+
 export async function getAIUsage(): Promise<AdminAIUsage> {
   const now = new Date();
-  const today = beginningOfDay(now);
-
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const sevenDaysStart = beginningOfDay(
-    new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6),
+  const today = beginningOfUtcDay(now);
+  const monthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  );
+  const sevenDaysStart = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - 6,
+    ),
   );
 
-  const since = monthStart < sevenDaysStart ? monthStart : sevenDaysStart;
+  const since =
+    monthStart < sevenDaysStart
+      ? monthStart
+      : sevenDaysStart;
 
   const events = await getUsageSince(since);
+  const todayEvents = events.filter(
+    (event) => event.createdAt >= today,
+  );
+  const successesToday = todayEvents.filter(
+    (event) => event.success,
+  );
+  const failuresToday = todayEvents.filter(
+    (event) => !event.success,
+  );
+
+  const summary = {
+    requestsToday: todayEvents.length,
+    successesToday: successesToday.length,
+    failuresToday: failuresToday.length,
+    quotaExceededToday: todayEvents.filter(
+      (event) => event.quotaExceeded,
+    ).length,
+    tokensToday: todayEvents.reduce(
+      (sum, event) => sum + event.tokensUsed,
+      0,
+    ),
+    averageLatencyMs: averageNumber(
+      todayEvents.map((event) => event.latencyMs),
+    ),
+    successRate:
+      todayEvents.length === 0
+        ? 0
+        : (successesToday.length / todayEvents.length) * 100,
+    lastSuccessAt: latestIso(
+      events
+        .filter((event) => event.success)
+        .map((event) => event.createdAt),
+    ),
+    lastFailureAt: latestIso(
+      events
+        .filter((event) => !event.success)
+        .map((event) => event.createdAt),
+    ),
+  };
 
   const providers: AIProvider[] = ["openai", "gemini"];
 
-  const providerUsage = providers.map((provider): AdminAIProviderUsage => {
-    const todayEvents = events.filter(
-      (event) => event.provider === provider && event.createdAt >= today,
-    );
-
-    return {
-      provider,
-
-      status: providerStatus(provider),
-
-      requestsToday: todayEvents.length,
-
-      tokensToday: todayEvents.reduce(
-        (sum, event) => sum + event.tokensUsed,
-        0,
-      ),
-
-      averageLatencyMs: averageNumber(
-        todayEvents.map((event) => event.latencyMs),
-      ),
-
-      spendToday: 0,
-
-      failuresToday: todayEvents.filter((event) => !event.success).length,
-    };
-  });
-
-  const weekday = new Intl.DateTimeFormat("en", {
-    weekday: "short",
-  });
-
-  const requestsLastSevenDays = Array.from(
-    {
-      length: 7,
-    },
-    (_, index) => {
-      const day = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() - (6 - index),
+  const providerUsage = providers.map(
+    (provider): AdminAIProviderUsage => {
+      const providerEvents = events.filter(
+        (event) => event.provider === provider,
       );
-
-      const nextDay = new Date(
-        day.getFullYear(),
-        day.getMonth(),
-        day.getDate() + 1,
+      const providerToday = providerEvents.filter(
+        (event) => event.createdAt >= today,
       );
 
       return {
-        label: weekday.format(day),
+        provider,
+        status: providerStatus(provider),
+        requestsToday: providerToday.length,
+        successesToday: providerToday.filter(
+          (event) => event.success,
+        ).length,
+        failuresToday: providerToday.filter(
+          (event) => !event.success,
+        ).length,
+        quotaExceededToday: providerToday.filter(
+          (event) => event.quotaExceeded,
+        ).length,
+        tokensToday: providerToday.reduce(
+          (sum, event) => sum + event.tokensUsed,
+          0,
+        ),
+        averageLatencyMs: averageNumber(
+          providerToday.map((event) => event.latencyMs),
+        ),
+        spendToday: 0,
+        lastRequestAt: latestIso(
+          providerEvents.map((event) => event.createdAt),
+        ),
+      };
+    },
+  );
 
+  const weekday = new Intl.DateTimeFormat("en", {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+
+  const requestsLastSevenDays = Array.from(
+    { length: 7 },
+    (_, index) => {
+      const day = new Date(
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          now.getUTCDate() - (6 - index),
+        ),
+      );
+      const nextDay = new Date(day.getTime() + 86_400_000);
+
+      return {
+        date: day.toISOString().slice(0, 10),
+        label: weekday.format(day),
         value: events.filter(
-          (event) => event.createdAt >= day && event.createdAt < nextDay,
+          (event) =>
+            event.createdAt >= day &&
+            event.createdAt < nextDay,
         ).length,
       };
     },
@@ -430,23 +544,98 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
     );
   }
 
+  const modelMap = new Map<
+    string,
+    {
+      provider: AIProvider;
+      model: string;
+      requests: number;
+      successes: number;
+      failures: number;
+      tokens: number;
+      latencies: number[];
+    }
+  >();
+
+  for (const event of events) {
+    const key = `${event.provider}:${event.model}`;
+    const current = modelMap.get(key) ?? {
+      provider: event.provider,
+      model: event.model,
+      requests: 0,
+      successes: 0,
+      failures: 0,
+      tokens: 0,
+      latencies: [],
+    };
+
+    current.requests += 1;
+    current.tokens += event.tokensUsed;
+    current.latencies.push(event.latencyMs);
+
+    if (event.success) {
+      current.successes += 1;
+    } else {
+      current.failures += 1;
+    }
+
+    modelMap.set(key, current);
+  }
+
+  const models = Array.from(modelMap.values())
+    .map((item) => ({
+      provider: item.provider,
+      model: item.model,
+      requests: item.requests,
+      successes: item.successes,
+      failures: item.failures,
+      tokens: item.tokens,
+      averageLatencyMs: averageNumber(item.latencies),
+    }))
+    .sort(
+      (left, right) => right.requests - left.requests,
+    );
+
+  const recentActivity: AdminAIUsageActivity[] = [...events]
+    .sort(
+      (left, right) =>
+        right.createdAt.getTime() -
+        left.createdAt.getTime(),
+    )
+    .slice(0, 20)
+    .map((event) => ({
+      id: event.id,
+      userId: event.userId,
+      noteId: event.noteId,
+      provider: event.provider,
+      model: event.model,
+      usageLabel: event.usageLabel,
+      success: event.success,
+      tokensUsed: event.tokensUsed,
+      latencyMs: event.latencyMs,
+      statusCode: event.statusCode,
+      quotaExceeded: event.quotaExceeded,
+      createdAt: event.createdAt.toISOString(),
+    }));
+
   return {
+    summary,
     providers: providerUsage,
-
     monthlySpend: 0,
-
     requestsLastSevenDays,
-
     requestsByRoute: Array.from(routeCounts.entries())
       .map(([route, count]) => ({
         route,
         count,
       }))
-      .sort((left, right) => right.count - left.count),
-
+      .sort(
+        (left, right) => right.count - left.count,
+      ),
+    models,
+    recentActivity,
     warning:
       "Usage telemetry is stored durably in MongoDB. " +
-      "Spend remains $0 until provider pricing is configured.",
+      "Spend remains $0 until provider pricing is explicitly configured.",
   };
 }
 
@@ -534,13 +723,8 @@ async function databaseHealth(): Promise<AdminHealthCheck["database"]> {
   }
 }
 
-export async function getSystemHealth():
-  Promise<AdminHealthCheck> {
-  const [
-    database,
-    infrastructure,
-    telegram,
-  ] = await Promise.all([
+export async function getSystemHealth(): Promise<AdminHealthCheck> {
+  const [database, infrastructure, telegram] = await Promise.all([
     databaseHealth(),
     getInfrastructureHealth(),
     getTelegramHealth(),
@@ -550,9 +734,7 @@ export async function getSystemHealth():
   const configured = providerConfigured(provider);
   const memory = process.memoryUsage();
 
-  const coreAvailable =
-    database.connected &&
-    infrastructure.redis.connected;
+  const coreAvailable = database.connected && infrastructure.redis.connected;
 
   const workersAvailable =
     infrastructure.workers.studyGeneration.online &&
@@ -568,14 +750,11 @@ export async function getSystemHealth():
     telegram.webhook.configured &&
     telegram.webhook.matchesExpectedUrl !== false;
 
-  const status: AdminHealthCheck["status"] =
-    !coreAvailable
-      ? "unhealthy"
-      : !workersAvailable ||
-          !queuesAvailable ||
-          !telegramAvailable
-        ? "degraded"
-        : "healthy";
+  const status: AdminHealthCheck["status"] = !coreAvailable
+    ? "unhealthy"
+    : !workersAvailable || !queuesAvailable || !telegramAvailable
+      ? "degraded"
+      : "healthy";
 
   return {
     status,
@@ -591,9 +770,7 @@ export async function getSystemHealth():
       configured,
       provider,
       model:
-        provider === "openai"
-          ? AI_CONFIG.openai.model
-          : AI_CONFIG.gemini.model,
+        provider === "openai" ? AI_CONFIG.openai.model : AI_CONFIG.gemini.model,
       checkMode: "configuration",
     },
     telegram,
