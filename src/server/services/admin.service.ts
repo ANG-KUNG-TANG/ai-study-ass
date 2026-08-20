@@ -22,6 +22,12 @@ import * as intelligenceRepo from "@/server/repositories/intelligence.repo";
 import * as flashcardRepo from "@/server/repositories/flashcard.repo";
 import type { NoteQueryOptions } from "@/server/repositories/note.repo";
 import mongoose from "mongoose";
+import {
+  getInfrastructureHealth,
+  type QueueHealthSnapshot,
+  type RedisHealthSnapshot,
+  type WorkerHealthSnapshot,
+} from "@/server/services/system-health.service";
 import { AI_CONFIG, type AIProvider } from "@/server/config/ai_config";
 import { getUsageSince } from "@/server/services/ai-usage.service";
 import { generate } from "@/server/services/ai.service";
@@ -444,7 +450,6 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
 
 export interface AdminHealthCheck {
   status: "healthy" | "degraded" | "unhealthy";
-
   timestamp: string;
   uptime: number;
   version: string;
@@ -453,6 +458,18 @@ export interface AdminHealthCheck {
     connected: boolean;
     state: string;
     latencyMs: number | null;
+  };
+
+  redis: RedisHealthSnapshot;
+
+  queues: {
+    studyGeneration: QueueHealthSnapshot;
+    pdfIngestion: QueueHealthSnapshot;
+  };
+
+  workers: {
+    studyGeneration: WorkerHealthSnapshot;
+    pdfIngestion: WorkerHealthSnapshot;
   };
 
   ai: {
@@ -511,43 +528,55 @@ async function databaseHealth(): Promise<AdminHealthCheck["database"]> {
   }
 }
 
-export async function getSystemHealth(): Promise<AdminHealthCheck> {
-  const database = await databaseHealth();
+export async function getSystemHealth():
+  Promise<AdminHealthCheck> {
+  const [database, infrastructure] = await Promise.all([
+    databaseHealth(),
+    getInfrastructureHealth(),
+  ]);
 
   const provider = AI_CONFIG.activeProvider;
-
   const configured = providerConfigured(provider);
-
   const memory = process.memoryUsage();
 
+  const coreAvailable =
+    database.connected &&
+    infrastructure.redis.connected;
+
+  const workersAvailable =
+    infrastructure.workers.studyGeneration.online &&
+    infrastructure.workers.pdfIngestion.online;
+
+  const queuesAvailable =
+    infrastructure.queues.studyGeneration.available &&
+    infrastructure.queues.pdfIngestion.available;
+
+  const status: AdminHealthCheck["status"] =
+    !coreAvailable
+      ? "unhealthy"
+      : !workersAvailable || !queuesAvailable
+        ? "degraded"
+        : "healthy";
+
   return {
-    status:
-      database.connected && configured
-        ? "healthy"
-        : database.connected
-          ? "degraded"
-          : "unhealthy",
-
+    status,
     timestamp: new Date().toISOString(),
-
     uptime: process.uptime(),
-
     version: process.env.npm_package_version ?? "unknown",
-
     database,
-
+    redis: infrastructure.redis,
+    queues: infrastructure.queues,
+    workers: infrastructure.workers,
     ai: {
       reachable: configured,
       configured,
       provider,
-
       model:
-        provider === "openai" ? AI_CONFIG.openai.model : AI_CONFIG.gemini.model,
-
-      // This does not consume provider quota. It verifies configuration only.
+        provider === "openai"
+          ? AI_CONFIG.openai.model
+          : AI_CONFIG.gemini.model,
       checkMode: "configuration",
     },
-
     memory: {
       used: memory.heapUsed,
       total: memory.heapTotal,

@@ -25,6 +25,7 @@ import {
 import { enqueueStudyGeneration } from "@/server/queues/study-generation.queue";
 
 import { logger } from "@/server/utils/logger";
+import { startWorkerHeartbeat } from "@/server/services/system-health.service";
 import {
   classifyProviderFailure,
   PDF_OCR_QUOTA_EXHAUSTED_PREFIX,
@@ -468,6 +469,8 @@ async function main(): Promise<void> {
 
   await worker.waitUntilReady();
 
+  const stopHeartbeat = startWorkerHeartbeat(connection, "pdf-ingestion");
+
   logger.info("[pdf-worker] PDF ingestion worker ready", {
     queue: PDF_INGESTION_QUEUE_NAME,
 
@@ -488,6 +491,8 @@ async function main(): Promise<void> {
     });
 
     try {
+      await stopHeartbeat();
+
       await worker.close();
 
       await connection.quit();

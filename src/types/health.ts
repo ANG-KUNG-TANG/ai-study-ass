@@ -1,3 +1,18 @@
+export interface QueueHealth {
+  available: boolean;
+  waiting: number | null;
+  active: number | null;
+  completed: number | null;
+  failed: number | null;
+  delayed: number | null;
+}
+
+export interface WorkerHealth {
+  online: boolean;
+  lastHeartbeatAt: string | null;
+  ageMs: number | null;
+}
+
 export interface HealthCheck {
   status:
     | "healthy"
@@ -12,6 +27,21 @@ export interface HealthCheck {
     connected: boolean;
     state: string;
     latencyMs: number | null;
+  };
+
+  redis: {
+    connected: boolean;
+    latencyMs: number | null;
+  };
+
+  queues: {
+    studyGeneration: QueueHealth;
+    pdfIngestion: QueueHealth;
+  };
+
+  workers: {
+    studyGeneration: WorkerHealth;
+    pdfIngestion: WorkerHealth;
   };
 
   ai: {
