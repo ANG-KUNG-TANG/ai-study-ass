@@ -7,6 +7,7 @@ export const studentNavItems = [
   { href: "/student/quiz", label: "Quiz", icon: HelpCircle },
   { href: "/student/flashcards", label: "Flashcards", icon: Copy },
   { href: "/student/chat", label: "Chat", icon: MessageSquare },
+  { href: "/student/ai-usage", label: "AI Usage", icon: Sparkles },
 ];
 
 export const adminNavItems = [
