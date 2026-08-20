@@ -126,3 +126,49 @@ export async function deleteByUserId(
     userId,
   }).exec();
 }
+
+export interface AIUsageTotals {
+  requests: number;
+  tokens: number;
+}
+
+export async function getUserTotalsSince(
+  userId: string,
+  since: Date,
+): Promise<AIUsageTotals> {
+  const result =
+    await AIUsage.aggregate<{
+      requests: number;
+      tokens: number;
+    }>([
+      {
+        $match: {
+          userId,
+          createdAt: {
+            $gte: since,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          requests: {
+            $sum: 1,
+          },
+          tokens: {
+            $sum: "$tokensUsed",
+          },
+        },
+      },
+    ]).exec();
+
+  return {
+    requests:
+      result[0]?.requests ??
+      0,
+
+    tokens:
+      result[0]?.tokens ??
+      0,
+  };
+}

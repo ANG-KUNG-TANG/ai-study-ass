@@ -8,6 +8,7 @@
 import { AI_CONFIG, type AIProvider } from "@/server/config/ai_config";
 import { AIError } from "@/server/utils/errors";
 import { recordAIUsage } from "@/server/services/ai-usage.service";
+import { assertUserAIQuota } from "@/server/services/ai-quota.service";
 
 // ─── Public contract ──────────────────────────────────────────────────────────
 
@@ -27,6 +28,12 @@ export interface AIGenerateOptions {
    */
   userId?: string;
   noteId?: string;
+
+  /**
+   * Internal administrative/system probes may bypass per-user quota.
+   * Normal user-owned feature calls must leave this false/undefined.
+   */
+  skipUserQuota?: boolean;
 }
 
 export interface AIGenerateResult {
@@ -35,7 +42,6 @@ export interface AIGenerateResult {
   provider: AIProvider;
   model: string;
 }
-
 
 // ─── Retry / timeout policy ──────────────────────────────────────────────────
 
@@ -411,6 +417,15 @@ export async function generate(
   const startedAt = Date.now();
   const usageLabel = options.usageLabel?.trim() || "generation";
 
+  if (
+    options.userId &&
+    options.skipUserQuota !== true
+  ) {
+    await assertUserAIQuota(
+      options.userId,
+    );
+  }
+
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(
@@ -456,12 +471,8 @@ export async function generate(
           success: false,
           tokensUsed: 0,
           latencyMs: Date.now() - startedAt,
-          statusCode:
-            typeof status === "number"
-              ? status
-              : null,
-          quotaExceeded:
-            error.quotaExceeded === true,
+          statusCode: typeof status === "number" ? status : null,
+          quotaExceeded: error.quotaExceeded === true,
         });
 
         if (isAbort) {

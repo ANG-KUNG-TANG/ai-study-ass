@@ -10,6 +10,10 @@ import * as aiUsageRepo from "@/server/repositories/ai-usage.repo";
 
 import { logger } from "@/server/utils/logger";
 
+import {
+  getUserAIQuotaSnapshot,
+} from "@/server/services/ai-quota.service";
+
 export interface RecordAIUsageInput {
   userId?: string | null;
   noteId?: string | null;
@@ -34,88 +38,55 @@ export interface RecordAIUsageInput {
  * We still await the DB write so successful telemetry
  * is durable before the request lifecycle completes.
  */
-export async function recordAIUsage(
-  input: RecordAIUsageInput,
-): Promise<void> {
+export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
   try {
-    const entity =
-      AIUsageEntity.create({
-        id: randomUUID(),
+    const entity = AIUsageEntity.create({
+      id: randomUUID(),
 
-        userId:
-          input.userId ?? null,
+      userId: input.userId ?? null,
 
-        noteId:
-          input.noteId ?? null,
+      noteId: input.noteId ?? null,
 
-        provider: input.provider,
-        model: input.model,
-        usageLabel:
-          input.usageLabel,
+      provider: input.provider,
+      model: input.model,
+      usageLabel: input.usageLabel,
 
-        success:
-          input.success,
+      success: input.success,
 
-        tokensUsed:
-          input.tokensUsed,
+      tokensUsed: input.tokensUsed,
 
-        latencyMs:
-          input.latencyMs,
+      latencyMs: input.latencyMs,
 
-        statusCode:
-          input.statusCode ?? null,
+      statusCode: input.statusCode ?? null,
 
-        quotaExceeded:
-          input.quotaExceeded ?? false,
-      });
+      quotaExceeded: input.quotaExceeded ?? false,
+    });
 
     await aiUsageRepo.create(entity);
   } catch (error) {
-    logger.warn(
-      "[ai-usage] failed to persist usage telemetry",
-      {
-        provider: input.provider,
-        usageLabel:
-          input.usageLabel,
-        userId:
-          input.userId ?? null,
-        noteId:
-          input.noteId ?? null,
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
-      },
-    );
+    logger.warn("[ai-usage] failed to persist usage telemetry", {
+      provider: input.provider,
+      usageLabel: input.usageLabel,
+      userId: input.userId ?? null,
+      noteId: input.noteId ?? null,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
-export async function getUsageSince(
-  since: Date,
-): Promise<AIUsageProps[]> {
-  const events =
-    await aiUsageRepo.findSince(since);
+export async function getUsageSince(since: Date): Promise<AIUsageProps[]> {
+  const events = await aiUsageRepo.findSince(since);
 
-  return events.map(
-    (event) =>
-      event.toPublic(),
-  );
+  return events.map((event) => event.toPublic());
 }
 
 export async function getUserUsageSince(
   userId: string,
   since: Date,
 ): Promise<AIUsageProps[]> {
-  const events =
-    await aiUsageRepo.findByUserIdSince(
-      userId,
-      since,
-    );
+  const events = await aiUsageRepo.findByUserIdSince(userId, since);
 
-  return events.map(
-    (event) =>
-      event.toPublic(),
-  );
+  return events.map((event) => event.toPublic());
 }
 
 export interface StudentAIUsageSummary {
@@ -127,6 +98,20 @@ export interface StudentAIUsageSummary {
     averageLatencyMs: number;
     successRate: number;
     quotaExceededToday: number;
+  };
+
+  quota: {
+    enabled: boolean;
+    requestLimit: number | null;
+    tokenLimit: number | null;
+    requestsUsed: number;
+    tokensUsed: number;
+    requestsRemaining: number | null;
+    tokensRemaining: number | null;
+    requestLimitReached: boolean;
+    tokenLimitReached: boolean;
+    allowed: boolean;
+    resetsAt: string;
   };
 
   providers: Array<{
@@ -189,7 +174,8 @@ function averageUsageNumber(
 
   return Math.round(
     values.reduce(
-      (sum, value) => sum + value,
+      (sum, value) =>
+        sum + value,
       0,
     ) / values.length,
   );
@@ -198,7 +184,9 @@ function averageUsageNumber(
 export async function getUserAIUsageSummary(
   userId: string,
 ): Promise<StudentAIUsageSummary> {
-  const now = new Date();
+  const now =
+    new Date();
+
   const today =
     beginningOfUtcDay(now);
 
@@ -211,11 +199,21 @@ export async function getUserAIUsageSummary(
       ),
     );
 
-  const events =
-    await getUserUsageSince(
-      userId,
-      sevenDaysStart,
-    );
+  const [
+    events,
+    quota,
+  ] =
+    await Promise.all([
+      getUserUsageSince(
+        userId,
+        sevenDaysStart,
+      ),
+
+      getUserAIQuotaSnapshot(
+        userId,
+        now,
+      ),
+    ]);
 
   const todayEvents =
     events.filter(
@@ -316,6 +314,7 @@ export async function getUserAIUsageSummary(
       };
 
     current.requests += 1;
+
     current.tokens +=
       event.tokensUsed;
 
@@ -438,6 +437,42 @@ export async function getUserAIUsageSummary(
         ).length,
     },
 
+    quota: {
+      enabled:
+        quota.enabled,
+
+      requestLimit:
+        quota.requestLimit,
+
+      tokenLimit:
+        quota.tokenLimit,
+
+      requestsUsed:
+        quota.requestsUsed,
+
+      tokensUsed:
+        quota.tokensUsed,
+
+      requestsRemaining:
+        quota.requestsRemaining,
+
+      tokensRemaining:
+        quota.tokensRemaining,
+
+      requestLimitReached:
+        quota.requestLimitReached,
+
+      tokenLimitReached:
+        quota.tokenLimitReached,
+
+      allowed:
+        quota.allowed,
+
+      resetsAt:
+        quota.resetsAt
+          .toISOString(),
+    },
+
     providers:
       providerUsage,
 
@@ -482,7 +517,8 @@ export async function getUserAIUsageSummary(
             quotaExceeded:
               event.quotaExceeded,
             createdAt:
-              event.createdAt.toISOString(),
+              event.createdAt
+                .toISOString(),
           }),
         ),
   };

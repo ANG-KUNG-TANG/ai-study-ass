@@ -8,6 +8,26 @@ export interface StudentAIUsageSummary {
   quotaExceededToday: number;
 }
 
+export interface StudentAIQuota {
+  enabled: boolean;
+
+  requestLimit: number | null;
+  tokenLimit: number | null;
+
+  requestsUsed: number;
+  tokensUsed: number;
+
+  requestsRemaining: number | null;
+  tokensRemaining: number | null;
+
+  requestLimitReached: boolean;
+  tokenLimitReached: boolean;
+
+  allowed: boolean;
+
+  resetsAt: string;
+}
+
 export interface StudentAIUsageProvider {
   provider: "openai" | "gemini";
   requests: number;
@@ -48,6 +68,7 @@ export interface StudentAIUsageActivity {
 
 export interface StudentAIUsage {
   summary: StudentAIUsageSummary;
+  quota: StudentAIQuota;
   providers: StudentAIUsageProvider[];
   features: StudentAIUsageFeature[];
   lastSevenDays: StudentAIUsageDay[];
