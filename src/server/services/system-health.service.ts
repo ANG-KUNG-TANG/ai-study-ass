@@ -8,9 +8,7 @@ import { logger } from "@/server/utils/logger";
 export const WORKER_HEARTBEAT_TTL_SECONDS = 90;
 const WORKER_HEARTBEAT_INTERVAL_MS = 30_000;
 
-export type WorkerHealthName =
-  | "study-generation"
-  | "pdf-ingestion";
+export type WorkerHealthName = "study-generation" | "pdf-ingestion";
 
 export interface RedisHealthSnapshot {
   connected: boolean;
@@ -65,14 +63,13 @@ async function readQueueHealth(
     | ReturnType<typeof getPdfIngestionQueue>,
 ): Promise<QueueHealthSnapshot> {
   try {
-    const [waiting, active, completed, failed, delayed] =
-      await Promise.all([
-        queue.getWaitingCount(),
-        queue.getActiveCount(),
-        queue.getCompletedCount(),
-        queue.getFailedCount(),
-        queue.getDelayedCount(),
-      ]);
+    const [waiting, active, completed, failed, delayed] = await Promise.all([
+      queue.getWaitingCount(),
+      queue.getActiveCount(),
+      queue.getCompletedCount(),
+      queue.getFailedCount(),
+      queue.getDelayedCount(),
+    ]);
 
     return {
       available: true,
@@ -138,8 +135,7 @@ async function readWorkerHealth(
   }
 }
 
-export async function getInfrastructureHealth():
-Promise<InfrastructureHealthSnapshot> {
+export async function getInfrastructureHealth(): Promise<InfrastructureHealthSnapshot> {
   const startedAt = Date.now();
 
   try {

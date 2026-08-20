@@ -22,8 +22,7 @@ interface LocalRateLimitGlobal {
 
 const localGlobal = globalThis as typeof globalThis & LocalRateLimitGlobal;
 const localStore =
-  localGlobal.__aiStudyRateLimitFallback ??
-  new Map<string, number[]>();
+  localGlobal.__aiStudyRateLimitFallback ?? new Map<string, number[]>();
 localGlobal.__aiStudyRateLimitFallback = localStore;
 
 const SLIDING_WINDOW_LUA = `
@@ -55,9 +54,7 @@ redis.call('PEXPIRE', key, window)
 return {1, 0, max - count - 1}
 `;
 
-function localFallback(
-  input: RateLimitCheckInput,
-): RateLimitCheckResult {
+function localFallback(input: RateLimitCheckInput): RateLimitCheckResult {
   const now = Date.now();
   const cutoff = now - input.windowMs;
   const timestamps = (localStore.get(input.key) ?? []).filter(
@@ -65,10 +62,7 @@ function localFallback(
   );
 
   if (timestamps.length >= input.limit) {
-    const retryAfterMs = Math.max(
-      1,
-      timestamps[0] + input.windowMs - now,
-    );
+    const retryAfterMs = Math.max(1, timestamps[0] + input.windowMs - now);
 
     localStore.set(input.key, timestamps);
 
@@ -126,18 +120,15 @@ export async function checkRateLimit(
     const client = await getRedisClient();
     const now = Date.now();
 
-    const raw = await client.eval(
-      SLIDING_WINDOW_LUA,
-      {
-        keys: [input.key],
-        arguments: [
-          String(now),
-          String(input.windowMs),
-          String(input.limit),
-          `${now}-${randomUUID()}`,
-        ],
-      },
-    );
+    const raw = await client.eval(SLIDING_WINDOW_LUA, {
+      keys: [input.key],
+      arguments: [
+        String(now),
+        String(input.windowMs),
+        String(input.limit),
+        `${now}-${randomUUID()}`,
+      ],
+    });
 
     const result = parseRedisResult(raw);
 
@@ -148,10 +139,7 @@ export async function checkRateLimit(
   } catch (error) {
     logger.warn("[rate-limit] Redis unavailable; using memory fallback", {
       key: input.key,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
+      error: error instanceof Error ? error.message : String(error),
     });
 
     return localFallback(input);

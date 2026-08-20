@@ -1,15 +1,7 @@
-import {
-  sendMessage,
-} from "@/server/integrations/telegram/telegram.client";
-import type {
-  TelegramInlineButton,
-} from "@/server/integrations/telegram/telegram.client";
-import type {
-  StudyGenerationState,
-} from "@/server/types/generation";
-import type {
-  PublicNote,
-} from "@/server/services/note.service";
+import { sendMessage } from "@/server/integrations/telegram/telegram.client";
+import type { TelegramInlineButton } from "@/server/integrations/telegram/telegram.client";
+import type { StudyGenerationState } from "@/server/types/generation";
+import type { PublicNote } from "@/server/services/note.service";
 import { logger } from "@/server/utils/logger";
 
 function getPublicAppUrl(): string {
@@ -158,16 +150,10 @@ export async function notifyTelegramGenerationFailure(
   note: PublicNote,
   error: unknown,
 ): Promise<void> {
-  logger.error(
-    "[telegram] study generation failed",
-    {
-      noteId: note.id,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-    },
-  );
+  logger.error("[telegram] study generation failed", {
+    noteId: note.id,
+    error: error instanceof Error ? error.message : String(error),
+  });
 
   await sendMessage(
     chatId,

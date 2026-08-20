@@ -77,10 +77,10 @@ export async function createNote(
       noteId: saved.id,
       userId,
     });
-    
+
     return publicNote;
   }
-  
+
   try {
     await enqueueStudyGeneration({
       noteId: saved.id,

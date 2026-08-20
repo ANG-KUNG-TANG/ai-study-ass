@@ -72,9 +72,7 @@ function unavailableSnapshot(): TelegramHealthSnapshot {
     },
     webhook: {
       configured: false,
-      secretConfigured: Boolean(
-        process.env.TELEGRAM_WEBHOOK_SECRET?.trim(),
-      ),
+      secretConfigured: Boolean(process.env.TELEGRAM_WEBHOOK_SECRET?.trim()),
       matchesExpectedUrl: null,
       url: null,
       expectedUrl: expectedWebhookUrl(),
@@ -92,10 +90,7 @@ async function loadTelegramHealth(): Promise<TelegramHealthSnapshot> {
   }
 
   try {
-    const [bot, webhook] = await Promise.all([
-      getMe(),
-      getWebhookInfo(),
-    ]);
+    const [bot, webhook] = await Promise.all([getMe(), getWebhookInfo()]);
 
     const expectedUrl = expectedWebhookUrl();
     const actualUrl = webhook.url?.trim() || null;
@@ -108,10 +103,7 @@ async function loadTelegramHealth(): Promise<TelegramHealthSnapshot> {
           : null;
 
     const displayName =
-      [bot.first_name, bot.last_name]
-        .filter(Boolean)
-        .join(" ")
-        .trim() || null;
+      [bot.first_name, bot.last_name].filter(Boolean).join(" ").trim() || null;
 
     return {
       configured: true,
@@ -123,9 +115,7 @@ async function loadTelegramHealth(): Promise<TelegramHealthSnapshot> {
       },
       webhook: {
         configured: Boolean(actualUrl),
-        secretConfigured: Boolean(
-          process.env.TELEGRAM_WEBHOOK_SECRET?.trim(),
-        ),
+        secretConfigured: Boolean(process.env.TELEGRAM_WEBHOOK_SECRET?.trim()),
         matchesExpectedUrl,
         url: actualUrl,
         expectedUrl,
@@ -137,18 +127,14 @@ async function loadTelegramHealth(): Promise<TelegramHealthSnapshot> {
     };
   } catch (error) {
     logger.warn("[health] Telegram health check failed", {
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
+      error: error instanceof Error ? error.message : String(error),
     });
 
     return unavailableSnapshot();
   }
 }
 
-export async function getTelegramHealth():
-Promise<TelegramHealthSnapshot> {
+export async function getTelegramHealth(): Promise<TelegramHealthSnapshot> {
   const cached = healthGlobal.__telegramHealthCache;
 
   if (cached && cached.expiresAt > Date.now()) {
@@ -159,19 +145,18 @@ Promise<TelegramHealthSnapshot> {
     return healthGlobal.__telegramHealthPromise;
   }
 
-  healthGlobal.__telegramHealthPromise =
-    loadTelegramHealth()
-      .then((value) => {
-        healthGlobal.__telegramHealthCache = {
-          value,
-          expiresAt: Date.now() + TELEGRAM_HEALTH_CACHE_MS,
-        };
+  healthGlobal.__telegramHealthPromise = loadTelegramHealth()
+    .then((value) => {
+      healthGlobal.__telegramHealthCache = {
+        value,
+        expiresAt: Date.now() + TELEGRAM_HEALTH_CACHE_MS,
+      };
 
-        return value;
-      })
-      .finally(() => {
-        healthGlobal.__telegramHealthPromise = undefined;
-      });
+      return value;
+    })
+    .finally(() => {
+      healthGlobal.__telegramHealthPromise = undefined;
+    });
 
   return healthGlobal.__telegramHealthPromise;
 }
