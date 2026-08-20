@@ -151,6 +151,8 @@ async function generateCardsViaAI(
   title: string,
   content: string,
   count: number,
+  userId: string,
+  noteId: string,
 ): Promise<{
   cards: FlashcardPair[];
   tokensUsed: number;
@@ -194,6 +196,8 @@ ${sample.text}
     maxTokens: 3_000,
     jsonMode: true,
     usageLabel: "flashcards",
+    userId,
+    noteId,
   });
 
   const parsed = parseStructuredArray(
@@ -266,6 +270,8 @@ export async function generateFlashcardsWithMetadata(
         note.title,
         note.content,
         missingCount,
+        userId,
+        noteId,
       );
 
       pairs = deduplicateCards([...pairs, ...ai.cards]).slice(0, count);

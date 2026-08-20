@@ -5,11 +5,9 @@
 // code must never receive provider API keys or call providers directly.
 // =============================================================================
 
-import {
-  AI_CONFIG,
-  type AIProvider,
-} from "@/server/config/ai_config";
+import { AI_CONFIG, type AIProvider } from "@/server/config/ai_config";
 import { AIError } from "@/server/utils/errors";
+import { recordAIUsage } from "@/server/services/ai-usage.service";
 
 // ─── Public contract ──────────────────────────────────────────────────────────
 
@@ -20,8 +18,15 @@ export interface AIGenerateOptions {
   temperature?: number;
   jsonMode?: boolean;
 
-  /** Logical feature label shown in the admin AI-usage dashboard. */
+  /** Logical feature label shown in AI usage dashboards. */
   usageLabel?: string;
+
+  /**
+   * Optional ownership context.
+   * Internal/system AI calls may leave these undefined.
+   */
+  userId?: string;
+  noteId?: string;
 }
 
 export interface AIGenerateResult {
@@ -31,43 +36,6 @@ export interface AIGenerateResult {
   model: string;
 }
 
-export interface AIUsageEvent {
-  provider: AIProvider;
-  model: string;
-  usageLabel: string;
-  success: boolean;
-  tokensUsed: number;
-  latencyMs: number;
-  createdAt: Date;
-}
-
-// ─── Process-local telemetry ─────────────────────────────────────────────────
-// Stores operational metadata only. Prompts, responses, document text, API
-// keys and user identifiers are deliberately excluded.
-
-interface AIUsageGlobal {
-  __recallAIUsageEvents?: AIUsageEvent[];
-}
-
-const usageGlobal = globalThis as typeof globalThis & AIUsageGlobal;
-const AI_USAGE_LIMIT = 5_000;
-const usageEvents = usageGlobal.__recallAIUsageEvents ?? [];
-usageGlobal.__recallAIUsageEvents = usageEvents;
-
-function recordAIUsageEvent(event: AIUsageEvent): void {
-  usageEvents.push(event);
-
-  if (usageEvents.length > AI_USAGE_LIMIT) {
-    usageEvents.splice(0, usageEvents.length - AI_USAGE_LIMIT);
-  }
-}
-
-export function getAIUsageEvents(): AIUsageEvent[] {
-  return usageEvents.map((event) => ({
-    ...event,
-    createdAt: new Date(event.createdAt),
-  }));
-}
 
 // ─── Retry / timeout policy ──────────────────────────────────────────────────
 
@@ -99,6 +67,7 @@ interface AdapterError extends Error {
   retryAfterMs?: number;
   retryable?: boolean;
   publicMessage?: string;
+  quotaExceeded?: boolean;
 }
 
 function asAdapterError(error: unknown): AdapterError {
@@ -259,9 +228,7 @@ async function callOpenAI(
       messages,
       max_tokens: options.maxTokens ?? 1_024,
       temperature: options.temperature ?? 0.7,
-      ...(options.jsonMode
-        ? { response_format: { type: "json_object" } }
-        : {}),
+      ...(options.jsonMode ? { response_format: { type: "json_object" } } : {}),
     }),
   });
 
@@ -269,9 +236,7 @@ async function callOpenAI(
     const details = await response.text().catch(() => "");
     logProviderFailure("openai", model, response.status, details);
 
-    const error: AdapterError = new Error(
-      `OpenAI returned ${response.status}`,
-    );
+    const error: AdapterError = new Error(`OpenAI returned ${response.status}`);
     error.status = response.status;
     error.retryable = isRetryableStatus(response.status);
     error.retryAfterMs = parseRetryAfterHeader(
@@ -313,7 +278,6 @@ async function callGemini(
 ): Promise<AIGenerateResult> {
   const apiKey = AI_CONFIG.gemini.apiKey.trim();
   const model = AI_CONFIG.gemini.model.trim().replace(/^models\//, "");
-
   if (!apiKey) {
     throw new AIError("GEMINI_API_KEY is not configured.", "gemini");
   }
@@ -350,9 +314,7 @@ async function callGemini(
       generationConfig: {
         maxOutputTokens: options.maxTokens ?? 1_024,
         temperature: options.temperature ?? 0.7,
-        ...(options.jsonMode
-          ? { responseMimeType: "application/json" }
-          : {}),
+        ...(options.jsonMode ? { responseMimeType: "application/json" } : {}),
       },
     }),
   });
@@ -366,10 +328,9 @@ async function callGemini(
         ? parseGeminiQuotaInfo(details)
         : { dailyQuotaExceeded: false };
 
-    const error: AdapterError = new Error(
-      `Gemini returned ${response.status}`,
-    );
+    const error: AdapterError = new Error(`Gemini returned ${response.status}`);
     error.status = response.status;
+    error.quotaExceeded = quotaInfo.dailyQuotaExceeded;
 
     if (quotaInfo.dailyQuotaExceeded) {
       error.retryable = false;
@@ -435,10 +396,7 @@ async function callGemini(
 
 const ADAPTERS: Record<
   AIProvider,
-  (
-    options: AIGenerateOptions,
-    signal: AbortSignal,
-  ) => Promise<AIGenerateResult>
+  (options: AIGenerateOptions, signal: AbortSignal) => Promise<AIGenerateResult>
 > = {
   openai: callOpenAI,
   gemini: callGemini,
@@ -462,15 +420,17 @@ export async function generate(
 
     try {
       const result = await adapter(options, controller.signal);
-
-      recordAIUsageEvent({
+      await recordAIUsage({
+        userId: options.userId ?? null,
+        noteId: options.noteId ?? null,
         provider: result.provider,
         model: result.model,
         usageLabel,
         success: true,
         tokensUsed: result.tokensUsed,
         latencyMs: Date.now() - startedAt,
-        createdAt: new Date(),
+        statusCode: 200,
+        quotaExceeded: false,
       });
 
       return result;
@@ -487,14 +447,21 @@ export async function generate(
       const isLastAttempt = attempt === maxAttempts - 1;
 
       if (!retryable || isLastAttempt) {
-        recordAIUsageEvent({
+        await recordAIUsage({
+          userId: options.userId ?? null,
+          noteId: options.noteId ?? null,
           provider,
           model: configuredModel(provider),
           usageLabel,
           success: false,
           tokensUsed: 0,
           latencyMs: Date.now() - startedAt,
-          createdAt: new Date(),
+          statusCode:
+            typeof status === "number"
+              ? status
+              : null,
+          quotaExceeded:
+            error.quotaExceeded === true,
         });
 
         if (isAbort) {
@@ -505,7 +472,8 @@ export async function generate(
         }
 
         throw new AIError(
-          error.publicMessage ?? error.message ??
+          error.publicMessage ??
+            error.message ??
             "The AI request could not be completed.",
           provider,
         );
@@ -528,6 +496,10 @@ export async function generate(
 /** Adapter matching the intelligence engine's `(prompt) => result` contract. */
 export async function generateForIntelligence(
   prompt: string,
+  context: {
+    userId?: string;
+    noteId?: string;
+  } = {},
 ): Promise<AIGenerateResult> {
   return generate({
     prompt,
@@ -541,5 +513,7 @@ export async function generateForIntelligence(
     temperature: 0.1,
     jsonMode: true,
     usageLabel: "intelligence",
+    userId: context.userId,
+    noteId: context.noteId,
   });
 }

@@ -6,6 +6,7 @@ import * as flashcardRepo from "@/server/repositories/flashcard.repo";
 import * as chatRepo from "@/server/repositories/chat.repo";
 import * as intelligenceRepo from "@/server/repositories/intelligence.repo";
 import * as generationRepo from "@/server/repositories/study-generation.repo";
+import * as aiUsageRepo from "@/server/repositories/ai-usage.repo";
 import { UserEntity } from "@/server/entities/user.entity";
 import { revokeAllUserTokens } from "@/server/utils/jwt";
 import { NotFoundError, ForbiddenError } from "@/server/utils/errors";
@@ -66,6 +67,7 @@ export async function deleteAccount(
     quizRepo.deleteByUserId(userId),
     flashcardRepo.deleteByUserId(userId),
     chatRepo.deleteByUserId(userId),
+    aiUsageRepo.deleteByUserId(userId),
     noteRepo.deleteByUserId(userId),
     revokeAllUserTokens(userId),
   ]);

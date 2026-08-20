@@ -337,6 +337,8 @@ export async function generateQuizWithMetadata(
         temperature: 0.25,
         maxTokens: 3_000,
         usageLabel: "quiz",
+        userId,
+        noteId
       });
 
       const parsed = parseQuizResponse(aiResult.text);

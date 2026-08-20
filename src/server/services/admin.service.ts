@@ -9,7 +9,10 @@ import {
   BadRequestError,
 } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
-import type { UserQueryOptions, PaginatedUsers } from "@/server/repositories/user.repo";
+import type {
+  UserQueryOptions,
+  PaginatedUsers,
+} from "@/server/repositories/user.repo";
 import { buildPaginationMeta, PaginationMeta } from "../utils/response";
 import * as flashcardService from "@/server/services/flashcard.service";
 import * as chatService from "@/server/services/chat/chat.service";
@@ -17,16 +20,11 @@ import * as intelligenceService from "@/server/services/intelligence.service";
 import * as generationService from "@/server/services/study-material-generation.service";
 import * as intelligenceRepo from "@/server/repositories/intelligence.repo";
 import * as flashcardRepo from "@/server/repositories/flashcard.repo";
-import type { NoteQueryOptions} from "@/server/repositories/note.repo";
+import type { NoteQueryOptions } from "@/server/repositories/note.repo";
 import mongoose from "mongoose";
-import {
-  AI_CONFIG,
-  type AIProvider,
-} from "@/server/config/ai_config";
-import {
-  getAIUsageEvents,
-} from "@/server/services/ai.service";
-
+import { AI_CONFIG, type AIProvider } from "@/server/config/ai_config";
+import { getUsageSince } from "@/server/services/ai-usage.service";
+import { generate } from "@/server/services/ai.service";
 // ─── Purpose ──────────────────────────────────────────────────────────────────
 // Admin-only operations. Every function here must be called from routes
 // protected by withAuth + withRole("admin") middleware.
@@ -46,9 +44,7 @@ export interface AdminNoteView {
 
 // ─── List users ───────────────────────────────────────────────────────────────
 
-export async function listUsers(
-  options: UserQueryOptions
-): Promise<{
+export async function listUsers(options: UserQueryOptions): Promise<{
   data: ReturnType<UserEntity["toPublic"]>[];
   meta: PaginationMeta;
 }> {
@@ -63,7 +59,7 @@ export async function listUsers(
 // ─── Get single user ──────────────────────────────────────────────────────────
 
 export async function getUserById(
-  userId: string
+  userId: string,
 ): Promise<ReturnType<UserEntity["toPublic"]>> {
   const user = await userRepo.findById(userId);
   if (!user) throw new NotFoundError("User");
@@ -71,7 +67,7 @@ export async function getUserById(
 }
 
 export async function listContent(
-  options: NoteQueryOptions
+  options: NoteQueryOptions,
 ): Promise<{ data: AdminNoteView[]; meta: PaginationMeta }> {
   const result = await noteRepo.findManyAdmin(options);
 
@@ -100,9 +96,11 @@ export async function listContent(
     };
   });
 
-  return { data, meta: buildPaginationMeta(result.total, result.page, result.limit) };
+  return {
+    data,
+    meta: buildPaginationMeta(result.total, result.page, result.limit),
+  };
 }
-
 
 // ─── Delete content ───────────────────────────────────────────────────────────
 
@@ -138,7 +136,7 @@ export async function deleteContent(
 export async function updateUserRole(
   adminId: string,
   targetUserId: string,
-  role: UserRole
+  role: UserRole,
 ): Promise<void> {
   if (adminId === targetUserId) {
     throw new ForbiddenError("You cannot change your own role");
@@ -163,7 +161,7 @@ export async function updateUserRole(
 
 export async function banUser(
   adminId: string,
-  targetUserId: string
+  targetUserId: string,
 ): Promise<void> {
   if (adminId === targetUserId) {
     throw new ForbiddenError("You cannot ban yourself");
@@ -181,7 +179,7 @@ export async function banUser(
 
 export async function unbanUser(
   adminId: string,
-  targetUserId: string
+  targetUserId: string,
 ): Promise<void> {
   const user = await userRepo.findById(targetUserId);
   if (!user) throw new NotFoundError("User");
@@ -202,7 +200,7 @@ export async function unbanUser(
 
 export async function deleteUser(
   adminId: string,
-  targetUserId: string
+  targetUserId: string,
 ): Promise<void> {
   if (adminId === targetUserId) {
     throw new ForbiddenError("Use account settings to delete your own account");
@@ -311,235 +309,141 @@ export interface AdminAIUsage {
   warning: string;
 }
 
-function providerConfigured(
-  provider: AIProvider,
-): boolean {
+function providerConfigured(provider: AIProvider): boolean {
   return provider === "openai"
-    ? Boolean(
-        AI_CONFIG.openai.apiKey.trim(),
-      )
-    : Boolean(
-        AI_CONFIG.gemini.apiKey.trim(),
-      );
+    ? Boolean(AI_CONFIG.openai.apiKey.trim())
+    : Boolean(AI_CONFIG.gemini.apiKey.trim());
 }
 
-function providerStatus(
-  provider: AIProvider,
-): AdminAIProviderStatus {
-  if (
-    !providerConfigured(
-      provider,
-    )
-  ) {
+function providerStatus(provider: AIProvider): AdminAIProviderStatus {
+  if (!providerConfigured(provider)) {
     return "not_configured";
   }
 
-  return provider ===
-    AI_CONFIG.activeProvider
-    ? "operational"
-    : "configured";
+  return provider === AI_CONFIG.activeProvider ? "operational" : "configured";
 }
 
-function beginningOfDay(
-  date: Date,
-): Date {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-  );
+function beginningOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function averageNumber(
-  values: number[],
-): number {
-  if (
-    values.length === 0
-  ) {
+function averageNumber(values: number[]): number {
+  if (values.length === 0) {
     return 0;
   }
 
   return Math.round(
-    values.reduce(
-      (sum, value) =>
-        sum + value,
-      0,
-    ) /
-      values.length,
+    values.reduce((sum, value) => sum + value, 0) / values.length,
   );
 }
 
-export async function getAIUsage():
-  Promise<AdminAIUsage> {
+export async function getAIUsage(): Promise<AdminAIUsage> {
   const now = new Date();
-  const today =
-    beginningOfDay(now);
+  const today = beginningOfDay(now);
 
-  const events =
-    getAIUsageEvents();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const providers:
-    AIProvider[] = [
-      "openai",
-      "gemini",
-    ];
+  const sevenDaysStart = beginningOfDay(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6),
+  );
 
-  const providerUsage =
-    providers.map(
-      (
-        provider,
-      ): AdminAIProviderUsage => {
-        const todayEvents =
-          events.filter(
-            (event) =>
-              event.provider ===
-                provider &&
-              event.createdAt >=
-                today,
-          );
+  const since = monthStart < sevenDaysStart ? monthStart : sevenDaysStart;
 
-        return {
-          provider,
+  const events = await getUsageSince(since);
 
-          status:
-            providerStatus(
-              provider,
-            ),
+  const providers: AIProvider[] = ["openai", "gemini"];
 
-          requestsToday:
-            todayEvents.length,
-
-          tokensToday:
-            todayEvents.reduce(
-              (sum, event) =>
-                sum +
-                event.tokensUsed,
-              0,
-            ),
-
-          averageLatencyMs:
-            averageNumber(
-              todayEvents.map(
-                (event) =>
-                  event.latencyMs,
-              ),
-            ),
-
-          spendToday:
-            0,
-
-          failuresToday:
-            todayEvents.filter(
-              (event) =>
-                !event.success,
-            ).length,
-        };
-      },
+  const providerUsage = providers.map((provider): AdminAIProviderUsage => {
+    const todayEvents = events.filter(
+      (event) => event.provider === provider && event.createdAt >= today,
     );
 
-  const weekday =
-    new Intl.DateTimeFormat(
-      "en",
-      {
-        weekday: "short",
-      },
-    );
+    return {
+      provider,
 
-  const requestsLastSevenDays =
-    Array.from(
-      {
-        length: 7,
-      },
-      (_, index) => {
-        const day =
-          new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate() -
-              (6 - index),
-          );
+      status: providerStatus(provider),
 
-        const nextDay =
-          new Date(
-            day.getFullYear(),
-            day.getMonth(),
-            day.getDate() + 1,
-          );
+      requestsToday: todayEvents.length,
 
-        return {
-          label:
-            weekday.format(day),
+      tokensToday: todayEvents.reduce(
+        (sum, event) => sum + event.tokensUsed,
+        0,
+      ),
 
-          value:
-            events.filter(
-              (event) =>
-                event.createdAt >=
-                  day &&
-                event.createdAt <
-                  nextDay,
-            ).length,
-        };
-      },
-    );
+      averageLatencyMs: averageNumber(
+        todayEvents.map((event) => event.latencyMs),
+      ),
 
-  const routeCounts =
-    new Map<string, number>();
+      spendToday: 0,
 
-  for (
-    const event of events
-  ) {
+      failuresToday: todayEvents.filter((event) => !event.success).length,
+    };
+  });
+
+  const weekday = new Intl.DateTimeFormat("en", {
+    weekday: "short",
+  });
+
+  const requestsLastSevenDays = Array.from(
+    {
+      length: 7,
+    },
+    (_, index) => {
+      const day = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - (6 - index),
+      );
+
+      const nextDay = new Date(
+        day.getFullYear(),
+        day.getMonth(),
+        day.getDate() + 1,
+      );
+
+      return {
+        label: weekday.format(day),
+
+        value: events.filter(
+          (event) => event.createdAt >= day && event.createdAt < nextDay,
+        ).length,
+      };
+    },
+  );
+
+  const routeCounts = new Map<string, number>();
+
+  for (const event of events) {
     routeCounts.set(
       event.usageLabel,
-      (
-        routeCounts.get(
-          event.usageLabel,
-        ) ??
-        0
-      ) + 1,
+      (routeCounts.get(event.usageLabel) ?? 0) + 1,
     );
   }
 
   return {
-    providers:
-      providerUsage,
+    providers: providerUsage,
 
-    monthlySpend:
-      0,
+    monthlySpend: 0,
 
     requestsLastSevenDays,
 
-    requestsByRoute:
-      Array.from(
-        routeCounts.entries(),
-      )
-        .map(
-          ([
-            route,
-            count,
-          ]) => ({
-            route,
-            count,
-          }),
-        )
-        .sort(
-          (left, right) =>
-            right.count -
-            left.count,
-        ),
+    requestsByRoute: Array.from(routeCounts.entries())
+      .map(([route, count]) => ({
+        route,
+        count,
+      }))
+      .sort((left, right) => right.count - left.count),
 
     warning:
-      "Usage telemetry is stored in memory and resets when the server restarts. " +
-      "Spend remains $0 until durable input/output token accounting and pricing are added.",
+      "Usage telemetry is stored durably in MongoDB. " +
+      "Spend remains $0 until provider pricing is configured.",
   };
 }
 
 // ─── Detailed admin health ────────────────────────────────────────────────────
 
 export interface AdminHealthCheck {
-  status:
-    | "healthy"
-    | "degraded"
-    | "unhealthy";
+  status: "healthy" | "degraded" | "unhealthy";
 
   timestamp: string;
   uptime: number;
@@ -566,140 +470,111 @@ export interface AdminHealthCheck {
   };
 }
 
-const MONGOOSE_STATES:
-  Record<number, string> = {
-    0: "disconnected",
-    1: "connected",
-    2: "connecting",
-    3: "disconnecting",
-  };
+const MONGOOSE_STATES: Record<number, string> = {
+  0: "disconnected",
+  1: "connected",
+  2: "connecting",
+  3: "disconnecting",
+};
 
-async function databaseHealth():
-  Promise<
-    AdminHealthCheck[
-      "database"
-    ]
-  > {
-  const state =
-    mongoose.connection.readyState;
+async function databaseHealth(): Promise<AdminHealthCheck["database"]> {
+  const state = mongoose.connection.readyState;
 
-  if (
-    state !== 1 ||
-    !mongoose.connection.db
-  ) {
+  if (state !== 1 || !mongoose.connection.db) {
     return {
-      connected:
-        false,
-      state:
-        MONGOOSE_STATES[state] ??
-        "unknown",
-      latencyMs:
-        null,
+      connected: false,
+      state: MONGOOSE_STATES[state] ?? "unknown",
+      latencyMs: null,
     };
   }
 
-  const startedAt =
-    Date.now();
+  const startedAt = Date.now();
 
   try {
-    await mongoose.connection.db
-      .admin()
-      .ping();
+    await mongoose.connection.db.admin().ping();
 
     return {
-      connected:
-        true,
-      state:
-        "connected",
-      latencyMs:
-        Date.now() -
-        startedAt,
+      connected: true,
+      state: "connected",
+      latencyMs: Date.now() - startedAt,
     };
   } catch (error) {
-    logger.warn(
-      "Admin health database ping failed",
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
-      },
-    );
+    logger.warn("Admin health database ping failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     return {
-      connected:
-        false,
-      state:
-        "error",
-      latencyMs:
-        Date.now() -
-        startedAt,
+      connected: false,
+      state: "error",
+      latencyMs: Date.now() - startedAt,
     };
   }
 }
 
-export async function getSystemHealth():
-  Promise<AdminHealthCheck> {
-  const database =
-    await databaseHealth();
+export async function getSystemHealth(): Promise<AdminHealthCheck> {
+  const database = await databaseHealth();
 
-  const provider =
-    AI_CONFIG.activeProvider;
+  const provider = AI_CONFIG.activeProvider;
 
-  const configured =
-    providerConfigured(
-      provider,
-    );
+  const configured = providerConfigured(provider);
 
-  const memory =
-    process.memoryUsage();
+  const memory = process.memoryUsage();
 
   return {
     status:
-      database.connected &&
-      configured
+      database.connected && configured
         ? "healthy"
         : database.connected
           ? "degraded"
           : "unhealthy",
 
-    timestamp:
-      new Date().toISOString(),
+    timestamp: new Date().toISOString(),
 
-    uptime:
-      process.uptime(),
+    uptime: process.uptime(),
 
-    version:
-      process.env
-        .npm_package_version ??
-      "unknown",
+    version: process.env.npm_package_version ?? "unknown",
 
     database,
 
     ai: {
-      reachable:
-        configured,
+      reachable: configured,
       configured,
       provider,
 
       model:
-        provider === "openai"
-          ? AI_CONFIG.openai.model
-          : AI_CONFIG.gemini.model,
+        provider === "openai" ? AI_CONFIG.openai.model : AI_CONFIG.gemini.model,
 
       // This does not consume provider quota. It verifies configuration only.
-      checkMode:
-        "configuration",
+      checkMode: "configuration",
     },
 
     memory: {
-      used:
-        memory.heapUsed,
-      total:
-        memory.heapTotal,
-      rss:
-        memory.rss,
+      used: memory.heapUsed,
+      total: memory.heapTotal,
+      rss: memory.rss,
     },
   };
 }
+export async function testAIProvider(adminId: string): Promise<{
+  provider: AIProvider;
+  model: string;
+  tokensUsed: number;
+  response: string;
+}> {
+  const result = await generate({
+    systemPrompt:
+      "You are performing an internal AI provider connectivity test.",
+    prompt: 'Reply with exactly: "AI provider operational"',
+    temperature: 0,
+    maxTokens: 30,
+    usageLabel: "admin_test",
+    userId: adminId,
+  });
 
+  return {
+    provider: result.provider,
+    model: result.model,
+    tokensUsed: result.tokensUsed,
+    response: result.text.trim(),
+  };
+}

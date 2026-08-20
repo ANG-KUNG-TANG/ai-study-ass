@@ -37,6 +37,7 @@ export async function runAndPersistPipeline(
   noteId: string,
   document: RawDocument,
 ): Promise<IntelligenceResultEntity | null> {
+  const noteForUsage = await noteRepo.findById(noteId);
   progressService.begin(noteId);
 
   try {
@@ -45,7 +46,13 @@ export async function runAndPersistPipeline(
         noteId,
         document,
         ...(withAI
-          ? { aiGenerate: generateForIntelligence }
+          ? {
+              aiGenerate: (prompt: string) =>
+                generateForIntelligence(prompt, {
+                  userId: noteForUsage?.userId,
+                  noteId,
+                }),
+            }
           : {}),
         onProgress: (event) => {
           progressService.record(noteId, event);

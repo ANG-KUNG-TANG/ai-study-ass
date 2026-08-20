@@ -128,7 +128,10 @@ export async function updateUserRole(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const targetId = await getTargetUserId(context);
-  const { role } = await validateBody(req, updateRoleSchema) as UpdateRoleInput;
+  const { role } = (await validateBody(
+    req,
+    updateRoleSchema,
+  )) as UpdateRoleInput;
   await adminService.updateUserRole(auth.userId, targetId, role);
   const target = await adminService.getUserById(targetId);
 
@@ -245,10 +248,23 @@ export async function getRecentActivity(
 ): Promise<NextResponse> {
   const pageValue = Number(req.nextUrl.searchParams.get("page") ?? 1);
   const limitValue = Number(req.nextUrl.searchParams.get("limit") ?? 20);
-  const page = Number.isFinite(pageValue) ? Math.max(1, Math.floor(pageValue)) : 1;
+  const page = Number.isFinite(pageValue)
+    ? Math.max(1, Math.floor(pageValue))
+    : 1;
   const limit = Number.isFinite(limitValue)
     ? Math.min(100, Math.max(1, Math.floor(limitValue)))
     : 20;
   const result = await auditLogService.listActivity(page, limit);
   return paginatedResponse(result.data, result.meta, "Activity retrieved");
+}
+
+// POST /api/admin/ai/test
+export async function testAIProvider(
+  _req: NextRequest,
+  _context: RouteContext,
+  auth: AuthContext,
+): Promise<NextResponse> {
+  const result = await adminService.testAIProvider(auth.userId);
+
+  return successResponse(result);
 }
