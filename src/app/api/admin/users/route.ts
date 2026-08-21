@@ -5,7 +5,7 @@ import { listUsers } from "@/server/controller/admin.controller";
 
 // GET /api/admin/users
 export const GET = withRole("admin")(async (req, _context, auth) => {
-  apiLimiter(req, "admin:list-users");
+  await apiLimiter(req, "admin:list-users");
   return listUsers(
     req as NextRequest,
     { params: Promise.resolve({} as Record<string, string>) },

@@ -6,6 +6,6 @@ import { verifyEmail } from "@/server/controller/auth.controller";
 // POST /api/auth/verify-email
 // Public.
 export const POST = withErrorHandler(async (req) => {
-  authLimiter(req, 'verify-email');
+  await authLimiter(req, 'verify-email');
   return verifyEmail(req as NextRequest);
 });

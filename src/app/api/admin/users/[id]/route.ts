@@ -12,7 +12,7 @@ export const GET = withRole("admin")(
     const params = await context.params;
     const id = params.id;
 
-    apiLimiter(
+    await apiLimiter(
       req,
       `admin:${auth.userId}:user:${id}:read`,
     );
@@ -31,7 +31,7 @@ export const DELETE = withRole("admin")(
     const params = await context.params;
     const id = params.id;
 
-    apiLimiter(
+    await apiLimiter(
       req,
       `admin:${auth.userId}:user:${id}:delete`,
     );

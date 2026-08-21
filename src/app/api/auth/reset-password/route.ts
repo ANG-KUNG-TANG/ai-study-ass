@@ -6,6 +6,6 @@ import { resetPassword } from "@/server/controller/auth.controller";
 // POST /api/auth/reset-password
 // Public — identity comes from the reset token in the body, not a session.
 export const POST = withErrorHandler(async (req) => {
-  authLimiter(req, 'reset-password');
+  await authLimiter(req, 'reset-password');
   return resetPassword(req as NextRequest);
 });

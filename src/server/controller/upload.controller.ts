@@ -19,7 +19,7 @@ export async function uploadNoteController(
   _context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  authLimiter(
+  await authLimiter(
     req,
     `upload:${auth.userId}`,
   );
