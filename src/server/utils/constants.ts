@@ -10,6 +10,10 @@ export const ALLOWED_EXTENSIONS = ['.pdf', '.docx'] as const;
 //10 mb in bytes
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
+// Allow bounded multipart metadata/boundary overhead around the file itself.
+export const MAX_UPLOAD_REQUEST_SIZE_BYTES =
+  MAX_FILE_SIZE_BYTES + 1 * 1024 * 1024;
+
 //max characters extracted from a document before turncating
 //-75k chars = -18k tokens -safe for most AI context windows
 
