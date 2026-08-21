@@ -12,7 +12,6 @@ import * as userRepo from "@/server/repositories/user.repo"
 import { UserEntity } from "@/server/entities/user.entity";
 import { USER_RULES } from "@/server/entities/user.entity";
 import {
-  ConflictError,
   UnauthorizedError,
   NotFoundError,
   BadRequestError,
@@ -37,16 +36,33 @@ export interface AuthResult {
   tokens: TokenPair;
 }
 
+const GENERIC_REGISTRATION_MESSAGE =
+  "If registration can proceed, check your email for verification instructions";
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: unknown }).code === 11000,
+  );
+}
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 export async function register(
   input: RegisterInput,
   sendVerificationEmail: (email: string, token: string) => Promise<void>
 ): Promise<{ message: string }> {
-  const taken = await userRepo.existsByEmail(input.email);
-  if (taken) throw new ConflictError("Email already registered");
-
+  // Perform the expensive password hash before the account-existence
+  // decision so the easiest registration timing signal is reduced.
   const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
+
+  const taken = await userRepo.existsByEmail(input.email);
+  if (taken) {
+    return { message: GENERIC_REGISTRATION_MESSAGE };
+  }
+
   const verificationToken = generateActionToken();
   const verificationTokenHash = hashActionToken(verificationToken);
 
@@ -58,7 +74,17 @@ export async function register(
     emailVerificationToken: verificationTokenHash,
   });
 
-  await userRepo.create(entity);
+  try {
+    await userRepo.create(entity);
+  } catch (error) {
+    // Two concurrent requests can both pass existsByEmail(). MongoDB's
+    // unique email index is the final authority; do not expose that race
+    // as an account-existence signal.
+    if (isDuplicateKeyError(error)) {
+      return { message: GENERIC_REGISTRATION_MESSAGE };
+    }
+    throw error;
+  }
 
   void logActivity({
     actorId: entity.id,
@@ -83,7 +109,7 @@ export async function register(
 
   logger.info("User registered — awaiting verification", { userId: entity.id });
 
-  return { message: "Account created — please check your email to verify your account" };
+  return { message: GENERIC_REGISTRATION_MESSAGE };
 }
 
 // ─── Verify email ─────────────────────────────────────────────────────────────
