@@ -1,7 +1,9 @@
 import { randomUUID } from "crypto";
+import { isIP } from "node:net";
 import type { NextRequest } from "next/server";
 
 import { getRedisClient } from "@/server/config/redis";
+import { env } from "@/server/config/env";
 import { RateLimitError } from "@/server/utils/errors";
 import {
   RATE_LIMIT_AUTH,
@@ -48,17 +50,46 @@ interface RateLimitResult {
   retryAfterMs: number;
 }
 
-function getIP(req: NextRequest | Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
+function normaliseIp(value: string | null): string | null {
+  const candidate = value?.trim();
 
-  if (forwarded) {
-    return forwarded.split(",")[0]?.trim() || "anonymous";
+  if (!candidate || isIP(candidate) === 0) {
+    return null;
   }
 
-  return (
-    req.headers.get("x-real-ip") ??
-    (process.env.NODE_ENV === "production" ? "anonymous" : "dev-local")
-  );
+  return candidate;
+}
+
+function getIP(req: NextRequest | Request): string {
+  if (env.TRUST_CLOUDFLARE_PROXY) {
+    const cloudflareIp = normaliseIp(
+      req.headers.get("cf-connecting-ip"),
+    );
+
+    if (cloudflareIp) {
+      return cloudflareIp;
+    }
+
+    // Do not fall back to caller-controlled forwarding headers when Cloudflare
+    // trust mode is enabled. A missing/invalid header gets a stable bucket.
+    return "cloudflare-ip-missing";
+  }
+
+  if (env.NODE_ENV !== "production") {
+    const forwarded = req.headers
+      .get("x-forwarded-for")
+      ?.split(",")[0];
+
+    return (
+      normaliseIp(forwarded ?? null) ??
+      normaliseIp(req.headers.get("x-real-ip")) ??
+      "dev-local"
+    );
+  }
+
+  // In production, forwarded headers are untrusted unless Cloudflare trust
+  // mode is explicitly enabled.
+  return "direct-origin";
 }
 
 function normaliseRedisResult(result: unknown): RateLimitResult {

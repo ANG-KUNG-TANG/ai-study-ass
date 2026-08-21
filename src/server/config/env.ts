@@ -34,6 +34,11 @@ const envSchema = z
     AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     AI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
 
+    TRUST_CLOUDFLARE_PROXY: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+
     COOKIE_DOMAIN: z.string().optional(),
 
     RESEND_API_KEY: z.string().optional(),
