@@ -76,6 +76,23 @@ function queueValue(input: number | null): string {
   return input === null ? "—" : String(input);
 }
 
+function formatHealthTimestamp(
+  value: string | null,
+): string {
+  if (!value) {
+    return "—";
+  }
+
+  const date =
+    new Date(value);
+
+  return Number.isNaN(
+    date.getTime(),
+  )
+    ? "—"
+    : date.toLocaleString();
+}
+
 function WorkerCard({
   title,
   worker,
@@ -305,20 +322,107 @@ export default function AdminHealthPage() {
                   AI provider
                 </h4>
 
-                <StatusIcon ok={health.ai.configured} />
+                <StatusIcon
+                  ok={
+                    health.ai.status === "operational"
+                      ? true
+                      : health.ai.status === "quota_exhausted" ||
+                          health.ai.status === "degraded"
+                        ? false
+                        : undefined
+                  }
+                />
               </div>
 
-              <p className="text-[13px] capitalize">{health.ai.provider}</p>
+              <p className="text-[13px] capitalize">
+                {health.ai.provider}
+              </p>
 
               <p className="mt-1 truncate text-[11px] text-ink-faint">
                 {health.ai.model}
               </p>
 
+              <p className="mt-2 text-[11px] capitalize text-ink-soft">
+                {health.ai.status.replaceAll(
+                  "_",
+                  " ",
+                )}
+              </p>
+
               <p className="mt-1 text-[10px] text-ink-faint">
-                Configuration check only
+                Today: {health.ai.successesToday} successful ·{" "}
+                {health.ai.failuresToday} failed
+              </p>
+
+              <p className="mt-1 text-[10px] text-ink-faint">
+                Provider quota errors: {health.ai.quotaExceededToday}
               </p>
             </Card>
           </div>
+
+          {health.ai.status === "quota_exhausted" && (
+            <div className="rounded-xl border border-coral/30 bg-coral-soft px-4 py-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle
+                  size={16}
+                  className="mt-0.5 shrink-0 text-coral"
+                />
+
+                <div>
+                  <p className="text-[12px] font-medium text-coral">
+                    AI provider quota is exhausted
+                  </p>
+
+                  <p className="mt-1 text-[11px] text-coral">
+                    {health.ai.provider} rejected the latest provider request
+                    because its account or daily quota was exhausted.
+                    Symbolic study generation remains available.
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-coral">
+                    Last failure:{" "}
+                    {formatHealthTimestamp(
+                      health.ai.lastFailureAt,
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {health.ai.status === "degraded" && (
+            <div className="rounded-xl border border-amber-500/30 px-4 py-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle
+                  size={16}
+                  className="mt-0.5 shrink-0 text-amber-500"
+                />
+
+                <div>
+                  <p className="text-[12px] font-medium text-ink">
+                    Recent AI provider failure
+                  </p>
+
+                  <p className="mt-1 text-[11px] text-ink-soft">
+                    The latest provider call failed, but it was not classified
+                    as account quota exhaustion. Symbolic study generation
+                    remains available.
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-ink-faint">
+                    Last success:{" "}
+                    {formatHealthTimestamp(
+                      health.ai.lastSuccessAt,
+                    )}{" "}
+                    · Last failure:{" "}
+                    {formatHealthTimestamp(
+                      health.ai.lastFailureAt,
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <section>
             <h3 className="mb-2 text-[13px] font-semibold text-ink">Workers</h3>

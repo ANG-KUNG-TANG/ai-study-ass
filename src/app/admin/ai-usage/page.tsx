@@ -195,7 +195,7 @@ export default function AdminAIUsagePage() {
               ["Failures", formatNumber(data.summary.failuresToday)],
               ["Tokens", formatNumber(data.summary.tokensToday)],
               ["Avg latency", formatLatency(data.summary.averageLatencyMs)],
-              ["Quota errors", formatNumber(data.summary.quotaExceededToday)],
+              ["Provider quota errors", formatNumber(data.summary.quotaExceededToday)],
             ].map(([label, value]) => (
               <AdminPanel key={label}>
                 <p className="text-[11px] text-ink-faint">
@@ -231,7 +231,7 @@ export default function AdminAIUsagePage() {
                     ["Requests today", formatNumber(provider.requestsToday)],
                     ["Successful", formatNumber(provider.successesToday)],
                     ["Failures", formatNumber(provider.failuresToday)],
-                    ["Quota exceeded", formatNumber(provider.quotaExceededToday)],
+                    ["Provider quota exceeded", formatNumber(provider.quotaExceededToday)],
                     ["Tokens today", formatNumber(provider.tokensToday)],
                     ["Average latency", formatLatency(provider.averageLatencyMs)],
                   ].map(([label, value]) => (

@@ -293,7 +293,9 @@ export async function getOverviewStats(): Promise<{
 export type AdminAIProviderStatus =
   | "operational"
   | "configured"
-  | "not_configured";
+  | "not_configured"
+  | "degraded"
+  | "quota_exhausted";
 
 export interface AdminAIProviderUsage {
   provider: AIProvider;
@@ -365,12 +367,60 @@ function providerConfigured(provider: AIProvider): boolean {
     : Boolean(AI_CONFIG.gemini.apiKey.trim());
 }
 
-function providerStatus(provider: AIProvider): AdminAIProviderStatus {
+function providerStatus(
+  provider: AIProvider,
+  providerToday: Awaited<ReturnType<typeof getUsageSince>>,
+): AdminAIProviderStatus {
   if (!providerConfigured(provider)) {
     return "not_configured";
   }
 
-  return provider === AI_CONFIG.activeProvider ? "operational" : "configured";
+  if (provider !== AI_CONFIG.activeProvider) {
+    return "configured";
+  }
+
+  if (providerToday.length === 0) {
+    return "configured";
+  }
+
+  const ordered = [...providerToday].sort(
+    (left, right) =>
+      left.createdAt.getTime() -
+      right.createdAt.getTime(),
+  );
+
+  const latest = ordered.at(-1) ?? null;
+
+  const latestSuccess =
+    [...ordered]
+      .reverse()
+      .find((event) => event.success) ??
+    null;
+
+  const latestQuota =
+    [...ordered]
+      .reverse()
+      .find(
+        (event) =>
+          event.quotaExceeded,
+      ) ??
+    null;
+
+  const quotaExhausted =
+    latestQuota !== null &&
+    (
+      latestSuccess === null ||
+      latestQuota.createdAt.getTime() >
+        latestSuccess.createdAt.getTime()
+    );
+
+  if (quotaExhausted) {
+    return "quota_exhausted";
+  }
+
+  return latest?.success
+    ? "operational"
+    : "degraded";
 }
 
 function beginningOfUtcDay(date: Date): Date {
@@ -452,7 +502,10 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
 
     return {
       provider,
-      status: providerStatus(provider),
+      status: providerStatus(
+        provider,
+        providerToday,
+      ),
       requestsToday: providerToday.length,
       successesToday: providerToday.filter((event) => event.success).length,
       failuresToday: providerToday.filter((event) => !event.success).length,
@@ -617,11 +670,30 @@ export interface AdminHealthCheck {
   };
 
   ai: {
+    status:
+      | "not_configured"
+      | "configured"
+      | "operational"
+      | "degraded"
+      | "quota_exhausted";
+
     reachable: boolean;
     configured: boolean;
+
     provider: AIProvider;
     model: string;
-    checkMode: "configuration";
+
+    checkMode:
+      "configuration_and_telemetry";
+
+    requestsToday: number;
+    successesToday: number;
+    failuresToday: number;
+    quotaExceededToday: number;
+
+    lastRequestAt: string | null;
+    lastSuccessAt: string | null;
+    lastFailureAt: string | null;
   };
 
   telegram: TelegramHealthSnapshot;
@@ -674,16 +746,188 @@ async function databaseHealth(): Promise<AdminHealthCheck["database"]> {
   }
 }
 
+async function aiProviderHealth():
+Promise<AdminHealthCheck["ai"]> {
+  const provider = AI_CONFIG.activeProvider;
+  const configured = providerConfigured(provider);
+  const model =
+    provider === "openai"
+      ? AI_CONFIG.openai.model
+      : AI_CONFIG.gemini.model;
+
+  const empty = {
+    reachable: false,
+    configured,
+    provider,
+    model,
+    checkMode:
+      "configuration_and_telemetry" as const,
+    requestsToday: 0,
+    successesToday: 0,
+    failuresToday: 0,
+    quotaExceededToday: 0,
+    lastRequestAt: null,
+    lastSuccessAt: null,
+    lastFailureAt: null,
+  };
+
+  if (!configured) {
+    return {
+      ...empty,
+      status: "not_configured",
+    };
+  }
+
+  const now = new Date();
+  const today = beginningOfUtcDay(now);
+  const sevenDaysAgo =
+    new Date(
+      today.getTime() -
+        6 * 86_400_000,
+    );
+
+  try {
+    const events =
+      await getUsageSince(
+        sevenDaysAgo,
+      );
+
+    const providerEvents =
+      events
+        .filter(
+          (event) =>
+            event.provider === provider,
+        )
+        .sort(
+          (left, right) =>
+            left.createdAt.getTime() -
+            right.createdAt.getTime(),
+        );
+
+    const todayEvents =
+      providerEvents.filter(
+        (event) =>
+          event.createdAt >= today,
+      );
+
+    const successesToday =
+      todayEvents.filter(
+        (event) =>
+          event.success,
+      );
+
+    const failuresToday =
+      todayEvents.filter(
+        (event) =>
+          !event.success,
+      );
+
+    const quotaEventsToday =
+      todayEvents.filter(
+        (event) =>
+          event.quotaExceeded,
+      );
+
+    const latestToday =
+      todayEvents.at(-1) ?? null;
+
+    const latestSuccessToday =
+      successesToday.at(-1) ?? null;
+
+    const latestQuotaToday =
+      quotaEventsToday.at(-1) ?? null;
+
+    const quotaExhausted =
+      latestQuotaToday !== null &&
+      (
+        latestSuccessToday === null ||
+        latestQuotaToday.createdAt.getTime() >
+          latestSuccessToday.createdAt.getTime()
+      );
+
+    const status:
+      AdminHealthCheck["ai"]["status"] =
+      quotaExhausted
+        ? "quota_exhausted"
+        : latestToday === null
+          ? "configured"
+          : latestToday.success
+            ? "operational"
+            : "degraded";
+
+    return {
+      ...empty,
+      status,
+      reachable:
+        status === "operational",
+      requestsToday:
+        todayEvents.length,
+      successesToday:
+        successesToday.length,
+      failuresToday:
+        failuresToday.length,
+      quotaExceededToday:
+        quotaEventsToday.length,
+      lastRequestAt:
+        latestIso(
+          providerEvents.map(
+            (event) => event.createdAt,
+          ),
+        ),
+      lastSuccessAt:
+        latestIso(
+          providerEvents
+            .filter(
+              (event) => event.success,
+            )
+            .map(
+              (event) => event.createdAt,
+            ),
+        ),
+      lastFailureAt:
+        latestIso(
+          providerEvents
+            .filter(
+              (event) => !event.success,
+            )
+            .map(
+              (event) => event.createdAt,
+            ),
+        ),
+    };
+  } catch (error) {
+    logger.warn(
+      "Admin AI health telemetry lookup failed",
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      },
+    );
+
+    return {
+      ...empty,
+      status: "configured",
+    };
+  }
+}
+
 export async function getSystemHealth(): Promise<AdminHealthCheck> {
-  const [database, infrastructure, telegram] = await Promise.all([
+  const [
+    database,
+    infrastructure,
+    telegram,
+    ai,
+  ] = await Promise.all([
     databaseHealth(),
     getInfrastructureHealth(),
     getTelegramHealth(),
+    aiProviderHealth(),
   ]);
 
-  const provider = AI_CONFIG.activeProvider;
-  const configured = providerConfigured(provider);
-  const memory = process.memoryUsage();
+  const memory =
+    process.memoryUsage();
 
   const coreAvailable = database.connected && infrastructure.redis.connected;
 
@@ -701,11 +945,20 @@ export async function getSystemHealth(): Promise<AdminHealthCheck> {
     telegram.webhook.configured &&
     telegram.webhook.matchesExpectedUrl !== false;
 
-  const status: AdminHealthCheck["status"] = !coreAvailable
-    ? "unhealthy"
-    : !workersAvailable || !queuesAvailable || !telegramAvailable
-      ? "degraded"
-      : "healthy";
+  const aiDegraded =
+    ai.status === "quota_exhausted" ||
+    ai.status === "degraded";
+
+  const status:
+    AdminHealthCheck["status"] =
+    !coreAvailable
+      ? "unhealthy"
+      : !workersAvailable ||
+          !queuesAvailable ||
+          !telegramAvailable ||
+          aiDegraded
+        ? "degraded"
+        : "healthy";
 
   return {
     status,
@@ -716,14 +969,8 @@ export async function getSystemHealth(): Promise<AdminHealthCheck> {
     redis: infrastructure.redis,
     queues: infrastructure.queues,
     workers: infrastructure.workers,
-    ai: {
-      reachable: configured,
-      configured,
-      provider,
-      model:
-        provider === "openai" ? AI_CONFIG.openai.model : AI_CONFIG.gemini.model,
-      checkMode: "configuration",
-    },
+    ai,
+
     telegram,
     memory: {
       used: memory.heapUsed,

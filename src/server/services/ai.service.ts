@@ -158,6 +158,46 @@ function parseGeminiQuotaInfo(responseText: string): GeminiQuotaInfo {
   }
 }
 
+interface OpenAIQuotaInfo {
+  quotaExceeded: boolean;
+  code?: string;
+}
+
+function parseOpenAIQuotaInfo(
+  responseText: string,
+): OpenAIQuotaInfo {
+  try {
+    const parsed = JSON.parse(responseText) as {
+      error?: {
+        code?: string | null;
+        type?: string | null;
+        message?: string | null;
+      };
+    };
+
+    const code = parsed.error?.code?.trim() ?? "";
+    const type = parsed.error?.type?.trim() ?? "";
+    const message = parsed.error?.message?.trim() ?? "";
+
+    const quotaExceeded =
+      code === "insufficient_quota" ||
+      type === "insufficient_quota" ||
+      /insufficient[_ ]quota/i.test(`${code} ${type}`) ||
+      /exceeded (?:your|the) current quota|billing|credits? exhausted/i.test(
+        message,
+      );
+
+    return {
+      quotaExceeded,
+      code: code || type || undefined,
+    };
+  } catch {
+    return {
+      quotaExceeded: false,
+    };
+  }
+}
+
 function publicProviderError(
   provider: "Gemini" | "OpenAI",
   status: number,
@@ -242,13 +282,35 @@ async function callOpenAI(
     const details = await response.text().catch(() => "");
     logProviderFailure("openai", model, response.status, details);
 
-    const error: AdapterError = new Error(`OpenAI returned ${response.status}`);
+    const quotaInfo =
+      response.status === 429
+        ? parseOpenAIQuotaInfo(details)
+        : {
+            quotaExceeded: false,
+          };
+
+    const error: AdapterError =
+      new Error(`OpenAI returned ${response.status}`);
+
     error.status = response.status;
-    error.retryable = isRetryableStatus(response.status);
-    error.retryAfterMs = parseRetryAfterHeader(
-      response.headers.get("retry-after"),
-    );
-    error.publicMessage = publicProviderError("OpenAI", response.status);
+    error.quotaExceeded = quotaInfo.quotaExceeded;
+
+    if (quotaInfo.quotaExceeded) {
+      error.retryable = false;
+      error.publicMessage =
+        "The OpenAI account quota has been exhausted. " +
+        "Saved and symbolic study features remain available.";
+    } else {
+      error.retryable = isRetryableStatus(response.status);
+      error.retryAfterMs = parseRetryAfterHeader(
+        response.headers.get("retry-after"),
+      );
+      error.publicMessage = publicProviderError(
+        "OpenAI",
+        response.status,
+      );
+    }
+
     throw error;
   }
 

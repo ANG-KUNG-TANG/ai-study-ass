@@ -69,11 +69,30 @@ export interface HealthCheck {
   };
 
   ai: {
+    status:
+      | "not_configured"
+      | "configured"
+      | "operational"
+      | "degraded"
+      | "quota_exhausted";
+
     reachable: boolean;
     configured: boolean;
+
     provider: string;
     model: string;
-    checkMode: "configuration";
+
+    checkMode:
+      "configuration_and_telemetry";
+
+    requestsToday: number;
+    successesToday: number;
+    failuresToday: number;
+    quotaExceededToday: number;
+
+    lastRequestAt: string | null;
+    lastSuccessAt: string | null;
+    lastFailureAt: string | null;
   };
 
   telegram: TelegramHealth;

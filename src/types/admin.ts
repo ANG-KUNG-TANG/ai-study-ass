@@ -63,7 +63,9 @@ export interface AdminAIProviderUsage {
   status:
     | "operational"
     | "configured"
-    | "not_configured";
+    | "not_configured"
+    | "degraded"
+    | "quota_exhausted";
   requestsToday: number;
   successesToday: number;
   failuresToday: number;
