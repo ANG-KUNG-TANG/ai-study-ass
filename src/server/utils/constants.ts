@@ -19,6 +19,11 @@ export const MAX_UPLOAD_REQUEST_SIZE_BYTES =
 
 export const MAX_CONTENT_LENGTH = 75_000;
 
+// Parser resource ceilings for untrusted documents.
+export const MAX_PDF_PAGES = 200;
+export const MAX_DOCX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
+export const MAX_DOCX_ZIP_ENTRIES = 2_000;
+
 
 //pagination
 export const DEFAULT_PAGE = 1;

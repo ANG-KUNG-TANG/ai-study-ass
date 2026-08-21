@@ -1,6 +1,135 @@
 import { FileError } from "@/server/utils/errors";
-import { MAX_CONTENT_LENGTH } from "@/server/utils/constants";
+import {
+  MAX_CONTENT_LENGTH,
+  MAX_DOCX_UNCOMPRESSED_BYTES,
+  MAX_DOCX_ZIP_ENTRIES,
+  MAX_PDF_PAGES,
+} from "@/server/utils/constants";
 import { logger } from "@/server/utils/logger";
+
+function limitExtractedText(
+  text: string,
+  label: "PDF" | "DOCX",
+): string {
+  if (text.length <= MAX_CONTENT_LENGTH) {
+    return text;
+  }
+
+  logger.warn(`${label} content truncated`, {
+    original: text.length,
+    limit: MAX_CONTENT_LENGTH,
+  });
+
+  return text.slice(0, MAX_CONTENT_LENGTH);
+}
+
+function validateDocxArchiveLimits(buffer: Buffer): void {
+  const eocdSignature = Buffer.from([
+    0x50,
+    0x4b,
+    0x05,
+    0x06,
+  ]);
+  const minEocdSize = 22;
+  const maxCommentLength = 65_535;
+  const searchStart = Math.max(
+    0,
+    buffer.length - minEocdSize - maxCommentLength,
+  );
+  const eocdOffset = buffer.lastIndexOf(eocdSignature);
+
+  if (
+    eocdOffset < searchStart ||
+    eocdOffset + minEocdSize > buffer.length
+  ) {
+    throw new FileError("Invalid DOCX ZIP directory");
+  }
+
+  const entryCount = buffer.readUInt16LE(eocdOffset + 10);
+  const centralDirectorySize = buffer.readUInt32LE(
+    eocdOffset + 12,
+  );
+  const centralDirectoryOffset = buffer.readUInt32LE(
+    eocdOffset + 16,
+  );
+
+  if (entryCount > MAX_DOCX_ZIP_ENTRIES) {
+    throw new FileError(
+      `DOCX contains too many ZIP entries (${entryCount}; maximum ${MAX_DOCX_ZIP_ENTRIES})`,
+    );
+  }
+
+  if (
+    centralDirectoryOffset + centralDirectorySize >
+    buffer.length
+  ) {
+    throw new FileError("Invalid DOCX ZIP directory bounds");
+  }
+
+  let cursor = centralDirectoryOffset;
+  let totalUncompressedBytes = 0;
+
+  for (let index = 0; index < entryCount; index += 1) {
+    if (
+      cursor + 46 > buffer.length ||
+      buffer.readUInt32LE(cursor) !== 0x02014b50
+    ) {
+      throw new FileError(
+        "Invalid DOCX ZIP central directory",
+      );
+    }
+
+    const compressedSize = buffer.readUInt32LE(cursor + 20);
+    const uncompressedSize = buffer.readUInt32LE(
+      cursor + 24,
+    );
+
+    if (
+      compressedSize === 0xffffffff ||
+      uncompressedSize === 0xffffffff
+    ) {
+      throw new FileError(
+        "ZIP64 DOCX files are not supported",
+      );
+    }
+
+    totalUncompressedBytes += uncompressedSize;
+
+    if (
+      totalUncompressedBytes >
+      MAX_DOCX_UNCOMPRESSED_BYTES
+    ) {
+      throw new FileError(
+        `DOCX expands beyond the ${Math.floor(
+          MAX_DOCX_UNCOMPRESSED_BYTES / 1024 / 1024,
+        )}MB processing limit`,
+      );
+    }
+
+    const fileNameLength = buffer.readUInt16LE(
+      cursor + 28,
+    );
+    const extraLength = buffer.readUInt16LE(cursor + 30);
+    const commentLength = buffer.readUInt16LE(
+      cursor + 32,
+    );
+
+    cursor +=
+      46 +
+      fileNameLength +
+      extraLength +
+      commentLength;
+
+    if (
+      cursor >
+      centralDirectoryOffset + centralDirectorySize
+    ) {
+      throw new FileError(
+        "Invalid DOCX ZIP central directory size",
+      );
+    }
+  }
+}
 
 interface ParsedPDF {
   text: string;
@@ -56,8 +185,21 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
   };
 
   try {
+    const info = await parser.getInfo();
+    const pageCount = info.total ?? 0;
+
+    if (pageCount > MAX_PDF_PAGES) {
+      throw new FileError(
+        `PDF has ${pageCount} pages; maximum supported is ${MAX_PDF_PAGES}`,
+      );
+    }
+
     result = await parser.getText();
   } catch (error) {
+    if (error instanceof FileError) {
+      throw error;
+    }
+
     const isPasswordProtected =
       PasswordException && error instanceof PasswordException;
 
@@ -94,18 +236,7 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
   }
 
   const cleaned = cleanText(rawText);
-
-  const text =
-    cleaned.length > MAX_CONTENT_LENGTH
-      ? cleaned.slice(0, MAX_CONTENT_LENGTH)
-      : cleaned;
-
-  if (cleaned.length > MAX_CONTENT_LENGTH) {
-    logger.warn("PDF content truncated", {
-      original: cleaned.length,
-      limit: MAX_CONTENT_LENGTH,
-    });
-  }
+  const text = limitExtractedText(cleaned, "PDF");
 
   return {
     text,
@@ -122,6 +253,8 @@ interface ParsedDOCX {
 export async function parseDOCX(
   buffer: Buffer,
 ): Promise<ParsedDOCX> {
+  validateDocxArchiveLimits(buffer);
+
   let mammoth: typeof import("mammoth");
 
   try {
@@ -153,7 +286,8 @@ export async function parseDOCX(
     throw new FileError("Document appears to be empty");
   }
 
-  const text = cleanText(rawText);
+  const cleaned = cleanText(rawText);
+  const text = limitExtractedText(cleaned, "DOCX");
 
   return {
     text,
