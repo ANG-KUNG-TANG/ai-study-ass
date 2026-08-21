@@ -1,5 +1,6 @@
 import { extractTextFromRenderedPages } from "@/server/services/pdf-ocr.service";
 import { FileError } from "@/server/utils/errors";
+import type { VisionUsageContext } from "@/server/services/vision.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ export interface RenderedPdfPage {
 export interface ReconstructPdfInput {
   native: NativePdfExtraction;
   renderedPages: RenderedPdfPage[];
+  usage?: VisionUsageContext;
 }
 
 export interface ReconstructedPdf {
@@ -83,9 +85,17 @@ function isVisionTimeout(error: unknown): boolean {
  */
 async function extractBatchWithFallback(
   pages: RenderedPdfPage[],
+  usage?: VisionUsageContext,
 ): Promise<string[]> {
   try {
-    const result = await extractTextFromRenderedPages(pages);
+    const result = usage
+      ? await extractTextFromRenderedPages(
+          pages,
+          usage,
+        )
+      : await extractTextFromRenderedPages(
+          pages,
+        );
 
     const text = normalizeText(result.text);
 
@@ -111,9 +121,9 @@ async function extractBatchWithFallback(
 
     const rightPages = pages.slice(midpoint);
 
-    const leftText = await extractBatchWithFallback(leftPages);
+    const leftText = await extractBatchWithFallback(leftPages, usage);
 
-    const rightText = await extractBatchWithFallback(rightPages);
+    const rightText = await extractBatchWithFallback(rightPages, usage);
 
     return [...leftText, ...rightText];
   }
@@ -157,7 +167,10 @@ export async function reconstructPdfText(
   ) {
     const batch = input.renderedPages.slice(index, index + OCR_BATCH_SIZE);
 
-    const extracted = await extractBatchWithFallback(batch);
+    const extracted = await extractBatchWithFallback(
+      batch,
+      input.usage,
+    );
 
     visionParts.push(...extracted);
   }

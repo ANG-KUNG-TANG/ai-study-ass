@@ -156,15 +156,22 @@ async function processPdfIngestionJob(
     let processed;
 
     try {
-      processed = await processUpload({
-        buffer,
+      processed = await processUpload(
+        {
+          buffer,
 
-        originalName: note.fileName,
+          originalName: note.fileName,
 
-        mimeType: "application/pdf",
+          mimeType: "application/pdf",
 
-        size: note.fileSize,
-      });
+          size: note.fileSize,
+        },
+        {
+          userId,
+          noteId,
+          usageLabel: "ocr",
+        },
+      );
     } catch (error) {
       const failure = classifyProviderFailure(error);
 

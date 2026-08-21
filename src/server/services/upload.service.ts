@@ -24,6 +24,7 @@ import {
 } from "@/server/services/pdf-reconstruction.service";
 
 import { logger } from "@/server/utils/logger";
+import type { VisionUsageContext } from "@/server/services/vision.service";
 
 import type { FileType } from "@/server/entities/note.entity";
 
@@ -219,6 +220,7 @@ function selectCanonicalPdfContent(
 async function processPdf(
   file: UploadedFile,
   fileName: string,
+  usage?: VisionUsageContext,
 ): Promise<ProcessedFile> {
   // ─────────────────────────────────────────────────────────────
   // Stage 1
@@ -341,6 +343,7 @@ async function processPdf(
     },
 
     renderedPages,
+    usage,
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -583,6 +586,7 @@ export async function inspectUpload(
 
 export async function processUpload(
   file: UploadedFile,
+  usage?: VisionUsageContext,
 ): Promise<ProcessedFile> {
   validateFile(file);
 
@@ -603,7 +607,11 @@ export async function processUpload(
   // ─────────────────────────────────────────────────────────────
 
   if (ext === ".pdf") {
-    return processPdf(file, fileName);
+    return processPdf(
+      file,
+      fileName,
+      usage,
+    );
   }
 
   // ─────────────────────────────────────────────────────────────

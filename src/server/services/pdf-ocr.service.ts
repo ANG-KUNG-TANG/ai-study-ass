@@ -1,6 +1,7 @@
 import {
   generateFromImages,
   type VisionImage,
+  type VisionUsageContext,
 } from "@/server/services/vision.service";
 
 import { FileError } from "@/server/utils/errors";
@@ -121,6 +122,7 @@ function parsePageSections(
 
 export async function extractTextFromRenderedPages(
   renderedPages: RenderedPdfPage[],
+  usage?: VisionUsageContext,
 ): Promise<PDFOCRResult> {
   if (renderedPages.length === 0) {
     throw new FileError("No rendered PDF pages were supplied for OCR.");
@@ -155,6 +157,7 @@ export async function extractTextFromRenderedPages(
     prompt: buildOCRPrompt(renderedPages),
     images,
     maxTokens: 5_000,
+    usage,
   });
 
   const pages = parsePageSections(result.text, renderedPages);
