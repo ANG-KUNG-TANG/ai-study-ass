@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
+import { useRouter } from "next/navigation";
 import {
   FileText,
   File,
@@ -55,6 +56,7 @@ export function NoteCard({
   onDelete,
   isDeleting = false,
 }: NoteCardProps) {
+  const router = useRouter();
   const { icon: FileIcon, bg } = getFileIcon(note.fileType);
   const timeAgo = formatDistanceToNow(new Date(note.createdAt), {
     addSuffix: true,
@@ -65,7 +67,7 @@ export function NoteCard({
       className="group relative cursor-pointer transition hover:-translate-y-1 hover:shadow-lg"
       onClick={() => {
         if (!isDeleting) {
-          window.location.assign(`/student/notes/${note.id}`);
+          router.push(`/student/notes/${note.id}`);
         }
       }}
     >

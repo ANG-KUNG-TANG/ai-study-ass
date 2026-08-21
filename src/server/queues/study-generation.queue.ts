@@ -2,6 +2,7 @@ import { Queue } from "bullmq";
 import IORedis from "ioredis";
 
 import { logger } from "@/server/utils/logger";
+import { ConflictError } from "@/server/utils/errors";
 
 export const STUDY_GENERATION_QUEUE_NAME = "study-generation";
 export const STUDY_GENERATION_JOB_NAME = "generate-study-materials";
@@ -96,12 +97,32 @@ export async function enqueueStudyGeneration(
   data: StudyGenerationJobData,
 ): Promise<string> {
   const queue = getStudyGenerationQueue();
+  const jobId = `study-${data.noteId}`;
+  const existing = await queue.getJob(jobId);
+
+  if (existing) {
+    const state = await existing.getState();
+
+    if (
+      state === "active" ||
+      state === "waiting" ||
+      state === "delayed" ||
+      state === "prioritized" ||
+      state === "waiting-children"
+    ) {
+      throw new ConflictError(
+        "Study material generation is already in progress",
+      );
+    }
+
+    await existing.remove();
+  }
 
   const job = await queue.add(
     STUDY_GENERATION_JOB_NAME,
     data,
     {
-      jobId: `study-${data.noteId}`,
+      jobId,
     },
   );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -34,15 +34,10 @@ export default function NotesPage() {
     search: search.trim() || undefined,
   });
 
-  useEffect(() => {
+  function handleSearchChange(value: string): void {
+    setSearch(value);
     setPage(1);
-  }, [search]);
-
-  useEffect(() => {
-    if (meta && meta.totalPages > 0 && page > meta.totalPages) {
-      setPage(meta.totalPages);
-    }
-  }, [meta, page]);
+  }
 
   function requestDelete(noteId: string): void {
     const note = notes.find((item) => item.id === noteId);
@@ -70,7 +65,12 @@ export default function NotesPage() {
     try {
       await deleteNote(deleteTarget.id);
       setDeleteTarget(null);
-      refetch();
+
+      if (notes.length === 1 && page > 1) {
+        setPage((current) => Math.max(1, current - 1));
+      } else {
+        refetch();
+      }
     } catch (cause) {
       setDeleteError(
         cause instanceof Error ? cause.message : "Failed to delete paper",
@@ -94,7 +94,7 @@ export default function NotesPage() {
         title="All papers"
         search={{
           value: search,
-          onChange: setSearch,
+          onChange: handleSearchChange,
           placeholder: "Search all papers…",
         }}
       />

@@ -155,6 +155,7 @@ export async function updateUserRole(
   }
 
   await userRepo.updateRole(targetUserId, role);
+  await revokeAllUserTokens(targetUserId);
 
   logger.info("Admin updated user role", { adminId, targetUserId, role });
 }

@@ -4,6 +4,7 @@ import type {
   RouteContext,
 } from "@/server/middleware/auth.middleware";
 import * as generationService from "@/server/services/study-material-generation.service";
+import { enqueueStudyGeneration } from "@/server/queues/study-generation.queue";
 import { successResponse } from "@/server/utils/response";
 
 export async function getGenerationStatusController(
@@ -40,7 +41,7 @@ export async function regenerateStudyMaterialsController(
 
   await generationService.getGenerationStatus(noteId, auth.userId);
 
-  generationService.generateStudyMaterialsInBackground({
+  const jobId = await enqueueStudyGeneration({
     noteId,
     userId: auth.userId,
     force,
@@ -51,8 +52,9 @@ export async function regenerateStudyMaterialsController(
       success: true,
       data: {
         noteId,
+        jobId,
         stage: "pending",
-        message: "Study material regeneration has started.",
+        message: "Study material regeneration has been queued.",
       },
     },
     { status: 202 },
