@@ -30,15 +30,94 @@ export interface ProcessedFile {
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
+function hasPdfSignature(buffer: Buffer): boolean {
+  return (
+    buffer.length >= 5 &&
+    buffer.subarray(0, 5).equals(Buffer.from("%PDF-", "ascii"))
+  );
+}
+
+function hasZipLocalFileHeader(buffer: Buffer): boolean {
+  return (
+    buffer.length >= 4 &&
+    buffer[0] === 0x50 &&
+    buffer[1] === 0x4b &&
+    buffer[2] === 0x03 &&
+    buffer[3] === 0x04
+  );
+}
+
+function hasZipEndOfCentralDirectory(buffer: Buffer): boolean {
+  const minEocdSize = 22;
+  const maxCommentLength = 65_535;
+
+  if (buffer.length < minEocdSize) {
+    return false;
+  }
+
+  const searchStart = Math.max(
+    0,
+    buffer.length - minEocdSize - maxCommentLength,
+  );
+
+  return (
+    buffer.indexOf(
+      Buffer.from([0x50, 0x4b, 0x05, 0x06]),
+      searchStart,
+    ) !== -1
+  );
+}
+
+function hasDocxRequiredEntries(buffer: Buffer): boolean {
+  const contentTypes = Buffer.from(
+    "[Content_Types].xml",
+    "ascii",
+  );
+  const documentXml = Buffer.from(
+    "word/document.xml",
+    "ascii",
+  );
+
+  return (
+    buffer.indexOf(contentTypes) !== -1 &&
+    buffer.indexOf(documentXml) !== -1
+  );
+}
+
+function validateFileSignature(
+  file: UploadedFile,
+  ext: string,
+): void {
+  if (ext === ".pdf") {
+    if (!hasPdfSignature(file.buffer)) {
+      throw new FileError(
+        "Invalid PDF file signature",
+      );
+    }
+
+    return;
+  }
+
+  if (ext === ".docx") {
+    if (
+      !hasZipLocalFileHeader(file.buffer) ||
+      !hasZipEndOfCentralDirectory(file.buffer) ||
+      !hasDocxRequiredEntries(file.buffer)
+    ) {
+      throw new FileError(
+        "Invalid DOCX file structure",
+      );
+    }
+  }
+}
+
 function validateFile(file: UploadedFile): void {
-  // Size check
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    throw new FileError(
+    throw new PayloadTooLargeError(
       `File size ${(file.size / 1024 / 1024).toFixed(1)}MB exceeds the ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB limit`,
     );
   }
 
-  // MIME type check
   if (
     !ALLOWED_MIME_TYPES.includes(
       file.mimeType as (typeof ALLOWED_MIME_TYPES)[number],
@@ -49,15 +128,19 @@ function validateFile(file: UploadedFile): void {
     );
   }
 
-  // Extension check — guards against MIME spoofing
   const ext = path.extname(file.originalName).toLowerCase();
+
   if (
-    !ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])
+    !ALLOWED_EXTENSIONS.includes(
+      ext as (typeof ALLOWED_EXTENSIONS)[number],
+    )
   ) {
     throw new FileError(
       `File extension "${ext}" is not supported. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`,
     );
   }
+
+  validateFileSignature(file, ext);
 }
 
 function sanitizeFileName(name: string): string {
