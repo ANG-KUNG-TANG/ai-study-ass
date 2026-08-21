@@ -6,6 +6,7 @@ import {
   revokeAllUserTokens,
   revokeToken,
   clearUserRevocation,
+  areAllUserTokensRevoked,
   type TokenPair,
 } from "@/server/utils/jwt";
 import * as userRepo from "@/server/repositories/user.repo"
@@ -209,9 +210,24 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
   // Verify signature + expiry first (no DB)
   const payload = verifyRefreshToken(incomingRefreshToken);
 
-  // Load user with their stored refresh token ID
-  const user = await userRepo.findById(payload.userId, { withRefreshTokenId: true });
-  if (!user) throw new UnauthorizedError("User not found");
+  // Load the current account state and explicit all-session revocation.
+  const [user, allRevoked] = await Promise.all([
+    userRepo.findById(payload.userId, { withRefreshTokenId: true }),
+    areAllUserTokensRevoked(payload.userId),
+  ]);
+
+  if (!user) {
+    throw new UnauthorizedError("Session invalidated — please log in again");
+  }
+
+  // A banned/inactive account or an explicit revoke-all decision must not be
+  // able to rotate its refresh token into a new credential pair.
+  if (!user.isActive || allRevoked) {
+    if (user.refreshTokenId !== null) {
+      await userRepo.updateRefreshTokenId(payload.userId, null);
+    }
+    throw new UnauthorizedError("Session invalidated — please log in again");
+  }
 
   // Reuse detection — incoming jti must match what's stored
   // Mismatch = old token replayed → attacker or token leak → revoke everything
