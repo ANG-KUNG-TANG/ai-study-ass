@@ -92,9 +92,9 @@ export async function findByEmail(
 }
 
 export async function findByVerificationToken(
-  token: string
+  tokenHash: string
 ): Promise<UserEntity | null> {
-  const doc = await User.findOne({ emailVerificationToken: token })
+  const doc = await User.findOne({ emailVerificationToken: tokenHash })
     .select("+emailVerificationToken +emailVerificationExpires")
     .lean()
     .exec();
@@ -222,11 +222,11 @@ export async function updatePassword(
 
 export async function updateVerificationToken(
   id: UserId,
-  token: string,
+  tokenHash: string,
   expires: Date
 ): Promise<void> {
   await User.findByIdAndUpdate(id, {
-    emailVerificationToken: token,
+    emailVerificationToken: tokenHash,
     emailVerificationExpires: expires,
     updatedAt: new Date(),
   });
@@ -291,11 +291,11 @@ export async function deleteById(id: UserId): Promise<void> {
 
 export async function updatePasswordResetToken(
   id: UserId,
-  token: string,
+  tokenHash: string,
   expires: Date
 ): Promise<void> {
   await User.findByIdAndUpdate(id, {
-    passwordResetToken: token,
+    passwordResetToken: tokenHash,
     passwordResetExpires: expires,
     updatedAt: new Date(),
   });
@@ -310,9 +310,9 @@ export async function clearPasswordResetToken(id: UserId): Promise<void> {
 }
 
 export async function findByPasswordResetToken(
-  token: string
+  tokenHash: string
 ): Promise<UserEntity | null> {
-  const doc = await User.findOne({ passwordResetToken: token })
+  const doc = await User.findOne({ passwordResetToken: tokenHash })
     .select("+passwordResetToken +passwordResetExpires")
     .lean()
     .exec();

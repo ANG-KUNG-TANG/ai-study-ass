@@ -25,6 +25,10 @@ import type {
 } from "@/server/validators/auth.validators";
 import { env } from "../config/env";
 import { logActivity } from "@/server/services/auditLog.service";
+import {
+  generateActionToken,
+  hashActionToken,
+} from "@/server/utils/action-token";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,14 +47,15 @@ export async function register(
   if (taken) throw new ConflictError("Email already registered");
 
   const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
-  const verificationToken = randomUUID();
+  const verificationToken = generateActionToken();
+  const verificationTokenHash = hashActionToken(verificationToken);
 
   const entity = UserEntity.create({
     id: randomUUID(),
     name: input.name,
     email: input.email,
     passwordHash,
-    emailVerificationToken: verificationToken,
+    emailVerificationToken: verificationTokenHash,
   });
 
   await userRepo.create(entity);
@@ -84,11 +89,12 @@ export async function register(
 // ─── Verify email ─────────────────────────────────────────────────────────────
 
 export async function verifyEmail(token: string): Promise<{ message: string }> {
-  const user = await userRepo.findByVerificationToken(token);
+  const tokenHash = hashActionToken(token);
+  const user = await userRepo.findByVerificationToken(tokenHash);
 
   if (!user) throw new BadRequestError("Invalid verification token");
 
-  if (!user.isVerificationTokenValid(token)) {
+  if (!user.isVerificationTokenValid(tokenHash)) {
     throw new BadRequestError("Verification token has expired — please request a new one");
   }
 
@@ -112,10 +118,11 @@ export async function resendVerification(
   if (!user) return { message: genericMessage };
   if (user.isActive) return { message: genericMessage };
 
-  const newToken = randomUUID();
+  const newToken = generateActionToken();
+  const newTokenHash = hashActionToken(newToken);
   const expires = new Date(Date.now() + USER_RULES.emailVerification.expiresInMs);
 
-  await userRepo.updateVerificationToken(user.id, newToken, expires);
+  await userRepo.updateVerificationToken(user.id, newTokenHash, expires);
 
   try {
     await sendVerificationEmail(user.email, newToken);
@@ -243,10 +250,11 @@ export async function forgotPassword(
   if (!user) return { message: genericMessage };
   if (!user.isActive) return { message: genericMessage };
 
-  const resetToken = randomUUID();
+  const resetToken = generateActionToken();
+  const resetTokenHash = hashActionToken(resetToken);
   const expires = new Date(Date.now() + USER_RULES.passwordReset.expiresInMs);
 
-  await userRepo.updatePasswordResetToken(user.id, resetToken, expires);
+  await userRepo.updatePasswordResetToken(user.id, resetTokenHash, expires);
 
   try {
     await sendResetEmail(user.email, resetToken);
@@ -266,12 +274,13 @@ export async function resetPassword(
   token: string,
   newPassword: string
 ): Promise<{ message: string }> {
-  const user = await userRepo.findByPasswordResetToken(token);
+  const tokenHash = hashActionToken(token);
+  const user = await userRepo.findByPasswordResetToken(tokenHash);
 
   if (!user) throw new BadRequestError("Invalid or expired reset token");
 
   // Entity owns the expiry check logic
-  if (!user.isPasswordResetTokenValid(token)) {
+  if (!user.isPasswordResetTokenValid(tokenHash)) {
     throw new BadRequestError("Reset token has expired — please request a new one");
   }
 
