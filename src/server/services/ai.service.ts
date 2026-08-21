@@ -10,6 +10,7 @@ import {
   type AIProvider,
 } from "@/server/config/ai_config";
 import { AIError } from "@/server/utils/errors";
+import { appendUntrustedContentRules } from "@/server/utils/prompt-security";
 
 // ─── Public contract ──────────────────────────────────────────────────────────
 
@@ -531,12 +532,14 @@ export async function generateForIntelligence(
 ): Promise<AIGenerateResult> {
   return generate({
     prompt,
-    systemPrompt: [
-      "You assist a symbolic document-intelligence pipeline.",
-      "Extract only facts supported by the supplied document excerpt.",
-      "Do not invent methods, datasets, accuracy values, or research problems.",
-      "Return only valid JSON.",
-    ].join(" "),
+    systemPrompt: appendUntrustedContentRules(
+      [
+        "You assist a symbolic document-intelligence pipeline.",
+        "Extract only facts supported by the supplied document excerpt.",
+        "Do not invent methods, datasets, accuracy values, or research problems.",
+        "Return only valid JSON.",
+      ].join(" "),
+    ),
     maxTokens: 1_400,
     temperature: 0.1,
     jsonMode: true,
