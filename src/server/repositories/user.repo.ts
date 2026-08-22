@@ -239,6 +239,35 @@ export async function updateRefreshTokenId(
   });
 }
 
+/**
+ * Atomically rotates the current refresh-token id.
+ *
+ * The update succeeds only when the token id presented by the caller is still
+ * the one stored for this active account. This prevents two concurrent refresh
+ * requests from both consuming the same refresh token successfully.
+ */
+export async function rotateRefreshTokenId(
+  id: UserId,
+  currentRefreshTokenId: string,
+  nextRefreshTokenId: string,
+): Promise<boolean> {
+  const result = await User.updateOne(
+    {
+      _id: id,
+      refreshTokenId: currentRefreshTokenId,
+      isActive: true,
+    },
+    {
+      $set: {
+        refreshTokenId: nextRefreshTokenId,
+        updatedAt: new Date(),
+      },
+    },
+  ).exec();
+
+  return result.modifiedCount === 1;
+}
+
 // Pre-save hook does NOT run on findByIdAndUpdate —
 // caller must pass an already-hashed value.
 export async function updatePassword(

@@ -5,6 +5,7 @@ import {
 import * as userRepo from "@/server/repositories/user.repo";
 import {
   areAllUserTokensRevoked,
+  revokeAllUserTokens,
   signTokenPair,
   verifyRefreshToken,
 } from "@/server/utils/jwt";
@@ -12,6 +13,7 @@ import { refreshTokens } from "@/server/services/auth.service";
 
 jest.mock("@/server/repositories/user.repo", () => ({
   findById: jest.fn(),
+  rotateRefreshTokenId: jest.fn(),
   updateRefreshTokenId: jest.fn(),
 }));
 
@@ -31,6 +33,10 @@ jest.mock("@/server/services/auditLog.service", () => ({
 const mockFindById = userRepo.findById as jest.MockedFunction<
   typeof userRepo.findById
 >;
+const mockRotateRefreshTokenId =
+  userRepo.rotateRefreshTokenId as jest.MockedFunction<
+    typeof userRepo.rotateRefreshTokenId
+  >;
 const mockUpdateRefreshTokenId =
   userRepo.updateRefreshTokenId as jest.MockedFunction<
     typeof userRepo.updateRefreshTokenId
@@ -38,6 +44,10 @@ const mockUpdateRefreshTokenId =
 const mockAreAllRevoked =
   areAllUserTokensRevoked as jest.MockedFunction<
     typeof areAllUserTokensRevoked
+  >;
+const mockRevokeAll =
+  revokeAllUserTokens as jest.MockedFunction<
+    typeof revokeAllUserTokens
   >;
 const mockVerifyRefresh =
   verifyRefreshToken as jest.MockedFunction<
@@ -84,6 +94,7 @@ describe("refreshTokens security checks", () => {
 
     mockFindById.mockResolvedValue(user());
     mockAreAllRevoked.mockResolvedValue(false);
+    mockRevokeAll.mockResolvedValue(undefined);
 
     mockSignTokenPair.mockReturnValue({
       accessToken: "new-access",
@@ -91,6 +102,7 @@ describe("refreshTokens security checks", () => {
       refreshTokenId: "refresh-new",
     });
 
+    mockRotateRefreshTokenId.mockResolvedValue(true);
     mockUpdateRefreshTokenId.mockResolvedValue(undefined);
   });
 
@@ -102,6 +114,7 @@ describe("refreshTokens security checks", () => {
     ).rejects.toThrow("Session invalidated");
 
     expect(mockSignTokenPair).not.toHaveBeenCalled();
+    expect(mockRotateRefreshTokenId).not.toHaveBeenCalled();
     expect(mockUpdateRefreshTokenId).toHaveBeenCalledWith(
       "user-1",
       null,
@@ -118,13 +131,32 @@ describe("refreshTokens security checks", () => {
     ).rejects.toThrow("Session invalidated");
 
     expect(mockSignTokenPair).not.toHaveBeenCalled();
+    expect(mockRotateRefreshTokenId).not.toHaveBeenCalled();
     expect(mockUpdateRefreshTokenId).toHaveBeenCalledWith(
       "user-1",
       null,
     );
   });
 
-  it("rotates a valid current refresh token", async () => {
+  it("rejects a stale refresh-token jti and revokes all sessions", async () => {
+    mockFindById.mockResolvedValue(
+      user({ refreshTokenId: "refresh-newer" }),
+    );
+
+    await expect(
+      refreshTokens("signed-refresh"),
+    ).rejects.toThrow("Session invalidated");
+
+    expect(mockSignTokenPair).not.toHaveBeenCalled();
+    expect(mockRotateRefreshTokenId).not.toHaveBeenCalled();
+    expect(mockUpdateRefreshTokenId).toHaveBeenCalledWith(
+      "user-1",
+      null,
+    );
+    expect(mockRevokeAll).toHaveBeenCalledWith("user-1");
+  });
+
+  it("rotates a valid current refresh token atomically", async () => {
     await expect(
       refreshTokens("signed-refresh"),
     ).resolves.toEqual({
@@ -140,9 +172,28 @@ describe("refreshTokens security checks", () => {
         role: "user",
       }),
     );
-    expect(mockUpdateRefreshTokenId).toHaveBeenCalledWith(
+
+    expect(mockRotateRefreshTokenId).toHaveBeenCalledWith(
       "user-1",
+      "refresh-current",
       "refresh-new",
     );
+
+    expect(mockUpdateRefreshTokenId).not.toHaveBeenCalled();
+  });
+
+  it("revokes all sessions when atomic rotation loses a concurrent race", async () => {
+    mockRotateRefreshTokenId.mockResolvedValue(false);
+
+    await expect(
+      refreshTokens("signed-refresh"),
+    ).rejects.toThrow("Session invalidated");
+
+    expect(mockRotateRefreshTokenId).toHaveBeenCalledWith(
+      "user-1",
+      "refresh-current",
+      "refresh-new",
+    );
+    expect(mockRevokeAll).toHaveBeenCalledWith("user-1");
   });
 });

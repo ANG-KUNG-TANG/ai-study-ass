@@ -228,20 +228,42 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
     throw new UnauthorizedError("Session invalidated — please log in again");
   }
 
-  // Reuse detection — incoming jti must match what's stored
-  // Mismatch = old token replayed → attacker or token leak → revoke everything
+  // Fast replay detection: reject a token that is already stale.
   if (user.refreshTokenId !== payload.jti) {
     await userRepo.updateRefreshTokenId(payload.userId, null);
     await revokeAllUserTokens(payload.userId);
+
     logger.warn("Refresh token reuse detected — all tokens revoked", {
       userId: payload.userId,
     });
+
     throw new UnauthorizedError("Session invalidated — please log in again");
   }
 
-  // Issue new pair, rotate stored ID — old token is now dead
-  const tokens = signTokenPair({ userId: user.id, email: user.email, role: user.role, jti: randomUUID() });
-  await userRepo.updateRefreshTokenId(user.id, tokens.refreshTokenId);
+  const tokens = signTokenPair({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    jti: randomUUID(),
+  });
+
+  // Compare-and-swap the refresh id. If another request consumed the same
+  // refresh token after our read, only one update can succeed.
+  const rotated = await userRepo.rotateRefreshTokenId(
+    user.id,
+    payload.jti,
+    tokens.refreshTokenId,
+  );
+
+  if (!rotated) {
+    await revokeAllUserTokens(payload.userId);
+
+    logger.warn("Concurrent refresh token reuse detected — all tokens revoked", {
+      userId: payload.userId,
+    });
+
+    throw new UnauthorizedError("Session invalidated — please log in again");
+  }
 
   logger.info("Tokens rotated", { userId: user.id });
 
