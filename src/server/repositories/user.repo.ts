@@ -196,6 +196,39 @@ export async function activate(id: UserId): Promise<void> {
   logger.info("User activated", { userId: id });
 }
 
+/**
+ * Atomically consumes a valid email-verification token.
+ */
+export async function consumeVerificationToken(
+  tokenHash: string,
+  now: Date = new Date(),
+): Promise<UserEntity | null> {
+  const doc = await User.findOneAndUpdate(
+    {
+      emailVerificationToken: tokenHash,
+      emailVerificationExpires: { $gt: now },
+      isActive: false,
+    },
+    {
+      $set: {
+        isActive: true,
+        emailVerificationToken: null,
+        emailVerificationExpires: null,
+        updatedAt: now,
+      },
+    },
+    { returnDocument: "after" },
+  )
+    .lean()
+    .exec();
+
+  if (!doc) return null;
+
+  const entity = toEntity(doc);
+  logger.info("Verification token consumed", { userId: entity.id });
+  return entity;
+}
+
 export async function updateRefreshTokenId(
   id: UserId,
   refreshTokenId: string | null
@@ -307,6 +340,41 @@ export async function clearPasswordResetToken(id: UserId): Promise<void> {
     passwordResetExpires: null,
     updatedAt: new Date(),
   });
+}
+
+/**
+ * Atomically consumes a valid password-reset token and changes the password.
+ */
+export async function consumePasswordResetToken(
+  tokenHash: string,
+  passwordHash: string,
+  now: Date = new Date(),
+): Promise<UserEntity | null> {
+  const doc = await User.findOneAndUpdate(
+    {
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { $gt: now },
+      isActive: true,
+    },
+    {
+      $set: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        refreshTokenId: null,
+        updatedAt: now,
+      },
+    },
+    { returnDocument: "after" },
+  )
+    .lean()
+    .exec();
+
+  if (!doc) return null;
+
+  const entity = toEntity(doc);
+  logger.info("Password reset token consumed", { userId: entity.id });
+  return entity;
 }
 
 export async function findByPasswordResetToken(

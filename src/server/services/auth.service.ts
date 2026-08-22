@@ -117,16 +117,15 @@ export async function register(
 
 export async function verifyEmail(token: string): Promise<{ message: string }> {
   const tokenHash = hashActionToken(token);
-  const user = await userRepo.findByVerificationToken(tokenHash);
 
-  if (!user) throw new BadRequestError("Invalid verification token");
+  const user = await userRepo.consumeVerificationToken(
+    tokenHash,
+    new Date(),
+  );
 
-  if (!user.isVerificationTokenValid(tokenHash)) {
-    throw new BadRequestError("Verification token has expired — please request a new one");
+  if (!user) {
+    throw new BadRequestError("Invalid or expired verification token");
   }
-
-  // Flip isActive=true, clear token fields
-  await userRepo.activate(user.id);
 
   logger.info("User email verified", { userId: user.id });
 
@@ -317,23 +316,25 @@ export async function resetPassword(
   newPassword: string
 ): Promise<{ message: string }> {
   const tokenHash = hashActionToken(token);
-  const user = await userRepo.findByPasswordResetToken(tokenHash);
-
-  if (!user) throw new BadRequestError("Invalid or expired reset token");
-
-  // Entity owns the expiry check logic
-  if (!user.isPasswordResetTokenValid(tokenHash)) {
-    throw new BadRequestError("Reset token has expired — please request a new one");
-  }
-
   const passwordHash = await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS);
 
-  // Update password + clear token + invalidate all sessions
-  await userRepo.updatePassword(user.id, passwordHash);
-  await userRepo.clearPasswordResetToken(user.id);
+  const user = await userRepo.consumePasswordResetToken(
+    tokenHash,
+    passwordHash,
+    new Date(),
+  );
+
+  if (!user) {
+    throw new BadRequestError("Invalid or expired reset token");
+  }
+
   await revokeAllUserTokens(user.id);
 
-  logger.info("Password reset completed — all sessions invalidated", { userId: user.id });
+  logger.info("Password reset completed — all sessions invalidated", {
+    userId: user.id,
+  });
 
-  return { message: "Password reset successful — please log in with your new password" };
+  return {
+    message: "Password reset successful — please log in with your new password",
+  };
 }
