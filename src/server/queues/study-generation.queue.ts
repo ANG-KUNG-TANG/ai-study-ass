@@ -2,10 +2,14 @@ import { Queue } from "bullmq";
 import IORedis from "ioredis";
 
 import { logger } from "@/server/utils/logger";
-import { ConflictError } from "@/server/utils/errors";
+import {
+  ConflictError,
+  ServiceUnavailableError,
+} from "@/server/utils/errors";
 
 export const STUDY_GENERATION_QUEUE_NAME = "study-generation";
 export const STUDY_GENERATION_JOB_NAME = "generate-study-materials";
+export const STUDY_GENERATION_MAX_QUEUE_DEPTH = 500;
 
 export interface StudyGenerationJobData {
   noteId: string;
@@ -116,6 +120,30 @@ export async function enqueueStudyGeneration(
     }
 
     await existing.remove();
+  }
+
+  const [waitingCount, activeCount, delayedCount] = await Promise.all([
+    queue.getWaitingCount(),
+    queue.getActiveCount(),
+    queue.getDelayedCount(),
+  ]);
+
+  const liveQueueDepth =
+    waitingCount + activeCount + delayedCount;
+
+  if (liveQueueDepth >= STUDY_GENERATION_MAX_QUEUE_DEPTH) {
+    logger.warn("[queue] study generation backlog limit reached", {
+      queue: STUDY_GENERATION_QUEUE_NAME,
+      liveQueueDepth,
+      waitingCount,
+      activeCount,
+      delayedCount,
+      limit: STUDY_GENERATION_MAX_QUEUE_DEPTH,
+    });
+
+    throw new ServiceUnavailableError(
+      "Study generation queue is temporarily full — please try again later",
+    );
   }
 
   const job = await queue.add(
