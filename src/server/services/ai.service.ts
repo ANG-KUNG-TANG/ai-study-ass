@@ -10,6 +10,7 @@ import {
   type AIProvider,
 } from "@/server/config/ai_config";
 import { AIError } from "@/server/utils/errors";
+import { logger } from "@/server/utils/logger";
 import { appendUntrustedContentRules } from "@/server/utils/prompt-security";
 
 // ─── Public contract ──────────────────────────────────────────────────────────
@@ -212,14 +213,13 @@ function logProviderFailure(
   provider: AIProvider,
   model: string,
   status: number,
-  details: string,
 ): void {
-  // Provider diagnostics only; API keys are never included.
-  console.error("[AI provider error]", {
+  // Provider response bodies can contain request/provider diagnostics.
+  // Keep only the minimum fields required for operational troubleshooting.
+  logger.error("[AI provider error]", {
     provider,
     model,
     status,
-    details: details.slice(0, 2_000),
   });
 }
 
@@ -267,8 +267,7 @@ async function callOpenAI(
   });
 
   if (!response.ok) {
-    const details = await response.text().catch(() => "");
-    logProviderFailure("openai", model, response.status, details);
+    logProviderFailure("openai", model, response.status);
 
     const error: AdapterError = new Error(
       `OpenAI returned ${response.status}`,
@@ -360,7 +359,7 @@ async function callGemini(
 
   if (!response.ok) {
     const details = await response.text().catch(() => "");
-    logProviderFailure("gemini", model, response.status, details);
+    logProviderFailure("gemini", model, response.status);
 
     const quotaInfo =
       response.status === 429
