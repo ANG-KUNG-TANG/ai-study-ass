@@ -78,7 +78,7 @@ export async function generateFlashcards(
     { force },
   );
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "flashcards.generated",

@@ -170,7 +170,7 @@ function createLimiter(limit: number, windowMs: number) {
 
     const route = new URL(req.url).pathname;
 
-    void logActivity({
+    await logActivity({
       actorId: null,
       actorEmail: null,
       action: "rate_limit.hit",

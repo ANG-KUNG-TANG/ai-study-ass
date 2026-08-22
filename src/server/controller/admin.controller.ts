@@ -86,7 +86,7 @@ export async function deleteContent(
   const noteId = await getRouteId(context);
   const deleted = await adminService.deleteContent(auth.userId, noteId);
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "note.deleted",
@@ -132,7 +132,7 @@ export async function updateUserRole(
   await adminService.updateUserRole(auth.userId, targetId, role);
   const target = await adminService.getUserById(targetId);
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "admin.role_changed",
@@ -154,7 +154,7 @@ export async function banUser(
   const target = await adminService.getUserById(targetId);
   await adminService.banUser(auth.userId, targetId);
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "admin.user_banned",
@@ -176,7 +176,7 @@ export async function unbanUser(
   const target = await adminService.getUserById(targetId);
   await adminService.unbanUser(auth.userId, targetId);
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "admin.user_unbanned",
@@ -198,7 +198,7 @@ export async function deleteUser(
   const target = await adminService.getUserById(targetId);
   await adminService.deleteUser(auth.userId, targetId);
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "admin.user_deleted",

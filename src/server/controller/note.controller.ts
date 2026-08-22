@@ -46,7 +46,7 @@ export async function deleteNote(
   const { id } = await context.params;
   const note = await noteService.getNoteById(id, auth.userId); // fetch before delete for title/metadata
   await noteService.deleteNote(id, auth.userId);
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "note.deleted",

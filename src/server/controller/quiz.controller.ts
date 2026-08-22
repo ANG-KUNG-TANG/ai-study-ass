@@ -88,7 +88,7 @@ export async function generateQuizController(
     force: input.force,
   });
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "quiz.generated",

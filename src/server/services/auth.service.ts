@@ -87,7 +87,7 @@ export async function register(
     throw error;
   }
 
-  void logActivity({
+  await logActivity({
     actorId: entity.id,
     actorEmail: entity.email,
     action: "auth.register",
@@ -128,6 +128,14 @@ export async function verifyEmail(token: string): Promise<{ message: string }> {
   }
 
   logger.info("User email verified", { userId: user.id });
+
+  await logActivity({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "auth.email_verified",
+    targetType: "user",
+    targetId: user.id,
+  });
 
   return { message: "Email verified — you can now log in" };
 }
@@ -170,15 +178,43 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   // Need passwordHash to compare — explicit opt-in
   const user = await userRepo.findByEmail(input.email, { withPassword: true });
 
-  // Same error for wrong email OR wrong password — prevents user enumeration
-  if (!user) throw new UnauthorizedError("Invalid email or password");
+  // Same public error for wrong email OR wrong password — prevents user enumeration.
+  if (!user) {
+    await logActivity({
+      actorEmail: input.email,
+      action: "auth.login_failed",
+      targetType: "user",
+      metadata: { reason: "invalid_credentials" },
+    });
+    throw new UnauthorizedError("Invalid email or password");
+  }
 
-  // Domain rule: must be verified before login
+  // Domain rule: must be verified before login.
   const { allowed, reason } = user.canLogin();
-  if (!allowed) throw new UnauthorizedError(reason);
+  if (!allowed) {
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.login_failed",
+      targetType: "user",
+      targetId: user.id,
+      metadata: { reason: "account_not_allowed" },
+    });
+    throw new UnauthorizedError(reason);
+  }
 
   const passwordMatch = await bcrypt.compare(input.password, user.passwordHash);
-  if (!passwordMatch) throw new UnauthorizedError("Invalid email or password");
+  if (!passwordMatch) {
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.login_failed",
+      targetType: "user",
+      targetId: user.id,
+      metadata: { reason: "invalid_credentials" },
+    });
+    throw new UnauthorizedError("Invalid email or password");
+  }
 
   // Clear any all-user revocation (e.g. after password change) before issuing new tokens
   await clearUserRevocation(user.id);
@@ -237,6 +273,15 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
       userId: payload.userId,
     });
 
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.refresh_reuse_detected",
+      targetType: "user",
+      targetId: user.id,
+      metadata: { concurrent: false },
+    });
+
     throw new UnauthorizedError("Session invalidated — please log in again");
   }
 
@@ -260,6 +305,15 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
 
     logger.warn("Concurrent refresh token reuse detected — all tokens revoked", {
       userId: payload.userId,
+    });
+
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.refresh_reuse_detected",
+      targetType: "user",
+      targetId: user.id,
+      metadata: { concurrent: true },
     });
 
     throw new UnauthorizedError("Session invalidated — please log in again");
@@ -299,6 +353,14 @@ export async function changePassword(
   await revokeAllUserTokens(userId);
 
   logger.info("Password changed — all sessions invalidated", { userId });
+
+  await logActivity({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "auth.password_changed",
+    targetType: "user",
+    targetId: user.id,
+  });
 }
 
 // ─── Forgot password — request reset link ────────────────────────────────────
@@ -354,6 +416,14 @@ export async function resetPassword(
 
   logger.info("Password reset completed — all sessions invalidated", {
     userId: user.id,
+  });
+
+  await logActivity({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "auth.password_reset",
+    targetType: "user",
+    targetId: user.id,
   });
 
   return {

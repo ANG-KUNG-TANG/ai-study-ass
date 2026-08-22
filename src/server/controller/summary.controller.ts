@@ -46,7 +46,7 @@ export async function postSummary(
 
   const result = await generateSummary(noteId, { force });
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "summary.generated",
