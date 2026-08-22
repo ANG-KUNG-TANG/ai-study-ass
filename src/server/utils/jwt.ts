@@ -193,8 +193,17 @@ export async function revokeToken(token: string, secret: string): Promise<void> 
   // upsert: true — idempotent, safe to call twice on the same token
   await RevokedToken.findOneAndUpdate(
     { jti: payload.jti },
-    { jti: payload.jti, userId: payload.userId, expiresAt },
-    { upsert: true }
+    {
+      $set: {
+        jti: payload.jti,
+        userId: payload.userId,
+        expiresAt,
+      },
+    },
+    {
+      upsert: true,
+      runValidators: true,
+    },
   );
 }
 
@@ -214,8 +223,17 @@ export async function revokeAllUserTokens(userId: string): Promise<void> {
 
   await RevokedToken.findOneAndUpdate(
     { jti: `all:${userId}` },
-    { jti: `all:${userId}`, userId, expiresAt },
-    { upsert: true }
+    {
+      $set: {
+        jti: `all:${userId}`,
+        userId,
+        expiresAt,
+      },
+    },
+    {
+      upsert: true,
+      runValidators: true,
+    },
   );
 }
 

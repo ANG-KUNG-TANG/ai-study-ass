@@ -5,7 +5,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface IRevokedToken extends Document {
   jti: string;
   userId: string;
-  expiredAt: Date;
+  expiresAt: Date;
 }
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -22,23 +22,20 @@ const revokedTokenSchema = new Schema<IRevokedToken>({
     required: true,
     index: true,
   },
-  expiredAt: {
+  expiresAt: {
     type: Date,
     required: true,
   },
 });
 
 /**
- * TTL index — MongoDB automatically deletes documents after expiredAt,
- * keeping the blocklist from growing forever. Expired tokens can't be used
- * anyway (jwt.verify rejects them), so there's no security risk in removing
- * them from the blocklist once they've passed their own expiry.
+ * TTL index — MongoDB automatically deletes documents after expiresAt,
+ * keeping the blocklist from growing forever. Expired tokens cannot be used
+ * anyway because jwt.verify rejects them.
  *
- * FIX: index previously targeted "expiresAt", a field that doesn't exist on
- * this schema — the schema field is "expiredAt". The index silently created
- * without ever matching a document field, so nothing was ever auto-deleted.
+ * Keep this field name aligned with jwt.ts, which writes `expiresAt`.
  */
-revokedTokenSchema.index({ expiredAt: 1 }, { expireAfterSeconds: 0 });
+revokedTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 
