@@ -39,7 +39,7 @@ function ResetPasswordForm() {
     setIsLoading(true);
 
     try {
-      await resetPassword(token, password);
+      await resetPassword(token, password, confirmPassword);
       router.push("/auth/login");
     } catch (unknownError: unknown) {
       setError(
@@ -82,6 +82,11 @@ function ResetPasswordForm() {
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
+
+        <p className="-mt-2 text-[11px] text-[#726B5C]">
+          Use at least 8 characters with uppercase, lowercase, a number, and a
+          special character.
+        </p>
 
         <Input
           label="Confirm new password"

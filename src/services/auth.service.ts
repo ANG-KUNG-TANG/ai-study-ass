@@ -40,8 +40,16 @@ export function forgotPassword(email: string): Promise<{ message: string }> {
   return apiFetch("/auth/forgot-password", { method: "POST", skipAuth: true, body: JSON.stringify({ email }) });
 }
 
-export function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
-  return apiFetch("/auth/reset-password", { method: "POST", skipAuth: true, body: JSON.stringify({ token, newPassword }) });
+export function resetPassword(
+  token: string,
+  newPassword: string,
+  confirmPassword: string,
+): Promise<{ message: string }> {
+  return apiFetch("/auth/reset-password", {
+    method: "POST",
+    skipAuth: true,
+    body: JSON.stringify({ token, newPassword, confirmPassword }),
+  });
 }
 
 
