@@ -26,6 +26,7 @@ import type {
 } from "@/server/middleware/auth.middleware";
 import * as auditLogService from "@/server/services/auditLog.service";
 import { logActivity } from "@/server/services/auditLog.service";
+import { getSecurityReport as buildSecurityReport } from "@/server/services/security-monitoring.service";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -251,4 +252,23 @@ export async function getRecentActivity(
     : 20;
   const result = await auditLogService.listActivity(page, limit);
   return paginatedResponse(result.data, result.meta, "Activity retrieved");
+}
+
+// GET /api/admin/security?window=15
+export async function getSecurityReport(
+  req: NextRequest,
+  _context: RouteContext,
+  _auth: AuthContext,
+): Promise<NextResponse> {
+  const rawWindow = Number(
+    req.nextUrl.searchParams.get("window") ?? 15,
+  );
+
+  const windowMinutes = Number.isFinite(rawWindow)
+    ? Math.min(1_440, Math.max(5, Math.floor(rawWindow)))
+    : 15;
+
+  return successResponse(
+    await buildSecurityReport(windowMinutes),
+  );
 }
