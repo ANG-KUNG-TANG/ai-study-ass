@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
@@ -38,58 +37,94 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="rounded-2xl border border-[#E6DDC8] bg-white p-8 shadow-sm">
-      <div className="mb-6 text-center">
-        <h1 className="font-serif text-2xl font-semibold text-[#221F1A]">
+    <div className="w-full">
+      <div className="mb-10 text-center">
+        <div className="relative mx-auto mb-7 flex h-12 w-12 items-center justify-center rounded-[13px] bg-ink shadow-[0_7px_18px_rgba(34,31,26,0.14)]">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-6 w-6 text-paper"
+            aria-hidden="true"
+          >
+            <path d="M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.6" />
+            <path
+              d="M8 9h8M8 13h5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="absolute mt-[31px] h-[3px] w-5 rounded-full bg-yellow" />
+        </div>
+
+        <h1 className="font-serif text-[38px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[42px]">
           Welcome back
         </h1>
-        <p className="mt-1 text-sm text-[#726B5C]">
-          Log in to continue your studies.
+        <p className="mt-2 text-[16px] text-ink-soft">
+          Continue your learning journey.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="Email"
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          required
-        />
-
-        <div className="relative">
-          <Input
-            label="Password"
-            type={showPassword ? "text" : "password"}
-            placeholder="••••••••"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2.5">
+          <label htmlFor="email" className="block text-[14px] font-medium text-ink">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             required
+            className="h-[58px] w-full rounded-[18px] border border-line bg-paper-raised/45 px-5 text-[15px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword((current) => !current)}
-            className="absolute right-3 top-[34px] text-[#B3A98F] hover:text-[#726B5C]"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
         </div>
 
-        {error && <p className="text-[13px] text-[#E85D46]">{error}</p>}
+        <div className="space-y-2.5">
+          <label htmlFor="password" className="block text-[14px] font-medium text-ink">
+            Password
+          </label>
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              className="h-[58px] w-full rounded-[18px] border border-line bg-paper-raised/45 px-5 pr-14 text-[15px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              className="absolute inset-y-0 right-4 flex items-center text-ink-faint transition-colors hover:text-ink-soft"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+        </div>
 
-        <div className="flex items-center justify-between text-xs">
-          <label className="flex items-center gap-2 text-[#726B5C]">
+        {error && (
+          <p className="rounded-xl bg-coral-soft px-4 py-3 text-[13px] text-coral">
+            {error}
+          </p>
+        )}
+
+        <div className="flex items-center justify-between gap-4 text-[13px]">
+          <label className="flex items-center gap-2.5 text-ink-soft">
             <input
               type="checkbox"
-              className="rounded border-[#E6DDC8] text-[#FFCE3E] focus:ring-0"
+              className="h-4 w-4 rounded border-line accent-yellow"
             />
             Remember me
           </label>
           <Link
             href="/auth/forgot-password"
-            className="font-medium text-[#E85D46] hover:underline"
+            className="font-medium text-coral hover:underline"
           >
             Forgot password?
           </Link>
@@ -98,19 +133,50 @@ export default function LoginPage() {
         <Button
           type="submit"
           variant="yellow"
-          className="w-full"
+          className="h-[58px] w-full rounded-[18px] text-[15px] font-semibold shadow-[0_8px_22px_rgba(255,206,62,0.2)]"
           disabled={isLoading}
         >
           {isLoading ? "Logging in…" : "Log in"}
-          {!isLoading && <ArrowRight size={16} strokeWidth={1.8} />}
+          {!isLoading && <ArrowRight size={20} strokeWidth={1.8} />}
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-[#726B5C]">
+      <div className="my-7 flex items-center gap-5" aria-hidden="true">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-[13px] font-medium text-ink-soft">OR</span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
+
+      <button
+        type="button"
+        className="flex h-[58px] w-full items-center justify-center gap-3 rounded-[18px] border border-line bg-paper-raised/55 px-5 text-[15px] font-medium text-ink transition-colors hover:bg-paper-raised"
+      >
+        <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+          <path
+            fill="#4285F4"
+            d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-2 3.02v2.53h3.24c1.9-1.75 2.98-4.33 2.98-7.39Z"
+          />
+          <path
+            fill="#34A853"
+            d="M12 22c2.7 0 4.98-.9 6.64-2.43l-3.24-2.52c-.9.6-2.05.96-3.4.96-2.6 0-4.81-1.76-5.6-4.13H3.05v2.6A10 10 0 0 0 12 22Z"
+          />
+          <path
+            fill="#FBBC05"
+            d="M6.4 13.88A6 6 0 0 1 6.08 12c0-.65.11-1.28.32-1.88v-2.6H3.05A10 10 0 0 0 2 12c0 1.61.38 3.14 1.05 4.48l3.35-2.6Z"
+          />
+          <path
+            fill="#EA4335"
+            d="M12 5.99c1.47 0 2.79.5 3.82 1.5l2.88-2.87A9.64 9.64 0 0 0 12 2a10 10 0 0 0-8.95 5.52l3.35 2.6C7.19 7.75 9.4 5.99 12 5.99Z"
+          />
+        </svg>
+        Continue with Google
+      </button>
+
+      <p className="mt-7 text-center text-[14px] text-ink-soft">
         Don’t have an account?{" "}
         <Link
           href="/auth/register"
-          className="font-semibold text-[#221F1A] hover:underline"
+          className="font-semibold text-ink hover:underline"
         >
           Sign up
         </Link>

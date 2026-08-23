@@ -159,7 +159,7 @@ export function Sidebar({
 
             {!collapsed && (
               <span className="truncate font-serif text-[17px] font-semibold">
-                Recall
+                AI Study Assistant
               </span>
             )}
           </div>
@@ -283,7 +283,7 @@ export function Sidebar({
       {/* Mobile top bar */}
       <div className="flex items-center justify-between border-b border-line bg-paper-raised px-4 py-3 md:hidden">
         <span className="font-serif text-[16px] font-semibold">
-          Recall
+          AI Study Assistant
         </span>
 
         <button
