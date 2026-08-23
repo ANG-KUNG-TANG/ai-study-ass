@@ -92,7 +92,6 @@ services:
 
     environment:
       NODE_ENV: production
-      MONGODB_URI: mongodb://mongo:27017/ai_study_assistant
       REDIS_URL: redis://redis:6379
       GENERATION_WORKER_CONCURRENCY: 1
 
@@ -140,7 +139,6 @@ services:
 
     environment:
       NODE_ENV: production
-      MONGODB_URI: mongodb://mongo:27017/ai_study_assistant
       REDIS_URL: redis://redis:6379
       PDF_WORKER_CONCURRENCY: 1
 
@@ -191,7 +189,6 @@ services:
 
     environment:
       NODE_ENV: production
-      MONGODB_URI: mongodb://mongo:27017/ai_study_assistant
       REDIS_URL: redis://redis:6379
 
       HOSTNAME: 0.0.0.0
