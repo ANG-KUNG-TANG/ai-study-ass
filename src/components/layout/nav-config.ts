@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, AlignLeft, HelpCircle, Copy, MessageSquare, Users, Sparkles, Activity } from "lucide-react";
+import { LayoutDashboard, FileText, AlignLeft, HelpCircle, Copy, MessageSquare, Users, Sparkles, Activity, History } from "lucide-react";
 
 export const studentNavItems = [
   { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -15,5 +15,6 @@ export const adminNavItems = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/content", label: "Content", icon: FileText },
   { href: "/admin/ai-usage", label: "AI Usage", icon: Sparkles },
+  { href: "/admin/activity", label: "Activity", icon: History },
   { href: "/admin/health", label: "Health", icon: Activity },
 ];
