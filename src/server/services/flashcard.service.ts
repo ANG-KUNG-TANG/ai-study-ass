@@ -9,6 +9,7 @@ import {
 import {
   ForbiddenError,
   BadRequestError,
+  NotFoundError,
 } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type { KnowledgeCore } from "@/server/intelligence/types";
@@ -380,20 +381,17 @@ export async function updateReview(
   difficulty: FlashcardDifficulty,
 ): Promise<ReturnType<FlashcardEntity["toPublic"]>> {
   const flashcard =
-    await flashcardRepo.findByIdOrThrow(flashcardId);
+    await flashcardRepo.updateReviewForUser(
+      flashcardId,
+      userId,
+      difficulty,
+    );
 
-  if (!flashcard.belongsTo(userId)) {
-    throw new ForbiddenError();
+  if (!flashcard) {
+    throw new NotFoundError("Flashcard");
   }
 
-  await flashcardRepo.updateReview(
-    flashcardId,
-    difficulty,
-  );
-
-  return (
-    await flashcardRepo.findByIdOrThrow(flashcardId)
-  ).toPublic();
+  return flashcard.toPublic();
 }
 
 export async function deleteForNote(

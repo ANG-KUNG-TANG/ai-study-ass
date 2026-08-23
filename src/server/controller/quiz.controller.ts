@@ -15,8 +15,8 @@ import {
   generateQuiz,
   getAllQuizzesByNote,
   getAllQuizzesByUser,
+  getQuiz,
 } from "@/server/services/quiz/quiz.service";
-import { findById as findQuizById } from "@/server/repositories/quiz.repo";
 import { findById as findNoteById } from "@/server/repositories/note.repo";
 import { QUESTION_TYPES } from "@/server/entities/quiz.entity";
 import {
@@ -114,15 +114,10 @@ export async function getQuizController(
     throw new NotFoundError("Quiz");
   }
 
-  const quiz = await findQuizById(id);
-
-  if (!quiz) {
-    throw new NotFoundError(`Quiz ${id}`);
-  }
-
-  if (quiz.userId !== auth.userId) {
-    throw new ForbiddenError("You do not have access to this quiz.");
-  }
+  const quiz = await getQuiz(
+    id,
+    auth.userId,
+  );
 
   return successResponse(quiz.toJSON());
 }

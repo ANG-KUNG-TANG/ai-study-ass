@@ -57,6 +57,20 @@ export async function findById(
   return doc ? toEntity(doc) : null;
 }
 
+export async function findByIdAndUserId(
+  id: FlashcardId,
+  userId: string,
+): Promise<FlashcardEntity | null> {
+  const doc = await Flashcard.findOne({
+    _id: id,
+    userId,
+  })
+    .lean<FlashcardRecord>()
+    .exec();
+
+  return doc ? toEntity(doc) : null;
+}
+
 export async function findByIdOrThrow(
   id: FlashcardId,
 ): Promise<FlashcardEntity> {
@@ -196,6 +210,36 @@ export async function updateReview(
       "Flashcard",
     );
   }
+}
+
+export async function updateReviewForUser(
+  id: FlashcardId,
+  userId: string,
+  difficulty:
+    FlashcardEntity["difficulty"],
+): Promise<FlashcardEntity | null> {
+  const doc = await Flashcard.findOneAndUpdate(
+    {
+      _id: id,
+      userId,
+    },
+    {
+      $set: {
+        difficulty,
+        lastReviewedAt: new Date(),
+      },
+      $inc: {
+        reviewCount: 1,
+      },
+    },
+    {
+      new: true,
+    },
+  )
+    .lean<FlashcardRecord>()
+    .exec();
+
+  return doc ? toEntity(doc) : null;
 }
 
 export async function count(): Promise<number> {

@@ -409,9 +409,19 @@ export async function generateQuiz(
   return (await generateQuizWithMetadata(noteId, userId, options)).quiz;
 }
 
-export async function getQuiz(quizId: string): Promise<QuizEntity> {
-  const quiz = await quizRepository.findById(quizId);
-  if (!quiz) throw new NotFoundError(`Quiz ${quizId} not found`);
+export async function getQuiz(
+  quizId: string,
+  userId: string,
+): Promise<QuizEntity> {
+  const quiz = await quizRepository.findByIdAndUserId(
+    quizId,
+    userId,
+  );
+
+  if (!quiz) {
+    throw new NotFoundError("Quiz");
+  }
+
   return quiz;
 }
 
@@ -450,13 +460,13 @@ export async function deleteQuiz(
   quizId: string,
   userId: string,
 ): Promise<void> {
-  const quiz = await quizRepository.findById(quizId);
-
-  if (!quiz || quiz.userId !== userId) {
-    throw new ForbiddenError(
-      "You do not have access to this quiz.",
+  const deleted =
+    await quizRepository.deleteByIdAndUserId(
+      quizId,
+      userId,
     );
-  }
 
-  await quizRepository.deleteById(quizId);
+  if (!deleted) {
+    throw new NotFoundError("Quiz");
+  }
 }
