@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
+import { AuthPageMark } from "@/components/auth/AuthPageMark";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
 
@@ -38,26 +39,10 @@ export default function LoginPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-7 text-center">
-        <div className="relative mx-auto mb-5 flex h-[42px] w-[42px] items-center justify-center rounded-[11px] bg-ink shadow-[0_6px_16px_rgba(34,31,26,0.12)]">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            className="h-5 w-5 text-paper"
-            aria-hidden="true"
-          >
-            <path d="M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.6" />
-            <path
-              d="M8 9h8M8 13h5"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span className="absolute mt-[27px] h-[2px] w-[18px] rounded-full bg-yellow" />
-        </div>
+      <div className="mb-6 text-center">
+        <AuthPageMark />
 
-        <h1 className="font-serif text-[32px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[36px]">
+        <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
           Welcome back
         </h1>
         <p className="mt-1.5 text-[14px] text-ink-soft">
@@ -78,7 +63,7 @@ export default function LoginPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="h-[50px] w-full rounded-[14px] border border-line bg-paper-raised/45 px-4 text-[14px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+            className="h-[46px] w-full rounded-[13px] border border-line bg-paper-raised/45 px-4 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
           />
         </div>
 
@@ -95,7 +80,7 @@ export default function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
-              className="h-[50px] w-full rounded-[14px] border border-line bg-paper-raised/45 px-4 pr-12 text-[14px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+              className="h-[46px] w-full rounded-[13px] border border-line bg-paper-raised/45 px-4 pr-12 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
             />
             <button
               type="button"
@@ -133,7 +118,7 @@ export default function LoginPage() {
         <Button
           type="submit"
           variant="yellow"
-          className="h-[50px] w-full rounded-[14px] text-[14px] font-semibold shadow-[0_7px_18px_rgba(255,206,62,0.18)]"
+          className="h-[46px] w-full rounded-[13px] text-[13px] font-semibold shadow-[0_6px_16px_rgba(255,206,62,0.16)]"
           disabled={isLoading}
         >
           {isLoading ? "Logging in…" : "Log in"}
@@ -149,7 +134,7 @@ export default function LoginPage() {
 
       <button
         type="button"
-        className="flex h-[50px] w-full items-center justify-center gap-3 rounded-[14px] border border-line bg-paper-raised/55 px-4 text-[14px] font-medium text-ink transition-colors hover:bg-paper-raised"
+        className="flex h-[46px] w-full items-center justify-center gap-3 rounded-[13px] border border-line bg-paper-raised/55 px-4 text-[13px] font-medium text-ink transition-colors hover:bg-paper-raised"
       >
         <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
           <path

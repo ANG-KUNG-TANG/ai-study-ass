@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
+import { AuthPageMark } from "@/components/auth/AuthPageMark";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { forgotPassword } from "@/services/auth.service";
@@ -35,9 +36,9 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="rounded-2xl border border-[#E6DDC8] bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#DCEBDF] text-[#4C7A5A]">
-          <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
+      <div className="w-full text-center">
+        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-sage-soft text-sage">
+          <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
             <path
               d="M5 13l4 4L19 7"
               stroke="currentColor"
@@ -46,13 +47,15 @@ export default function ForgotPasswordPage() {
             />
           </svg>
         </div>
-        <h2 className="font-serif text-xl font-semibold">Check your inbox</h2>
-        <p className="mt-1 text-sm text-[#726B5C]">
+        <h2 className="font-serif text-[28px] font-semibold tracking-[-0.02em]">
+          Check your inbox
+        </h2>
+        <p className="mx-auto mt-2 max-w-[330px] text-[13px] leading-5 text-ink-soft">
           We’ve sent a password reset link to <strong>{email}</strong>.
         </p>
         <Link
           href="/auth/login"
-          className="mt-6 inline-block text-sm font-medium text-[#E85D46] hover:underline"
+          className="mt-5 inline-block text-[12.5px] font-medium text-coral hover:underline"
         >
           ← Back to login
         </Link>
@@ -61,12 +64,13 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="rounded-2xl border border-[#E6DDC8] bg-white p-8 shadow-sm">
-      <div className="mb-6">
-        <h1 className="font-serif text-2xl font-semibold text-[#221F1A]">
+    <div className="w-full">
+      <div className="mb-6 text-center">
+        <AuthPageMark />
+        <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
           Reset password
         </h1>
-        <p className="mt-1 text-sm text-[#726B5C]">
+        <p className="mx-auto mt-1.5 max-w-[340px] text-[13px] leading-5 text-ink-soft">
           Enter your email and we’ll send you a link to reset your password.
         </p>
       </div>
@@ -76,17 +80,23 @@ export default function ForgotPasswordPage() {
           label="Email"
           type="email"
           placeholder="you@example.com"
+          autoComplete="email"
+          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
         />
 
-        {error && <p className="text-[13px] text-[#E85D46]">{error}</p>}
+        {error && (
+          <p className="rounded-xl bg-coral-soft px-4 py-3 text-[12px] text-coral">
+            {error}
+          </p>
+        )}
 
         <Button
           type="submit"
           variant="yellow"
-          className="w-full"
+          className="h-[46px] w-full rounded-[13px] text-[13px] font-semibold"
           disabled={isLoading}
         >
           {isLoading ? "Sending…" : "Send reset link"}
@@ -96,7 +106,7 @@ export default function ForgotPasswordPage() {
 
       <Link
         href="/auth/login"
-        className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-[#726B5C] hover:text-[#221F1A]"
+        className="mt-5 inline-flex items-center gap-1 text-[12.5px] font-medium text-ink-soft hover:text-ink"
       >
         <ArrowLeft size={14} />
         Back to login

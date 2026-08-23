@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
+import { AuthPageMark } from "@/components/auth/AuthPageMark";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { register } from "@/services/auth.service";
 
@@ -50,31 +51,51 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <Card className="w-full max-w-[380px] text-center">
-        <h1 className="mb-2 font-serif text-[20px] font-semibold">
+      <div className="w-full text-center">
+        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-sage-soft text-sage">
+          <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+            <path
+              d="M5 13l4 4L19 7"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+        <h1 className="mb-2 font-serif text-[28px] font-semibold tracking-[-0.02em]">
           Check your email
         </h1>
-        <p className="mb-4 text-[13px] text-ink-soft">{success}</p>
+        <p className="mx-auto mb-5 max-w-[330px] text-[13px] leading-5 text-ink-soft">
+          {success}
+        </p>
         <Link
           href="/auth/login"
           className="text-[12.5px] font-medium text-ink hover:underline"
         >
           Back to log in
         </Link>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-[380px]">
-      <h1 className="mb-1 font-serif text-[22px] font-semibold">
-        Create your account
-      </h1>
-      <p className="mb-6 text-[13px] text-ink-soft">Start studying smarter.</p>
+    <div className="w-full">
+      <div className="mb-5 text-center">
+        <AuthPageMark />
+        <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
+          Create your account
+        </h1>
+        <p className="mt-1.5 text-[14px] text-ink-soft">
+          Start studying smarter.
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <Input
           label="Name"
+          placeholder="Your name"
+          autoComplete="name"
+          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
           value={form.name}
           onChange={(event) => setForm({ ...form, name: event.target.value })}
           required
@@ -82,6 +103,9 @@ export default function RegisterPage() {
         <Input
           label="Email"
           type="email"
+          placeholder="you@example.com"
+          autoComplete="email"
+          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
           value={form.email}
           onChange={(event) => setForm({ ...form, email: event.target.value })}
           required
@@ -89,16 +113,22 @@ export default function RegisterPage() {
         <Input
           label="Password"
           type="password"
+          autoComplete="new-password"
+          placeholder="••••••••"
+          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
           value={form.password}
           onChange={(event) => setForm({ ...form, password: event.target.value })}
           required
         />
-        <p className="-mt-2 text-[11px] text-ink-faint">
+        <p className="-mt-1 text-[10.5px] leading-4 text-ink-faint">
           At least 8 characters, with uppercase, lowercase, a number, and a special character.
         </p>
         <Input
           label="Confirm password"
           type="password"
+          autoComplete="new-password"
+          placeholder="••••••••"
+          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
           value={form.confirmPassword}
           onChange={(event) =>
             setForm({ ...form, confirmPassword: event.target.value })
@@ -108,17 +138,23 @@ export default function RegisterPage() {
 
         {error && <p className="text-[12.5px] text-coral">{error}</p>}
 
-        <Button type="submit" disabled={isSubmitting} className="mt-1">
+        <Button
+          type="submit"
+          variant="yellow"
+          disabled={isSubmitting}
+          className="mt-1 h-[46px] w-full rounded-[13px] text-[13px] font-semibold"
+        >
           {isSubmitting ? "Creating account…" : "Create account"}
+          {!isSubmitting && <ArrowRight size={18} strokeWidth={1.8} />}
         </Button>
       </form>
 
-      <p className="mt-5 text-center text-[12.5px] text-ink-soft">
+      <p className="mt-4 text-center text-[12.5px] text-ink-soft">
         Already have an account?{" "}
         <Link href="/auth/login" className="font-medium text-ink hover:underline">
           Log in
         </Link>
       </p>
-    </Card>
+    </div>
   );
 }
