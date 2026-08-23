@@ -32,9 +32,8 @@ export function verifyEmail(token: string): Promise<{ message: string }> {
   return apiFetch("/auth/verify-email", { method: "POST", skipAuth: true, body: JSON.stringify({ token }) });
 }
 
-// Route is literally "resent-email" on the backend (typo, not "resend-verification")
 export function resendVerification(email: string): Promise<{ message: string }> {
-  return apiFetch("/auth/resent-email", { method: "POST", skipAuth: true, body: JSON.stringify({ email }) });
+  return apiFetch("/auth/resend-verification", { method: "POST", skipAuth: true, body: JSON.stringify({ email }) });
 }
 
 export function forgotPassword(email: string): Promise<{ message: string }> {
