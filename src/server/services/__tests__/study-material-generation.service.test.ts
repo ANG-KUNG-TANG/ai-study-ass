@@ -31,7 +31,7 @@ describe("study-material-generation.service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    jest.mocked(noteRepo.findByIdOrThrow).mockResolvedValue({
+    jest.mocked(noteRepo.findByIdAndUserId).mockResolvedValue({
       id: "note-1",
       userId: "user-1",
       content: "Document content",

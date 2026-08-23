@@ -7,7 +7,6 @@ import {
   type FlashcardDifficulty,
 } from "@/server/entities/flashcard.entity";
 import {
-  ForbiddenError,
   BadRequestError,
   NotFoundError,
 } from "@/server/utils/errors";
@@ -206,13 +205,19 @@ export async function generateFlashcardsWithMetadata(
   count = DEFAULT_FLASHCARDS,
   options: { force?: boolean } = {},
 ): Promise<FlashcardGenerationResult> {
-  const note = await noteRepo.findByIdOrThrow(noteId);
+  const note = await noteRepo.findByIdAndUserId(
+    noteId,
+    userId,
+  );
 
-  if (!note.belongsTo(userId)) {
-    throw new ForbiddenError();
+  if (!note) {
+    throw new NotFoundError("Note");
   }
 
-  const existing = await flashcardRepo.findManyByNoteId(noteId);
+  const existing = await flashcardRepo.findByNoteAndUserId(
+    noteId,
+    userId,
+  );
 
   if (existing.length > 0 && !options.force) {
     return {
@@ -363,14 +368,20 @@ export async function getFlashcardsByNote(
   noteId: string,
   userId: string,
 ): Promise<ReturnType<FlashcardEntity["toPublic"]>[]> {
-  const note = await noteRepo.findByIdOrThrow(noteId);
+  const note = await noteRepo.findByIdAndUserId(
+    noteId,
+    userId,
+  );
 
-  if (!note.belongsTo(userId)) {
-    throw new ForbiddenError();
+  if (!note) {
+    throw new NotFoundError("Note");
   }
 
   const flashcards =
-    await flashcardRepo.findManyByNoteId(noteId);
+    await flashcardRepo.findByNoteAndUserId(
+      noteId,
+      userId,
+    );
 
   return flashcards.map((card) => card.toPublic());
 }

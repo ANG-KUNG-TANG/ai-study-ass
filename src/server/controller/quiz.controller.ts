@@ -17,11 +17,10 @@ import {
   getAllQuizzesByUser,
   getQuiz,
 } from "@/server/services/quiz/quiz.service";
-import { findById as findNoteById } from "@/server/repositories/note.repo";
+import { findByIdAndUserId as findNoteByIdAndUserId } from "@/server/repositories/note.repo";
 import { QUESTION_TYPES } from "@/server/entities/quiz.entity";
 import {
   BadRequestError,
-  ForbiddenError,
   NotFoundError,
   ValidationError,
 } from "@/server/utils/errors";
@@ -62,14 +61,13 @@ async function assertOwnsNote(
   noteId: string,
   userId: string,
 ): Promise<void> {
-  const note = await findNoteById(noteId);
+  const note = await findNoteByIdAndUserId(
+    noteId,
+    userId,
+  );
 
   if (!note) {
-    throw new NotFoundError(`Note ${noteId}`);
-  }
-
-  if (!note.belongsTo(userId)) {
-    throw new ForbiddenError("You do not have access to this note.");
+    throw new NotFoundError("Note");
   }
 }
 

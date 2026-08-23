@@ -15,7 +15,6 @@ import {
 } from "@/server/entities/quiz.entity";
 import {
   NotFoundError,
-  ForbiddenError,
   ValidationError,
 } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
@@ -248,10 +247,13 @@ export async function generateQuizWithMetadata(
   userId: string,
   options: GenerateQuizOptions = {},
 ): Promise<QuizGenerationResult> {
-  const note = await noteRepo.findByIdOrThrow(noteId);
+  const note = await noteRepo.findByIdAndUserId(
+    noteId,
+    userId,
+  );
 
-  if (!note.belongsTo(userId)) {
-    throw new ForbiddenError();
+  if (!note) {
+    throw new NotFoundError("Note");
   }
 
   if (!note.content.trim()) {

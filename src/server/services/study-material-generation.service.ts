@@ -5,7 +5,7 @@ import * as summaryService from "@/server/services/summary/summary.service";
 import * as quizService from "@/server/services/quiz/quiz.service";
 import * as flashcardService from "@/server/services/flashcard.service";
 import * as chatService from "@/server/services/chat/chat.service";
-import { ForbiddenError } from "@/server/utils/errors";
+import { NotFoundError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import { DEFAULT_FLASHCARDS } from "@/server/utils/constants";
 import type { RawDocument } from "@/server/intelligence/pipeline";
@@ -125,10 +125,13 @@ function calculateFinalStage(
 export async function generateStudyMaterials(
   input: GenerateStudyMaterialsInput,
 ): Promise<StudyGenerationState> {
-  const note = await noteRepo.findByIdOrThrow(input.noteId);
+  const note = await noteRepo.findByIdAndUserId(
+    input.noteId,
+    input.userId,
+  );
 
-  if (!note.belongsTo(input.userId)) {
-    throw new ForbiddenError();
+  if (!note) {
+    throw new NotFoundError("Note");
   }
 
   await generationRepo.initialise(
@@ -349,10 +352,13 @@ export async function getGenerationStatus(
   noteId: string,
   userId: string,
 ): Promise<StudyGenerationState> {
-  const note = await noteRepo.findByIdOrThrow(noteId);
+  const note = await noteRepo.findByIdAndUserId(
+    noteId,
+    userId,
+  );
 
-  if (!note.belongsTo(userId)) {
-    throw new ForbiddenError();
+  if (!note) {
+    throw new NotFoundError("Note");
   }
 
   return (
