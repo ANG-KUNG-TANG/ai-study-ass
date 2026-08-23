@@ -15,6 +15,12 @@ import { processUpload } from "@/server/services/upload.service";
 import { createNote } from "@/server/services/note.service";
 
 import * as telegramIntegrationRepo from "@/server/repositories/telegramIntegration.repo";
+import * as noteRepo from "@/server/repositories/note.repo";
+import * as generationRepo from "@/server/repositories/study-generation.repo";
+import type {
+  FeatureGenerationStatus,
+  StudyGenerationStage,
+} from "@/server/types/generation";
 
 import { logger } from "@/server/utils/logger";
 
@@ -79,6 +85,74 @@ function parseStartCommand(text: string): {
     isStart: true,
     payload: payload && payload.length > 0 ? payload : undefined,
   };
+}
+
+function featureStatusIcon(status: FeatureGenerationStatus): string {
+  switch (status) {
+    case "ready":
+      return "✅";
+
+    case "generating":
+      return "🔄";
+
+    case "partial":
+      return "⚠️";
+
+    case "failed":
+      return "❌";
+
+    case "pending":
+    default:
+      return "⏳";
+  }
+}
+
+function intelligenceStatusIcon(stage: StudyGenerationStage): string {
+  switch (stage) {
+    case "failed":
+      return "❌";
+
+    case "partial":
+      return "⚠️";
+
+    case "pending":
+      return "⏳";
+
+    case "analyzing":
+      return "🔄";
+
+    case "generating":
+    case "complete":
+      return "✅";
+
+    default:
+      return "⏳";
+  }
+}
+
+function generationStageLabel(stage: StudyGenerationStage): string {
+  switch (stage) {
+    case "pending":
+      return "Waiting to start";
+
+    case "analyzing":
+      return "Analyzing document";
+
+    case "generating":
+      return "Generating study materials";
+
+    case "complete":
+      return "Complete";
+
+    case "partial":
+      return "Completed with some issues";
+
+    case "failed":
+      return "Failed";
+
+    default:
+      return "Unknown";
+  }
 }
 
 // ─── Start / onboarding ───────────────────────────────────────────────────────
@@ -159,6 +233,146 @@ async function handleStart(message: TelegramMessage): Promise<void> {
   );
 }
 
+// ─── Generation status ────────────────────────────────────────────────────────
+
+async function handleGenerationStatus(message: TelegramMessage): Promise<void> {
+  const sender = message.from;
+
+  if (!sender) {
+    await sendMessage(
+      message.chat.id,
+      "❌ Unable to identify your Telegram account.",
+    );
+    return;
+  }
+
+  const integration = await telegramIntegrationRepo.findByTelegramUserId(
+    sender.id,
+  );
+
+  if (!integration) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "🔐 Telegram is not connected.",
+        "",
+        "Connect your AI Study Assistant account first.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🔗 Connect Account",
+              url: buildLoginUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  await telegramIntegrationRepo.updateLastActive(sender.id);
+
+  const notes = await noteRepo.findManyByUser(integration.userId, {
+    page: 1,
+    limit: 1,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
+
+  const note = notes.data[0];
+
+  if (!note) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "📊 Study Generation Status",
+        "",
+        "You do not have any uploaded documents yet.",
+        "",
+        "Send me a PDF to start.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🏠 Open Dashboard",
+              url: buildDashboardUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  const generation = await generationRepo.findByNoteId(note.id);
+
+  if (!generation) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "📊 Study Generation Status",
+        "",
+        `📄 ${note.title}`,
+        "",
+        "⏳ Generation is waiting to start.",
+        "",
+        "The document has been uploaded, but no generation state exists yet.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "📖 Open Note",
+              url: buildNoteUrl(note.id),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  const { features } = generation;
+
+  await sendMessage(
+    message.chat.id,
+    [
+      "📊 Study Generation Status",
+      "",
+      `📄 ${note.title}`,
+      "",
+      `${intelligenceStatusIcon(generation.stage)} Intelligence`,
+      `${featureStatusIcon(features.summary.status)} Summary`,
+      `${featureStatusIcon(features.chatKnowledge.status)} Knowledge`,
+      `${featureStatusIcon(features.quiz.status)} Quiz`,
+      `${featureStatusIcon(features.flashcards.status)} Flashcards`,
+      "",
+      `Overall: ${generationStageLabel(generation.stage)}`,
+    ].join("\n"),
+    {
+      buttons: [
+        [
+          {
+            text: "📖 Open Note",
+            url: buildNoteUrl(note.id),
+          },
+        ],
+        [
+          {
+            text: "📚 My Files",
+            url: buildDashboardUrl(),
+          },
+        ],
+      ],
+    },
+  );
+}
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
 async function handleHelp(message: TelegramMessage): Promise<void> {
@@ -176,8 +390,8 @@ async function handleHelp(message: TelegramMessage): Promise<void> {
       "Commands:",
       "/start - Start or reopen the bot",
       "/account - Check connection",
-      "/status - Check connection",
-      "/myfiles - Document list (next stage)",
+      "/status - Check latest document generation",
+      "/myfiles - View your recent documents",
       "/help - Show this help",
     ].join("\n"),
     {
@@ -568,6 +782,128 @@ async function handleDocument(
   }
 }
 
+// ─── My Files ─────────────────────────────────────────────────────────────────
+
+async function handleMyFiles(message: TelegramMessage): Promise<void> {
+  const sender = message.from;
+
+  if (!sender) {
+    await sendMessage(
+      message.chat.id,
+      "❌ Unable to identify your Telegram account.",
+    );
+    return;
+  }
+
+  const integration = await telegramIntegrationRepo.findByTelegramUserId(
+    sender.id,
+  );
+
+  if (!integration) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "🔐 Telegram is not connected.",
+        "",
+        "Connect your AI Study Assistant account first to view your documents.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🔗 Connect Account",
+              url: buildLoginUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  await telegramIntegrationRepo.updateLastActive(sender.id);
+
+  const result = await noteRepo.findManyByUser(integration.userId, {
+    page: 1,
+    limit: 5,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
+
+  if (result.data.length === 0) {
+    await sendMessage(
+      message.chat.id,
+      [
+        "📚 My Files",
+        "",
+        "You have not uploaded any documents yet.",
+        "",
+        "Send me a PDF to create your first study note.",
+      ].join("\n"),
+      {
+        buttons: [
+          [
+            {
+              text: "🏠 Open Dashboard",
+              url: buildDashboardUrl(),
+            },
+          ],
+        ],
+      },
+    );
+
+    return;
+  }
+
+  const fileLines = result.data.flatMap((note, index) => {
+    const createdAt = note.createdAt.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+    return [
+      `${index + 1}. ${note.title}`,
+      `   ${note.fileType.toUpperCase()} • ${createdAt}`,
+      "",
+    ];
+  });
+
+  const noteButtons = result.data.map((note) => [
+    {
+      text:
+        note.title.length > 40
+          ? `📖 ${note.title.slice(0, 37)}...`
+          : `📖 ${note.title}`,
+      url: buildNoteUrl(note.id),
+    },
+  ]);
+
+  await sendMessage(
+    message.chat.id,
+    [
+      "📚 Your Recent Files",
+      "",
+      ...fileLines,
+      result.total > result.data.length
+        ? `Showing ${result.data.length} of ${result.total} documents.`
+        : `${result.total} document${result.total === 1 ? "" : "s"} total.`,
+    ].join("\n"),
+    {
+      buttons: [
+        ...noteButtons,
+        [
+          {
+            text: "🏠 View All Documents",
+            url: buildDashboardUrl(),
+          },
+        ],
+      ],
+    },
+  );
+}
+
 // ─── Text commands ────────────────────────────────────────────────────────────
 
 async function handleText(message: TelegramMessage): Promise<void> {
@@ -595,31 +931,15 @@ async function handleText(message: TelegramMessage): Promise<void> {
       return;
 
     case "/account":
-    case "/status":
       await handleAccount(message);
       return;
 
+    case "/status":
+      await handleGenerationStatus(message);
+      return;
+
     case "/myfiles":
-      await sendMessage(
-        message.chat.id,
-        [
-          "📚 My Files",
-          "",
-          "Document listing will be connected in the next stage.",
-          "",
-          "For now, open your dashboard to view all uploaded documents.",
-        ].join("\n"),
-        {
-          buttons: [
-            [
-              {
-                text: "🏠 Open Dashboard",
-                url: buildDashboardUrl(),
-              },
-            ],
-          ],
-        },
-      );
+      await handleMyFiles(message);
       return;
 
     default:
@@ -631,6 +951,8 @@ async function handleText(message: TelegramMessage): Promise<void> {
           "Upload a PDF or use:",
           "/help",
           "/account",
+          "/status",
+          "/myfiles",
         ].join("\n"),
       );
   }
