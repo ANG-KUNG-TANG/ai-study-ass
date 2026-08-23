@@ -38,12 +38,12 @@ export default function LoginPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-10 text-center">
-        <div className="relative mx-auto mb-7 flex h-12 w-12 items-center justify-center rounded-[13px] bg-ink shadow-[0_7px_18px_rgba(34,31,26,0.14)]">
+      <div className="mb-7 text-center">
+        <div className="relative mx-auto mb-5 flex h-[42px] w-[42px] items-center justify-center rounded-[11px] bg-ink shadow-[0_6px_16px_rgba(34,31,26,0.12)]">
           <svg
             viewBox="0 0 24 24"
             fill="none"
-            className="h-6 w-6 text-paper"
+            className="h-5 w-5 text-paper"
             aria-hidden="true"
           >
             <path d="M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.6" />
@@ -54,20 +54,20 @@ export default function LoginPage() {
               strokeLinecap="round"
             />
           </svg>
-          <span className="absolute mt-[31px] h-[3px] w-5 rounded-full bg-yellow" />
+          <span className="absolute mt-[27px] h-[2px] w-[18px] rounded-full bg-yellow" />
         </div>
 
-        <h1 className="font-serif text-[38px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[42px]">
+        <h1 className="font-serif text-[32px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[36px]">
           Welcome back
         </h1>
-        <p className="mt-2 text-[16px] text-ink-soft">
+        <p className="mt-1.5 text-[14px] text-ink-soft">
           Continue your learning journey.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2.5">
-          <label htmlFor="email" className="block text-[14px] font-medium text-ink">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="email" className="block text-[13px] font-medium text-ink">
             Email
           </label>
           <input
@@ -78,12 +78,12 @@ export default function LoginPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="h-[58px] w-full rounded-[18px] border border-line bg-paper-raised/45 px-5 text-[15px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+            className="h-[50px] w-full rounded-[14px] border border-line bg-paper-raised/45 px-4 text-[14px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
           />
         </div>
 
-        <div className="space-y-2.5">
-          <label htmlFor="password" className="block text-[14px] font-medium text-ink">
+        <div className="space-y-2">
+          <label htmlFor="password" className="block text-[13px] font-medium text-ink">
             Password
           </label>
           <div className="relative">
@@ -95,15 +95,15 @@ export default function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
-              className="h-[58px] w-full rounded-[18px] border border-line bg-paper-raised/45 px-5 pr-14 text-[15px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+              className="h-[50px] w-full rounded-[14px] border border-line bg-paper-raised/45 px-4 pr-12 text-[14px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
             />
             <button
               type="button"
               onClick={() => setShowPassword((current) => !current)}
-              className="absolute inset-y-0 right-4 flex items-center text-ink-faint transition-colors hover:text-ink-soft"
+              className="absolute inset-y-0 right-3.5 flex items-center text-ink-faint transition-colors hover:text-ink-soft"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
         </div>
@@ -114,7 +114,7 @@ export default function LoginPage() {
           </p>
         )}
 
-        <div className="flex items-center justify-between gap-4 text-[13px]">
+        <div className="flex items-center justify-between gap-4 text-[12px]">
           <label className="flex items-center gap-2.5 text-ink-soft">
             <input
               type="checkbox"
@@ -133,25 +133,25 @@ export default function LoginPage() {
         <Button
           type="submit"
           variant="yellow"
-          className="h-[58px] w-full rounded-[18px] text-[15px] font-semibold shadow-[0_8px_22px_rgba(255,206,62,0.2)]"
+          className="h-[50px] w-full rounded-[14px] text-[14px] font-semibold shadow-[0_7px_18px_rgba(255,206,62,0.18)]"
           disabled={isLoading}
         >
           {isLoading ? "Logging in…" : "Log in"}
-          {!isLoading && <ArrowRight size={20} strokeWidth={1.8} />}
+          {!isLoading && <ArrowRight size={18} strokeWidth={1.8} />}
         </Button>
       </form>
 
-      <div className="my-7 flex items-center gap-5" aria-hidden="true">
+      <div className="my-5 flex items-center gap-4" aria-hidden="true">
         <span className="h-px flex-1 bg-line" />
-        <span className="text-[13px] font-medium text-ink-soft">OR</span>
+        <span className="text-[12px] font-medium text-ink-soft">OR</span>
         <span className="h-px flex-1 bg-line" />
       </div>
 
       <button
         type="button"
-        className="flex h-[58px] w-full items-center justify-center gap-3 rounded-[18px] border border-line bg-paper-raised/55 px-5 text-[15px] font-medium text-ink transition-colors hover:bg-paper-raised"
+        className="flex h-[50px] w-full items-center justify-center gap-3 rounded-[14px] border border-line bg-paper-raised/55 px-4 text-[14px] font-medium text-ink transition-colors hover:bg-paper-raised"
       >
-        <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
           <path
             fill="#4285F4"
             d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-2 3.02v2.53h3.24c1.9-1.75 2.98-4.33 2.98-7.39Z"
@@ -172,7 +172,7 @@ export default function LoginPage() {
         Continue with Google
       </button>
 
-      <p className="mt-7 text-center text-[14px] text-ink-soft">
+      <p className="mt-5 text-center text-[13px] text-ink-soft">
         Don’t have an account?{" "}
         <Link
           href="/auth/register"
