@@ -493,7 +493,6 @@ async function handleDocument(
       noteId: note.id,
       userId,
       telegramUserId: sender.id,
-      fileName,
       fileSize: pdfBuffer.length,
       pageCount: processed.pageCount,
       charCount: processed.charCount,
@@ -543,7 +542,6 @@ async function handleDocument(
     logger.error("[telegram] PDF processing failed", {
       userId,
       telegramUserId: sender.id,
-      fileName,
       error: errorMessage,
     });
 

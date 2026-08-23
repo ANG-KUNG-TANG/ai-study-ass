@@ -226,16 +226,16 @@ export class UserEntity {
     return { allowed: true };
   }
 
-  isVerificationTokenValid(token: string): boolean {
+  isVerificationTokenValid(tokenHash: string): boolean {
     if (!this.#emailVerificationToken || !this.#emailVerificationExpires) return false;
-    if (this.#emailVerificationToken !== token) return false;
+    if (this.#emailVerificationToken !== tokenHash) return false;
     if (new Date() > this.#emailVerificationExpires) return false;
     return true;
   }
 
-  isPasswordResetTokenValid(token: string): boolean {
+  isPasswordResetTokenValid(tokenHash: string): boolean {
     if (!this.#passwordResetToken || !this.#passwordResetExpires) return false;
-    if (this.#passwordResetToken !== token) return false;
+    if (this.#passwordResetToken !== tokenHash) return false;
     if (new Date() > this.#passwordResetExpires) return false;
     return true;
   }

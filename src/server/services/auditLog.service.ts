@@ -9,6 +9,7 @@ import {
   buildPaginationMeta,
   type PaginationMeta,
 } from "@/server/utils/response";
+import { logger } from "@/server/utils/logger";
 
 export interface LogActivityInput {
   actorId?: string | null;
@@ -91,14 +92,10 @@ export async function logActivity(
         input.metadata,
     });
   } catch (error) {
-    console.error(
-      "Failed to write audit log",
-      {
-        action:
-          input.action,
-        error,
-      },
-    );
+    logger.error("Failed to write audit log", {
+      action: input.action,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 

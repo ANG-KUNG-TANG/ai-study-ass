@@ -5,9 +5,8 @@ import type {
 } from "@/server/middleware/auth.middleware";
 import { successResponse } from "@/server/utils/response";
 import { generateSummary } from "@/server/services/summary/summary.service";
-import { findById as findNoteById } from "@/server/repositories/note.repo";
+import { findByIdAndUserId as findNoteByIdAndUserId } from "@/server/repositories/note.repo";
 import {
-  ForbiddenError,
   NotFoundError,
   ValidationError,
 } from "@/server/utils/errors";
@@ -34,19 +33,18 @@ export async function postSummary(
   auth: AuthContext,
 ) {
   const { noteId, force } = bodySchema.parse(await readJsonBody(req));
-  const note = await findNoteById(noteId);
+  const note = await findNoteByIdAndUserId(
+    noteId,
+    auth.userId,
+  );
 
   if (!note) {
-    throw new NotFoundError(`Note ${noteId}`);
-  }
-
-  if (!note.belongsTo(auth.userId)) {
-    throw new ForbiddenError("You do not have access to this note.");
+    throw new NotFoundError("Note");
   }
 
   const result = await generateSummary(noteId, { force });
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "summary.generated",

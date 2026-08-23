@@ -6,13 +6,13 @@ import {
   revokeAllUserTokens,
   revokeToken,
   clearUserRevocation,
+  areAllUserTokensRevoked,
   type TokenPair,
 } from "@/server/utils/jwt";
 import * as userRepo from "@/server/repositories/user.repo"
 import { UserEntity } from "@/server/entities/user.entity";
 import { USER_RULES } from "@/server/entities/user.entity";
 import {
-  ConflictError,
   UnauthorizedError,
   NotFoundError,
   BadRequestError,
@@ -25,6 +25,10 @@ import type {
 } from "@/server/validators/auth.validators";
 import { env } from "../config/env";
 import { logActivity } from "@/server/services/auditLog.service";
+import {
+  generateActionToken,
+  hashActionToken,
+} from "@/server/utils/action-token";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,29 +37,57 @@ export interface AuthResult {
   tokens: TokenPair;
 }
 
+const GENERIC_REGISTRATION_MESSAGE =
+  "If registration can proceed, check your email for verification instructions";
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: unknown }).code === 11000,
+  );
+}
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 export async function register(
   input: RegisterInput,
   sendVerificationEmail: (email: string, token: string) => Promise<void>
 ): Promise<{ message: string }> {
-  const taken = await userRepo.existsByEmail(input.email);
-  if (taken) throw new ConflictError("Email already registered");
-
+  // Perform the expensive password hash before the account-existence
+  // decision so the easiest registration timing signal is reduced.
   const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
-  const verificationToken = randomUUID();
+
+  const taken = await userRepo.existsByEmail(input.email);
+  if (taken) {
+    return { message: GENERIC_REGISTRATION_MESSAGE };
+  }
+
+  const verificationToken = generateActionToken();
+  const verificationTokenHash = hashActionToken(verificationToken);
 
   const entity = UserEntity.create({
     id: randomUUID(),
     name: input.name,
     email: input.email,
     passwordHash,
-    emailVerificationToken: verificationToken,
+    emailVerificationToken: verificationTokenHash,
   });
 
-  await userRepo.create(entity);
+  try {
+    await userRepo.create(entity);
+  } catch (error) {
+    // Two concurrent requests can both pass existsByEmail(). MongoDB's
+    // unique email index is the final authority; do not expose that race
+    // as an account-existence signal.
+    if (isDuplicateKeyError(error)) {
+      return { message: GENERIC_REGISTRATION_MESSAGE };
+    }
+    throw error;
+  }
 
-  void logActivity({
+  await logActivity({
     actorId: entity.id,
     actorEmail: entity.email,
     action: "auth.register",
@@ -78,24 +110,32 @@ export async function register(
 
   logger.info("User registered — awaiting verification", { userId: entity.id });
 
-  return { message: "Account created — please check your email to verify your account" };
+  return { message: GENERIC_REGISTRATION_MESSAGE };
 }
 
 // ─── Verify email ─────────────────────────────────────────────────────────────
 
 export async function verifyEmail(token: string): Promise<{ message: string }> {
-  const user = await userRepo.findByVerificationToken(token);
+  const tokenHash = hashActionToken(token);
 
-  if (!user) throw new BadRequestError("Invalid verification token");
+  const user = await userRepo.consumeVerificationToken(
+    tokenHash,
+    new Date(),
+  );
 
-  if (!user.isVerificationTokenValid(token)) {
-    throw new BadRequestError("Verification token has expired — please request a new one");
+  if (!user) {
+    throw new BadRequestError("Invalid or expired verification token");
   }
 
-  // Flip isActive=true, clear token fields
-  await userRepo.activate(user.id);
-
   logger.info("User email verified", { userId: user.id });
+
+  await logActivity({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "auth.email_verified",
+    targetType: "user",
+    targetId: user.id,
+  });
 
   return { message: "Email verified — you can now log in" };
 }
@@ -112,10 +152,11 @@ export async function resendVerification(
   if (!user) return { message: genericMessage };
   if (user.isActive) return { message: genericMessage };
 
-  const newToken = randomUUID();
+  const newToken = generateActionToken();
+  const newTokenHash = hashActionToken(newToken);
   const expires = new Date(Date.now() + USER_RULES.emailVerification.expiresInMs);
 
-  await userRepo.updateVerificationToken(user.id, newToken, expires);
+  await userRepo.updateVerificationToken(user.id, newTokenHash, expires);
 
   try {
     await sendVerificationEmail(user.email, newToken);
@@ -137,15 +178,43 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   // Need passwordHash to compare — explicit opt-in
   const user = await userRepo.findByEmail(input.email, { withPassword: true });
 
-  // Same error for wrong email OR wrong password — prevents user enumeration
-  if (!user) throw new UnauthorizedError("Invalid email or password");
+  // Same public error for wrong email OR wrong password — prevents user enumeration.
+  if (!user) {
+    await logActivity({
+      actorEmail: input.email,
+      action: "auth.login_failed",
+      targetType: "user",
+      metadata: { reason: "invalid_credentials" },
+    });
+    throw new UnauthorizedError("Invalid email or password");
+  }
 
-  // Domain rule: must be verified before login
+  // Domain rule: must be verified before login.
   const { allowed, reason } = user.canLogin();
-  if (!allowed) throw new UnauthorizedError(reason);
+  if (!allowed) {
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.login_failed",
+      targetType: "user",
+      targetId: user.id,
+      metadata: { reason: "account_not_allowed" },
+    });
+    throw new UnauthorizedError(reason);
+  }
 
   const passwordMatch = await bcrypt.compare(input.password, user.passwordHash);
-  if (!passwordMatch) throw new UnauthorizedError("Invalid email or password");
+  if (!passwordMatch) {
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.login_failed",
+      targetType: "user",
+      targetId: user.id,
+      metadata: { reason: "invalid_credentials" },
+    });
+    throw new UnauthorizedError("Invalid email or password");
+  }
 
   // Clear any all-user revocation (e.g. after password change) before issuing new tokens
   await clearUserRevocation(user.id);
@@ -176,24 +245,79 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
   // Verify signature + expiry first (no DB)
   const payload = verifyRefreshToken(incomingRefreshToken);
 
-  // Load user with their stored refresh token ID
-  const user = await userRepo.findById(payload.userId, { withRefreshTokenId: true });
-  if (!user) throw new UnauthorizedError("User not found");
+  // Load the current account state and explicit all-session revocation.
+  const [user, allRevoked] = await Promise.all([
+    userRepo.findById(payload.userId, { withRefreshTokenId: true }),
+    areAllUserTokensRevoked(payload.userId),
+  ]);
 
-  // Reuse detection — incoming jti must match what's stored
-  // Mismatch = old token replayed → attacker or token leak → revoke everything
-  if (user.refreshTokenId !== payload.jti) {
-    await userRepo.updateRefreshTokenId(payload.userId, null);
-    await revokeAllUserTokens(payload.userId);
-    logger.warn("Refresh token reuse detected — all tokens revoked", {
-      userId: payload.userId,
-    });
+  if (!user) {
     throw new UnauthorizedError("Session invalidated — please log in again");
   }
 
-  // Issue new pair, rotate stored ID — old token is now dead
-  const tokens = signTokenPair({ userId: user.id, email: user.email, role: user.role, jti: randomUUID() });
-  await userRepo.updateRefreshTokenId(user.id, tokens.refreshTokenId);
+  // A banned/inactive account or an explicit revoke-all decision must not be
+  // able to rotate its refresh token into a new credential pair.
+  if (!user.isActive || allRevoked) {
+    if (user.refreshTokenId !== null) {
+      await userRepo.updateRefreshTokenId(payload.userId, null);
+    }
+    throw new UnauthorizedError("Session invalidated — please log in again");
+  }
+
+  // Fast replay detection: reject a token that is already stale.
+  if (user.refreshTokenId !== payload.jti) {
+    await userRepo.updateRefreshTokenId(payload.userId, null);
+    await revokeAllUserTokens(payload.userId);
+
+    logger.warn("Refresh token reuse detected — all tokens revoked", {
+      userId: payload.userId,
+    });
+
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.refresh_reuse_detected",
+      targetType: "user",
+      targetId: user.id,
+      metadata: { concurrent: false },
+    });
+
+    throw new UnauthorizedError("Session invalidated — please log in again");
+  }
+
+  const tokens = signTokenPair({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    jti: randomUUID(),
+  });
+
+  // Compare-and-swap the refresh id. If another request consumed the same
+  // refresh token after our read, only one update can succeed.
+  const rotated = await userRepo.rotateRefreshTokenId(
+    user.id,
+    payload.jti,
+    tokens.refreshTokenId,
+  );
+
+  if (!rotated) {
+    await revokeAllUserTokens(payload.userId);
+
+    logger.warn("Concurrent refresh token reuse detected — all tokens revoked", {
+      userId: payload.userId,
+    });
+
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.refresh_reuse_detected",
+      targetType: "user",
+      targetId: user.id,
+      metadata: { concurrent: true },
+    });
+
+    throw new UnauthorizedError("Session invalidated — please log in again");
+  }
 
   logger.info("Tokens rotated", { userId: user.id });
 
@@ -229,6 +353,14 @@ export async function changePassword(
   await revokeAllUserTokens(userId);
 
   logger.info("Password changed — all sessions invalidated", { userId });
+
+  await logActivity({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "auth.password_changed",
+    targetType: "user",
+    targetId: user.id,
+  });
 }
 
 // ─── Forgot password — request reset link ────────────────────────────────────
@@ -243,10 +375,11 @@ export async function forgotPassword(
   if (!user) return { message: genericMessage };
   if (!user.isActive) return { message: genericMessage };
 
-  const resetToken = randomUUID();
+  const resetToken = generateActionToken();
+  const resetTokenHash = hashActionToken(resetToken);
   const expires = new Date(Date.now() + USER_RULES.passwordReset.expiresInMs);
 
-  await userRepo.updatePasswordResetToken(user.id, resetToken, expires);
+  await userRepo.updatePasswordResetToken(user.id, resetTokenHash, expires);
 
   try {
     await sendResetEmail(user.email, resetToken);
@@ -266,23 +399,34 @@ export async function resetPassword(
   token: string,
   newPassword: string
 ): Promise<{ message: string }> {
-  const user = await userRepo.findByPasswordResetToken(token);
-
-  if (!user) throw new BadRequestError("Invalid or expired reset token");
-
-  // Entity owns the expiry check logic
-  if (!user.isPasswordResetTokenValid(token)) {
-    throw new BadRequestError("Reset token has expired — please request a new one");
-  }
-
+  const tokenHash = hashActionToken(token);
   const passwordHash = await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS);
 
-  // Update password + clear token + invalidate all sessions
-  await userRepo.updatePassword(user.id, passwordHash);
-  await userRepo.clearPasswordResetToken(user.id);
+  const user = await userRepo.consumePasswordResetToken(
+    tokenHash,
+    passwordHash,
+    new Date(),
+  );
+
+  if (!user) {
+    throw new BadRequestError("Invalid or expired reset token");
+  }
+
   await revokeAllUserTokens(user.id);
 
-  logger.info("Password reset completed — all sessions invalidated", { userId: user.id });
+  logger.info("Password reset completed — all sessions invalidated", {
+    userId: user.id,
+  });
 
-  return { message: "Password reset successful — please log in with your new password" };
+  await logActivity({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "auth.password_reset",
+    targetType: "user",
+    targetId: user.id,
+  });
+
+  return {
+    message: "Password reset successful — please log in with your new password",
+  };
 }

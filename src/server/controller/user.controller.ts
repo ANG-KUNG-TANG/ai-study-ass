@@ -32,7 +32,7 @@ export async function updateProfile(
   const data = await validateBody(req, updateProfileSchema) as UpdateProfileInput;
   const user = await userService.updateProfile(auth.userId, data);
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "user.profile_updated",
@@ -52,7 +52,7 @@ export async function deleteAccount(
   const { password } = await validateBody(req, deleteAccountSchema) as DeleteAccountInput;
   await userService.deleteAccount(auth.userId, password);
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "user.account_deleted",

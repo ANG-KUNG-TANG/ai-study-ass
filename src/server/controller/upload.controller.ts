@@ -37,7 +37,7 @@ export async function uploadNoteController(
     processed,
   );
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "note.uploaded",

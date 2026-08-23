@@ -27,6 +27,102 @@ const COLOURS: Record<LogLevel, string> = {
 const RESET = "\x1b[0m";
 const DIM = "\x1b[2m";
 
+const REDACTED = "[REDACTED]";
+
+function isSensitiveLogKey(key: string): boolean {
+  const normalised = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  return (
+    normalised === "authorization" ||
+    normalised === "cookie" ||
+    normalised === "cookies" ||
+    normalised === "setcookie" ||
+    normalised.endsWith("password") ||
+    normalised.endsWith("passwordhash") ||
+    normalised.endsWith("token") ||
+    normalised.endsWith("tokenid") ||
+    normalised.endsWith("tokenhash") ||
+    normalised.endsWith("secret") ||
+    normalised.endsWith("apikey")
+  );
+}
+
+function redactSensitiveString(value: string): string {
+  return value
+    .replace(
+      /Bearer\s+[A-Za-z0-9._~+\/-]+=*/gi,
+      `Bearer ${REDACTED}`,
+    )
+    .replace(
+      /(\b(?:token|access_token|refresh_token|verification_token|reset_token|api[_-]?key|key)=)[^&#\s]+/gi,
+      `$1${REDACTED}`,
+    );
+}
+
+function sanitizeLogValue(
+  value: unknown,
+  key?: string,
+  seen: WeakSet<object> = new WeakSet<object>(),
+): unknown {
+  if (key && isSensitiveLogKey(key)) {
+    return REDACTED;
+  }
+
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return redactSensitiveString(value);
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (value instanceof Error) {
+    return {
+      name: redactSensitiveString(value.name),
+      message: redactSensitiveString(value.message),
+    };
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeLogValue(item, undefined, seen));
+  }
+
+  if (typeof value === "object") {
+    const objectValue = value as Record<string, unknown>;
+
+    if (seen.has(objectValue)) {
+      return "[circular]";
+    }
+
+    seen.add(objectValue);
+
+    const sanitized = Object.fromEntries(
+      Object.entries(objectValue).map(([childKey, childValue]) => [
+        childKey,
+        sanitizeLogValue(childValue, childKey, seen),
+      ]),
+    );
+
+    seen.delete(objectValue);
+    return sanitized;
+  }
+
+  return redactSensitiveString(String(value));
+}
+
+export function sanitizeLogContext(context: LogContext): LogContext {
+  return sanitizeLogValue(context) as LogContext;
+}
+
 function shouldLog(level: LogLevel): boolean {
   if (env.NODE_ENV === "test") return false;
   return LEVELS[level] >= LEVELS[MIN_LEVEL];
@@ -52,11 +148,16 @@ function formatDev(entry: LogEntry): string {
 function write(level: LogLevel, message: string, context?: LogContext): void {
   if (!shouldLog(level)) return;
 
+  const sanitizedContext =
+    context && Object.keys(context).length > 0
+      ? sanitizeLogContext(context)
+      : undefined;
+
   const entry: LogEntry = {
     level,
-    message,
+    message: redactSensitiveString(message),
     timestamp: new Date().toISOString(),
-    ...(context && Object.keys(context).length > 0 ? { context } : {}),
+    ...(sanitizedContext ? { context: sanitizedContext } : {}),
   };
 
   const output = env.NODE_ENV === "production" ? safeJson(entry) : formatDev(entry);

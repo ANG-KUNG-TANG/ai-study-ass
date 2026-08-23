@@ -21,10 +21,41 @@ const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
+function recipientDomain(email: string): string {
+  const at = email.lastIndexOf("@");
+  return at >= 0 ? email.slice(at + 1).toLowerCase() : "unknown";
+}
+
+function normaliseResendError(error: unknown): {
+  name?: string;
+  statusCode?: number;
+} {
+  if (!error || typeof error !== "object") {
+    return {};
+  }
+
+  const candidate = error as {
+    name?: unknown;
+    statusCode?: unknown;
+  };
+
+  return {
+    ...(typeof candidate.name === "string"
+      ? { name: candidate.name }
+      : {}),
+    ...(typeof candidate.statusCode === "number"
+      ? { statusCode: candidate.statusCode }
+      : {}),
+  };
+}
+
 async function send(to: string, subject: string, html: string, text: string): Promise<void> {
   if (!resend) {
-    // Dev fallback — no API key configured, log instead of sending
-    logger.info("Email not sent — RESEND_API_KEY not configured (dev mode)", { to, subject, text });
+    // Never log the email body: verification/reset messages contain one-time tokens.
+    logger.info("Email not sent — RESEND_API_KEY not configured (dev mode)", {
+      subject,
+      recipientDomain: recipientDomain(to),
+    });
     return;
   }
 
@@ -37,8 +68,11 @@ async function send(to: string, subject: string, html: string, text: string): Pr
   });
 
   if (error) {
-    // Don't leak provider error details to the caller — just log + surface a generic failure
-    logger.error("Failed to send email via Resend", { to, subject, error });
+    logger.error("Failed to send email via Resend", {
+      subject,
+      recipientDomain: recipientDomain(to),
+      provider: normaliseResendError(error),
+    });
     throw new Error("Failed to send email");
   }
 }

@@ -1,9 +1,7 @@
 import { randomUUID } from "crypto";
-import { isIP } from "node:net";
 import type { NextRequest } from "next/server";
 
 import { getRedisClient } from "@/server/config/redis";
-import { env } from "@/server/config/env";
 import { RateLimitError } from "@/server/utils/errors";
 import {
   RATE_LIMIT_AUTH,
@@ -12,6 +10,7 @@ import {
 } from "@/server/utils/constants";
 import { logActivity } from "@/server/services/auditLog.service";
 import { logger } from "@/server/utils/logger";
+import { getClientIp } from "@/server/utils/client-ip";
 
 const REDIS_SLIDING_WINDOW_SCRIPT = `
 local key = KEYS[1]
@@ -48,48 +47,6 @@ return {1, 0}
 interface RateLimitResult {
   allowed: boolean;
   retryAfterMs: number;
-}
-
-function normaliseIp(value: string | null): string | null {
-  const candidate = value?.trim();
-
-  if (!candidate || isIP(candidate) === 0) {
-    return null;
-  }
-
-  return candidate;
-}
-
-function getIP(req: NextRequest | Request): string {
-  if (env.TRUST_CLOUDFLARE_PROXY) {
-    const cloudflareIp = normaliseIp(
-      req.headers.get("cf-connecting-ip"),
-    );
-
-    if (cloudflareIp) {
-      return cloudflareIp;
-    }
-
-    // Do not fall back to caller-controlled forwarding headers when Cloudflare
-    // trust mode is enabled. A missing/invalid header gets a stable bucket.
-    return "cloudflare-ip-missing";
-  }
-
-  if (env.NODE_ENV !== "production") {
-    const forwarded = req.headers
-      .get("x-forwarded-for")
-      ?.split(",")[0];
-
-    return (
-      normaliseIp(forwarded ?? null) ??
-      normaliseIp(req.headers.get("x-real-ip")) ??
-      "dev-local"
-    );
-  }
-
-  // In production, forwarded headers are untrusted unless Cloudflare trust
-  // mode is explicitly enabled.
-  return "direct-origin";
 }
 
 function normaliseRedisResult(result: unknown): RateLimitResult {
@@ -140,7 +97,7 @@ function createLimiter(limit: number, windowMs: number) {
       throw new Error("Rate limiter identifier is required");
     }
 
-    const ip = getIP(req);
+    const ip = getClientIp(req);
     const key = `rate-limit:v1:${identifier}:${ip}`;
 
     let result: RateLimitResult;
@@ -170,7 +127,7 @@ function createLimiter(limit: number, windowMs: number) {
 
     const route = new URL(req.url).pathname;
 
-    void logActivity({
+    await logActivity({
       actorId: null,
       actorEmail: null,
       action: "rate_limit.hit",

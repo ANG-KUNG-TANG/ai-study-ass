@@ -80,6 +80,12 @@ export class RateLimitError extends AppError {
   }
 }
 
+export class ServiceUnavailableError extends AppError {
+  constructor(message = "Service temporarily unavailable") {
+    super(message, 503, "SERVICE_UNAVAILABLE");
+  }
+}
+
 // Backward-compatible misspelled export.
 export { RateLimitError as RateLImitError };
 

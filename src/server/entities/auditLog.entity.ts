@@ -2,22 +2,30 @@
 // Immutable record of something that happened in the system — powers the
 // admin "Recent activity" feed. Write-once, read-only: no update/delete.
 
-export type AuditAction =
-  | "auth.login"
-  | "auth.logout"
-  | "auth.register"
-  | "note.uploaded"
-  | "note.deleted"
-  | "quiz.generated"
-  | "flashcards.generated"
-  | "summary.generated"
-  | "user.profile_updated"
-  | "user.account_deleted"
-  | "rate_limit.hit"
-  | "admin.role_changed"
-  | "admin.user_banned"
-  | "admin.user_unbanned"
-  | "admin.user_deleted";
+export const AUDIT_ACTIONS = [
+  "auth.login",
+  "auth.login_failed",
+  "auth.logout",
+  "auth.register",
+  "auth.email_verified",
+  "auth.password_changed",
+  "auth.password_reset",
+  "auth.refresh_reuse_detected",
+  "note.uploaded",
+  "note.deleted",
+  "quiz.generated",
+  "flashcards.generated",
+  "summary.generated",
+  "user.profile_updated",
+  "user.account_deleted",
+  "rate_limit.hit",
+  "admin.role_changed",
+  "admin.user_banned",
+  "admin.user_unbanned",
+  "admin.user_deleted",
+] as const;
+
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export interface AuditLogProps {
   id: string;
@@ -62,8 +70,13 @@ export class AuditLogEntity {
     const who = this.actorEmail ?? "System";
     switch (this.action) {
       case "auth.login": return `${who} logged in`;
+      case "auth.login_failed": return `Failed login attempt for ${who}`;
       case "auth.logout": return `${who} logged out`;
       case "auth.register": return `${who} registered an account`;
+      case "auth.email_verified": return `${who} verified their email`;
+      case "auth.password_changed": return `${who} changed their password`;
+      case "auth.password_reset": return `${who} reset their password`;
+      case "auth.refresh_reuse_detected": return `Refresh-token reuse detected for ${who}`;
       case "note.uploaded": return `${who} uploaded a new note`;
       case "note.deleted": return `${who} deleted a note`;
       case "quiz.generated": return `${who} generated a quiz`;

@@ -1,4 +1,5 @@
 import { logger } from "@/server/utils/logger";
+import { getClientIp } from "@/server/utils/client-ip";
 
 // ─── Skipped paths ────────────────────────────────────────────────────────────
 
@@ -6,14 +7,6 @@ const SKIP_PATHS = ["/api/health", "/_next", "/favicon.ico"];
 
 function shouldSkip(pathname: string): boolean {
   return SKIP_PATHS.some((p) => pathname.startsWith(p));
-}
-
-function getIP(req: Request): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown"
-  );
 }
 
 // ─── Request logger ───────────────────────────────────────────────────────────
@@ -38,7 +31,7 @@ export async function logRequest(
   const start = Date.now();
   const method = req.method;
   const path = url.pathname;
-  const ip = getIP(req);
+  const ip = getClientIp(req);
 
   let status = 500;
   try {

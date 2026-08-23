@@ -15,13 +15,12 @@ import {
   generateQuiz,
   getAllQuizzesByNote,
   getAllQuizzesByUser,
+  getQuiz,
 } from "@/server/services/quiz/quiz.service";
-import { findById as findQuizById } from "@/server/repositories/quiz.repo";
-import { findById as findNoteById } from "@/server/repositories/note.repo";
+import { findByIdAndUserId as findNoteByIdAndUserId } from "@/server/repositories/note.repo";
 import { QUESTION_TYPES } from "@/server/entities/quiz.entity";
 import {
   BadRequestError,
-  ForbiddenError,
   NotFoundError,
   ValidationError,
 } from "@/server/utils/errors";
@@ -62,14 +61,13 @@ async function assertOwnsNote(
   noteId: string,
   userId: string,
 ): Promise<void> {
-  const note = await findNoteById(noteId);
+  const note = await findNoteByIdAndUserId(
+    noteId,
+    userId,
+  );
 
   if (!note) {
-    throw new NotFoundError(`Note ${noteId}`);
-  }
-
-  if (!note.belongsTo(userId)) {
-    throw new ForbiddenError("You do not have access to this note.");
+    throw new NotFoundError("Note");
   }
 }
 
@@ -88,7 +86,7 @@ export async function generateQuizController(
     force: input.force,
   });
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "quiz.generated",
@@ -114,15 +112,10 @@ export async function getQuizController(
     throw new NotFoundError("Quiz");
   }
 
-  const quiz = await findQuizById(id);
-
-  if (!quiz) {
-    throw new NotFoundError(`Quiz ${id}`);
-  }
-
-  if (quiz.userId !== auth.userId) {
-    throw new ForbiddenError("You do not have access to this quiz.");
-  }
+  const quiz = await getQuiz(
+    id,
+    auth.userId,
+  );
 
   return successResponse(quiz.toJSON());
 }

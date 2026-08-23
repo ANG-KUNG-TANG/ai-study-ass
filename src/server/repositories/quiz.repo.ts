@@ -184,6 +184,18 @@ export async function findById(
   return doc ? toEntity(doc) : null;
 }
 
+export async function findByIdAndUserId(
+  id: string,
+  userId: string,
+): Promise<QuizEntity | null> {
+  const doc = await Quiz.findOne({
+    _id: id,
+    userId,
+  });
+
+  return doc ? toEntity(doc) : null;
+}
+
 export async function findAllByNote(
   noteId: string,
   userId: string,
@@ -221,6 +233,18 @@ export async function deleteById(
 ): Promise<boolean> {
   const result =
     await Quiz.findByIdAndDelete(id);
+
+  return result !== null;
+}
+
+export async function deleteByIdAndUserId(
+  id: string,
+  userId: string,
+): Promise<boolean> {
+  const result = await Quiz.findOneAndDelete({
+    _id: id,
+    userId,
+  });
 
   return result !== null;
 }

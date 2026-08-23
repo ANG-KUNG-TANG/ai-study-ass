@@ -9,7 +9,7 @@ import {
   type AIProvider,
 } from "@/server/entities/chat.entity";
 import {
-  ForbiddenError,
+  NotFoundError,
 } from "@/server/utils/errors";
 import {
   logger,
@@ -29,6 +29,22 @@ import {
 import type {
   GenerationMetadata,
 } from "@/server/types/generation";
+
+async function requireOwnedNote(
+  noteId: string,
+  userId: string,
+) {
+  const note = await noteRepo.findByIdAndUserId(
+    noteId,
+    userId,
+  );
+
+  if (!note) {
+    throw new NotFoundError("Note");
+  }
+
+  return note;
+}
 
 interface ChatAnswer {
   text: string;
@@ -142,15 +158,10 @@ export async function prepareChatKnowledge(
   userId: string,
 ): Promise<GenerationMetadata> {
   const note =
-    await noteRepo.findByIdOrThrow(
+    await requireOwnedNote(
       noteId,
+      userId,
     );
-
-  if (
-    !note.belongsTo(userId)
-  ) {
-    throw new ForbiddenError();
-  }
 
   const intelligence =
     await intelligenceService
@@ -209,15 +220,10 @@ export async function askQuestion(
   >
 > {
   const note =
-    await noteRepo.findByIdOrThrow(
+    await requireOwnedNote(
       noteId,
+      userId,
     );
-
-  if (
-    !note.belongsTo(userId)
-  ) {
-    throw new ForbiddenError();
-  }
 
   const intelligence =
     await intelligenceService
@@ -288,16 +294,10 @@ export async function getChatHistory(
     ChatEntity["toPublic"]
   >[]
 > {
-  const note =
-    await noteRepo.findByIdOrThrow(
-      noteId,
-    );
-
-  if (
-    !note.belongsTo(userId)
-  ) {
-    throw new ForbiddenError();
-  }
+  await requireOwnedNote(
+    noteId,
+    userId,
+  );
 
   const history =
     await chatRepo
@@ -316,16 +316,10 @@ export async function clearChatHistory(
   noteId: string,
   userId: string,
 ): Promise<void> {
-  const note =
-    await noteRepo.findByIdOrThrow(
-      noteId,
-    );
-
-  if (
-    !note.belongsTo(userId)
-  ) {
-    throw new ForbiddenError();
-  }
+  await requireOwnedNote(
+    noteId,
+    userId,
+  );
 
   await chatRepo
     .deleteByNoteIdAndUserId(

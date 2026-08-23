@@ -80,7 +80,7 @@ export async function login(req: NextRequest): Promise<NextResponse> {
   const input = await validateBody<LoginInput>(req, loginSchema);
   const { user, tokens } = await authService.login(input);
 
-  void logActivity({
+  await logActivity({
     actorId: user.id,
     actorEmail: user.email,
     action: "auth.login",
@@ -104,7 +104,7 @@ export async function logout(
 
   await authService.logout(auth.userId, accessToken);
 
-  void logActivity({
+  await logActivity({
     actorId: auth.userId,
     actorEmail: auth.email,
     action: "auth.logout",

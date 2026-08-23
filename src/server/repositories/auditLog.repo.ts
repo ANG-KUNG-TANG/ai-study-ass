@@ -146,3 +146,23 @@ export async function findByActor(
     toEntity,
   );
 }
+
+export async function findSince(
+  since: Date,
+  limit: number = 2_000,
+): Promise<AuditLogEntity[]> {
+  const safeLimit = Math.min(
+    5_000,
+    Math.max(1, Math.floor(limit)),
+  );
+
+  const docs = await AuditLog.find({
+    createdAt: { $gte: since },
+  })
+    .sort({ createdAt: -1 })
+    .limit(safeLimit)
+    .lean()
+    .exec();
+
+  return docs.map(toEntity);
+}

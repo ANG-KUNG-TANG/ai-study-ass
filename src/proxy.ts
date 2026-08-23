@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { COOKIE_REFRESH_TOKEN } from "@/server/utils/constants";
+import { verifyBrowserSession } from "@/server/services/browser-session.service";
 
 // ─── Route config ─────────────────────────────────────────────────────────────
 
@@ -33,17 +34,6 @@ const PUBLIC_API_ROUTES = [
 const isPublicPage = (p: string) => PUBLIC_ROUTES.some((r) => p.startsWith(r));
 const isPublicApi = (p: string) => PUBLIC_API_ROUTES.some((r) => p.startsWith(r));
 const isApiRoute = (p: string) => p.startsWith("/api/");
-
-async function verifySession(token: string | undefined): Promise<{ role: string } | null> {
-  if (!token) return null;
-  try {
-    const secret = new TextEncoder().encode(process.env.JWT_REFRESH_SECRET);
-    const { payload } = await jwtVerify(token, secret);
-    return payload as unknown as { role: string };
-  } catch {
-    return null; // expired/invalid — DB revocation still isn't checked here, that's /api/auth/me's job
-  }
-}
 
 async function verifyAccessToken(token: string): Promise<boolean> {
   try {
@@ -89,7 +79,9 @@ export async function proxy(req: NextRequest) {
   }
 
   // ── Page routes ─────────────────────────────────────────────────────────────
-  const session = await verifySession(req.cookies.get(COOKIE_REFRESH_TOKEN)?.value);
+  const session = await verifyBrowserSession(
+    req.cookies.get(COOKIE_REFRESH_TOKEN)?.value,
+  );
   const isPublicPageRoute = isPublicPage(pathname);
 
   if (session && isPublicPageRoute) {

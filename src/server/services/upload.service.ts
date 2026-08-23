@@ -162,7 +162,7 @@ export async function processUpload(
   const ext = path.extname(file.originalName).toLowerCase();
 
   logger.info("Processing upload", {
-    fileName,
+    fileType: ext.slice(1) || "unknown",
     mimeType: file.mimeType,
     size: file.size,
   });

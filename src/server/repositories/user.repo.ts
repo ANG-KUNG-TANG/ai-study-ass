@@ -92,9 +92,9 @@ export async function findByEmail(
 }
 
 export async function findByVerificationToken(
-  token: string
+  tokenHash: string
 ): Promise<UserEntity | null> {
-  const doc = await User.findOne({ emailVerificationToken: token })
+  const doc = await User.findOne({ emailVerificationToken: tokenHash })
     .select("+emailVerificationToken +emailVerificationExpires")
     .lean()
     .exec();
@@ -196,6 +196,39 @@ export async function activate(id: UserId): Promise<void> {
   logger.info("User activated", { userId: id });
 }
 
+/**
+ * Atomically consumes a valid email-verification token.
+ */
+export async function consumeVerificationToken(
+  tokenHash: string,
+  now: Date = new Date(),
+): Promise<UserEntity | null> {
+  const doc = await User.findOneAndUpdate(
+    {
+      emailVerificationToken: tokenHash,
+      emailVerificationExpires: { $gt: now },
+      isActive: false,
+    },
+    {
+      $set: {
+        isActive: true,
+        emailVerificationToken: null,
+        emailVerificationExpires: null,
+        updatedAt: now,
+      },
+    },
+    { returnDocument: "after" },
+  )
+    .lean()
+    .exec();
+
+  if (!doc) return null;
+
+  const entity = toEntity(doc);
+  logger.info("Verification token consumed", { userId: entity.id });
+  return entity;
+}
+
 export async function updateRefreshTokenId(
   id: UserId,
   refreshTokenId: string | null
@@ -204,6 +237,35 @@ export async function updateRefreshTokenId(
     refreshTokenId,
     updatedAt: new Date(),
   });
+}
+
+/**
+ * Atomically rotates the current refresh-token id.
+ *
+ * The update succeeds only when the token id presented by the caller is still
+ * the one stored for this active account. This prevents two concurrent refresh
+ * requests from both consuming the same refresh token successfully.
+ */
+export async function rotateRefreshTokenId(
+  id: UserId,
+  currentRefreshTokenId: string,
+  nextRefreshTokenId: string,
+): Promise<boolean> {
+  const result = await User.updateOne(
+    {
+      _id: id,
+      refreshTokenId: currentRefreshTokenId,
+      isActive: true,
+    },
+    {
+      $set: {
+        refreshTokenId: nextRefreshTokenId,
+        updatedAt: new Date(),
+      },
+    },
+  ).exec();
+
+  return result.modifiedCount === 1;
 }
 
 // Pre-save hook does NOT run on findByIdAndUpdate —
@@ -222,11 +284,11 @@ export async function updatePassword(
 
 export async function updateVerificationToken(
   id: UserId,
-  token: string,
+  tokenHash: string,
   expires: Date
 ): Promise<void> {
   await User.findByIdAndUpdate(id, {
-    emailVerificationToken: token,
+    emailVerificationToken: tokenHash,
     emailVerificationExpires: expires,
     updatedAt: new Date(),
   });
@@ -291,11 +353,11 @@ export async function deleteById(id: UserId): Promise<void> {
 
 export async function updatePasswordResetToken(
   id: UserId,
-  token: string,
+  tokenHash: string,
   expires: Date
 ): Promise<void> {
   await User.findByIdAndUpdate(id, {
-    passwordResetToken: token,
+    passwordResetToken: tokenHash,
     passwordResetExpires: expires,
     updatedAt: new Date(),
   });
@@ -309,10 +371,45 @@ export async function clearPasswordResetToken(id: UserId): Promise<void> {
   });
 }
 
-export async function findByPasswordResetToken(
-  token: string
+/**
+ * Atomically consumes a valid password-reset token and changes the password.
+ */
+export async function consumePasswordResetToken(
+  tokenHash: string,
+  passwordHash: string,
+  now: Date = new Date(),
 ): Promise<UserEntity | null> {
-  const doc = await User.findOne({ passwordResetToken: token })
+  const doc = await User.findOneAndUpdate(
+    {
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { $gt: now },
+      isActive: true,
+    },
+    {
+      $set: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        refreshTokenId: null,
+        updatedAt: now,
+      },
+    },
+    { returnDocument: "after" },
+  )
+    .lean()
+    .exec();
+
+  if (!doc) return null;
+
+  const entity = toEntity(doc);
+  logger.info("Password reset token consumed", { userId: entity.id });
+  return entity;
+}
+
+export async function findByPasswordResetToken(
+  tokenHash: string
+): Promise<UserEntity | null> {
+  const doc = await User.findOne({ passwordResetToken: tokenHash })
     .select("+passwordResetToken +passwordResetExpires")
     .lean()
     .exec();
