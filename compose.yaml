@@ -92,7 +92,6 @@ services:
 
     environment:
       NODE_ENV: production
-      APP_URL: http://localhost:3000
       APP_PUBLIC_URL: ${APP_PUBLIC_URL}
       REDIS_URL: redis://redis:6379
       GENERATION_WORKER_CONCURRENCY: 1
@@ -146,7 +145,6 @@ services:
     environment:
       NODE_ENV: production
 
-      APP_URL: http://localhost:3000
       APP_PUBLIC_URL: ${APP_PUBLIC_URL}
 
       REDIS_URL: redis://redis:6379

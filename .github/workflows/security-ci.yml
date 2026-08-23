@@ -20,6 +20,12 @@ jobs:
   security-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      MONGODB_URI: mongodb://127.0.0.1:27017/ai_study_ci
+      JWT_ACCESS_SECRET: ci-access-secret-placeholder-000000000000000000000
+      JWT_REFRESH_SECRET: ci-refresh-secret-placeholder-1111111111111111111
+      APP_URL: http://localhost:3000
+      EMAIL_ENABLED: "false"
 
     steps:
       - name: Checkout repository

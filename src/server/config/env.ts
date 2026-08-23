@@ -41,8 +41,16 @@ const envSchema = z
 
     COOKIE_DOMAIN: z.string().optional(),
 
+    EMAIL_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     RESEND_API_KEY: z.string().optional(),
-    EMAIL_FROM: z.string().default("AI Study Assistant <onboarding@resend.dev>"),
+    EMAIL_FROM: z
+      .string()
+      .min(1, "EMAIL_FROM cannot be empty")
+      .default("AI Study Assistant <onboarding@resend.dev>"),
+    EMAIL_REPLY_TO: z.string().email().optional().or(z.literal("")),
     APP_URL: z.string().url().default("http://localhost:3000"),
   })
   .superRefine((data, ctx) => {
@@ -51,6 +59,14 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ["JWT_REFRESH_SECRET"],
         message: "JWT_REFRESH_SECRET must differ from JWT_ACCESS_SECRET",
+      });
+    }
+
+    if (data.EMAIL_ENABLED && !data.RESEND_API_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["RESEND_API_KEY"],
+        message: "RESEND_API_KEY is required when EMAIL_ENABLED is true",
       });
     }
   });

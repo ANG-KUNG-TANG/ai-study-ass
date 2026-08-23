@@ -11,7 +11,7 @@ import { UnauthorizedError } from "@/server/utils/errors";
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
-} from "@/server/utils/mailer";
+} from "@/server/services/email.service";
 import {
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
