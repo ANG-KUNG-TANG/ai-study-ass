@@ -13,6 +13,7 @@ import {
   secureStringEqual,
 } from "@/server/utils/google-oauth-cookies";
 import { logger } from "@/server/utils/logger";
+import { publicAppUrl } from "@/server/utils/public-app-url";
 
 export const runtime = "nodejs";
 
@@ -25,12 +26,9 @@ type OAuthErrorCode =
   | "rate_limited";
 
 function redirectToLogin(
-  request: NextRequest,
   code: OAuthErrorCode,
 ): NextResponse {
-  const url = request.nextUrl.clone();
-  url.pathname = "/auth/login";
-  url.search = "";
+  const url = publicAppUrl("/auth/login");
   url.searchParams.set("oauth_error", code);
 
   const response = NextResponse.redirect(url);
@@ -57,15 +55,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (!secureStringEqual(returnedState, stored.state)) {
       logger.warn("Google OAuth state validation failed");
-      return redirectToLogin(request, "invalid_state");
+      return redirectToLogin("invalid_state");
     }
 
     if (providerError) {
-      return redirectToLogin(request, "access_denied");
+      return redirectToLogin("access_denied");
     }
 
     if (!code || !stored.nonce || !stored.codeVerifier) {
-      return redirectToLogin(request, "failed");
+      return redirectToLogin("failed");
     }
 
     const identity = await verifyGoogleAuthorizationCode({
@@ -86,9 +84,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const destination =
       user.role === "admin" ? "/admin/overview" : "/student/dashboard";
-    const destinationUrl = request.nextUrl.clone();
-    destinationUrl.pathname = destination;
-    destinationUrl.search = "";
+    const destinationUrl = publicAppUrl(destination);
 
     const response = NextResponse.redirect(destinationUrl);
     response.headers.set("Cache-Control", "no-store");
@@ -99,6 +95,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       code: isAppError(error) ? error.code : "UNKNOWN",
       error: error instanceof Error ? error.message : String(error),
     });
-    return redirectToLogin(request, errorCodeFor(error));
+    return redirectToLogin(errorCodeFor(error));
   }
 }

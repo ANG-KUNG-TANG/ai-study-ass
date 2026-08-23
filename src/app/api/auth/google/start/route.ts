@@ -8,16 +8,14 @@ import {
   setGoogleOAuthCookies,
 } from "@/server/utils/google-oauth-cookies";
 import { logger } from "@/server/utils/logger";
+import { publicAppUrl } from "@/server/utils/public-app-url";
 
 export const runtime = "nodejs";
 
 function loginErrorRedirect(
-  request: NextRequest,
   code: "failed" | "not_configured" | "rate_limited",
 ): NextResponse {
-  const url = request.nextUrl.clone();
-  url.pathname = "/auth/login";
-  url.search = "";
+  const url = publicAppUrl("/auth/login");
   url.searchParams.set("oauth_error", code);
   const response = NextResponse.redirect(url);
   response.headers.set("Cache-Control", "no-store");
@@ -48,6 +46,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         : isAppError(error) && error.code === "SERVICE_UNAVAILABLE"
           ? "not_configured"
           : "failed";
-    return loginErrorRedirect(request, code);
+    return loginErrorRedirect(code);
   }
 }
