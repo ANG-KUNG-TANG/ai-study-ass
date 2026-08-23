@@ -9,21 +9,23 @@ import { AuthPageMark } from "@/components/auth/AuthPageMark";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import type { TranslationKey } from "@/i18n/translations";
 
-const OAUTH_ERROR_MESSAGES: Record<string, string> = {
-  access_denied: "Google sign-in was cancelled.",
-  account_link_required:
-    "This email already uses password sign-in. Log in with your password.",
-  invalid_state: "Google sign-in expired. Please try again.",
-  not_configured: "Google sign-in is not configured yet.",
-  rate_limited: "Too many sign-in attempts. Please wait and try again.",
-  failed: "Google sign-in could not be completed. Please try again.",
+const OAUTH_ERROR_KEYS: Record<string, TranslationKey> = {
+  access_denied: "login.oauth.accessDenied",
+  account_link_required: "login.oauth.accountLinkRequired",
+  invalid_state: "login.oauth.invalidState",
+  not_configured: "login.oauth.notConfigured",
+  rate_limited: "login.oauth.rateLimited",
+  failed: "login.oauth.failed",
 };
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
+  const { t } = useLanguage();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +35,7 @@ function LoginContent() {
   const oauthErrorCode = searchParams.get("oauth_error");
   const oauthError =
     !oauthErrorDismissed && oauthErrorCode
-      ? (OAUTH_ERROR_MESSAGES[oauthErrorCode] ?? OAUTH_ERROR_MESSAGES.failed)
+      ? t(OAUTH_ERROR_KEYS[oauthErrorCode] ?? OAUTH_ERROR_KEYS.failed)
       : "";
   const displayedError = error || oauthError;
 
@@ -50,7 +52,7 @@ function LoginContent() {
       setError(
         unknownError instanceof Error && unknownError.message
           ? unknownError.message
-          : "Invalid email or password.",
+          : t("login.invalidCredentials"),
       );
     } finally {
       setIsLoading(false);
@@ -63,17 +65,17 @@ function LoginContent() {
         <AuthPageMark />
 
         <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
-          Welcome back
+          {t("login.title")}
         </h1>
         <p className="mt-1.5 text-[14px] text-ink-soft">
-          Continue your learning journey.
+          {t("login.subtitle")}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="email" className="block text-[13px] font-medium text-ink">
-            Email
+            {t("common.email")}
           </label>
           <input
             id="email"
@@ -89,7 +91,7 @@ function LoginContent() {
 
         <div className="space-y-2">
           <label htmlFor="password" className="block text-[13px] font-medium text-ink">
-            Password
+            {t("common.password")}
           </label>
           <div className="relative">
             <input
@@ -106,7 +108,11 @@ function LoginContent() {
               type="button"
               onClick={() => setShowPassword((current) => !current)}
               className="absolute inset-y-0 right-3.5 flex items-center text-ink-faint transition-colors hover:text-ink-soft"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={
+                showPassword
+                  ? t("common.hidePassword")
+                  : t("common.showPassword")
+              }
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -125,13 +131,13 @@ function LoginContent() {
               type="checkbox"
               className="h-4 w-4 rounded border-line accent-yellow"
             />
-            Remember me
+            {t("login.remember")}
           </label>
           <Link
             href="/auth/forgot-password"
             className="font-medium text-coral hover:underline"
           >
-            Forgot password?
+            {t("login.forgot")}
           </Link>
         </div>
 
@@ -141,26 +147,28 @@ function LoginContent() {
           className="h-[46px] w-full rounded-[13px] text-[13px] font-semibold shadow-[0_6px_16px_rgba(255,206,62,0.16)]"
           disabled={isLoading}
         >
-          {isLoading ? "Logging in…" : "Log in"}
+          {isLoading ? t("login.submitting") : t("login.submit")}
           {!isLoading && <ArrowRight size={18} strokeWidth={1.8} />}
         </Button>
       </form>
 
       <div className="my-5 flex items-center gap-4" aria-hidden="true">
         <span className="h-px flex-1 bg-line" />
-        <span className="text-[12px] font-medium text-ink-soft">OR</span>
+        <span className="text-[12px] font-medium text-ink-soft">
+          {t("common.or")}
+        </span>
         <span className="h-px flex-1 bg-line" />
       </div>
 
       <GoogleAuthButton />
 
       <p className="mt-5 text-center text-[13px] text-ink-soft">
-        Don’t have an account?{" "}
+        {t("login.noAccount")} {" "}
         <Link
           href="/auth/register"
           className="font-semibold text-ink hover:underline"
         >
-          Sign up
+          {t("login.signup")}
         </Link>
       </p>
     </div>

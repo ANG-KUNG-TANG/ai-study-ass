@@ -8,9 +8,11 @@ import { AuthPageMark } from "@/components/auth/AuthPageMark";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useLanguage } from "@/context/LanguageContext";
 import { register } from "@/services/auth.service";
 
 export default function RegisterPage() {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -26,7 +28,7 @@ export default function RegisterPage() {
     setError(null);
 
     if (form.password !== form.confirmPassword) {
-      setError("Passwords don’t match");
+      setError(t("register.passwordMismatch"));
       return;
     }
 
@@ -43,7 +45,7 @@ export default function RegisterPage() {
       setError(
         unknownError instanceof Error && unknownError.message
           ? unknownError.message
-          : "Registration failed",
+          : t("register.failed"),
       );
     } finally {
       setIsSubmitting(false);
@@ -64,7 +66,7 @@ export default function RegisterPage() {
           </svg>
         </div>
         <h1 className="mb-2 font-serif text-[28px] font-semibold tracking-[-0.02em]">
-          Check your email
+          {t("register.checkEmail")}
         </h1>
         <p className="mx-auto mb-5 max-w-[330px] text-[13px] leading-5 text-ink-soft">
           {success}
@@ -73,7 +75,7 @@ export default function RegisterPage() {
           href="/auth/login"
           className="text-[12.5px] font-medium text-ink hover:underline"
         >
-          Back to log in
+          {t("register.backToLogin")}
         </Link>
       </div>
     );
@@ -84,25 +86,27 @@ export default function RegisterPage() {
       <div className="mb-5 text-center">
         <AuthPageMark />
         <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
-          Create your account
+          {t("register.title")}
         </h1>
         <p className="mt-1.5 text-[14px] text-ink-soft">
-          Start studying smarter.
+          {t("register.subtitle")}
         </p>
       </div>
 
-      <GoogleAuthButton label="Sign up with Google" />
+      <GoogleAuthButton label={t("auth.google.signup")} />
 
       <div className="my-4 flex items-center gap-4" aria-hidden="true">
         <span className="h-px flex-1 bg-line" />
-        <span className="text-[11px] font-medium text-ink-soft">OR</span>
+        <span className="text-[11px] font-medium text-ink-soft">
+          {t("common.or")}
+        </span>
         <span className="h-px flex-1 bg-line" />
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <Input
-          label="Name"
-          placeholder="Your name"
+          label={t("common.name")}
+          placeholder={t("register.namePlaceholder")}
           autoComplete="name"
           className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
           value={form.name}
@@ -110,7 +114,7 @@ export default function RegisterPage() {
           required
         />
         <Input
-          label="Email"
+          label={t("common.email")}
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
@@ -120,7 +124,7 @@ export default function RegisterPage() {
           required
         />
         <Input
-          label="Password"
+          label={t("common.password")}
           type="password"
           autoComplete="new-password"
           placeholder="••••••••"
@@ -130,10 +134,10 @@ export default function RegisterPage() {
           required
         />
         <p className="-mt-1 text-[10.5px] leading-4 text-ink-faint">
-          At least 8 characters, with uppercase, lowercase, a number, and a special character.
+          {t("register.passwordHelp")}
         </p>
         <Input
-          label="Confirm password"
+          label={t("register.confirmPassword")}
           type="password"
           autoComplete="new-password"
           placeholder="••••••••"
@@ -153,15 +157,15 @@ export default function RegisterPage() {
           disabled={isSubmitting}
           className="mt-1 h-[46px] w-full rounded-[13px] text-[13px] font-semibold"
         >
-          {isSubmitting ? "Creating account…" : "Create account"}
+          {isSubmitting ? t("register.submitting") : t("register.submit")}
           {!isSubmitting && <ArrowRight size={18} strokeWidth={1.8} />}
         </Button>
       </form>
 
       <p className="mt-4 text-center text-[12.5px] text-ink-soft">
-        Already have an account?{" "}
+        {t("register.hasAccount")} {" "}
         <Link href="/auth/login" className="font-medium text-ink hover:underline">
-          Log in
+          {t("register.login")}
         </Link>
       </p>
     </div>

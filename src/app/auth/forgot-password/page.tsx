@@ -7,9 +7,11 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AuthPageMark } from "@/components/auth/AuthPageMark";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useLanguage } from "@/context/LanguageContext";
 import { forgotPassword } from "@/services/auth.service";
 
 export default function ForgotPasswordPage() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -27,7 +29,7 @@ export default function ForgotPasswordPage() {
       setError(
         unknownError instanceof Error && unknownError.message
           ? unknownError.message
-          : "Something went wrong. Please try again.",
+          : t("forgot.failed"),
       );
     } finally {
       setIsLoading(false);
@@ -48,16 +50,16 @@ export default function ForgotPasswordPage() {
           </svg>
         </div>
         <h2 className="font-serif text-[28px] font-semibold tracking-[-0.02em]">
-          Check your inbox
+          {t("forgot.checkInbox")}
         </h2>
         <p className="mx-auto mt-2 max-w-[330px] text-[13px] leading-5 text-ink-soft">
-          We’ve sent a password reset link to <strong>{email}</strong>.
+          {t("forgot.sent", { email })}
         </p>
         <Link
           href="/auth/login"
           className="mt-5 inline-block text-[12.5px] font-medium text-coral hover:underline"
         >
-          ← Back to login
+          ← {t("forgot.backToLogin")}
         </Link>
       </div>
     );
@@ -68,16 +70,16 @@ export default function ForgotPasswordPage() {
       <div className="mb-6 text-center">
         <AuthPageMark />
         <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
-          Reset password
+          {t("forgot.title")}
         </h1>
         <p className="mx-auto mt-1.5 max-w-[340px] text-[13px] leading-5 text-ink-soft">
-          Enter your email and we’ll send you a link to reset your password.
+          {t("forgot.subtitle")}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          label="Email"
+          label={t("common.email")}
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
@@ -99,7 +101,7 @@ export default function ForgotPasswordPage() {
           className="h-[46px] w-full rounded-[13px] text-[13px] font-semibold"
           disabled={isLoading}
         >
-          {isLoading ? "Sending…" : "Send reset link"}
+          {isLoading ? t("forgot.submitting") : t("forgot.submit")}
           {!isLoading && <ArrowRight size={16} strokeWidth={1.8} />}
         </Button>
       </form>
@@ -109,7 +111,7 @@ export default function ForgotPasswordPage() {
         className="mt-5 inline-flex items-center gap-1 text-[12.5px] font-medium text-ink-soft hover:text-ink"
       >
         <ArrowLeft size={14} />
-        Back to login
+        {t("forgot.backToLogin")}
       </Link>
     </div>
   );

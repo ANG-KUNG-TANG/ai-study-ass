@@ -1,10 +1,16 @@
+"use client";
+
+import { useLanguage } from "@/context/LanguageContext";
+
 interface GoogleAuthButtonProps {
   label?: string;
 }
 
 export function GoogleAuthButton({
-  label = "Continue with Google",
+  label,
 }: GoogleAuthButtonProps) {
+  const { t } = useLanguage();
+
   return (
     <a
       href="/api/auth/google/start"
@@ -28,7 +34,7 @@ export function GoogleAuthButton({
           d="M12 5.99c1.47 0 2.79.5 3.82 1.5l2.88-2.87A9.64 9.64 0 0 0 12 2a10 10 0 0 0-8.95 5.52l3.35 2.6C7.19 7.75 9.4 5.99 12 5.99Z"
         />
       </svg>
-      {label}
+      {label ?? t("auth.google.continue")}
     </a>
   );
 }

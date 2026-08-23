@@ -26,11 +26,35 @@ import {
   StreakBox,
 } from "@/components/notes/StreakBox";
 import {
+  LanguageSwitcher,
+} from "@/components/i18n/LanguageSwitcher";
+import {
   useAuth,
 } from "@/context/AuthContext";
 import {
   useSidebar,
 } from "@/context/SidebarContext";
+import {
+  useLanguage,
+} from "@/context/LanguageContext";
+import type {
+  TranslationKey,
+} from "@/i18n/translations";
+
+const NAVIGATION_KEYS: Record<string, TranslationKey> = {
+  Dashboard: "nav.dashboard",
+  Notes: "nav.notes",
+  Summary: "nav.summary",
+  Quiz: "nav.quiz",
+  Flashcards: "nav.flashcards",
+  Chat: "nav.chat",
+  Overview: "nav.overview",
+  Users: "nav.users",
+  Content: "nav.content",
+  "AI Usage": "nav.aiUsage",
+  Health: "nav.health",
+  "Original text": "nav.originalText",
+};
 
 interface SidebarProps {
   variant: "student" | "admin";
@@ -43,6 +67,7 @@ export function Sidebar({
   const router = useRouter();
 
   const { logout } = useAuth();
+  const { t } = useLanguage();
 
   const {
     isCollapsed,
@@ -159,7 +184,7 @@ export function Sidebar({
 
             {!collapsed && (
               <span className="truncate font-serif text-[17px] font-semibold">
-                AI Study Assistant
+                {t("common.brand")}
               </span>
             )}
           </div>
@@ -170,7 +195,7 @@ export function Sidebar({
               setIsMobileOpen(false)
             }
             className="rounded-md p-1 text-ink-soft hover:bg-line-soft md:hidden"
-            aria-label="Close menu"
+            aria-label={t("sidebar.closeMenu")}
           >
             <X
               size={18}
@@ -186,6 +211,12 @@ export function Sidebar({
               const isActive =
                 activeHref ===
                 item.href;
+              const labelKey =
+                NAVIGATION_KEYS[item.label];
+              const localizedLabel =
+                labelKey
+                  ? t(labelKey)
+                  : item.label;
 
               return (
                 <Link
@@ -198,7 +229,7 @@ export function Sidebar({
                   }
                   title={
                     collapsed
-                      ? item.label
+                      ? localizedLabel
                       : undefined
                   }
                   className={[
@@ -221,7 +252,7 @@ export function Sidebar({
 
                   {!collapsed && (
                     <span className="truncate">
-                      {item.label}
+                      {localizedLabel}
                     </span>
                   )}
                 </Link>
@@ -236,10 +267,19 @@ export function Sidebar({
             <div className="mt-4 shrink-0">
               <StreakBox
                 days={6}
-                message="Review 2 more flashcard decks today to keep it going."
+                message={t("sidebar.streak")}
               />
             </div>
           )}
+
+        <div
+          className={[
+            "mt-4 flex shrink-0",
+            collapsed ? "justify-center" : "justify-start",
+          ].join(" ")}
+        >
+          <LanguageSwitcher compact={collapsed} />
+        </div>
 
         {/* Logout */}
         <div className="mt-4 shrink-0 border-t border-line pt-3">
@@ -250,7 +290,7 @@ export function Sidebar({
             }
             title={
               collapsed
-                ? "Log out"
+                ? t("sidebar.logout")
                 : undefined
             }
             className={[
@@ -270,7 +310,7 @@ export function Sidebar({
             />
 
             {!collapsed && (
-              <span>Log out</span>
+              <span>{t("sidebar.logout")}</span>
             )}
           </button>
         </div>
@@ -283,7 +323,7 @@ export function Sidebar({
       {/* Mobile top bar */}
       <div className="flex items-center justify-between border-b border-line bg-paper-raised px-4 py-3 md:hidden">
         <span className="font-serif text-[16px] font-semibold">
-          AI Study Assistant
+          {t("common.brand")}
         </span>
 
         <button
@@ -292,7 +332,7 @@ export function Sidebar({
             setIsMobileOpen(true)
           }
           className="rounded-md p-1.5 text-ink-soft hover:bg-line-soft"
-          aria-label="Open menu"
+          aria-label={t("sidebar.openMenu")}
           aria-expanded={isMobileOpen}
         >
           <Menu
@@ -311,7 +351,7 @@ export function Sidebar({
             onClick={() =>
               setIsMobileOpen(false)
             }
-            aria-label="Close menu"
+            aria-label={t("sidebar.closeMenu")}
           />
 
           <aside className="absolute inset-y-0 left-0 z-10 w-[260px] bg-paper-raised px-4 py-6 shadow-xl">
@@ -347,8 +387,8 @@ export function Sidebar({
           ].join(" ")}
           aria-label={
             isCollapsed
-              ? "Expand sidebar"
-              : "Collapse sidebar"
+              ? t("sidebar.expand")
+              : t("sidebar.collapse")
           }
         >
           {isCollapsed ? (

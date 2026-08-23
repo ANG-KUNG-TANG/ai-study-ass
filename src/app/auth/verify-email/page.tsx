@@ -6,20 +6,18 @@ import { useSearchParams } from "next/navigation";
 import { CheckCircle2, LoaderCircle, XCircle } from "lucide-react";
 
 import { Card } from "@/components/ui/Card";
+import { useLanguage } from "@/context/LanguageContext";
 import { verifyEmail } from "@/services/auth.service";
 
 type VerificationState = "verifying" | "verified" | "error";
 
 function VerifyEmailContent() {
+  const { t } = useLanguage();
   const token = useSearchParams().get("token");
   const [state, setState] = useState<VerificationState>(
     token ? "verifying" : "error",
   );
-  const [message, setMessage] = useState(
-    token
-      ? "We’re confirming your email address."
-      : "This verification link is missing its token.",
-  );
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -30,7 +28,7 @@ function VerifyEmailContent() {
       .then((result) => {
         if (!active) return;
         setState("verified");
-        setMessage(result.message || "Your email address has been verified.");
+        setMessage(result.message || null);
       })
       .catch((unknownError: unknown) => {
         if (!active) return;
@@ -38,7 +36,7 @@ function VerifyEmailContent() {
         setMessage(
           unknownError instanceof Error && unknownError.message
             ? unknownError.message
-            : "The verification link is invalid or has expired.",
+            : null,
         );
       });
 
@@ -59,20 +57,29 @@ function VerifyEmailContent() {
 
       <h1 className="mt-4 font-serif text-[22px] font-semibold">
         {state === "verifying"
-          ? "Verifying your email"
+          ? t("verify.title.verifying")
           : state === "verified"
-            ? "Email verified"
-            : "Verification failed"}
+            ? t("verify.title.verified")
+            : t("verify.title.failed")}
       </h1>
 
-      <p className="mt-2 text-[13px] leading-6 text-ink-soft">{message}</p>
+      <p className="mt-2 text-[13px] leading-6 text-ink-soft">
+        {message ??
+          (state === "verifying"
+            ? t("verify.confirming")
+            : state === "verified"
+              ? t("verify.success")
+              : token
+                ? t("verify.invalid")
+                : t("verify.missingToken"))}
+      </p>
 
       {state !== "verifying" && (
         <Link
           href="/auth/login"
           className="mt-6 inline-block text-[13px] font-medium text-ink hover:underline"
         >
-          Continue to login
+          {t("verify.continue")}
         </Link>
       )}
     </Card>
@@ -80,8 +87,14 @@ function VerifyEmailContent() {
 }
 
 export default function VerifyEmailPage() {
+  const { t } = useLanguage();
+
   return (
-    <Suspense fallback={<p className="text-[13px] text-ink-soft">Loading…</p>}>
+    <Suspense
+      fallback={
+        <p className="text-[13px] text-ink-soft">{t("common.loading")}</p>
+      }
+    >
       <VerifyEmailContent />
     </Suspense>
   );

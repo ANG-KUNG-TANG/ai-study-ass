@@ -1,3 +1,5 @@
+"use client";
+
 import {
   CircleHelp,
   FileText,
@@ -7,38 +9,48 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-const primaryFeatures = [
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { useLanguage } from "@/context/LanguageContext";
+import type { TranslationKey } from "@/i18n/translations";
+
+const primaryFeatures: ReadonlyArray<{
+  label: TranslationKey;
+  icon: typeof FileText;
+  iconStyle: string;
+}> = [
   {
-    label: "Smart summaries",
+    label: "auth.feature.summaries",
     icon: FileText,
     iconStyle: "bg-coral-soft text-coral",
   },
   {
-    label: "Instant flashcards",
+    label: "auth.feature.flashcards",
     icon: Layers,
     iconStyle: "bg-sage-soft text-sage",
   },
   {
-    label: "Practice quizzes",
+    label: "auth.feature.quizzes",
     icon: CircleHelp,
     iconStyle: "bg-violet-soft text-violet",
   },
-] as const;
+];
 
-const secondaryFeatures = [
+const secondaryFeatures: typeof primaryFeatures = [
   {
-    label: "Clear explanations",
+    label: "auth.feature.explanations",
     icon: Lightbulb,
     iconStyle: "bg-yellow-soft text-yellow",
   },
   {
-    label: "AI chat",
+    label: "auth.feature.chat",
     icon: MessageCircle,
     iconStyle: "bg-coral-soft text-coral",
   },
-] as const;
+];
 
 function BrandMark() {
+  const { t } = useLanguage();
+
   return (
     <div className="flex items-center gap-3">
       <div className="relative flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[10px] bg-ink shadow-[0_5px_14px_rgba(34,31,26,0.11)]">
@@ -60,16 +72,18 @@ function BrandMark() {
       </div>
 
       <span className="font-serif text-[22px] font-semibold tracking-[-0.02em] text-ink">
-        AI Study Assistant
+        {t("common.brand")}
       </span>
     </div>
   );
 }
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
+  const { t } = useLanguage();
+
   return (
     <main
-      className="min-h-screen px-5 py-5 sm:px-8 lg:px-9 lg:py-7 xl:px-12"
+      className="relative min-h-screen px-5 py-5 sm:px-8 lg:px-9 lg:py-7 xl:px-12"
       style={{
         backgroundImage:
           "radial-gradient(circle, #EFE8D6 1px, transparent 1px)",
@@ -77,17 +91,18 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         backgroundColor: "#FAF6EC",
       }}
     >
+      <LanguageSwitcher className="absolute right-5 top-5 z-10 sm:right-8 lg:right-9 lg:top-7 xl:right-12" />
+
       <div className="mx-auto grid min-h-[calc(100vh-2.5rem)] w-full max-w-[1160px] lg:grid-cols-[minmax(0,1.04fr)_1px_minmax(360px,0.78fr)] lg:gap-8 xl:gap-12">
         <section className="hidden min-w-0 flex-col justify-center lg:flex">
           <BrandMark />
 
           <div className="mt-10 max-w-[530px] xl:mt-12">
             <h1 className="font-serif text-[clamp(2.5rem,3.15vw,3.4rem)] font-semibold leading-[1.06] tracking-[-0.04em] text-ink">
-              Turn confusion into clarity—in one click.
+              {t("auth.hero.title")}
             </h1>
             <p className="mt-4 max-w-[500px] text-[15px] leading-6 text-ink-soft">
-              Upload your notes and let AI create summaries, flashcards,
-              quizzes, and clear explanations in seconds.
+              {t("auth.hero.description")}
             </p>
           </div>
 
@@ -107,7 +122,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
                       <Icon size={25} strokeWidth={1.8} aria-hidden="true" />
                     </span>
                     <span className="text-[13px] font-semibold text-ink">
-                      {feature.label}
+                      {t(feature.label)}
                     </span>
                   </div>
                 );
@@ -129,7 +144,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
                       <Icon size={19} strokeWidth={1.8} aria-hidden="true" />
                     </span>
                     <span className="text-[13px] font-semibold text-ink">
-                      {feature.label}
+                      {t(feature.label)}
                     </span>
                   </div>
                 );
