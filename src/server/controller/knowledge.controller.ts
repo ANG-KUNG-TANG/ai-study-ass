@@ -3,7 +3,7 @@
 import type { NextResponse } from 'next/server';
 import * as knowledgeService from '@/server/services/knowledge.service';
 import * as noteRepo from '@/server/repositories/note.repo';
-import { ForbiddenError } from '@/server/utils/errors';
+import { NotFoundError } from '@/server/utils/errors';
 import { successResponse } from '@/server/utils/response';
 import type { AuthContext, RouteContext } from '@/server/middleware/auth.middleware';
 
@@ -22,8 +22,14 @@ export async function getKnowledgeByNote(
 ): Promise<NextResponse> {
   const { id: noteId } = await context.params;   // was: const { noteId } = ...
 
-  const note = await noteRepo.findByIdOrThrow(noteId);
-  if (!note.belongsTo(auth.userId)) throw new ForbiddenError();
+  const note = await noteRepo.findByIdAndUserId(
+    noteId,
+    auth.userId,
+  );
+
+  if (!note) {
+    throw new NotFoundError("Note");
+  }
 
   const knowledge = await knowledgeService.getKnowledge(noteId);
   return successResponse(knowledge);
@@ -36,8 +42,14 @@ export async function deleteKnowledgeByNote(
 ): Promise<NextResponse> {
   const { id: noteId } = await context.params;   // was: const { noteId } = ...
 
-  const note = await noteRepo.findByIdOrThrow(noteId);
-  if (!note.belongsTo(auth.userId)) throw new ForbiddenError();
+  const note = await noteRepo.findByIdAndUserId(
+    noteId,
+    auth.userId,
+  );
+
+  if (!note) {
+    throw new NotFoundError("Note");
+  }
 
   const deleted = await knowledgeService.deleteKnowledge(noteId);
   return successResponse({ deleted });

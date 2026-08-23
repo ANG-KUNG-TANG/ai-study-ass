@@ -1,7 +1,7 @@
 import type { NextResponse } from "next/server";
 import * as intelligenceService from "@/server/services/intelligence.service";
 import * as noteRepo from "@/server/repositories/note.repo";
-import { ForbiddenError } from "@/server/utils/errors";
+import { NotFoundError } from "@/server/utils/errors";
 import { successResponse } from "@/server/utils/response";
 import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
 
@@ -22,8 +22,14 @@ export async function getIntelligenceStatus(
 ): Promise<NextResponse> {
   const { id: noteId } = await context.params;
 
-  const note = await noteRepo.findByIdOrThrow(noteId);
-  if (!note.belongsTo(auth.userId)) throw new ForbiddenError();
+  const note = await noteRepo.findByIdAndUserId(
+    noteId,
+    auth.userId,
+  );
+
+  if (!note) {
+    throw new NotFoundError("Note");
+  }
 
   const status = await intelligenceService.getStatus(noteId);
   return successResponse(status);
