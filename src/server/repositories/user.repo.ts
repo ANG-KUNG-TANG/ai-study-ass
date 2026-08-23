@@ -27,6 +27,7 @@ export interface SensitiveFieldOptions {
   withPassword?: boolean;
   withRefreshTokenId?: boolean;
   withVerificationToken?: boolean;
+  withGoogleSubject?: boolean;
 }
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ function toEntity(doc: any): UserEntity {
     name: doc.name,
     email: doc.email,
     passwordHash: doc.passwordHash ?? "",
+    googleSubject: doc.googleSubject ?? null,
     role: doc.role,
     isActive: doc.isActive,
     emailVerificationToken: doc.emailVerificationToken ?? null,
@@ -58,6 +60,7 @@ function buildSelect(options: SensitiveFieldOptions = {}): string {
   if (options.withPassword) extras.push("+passwordHash");
   if (options.withRefreshTokenId) extras.push("+refreshTokenId");
   if (options.withVerificationToken) extras.push("+emailVerificationToken +emailVerificationExpires");
+  if (options.withGoogleSubject) extras.push("+googleSubject");
   return extras.join(" ");
 }
 
@@ -96,6 +99,18 @@ export async function findByVerificationToken(
 ): Promise<UserEntity | null> {
   const doc = await User.findOne({ emailVerificationToken: tokenHash })
     .select("+emailVerificationToken +emailVerificationExpires")
+    .lean()
+    .exec();
+
+  if (!doc) return null;
+  return toEntity(doc);
+}
+
+export async function findByGoogleSubject(
+  googleSubject: string,
+): Promise<UserEntity | null> {
+  const doc = await User.findOne({ googleSubject })
+    .select("+googleSubject")
     .lean()
     .exec();
 
@@ -173,6 +188,7 @@ export async function create(entity: UserEntity): Promise<UserEntity> {
     name: data.name,
     email: data.email,
     passwordHash: data.passwordHash,   // already hashed by auth.service
+    googleSubject: data.googleSubject,
     role: data.role,
     isActive: data.isActive,
     emailVerificationToken: data.emailVerificationToken,
@@ -227,6 +243,17 @@ export async function consumeVerificationToken(
   const entity = toEntity(doc);
   logger.info("Verification token consumed", { userId: entity.id });
   return entity;
+}
+
+export async function setGoogleSubject(
+  id: UserId,
+  googleSubject: string,
+): Promise<void> {
+  await User.findByIdAndUpdate(id, {
+    googleSubject,
+    updatedAt: new Date(),
+  });
+  logger.info("Google account linked", { userId: id });
 }
 
 export async function updateRefreshTokenId(

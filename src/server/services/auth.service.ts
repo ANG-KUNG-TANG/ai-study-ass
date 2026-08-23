@@ -16,6 +16,7 @@ import {
   UnauthorizedError,
   NotFoundError,
   BadRequestError,
+  ConflictError,
 } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type {
@@ -23,6 +24,7 @@ import type {
   LoginInput,
   ChangePasswordInput,
 } from "@/server/validators/auth.validators";
+import type { GoogleIdentity } from "@/server/services/google-oauth.service";
 import { env } from "../config/env";
 import { logActivity } from "@/server/services/auditLog.service";
 import {
@@ -47,6 +49,21 @@ function isDuplicateKeyError(error: unknown): boolean {
       "code" in error &&
       (error as { code?: unknown }).code === 11000,
   );
+}
+
+async function issueSession(user: UserEntity): Promise<AuthResult> {
+  await clearUserRevocation(user.id);
+
+  const tokens = signTokenPair({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    jti: randomUUID(),
+  });
+
+  await userRepo.updateRefreshTokenId(user.id, tokens.refreshTokenId);
+
+  return { user: user.toPublic(), tokens };
 }
 
 // ─── Register ─────────────────────────────────────────────────────────────────
@@ -216,17 +233,103 @@ export async function login(input: LoginInput): Promise<AuthResult> {
     throw new UnauthorizedError("Invalid email or password");
   }
 
-  // Clear any all-user revocation (e.g. after password change) before issuing new tokens
-  await clearUserRevocation(user.id);
-
-  const tokens = signTokenPair({ userId: user.id, email: user.email, role: user.role, jti: randomUUID() });
-
-  // Store refresh token ID for rotation tracking
-  await userRepo.updateRefreshTokenId(user.id, tokens.refreshTokenId);
+  const result = await issueSession(user);
 
   logger.info("User logged in", { userId: user.id });
 
-  return { user: user.toPublic(), tokens };
+  return result;
+}
+
+// ─── Google OAuth login and registration ──────────────────────────────────────
+
+function googleControlsEmail(identity: GoogleIdentity): boolean {
+  return identity.email.endsWith("@gmail.com") || Boolean(identity.hostedDomain);
+}
+
+export async function loginWithGoogle(
+  identity: GoogleIdentity,
+): Promise<AuthResult> {
+  let user = await userRepo.findByGoogleSubject(identity.subject);
+  let isNewUser = false;
+
+  if (!user) {
+    const existingUser = await userRepo.findByEmail(identity.email, {
+      withGoogleSubject: true,
+    });
+
+    if (existingUser) {
+      if (
+        existingUser.googleSubject &&
+        existingUser.googleSubject !== identity.subject
+      ) {
+        throw new ConflictError(
+          "This email is already linked to another Google account",
+        );
+      }
+
+      // Google is authoritative for @gmail.com addresses and for verified
+      // Google Workspace domains reported through the hosted-domain claim.
+      // Automatic linking is blocked for other domains so a provider account
+      // cannot silently take over an existing password account.
+      if (!googleControlsEmail(identity)) {
+        throw new ConflictError(
+          "This email already uses password sign-in",
+        );
+      }
+
+      if (!existingUser.googleSubject) {
+        await userRepo.setGoogleSubject(existingUser.id, identity.subject);
+      }
+      if (!existingUser.isActive) {
+        await userRepo.activate(existingUser.id);
+      }
+
+      user = await userRepo.findById(existingUser.id);
+      if (!user) {
+        throw new UnauthorizedError("Google sign-in could not be completed");
+      }
+    } else {
+      // Password login remains impossible until the user intentionally sets a
+      // password through the existing password-reset flow.
+      const unusablePassword = `${randomUUID()}${randomUUID()}Aa1!`;
+      const passwordHash = await bcrypt.hash(
+        unusablePassword,
+        env.BCRYPT_ROUNDS,
+      );
+
+      const entity = UserEntity.createGoogle({
+        id: randomUUID(),
+        name: identity.name,
+        email: identity.email,
+        passwordHash,
+        googleSubject: identity.subject,
+      });
+
+      user = await userRepo.create(entity);
+      isNewUser = true;
+
+      void logActivity({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "auth.register",
+        targetType: "user",
+        targetId: user.id,
+        metadata: { provider: "google" },
+      });
+    }
+  }
+
+  const { allowed, reason } = user.canLogin();
+  if (!allowed) throw new UnauthorizedError(reason);
+
+  const result = await issueSession(user);
+
+  logger.info(
+    isNewUser ? "User registered with Google" : "User logged in with Google",
+    { userId: user.id },
+  );
+
+  return result;
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────────

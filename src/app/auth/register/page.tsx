@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { AuthPageMark } from "@/components/auth/AuthPageMark";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { register } from "@/services/auth.service";
@@ -88,6 +89,14 @@ export default function RegisterPage() {
         <p className="mt-1.5 text-[14px] text-ink-soft">
           Start studying smarter.
         </p>
+      </div>
+
+      <GoogleAuthButton label="Sign up with Google" />
+
+      <div className="my-4 flex items-center gap-4" aria-hidden="true">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-[11px] font-medium text-ink-soft">OR</span>
+        <span className="h-px flex-1 bg-line" />
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">

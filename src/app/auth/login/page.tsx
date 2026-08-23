@@ -1,26 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 import { AuthPageMark } from "@/components/auth/AuthPageMark";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
 
-export default function LoginPage() {
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  access_denied: "Google sign-in was cancelled.",
+  account_link_required:
+    "This email already uses password sign-in. Log in with your password.",
+  invalid_state: "Google sign-in expired. Please try again.",
+  not_configured: "Google sign-in is not configured yet.",
+  rate_limited: "Too many sign-in attempts. Please wait and try again.",
+  failed: "Google sign-in could not be completed. Please try again.",
+};
+
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [oauthErrorDismissed, setOauthErrorDismissed] = useState(false);
+  const oauthErrorCode = searchParams.get("oauth_error");
+  const oauthError =
+    !oauthErrorDismissed && oauthErrorCode
+      ? (OAUTH_ERROR_MESSAGES[oauthErrorCode] ?? OAUTH_ERROR_MESSAGES.failed)
+      : "";
+  const displayedError = error || oauthError;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    setOauthErrorDismissed(true);
     setIsLoading(true);
 
     try {
@@ -93,9 +113,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {error && (
+        {displayedError && (
           <p className="rounded-xl bg-coral-soft px-4 py-3 text-[13px] text-coral">
-            {error}
+            {displayedError}
           </p>
         )}
 
@@ -132,30 +152,7 @@ export default function LoginPage() {
         <span className="h-px flex-1 bg-line" />
       </div>
 
-      <button
-        type="button"
-        className="flex h-[46px] w-full items-center justify-center gap-3 rounded-[13px] border border-line bg-paper-raised/55 px-4 text-[13px] font-medium text-ink transition-colors hover:bg-paper-raised"
-      >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-          <path
-            fill="#4285F4"
-            d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-2 3.02v2.53h3.24c1.9-1.75 2.98-4.33 2.98-7.39Z"
-          />
-          <path
-            fill="#34A853"
-            d="M12 22c2.7 0 4.98-.9 6.64-2.43l-3.24-2.52c-.9.6-2.05.96-3.4.96-2.6 0-4.81-1.76-5.6-4.13H3.05v2.6A10 10 0 0 0 12 22Z"
-          />
-          <path
-            fill="#FBBC05"
-            d="M6.4 13.88A6 6 0 0 1 6.08 12c0-.65.11-1.28.32-1.88v-2.6H3.05A10 10 0 0 0 2 12c0 1.61.38 3.14 1.05 4.48l3.35-2.6Z"
-          />
-          <path
-            fill="#EA4335"
-            d="M12 5.99c1.47 0 2.79.5 3.82 1.5l2.88-2.87A9.64 9.64 0 0 0 12 2a10 10 0 0 0-8.95 5.52l3.35 2.6C7.19 7.75 9.4 5.99 12 5.99Z"
-          />
-        </svg>
-        Continue with Google
-      </button>
+      <GoogleAuthButton />
 
       <p className="mt-5 text-center text-[13px] text-ink-soft">
         Don’t have an account?{" "}
@@ -167,5 +164,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[460px]" aria-hidden="true" />}>
+      <LoginContent />
+    </Suspense>
   );
 }

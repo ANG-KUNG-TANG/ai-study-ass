@@ -43,6 +43,14 @@ const envSchema = z
 
     COOKIE_DOMAIN: z.string().optional(),
 
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    GOOGLE_REDIRECT_URI: z.preprocess(
+      (value) =>
+        typeof value === "string" && value.trim() === "" ? undefined : value,
+      z.string().url().optional(),
+    ),
+
     EMAIL_ENABLED: z
       .enum(["true", "false"])
       .default("false")
@@ -69,6 +77,24 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ["RESEND_API_KEY"],
         message: "RESEND_API_KEY is required when EMAIL_ENABLED is true",
+      });
+    }
+
+    const googleValues = [
+      data.GOOGLE_CLIENT_ID,
+      data.GOOGLE_CLIENT_SECRET,
+      data.GOOGLE_REDIRECT_URI,
+    ];
+    const googleConfigured = googleValues.filter(
+      (value) => Boolean(value?.trim()),
+    ).length;
+
+    if (googleConfigured > 0 && googleConfigured < googleValues.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["GOOGLE_CLIENT_ID"],
+        message:
+          "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI must be configured together",
       });
     }
   });

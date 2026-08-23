@@ -39,6 +39,7 @@ export interface UserProps {
   name: string;
   email: string;
   passwordHash: string;
+  googleSubject?: string | null;
   role: UserRole;
   isActive: boolean;              // was Boolean (capital B) — use primitive boolean
   emailVerificationToken: string | null;
@@ -125,6 +126,7 @@ export class UserEntity {
   readonly #name: string;
   readonly #email: string;
   readonly #passwordHash: string;
+  readonly #googleSubject: string | null;
   readonly #role: UserRole;
   readonly #isActive: boolean;
   readonly #emailVerificationToken: string | null;
@@ -140,6 +142,7 @@ export class UserEntity {
     this.#name = props.name;
     this.#email = props.email;
     this.#passwordHash = props.passwordHash;
+    this.#googleSubject = props.googleSubject ?? null;
     this.#role = props.role;
     this.#isActive = props.isActive;
     this.#emailVerificationToken = props.emailVerificationToken;
@@ -157,6 +160,7 @@ export class UserEntity {
   get name(): string { return this.#name; }
   get email(): string { return this.#email; }          // was "return this.email" — infinite loop
   get passwordHash(): string { return this.#passwordHash; }
+  get googleSubject(): string | null { return this.#googleSubject; }
   get role(): UserRole { return this.#role; }
   get isActive(): boolean { return this.#isActive; }
   get emailVerificationToken(): string | null { return this.#emailVerificationToken; }
@@ -188,10 +192,47 @@ export class UserEntity {
       name: input.name.trim(),
       email: input.email.toLowerCase().trim(),
       passwordHash: input.passwordHash,
+      googleSubject: null,
       role: "user",
       isActive: false,
       emailVerificationToken: input.emailVerificationToken,
       emailVerificationExpires: expiresAt,
+      passwordResetToken: null,
+      passwordResetExpires: null,
+      refreshTokenId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  // ─── Factory: Google registration ───────────────────────────────────────────
+
+  static createGoogle(input: {
+    id: UserId;
+    name: string;
+    email: string;
+    passwordHash: string;
+    googleSubject: string;
+  }): UserEntity {
+    validateName(input.name);
+    validateEmail(input.email);
+
+    if (!input.googleSubject.trim()) {
+      throw new ValidationError("Validation failed", {
+        google: "Google account identifier is required",
+      });
+    }
+
+    return new UserEntity({
+      id: input.id,
+      name: input.name.trim(),
+      email: input.email.toLowerCase().trim(),
+      passwordHash: input.passwordHash,
+      googleSubject: input.googleSubject,
+      role: "user",
+      isActive: true,
+      emailVerificationToken: null,
+      emailVerificationExpires: null,
       passwordResetToken: null,
       passwordResetExpires: null,
       refreshTokenId: null,
@@ -260,6 +301,7 @@ export class UserEntity {
       name: this.#name,
       email: this.#email,
       passwordHash: this.#passwordHash,
+      googleSubject: this.#googleSubject,
       role: this.#role,
       isActive: this.#isActive,           // was this.isActive (getter) instead of #isActive
       emailVerificationToken: this.#emailVerificationToken,

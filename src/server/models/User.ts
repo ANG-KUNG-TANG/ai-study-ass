@@ -9,6 +9,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   passwordHash: string;
+  googleSubject: string | null;
   role: UserRole;
   isActive: boolean;
   emailVerificationToken: string | null;
@@ -46,6 +47,11 @@ const userSchema = new Schema<IUser>(
     passwordHash: {
       type: String,
       required: [true, "Password is required"],
+      select: false,
+    },
+    googleSubject: {
+      type: String,
+      default: null,
       select: false,
     },
     role: {
@@ -112,6 +118,7 @@ const toPublicJSON = (_doc: unknown, ret: any) => {
   // fields are not. Destructuring avoids that restriction entirely.
   const {
     passwordHash,
+    googleSubject,
     emailVerificationToken,
     emailVerificationExpires,
     passwordResetToken,
@@ -132,6 +139,13 @@ userSchema.set("toObject", { transform: toPublicJSON }); // covers .toObject()/l
 // declaring it again here caused the duplicate schema index warning.
 userSchema.index({ emailVerificationToken: 1 }, { sparse: true }); // was "emailVerificaionToken" (typo) — index on wrong field
 userSchema.index({ passwordResetToken: 1 }, { sparse: true });
+userSchema.index(
+  { googleSubject: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { googleSubject: { $type: "string" } },
+  },
+);
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 
