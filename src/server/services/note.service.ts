@@ -17,6 +17,8 @@ export type PublicNote = ReturnType<NoteEntity["toPublic"]>;
 
 export interface CreateNoteOptions {
   telegramChatId?: number;
+  /** The PDF worker will enqueue generation after extraction completes. */
+  deferGeneration?: boolean;
 }
 
 async function requireOwnedNote(
@@ -65,6 +67,14 @@ export async function createNote(
     fileType: file.fileType,
     charCount: file.charCount,
   });
+
+  if (options.deferGeneration) {
+    logger.info("Study generation deferred for background ingestion", {
+      noteId: saved.id,
+      userId,
+    });
+    return publicNote;
+  }
 
   try {
     await enqueueStudyGeneration({

@@ -28,6 +28,12 @@ export interface ProcessedFile {
   charCount: number;
 }
 
+export interface PreparedUpload {
+  fileName: string;
+  fileType: FileType;
+  fileSize: number;
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 function hasPdfSignature(buffer: Buffer): boolean {
@@ -148,6 +154,19 @@ function sanitizeFileName(name: string): string {
     .replace(/[^a-zA-Z0-9._-]/g, "_") // replace unsafe chars
     .replace(/_{2,}/g, "_") // collapse multiple underscores
     .slice(0, 255); // enforce max length
+}
+
+/** Validate an upload without doing CPU-intensive document extraction. */
+export function prepareUpload(file: UploadedFile): PreparedUpload {
+  validateFile(file);
+
+  const extension = path.extname(file.originalName).toLowerCase();
+
+  return {
+    fileName: sanitizeFileName(file.originalName),
+    fileType: extension === ".pdf" ? "pdf" : "docx",
+    fileSize: file.size,
+  };
 }
 
 // ─── Process ──────────────────────────────────────────────────────────────────

@@ -54,6 +54,8 @@ interface ChatAnswer {
 }
 
 async function answerQuestion(
+  noteId: string,
+  userId: string,
   noteTitle: string,
   noteContent: string,
   intelligence:
@@ -117,6 +119,8 @@ async function answerQuestion(
           900,
         usageLabel:
           "chat",
+        userId,
+        noteId,
       });
 
     return {
@@ -242,6 +246,8 @@ export async function askQuestion(
 
   const answer =
     await answerQuestion(
+      noteId,
+      userId,
       note.title,
       note.content,
       intelligence,

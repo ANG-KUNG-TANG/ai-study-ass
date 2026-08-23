@@ -220,6 +220,42 @@ export async function updateSummary(
   return toEntity(doc);
 }
 
+export async function updateContent(
+  id: string,
+  content: string,
+): Promise<NoteEntity> {
+  const cleaned = content.trim();
+
+  if (!cleaned) {
+    throw new Error("Cannot update a note with empty document content");
+  }
+
+  const doc = await Note.findByIdAndUpdate(
+    id,
+    {
+      $set: {
+        content: cleaned,
+        updatedAt: new Date(),
+      },
+    },
+    {
+      returnDocument: "after",
+      runValidators: true,
+    },
+  )
+    .lean()
+    .exec();
+
+  if (!doc) throw new NotFoundError("Note");
+
+  logger.info("Note document content updated", {
+    noteId: id,
+    contentLength: cleaned.length,
+  });
+
+  return toEntity(doc);
+}
+
 export async function count(): Promise<number> {
   return Note.countDocuments();
 }

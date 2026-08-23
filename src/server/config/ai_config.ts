@@ -14,6 +14,8 @@ export interface AIConfig {
   };
   readonly requestTimeoutMs: number;
   readonly maxRetries: number;
+  readonly userDailyRequestLimit: number;
+  readonly userDailyTokenLimit: number;
 }
 
 // Provider keys are intentionally optional. Feature services attempt symbolic
@@ -30,6 +32,8 @@ export const AI_CONFIG: AIConfig = {
   },
   requestTimeoutMs: env.AI_REQUEST_TIMEOUT_MS,
   maxRetries: env.AI_MAX_RETRIES,
+  userDailyRequestLimit: env.AI_USER_DAILY_REQUEST_LIMIT,
+  userDailyTokenLimit: env.AI_USER_DAILY_TOKEN_LIMIT,
 };
 
 export function isAIProviderConfigured(provider: AIProvider): boolean {

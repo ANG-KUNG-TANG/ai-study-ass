@@ -33,6 +33,8 @@ const envSchema = z
     GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
     AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     AI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+    AI_USER_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(0),
+    AI_USER_DAILY_TOKEN_LIMIT: z.coerce.number().int().min(0).default(0),
 
     TRUST_CLOUDFLARE_PROXY: z
       .enum(["true", "false"])

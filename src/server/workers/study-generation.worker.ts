@@ -15,6 +15,7 @@ import {
   notifyTelegramGenerationFailure,
 } from "@/server/services/telegramGenerationNotification.service";
 import { logger } from "@/server/utils/logger";
+import { startWorkerHeartbeat } from "@/server/services/system-health.service";
 
 function getRedisUrl(): string {
   const url = process.env.REDIS_URL?.trim();
@@ -182,6 +183,8 @@ async function main(): Promise<void> {
 
   await worker.waitUntilReady();
 
+  const stopHeartbeat = startWorkerHeartbeat(connection, "study-generation");
+
   logger.info("[worker] study generation worker ready", {
     queue: STUDY_GENERATION_QUEUE_NAME,
     concurrency: getConcurrency(),
@@ -201,6 +204,7 @@ async function main(): Promise<void> {
     });
 
     try {
+      await stopHeartbeat();
       await worker.close();
       await connection.quit();
       await disconnectDB();

@@ -123,6 +123,8 @@ async function generateCardsViaAI(
   title: string,
   content: string,
   count: number,
+  userId: string,
+  noteId: string,
 ): Promise<{
   cards: FlashcardPair[];
   tokensUsed: number;
@@ -167,6 +169,8 @@ ${documentBlock}
     maxTokens: 1_800,
     jsonMode: true,
     usageLabel: "flashcards",
+    userId,
+    noteId,
   });
 
   const cleaned = result.text
@@ -265,6 +269,8 @@ export async function generateFlashcardsWithMetadata(
         note.title,
         note.content,
         missingCount,
+        userId,
+        noteId,
       );
 
       pairs = deduplicateCards([

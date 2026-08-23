@@ -13,7 +13,7 @@ import type {
   UserQueryOptions,
   PaginatedUsers,
 } from "@/server/repositories/user.repo";
-import { buildPaginationMeta, PaginationMeta } from "../utils/response";
+import { buildPaginationMeta, type PaginationMeta } from "../utils/response";
 import * as flashcardService from "@/server/services/flashcard.service";
 import * as chatService from "@/server/services/chat/chat.service";
 import * as intelligenceService from "@/server/services/intelligence.service";
@@ -22,11 +22,19 @@ import * as intelligenceRepo from "@/server/repositories/intelligence.repo";
 import * as flashcardRepo from "@/server/repositories/flashcard.repo";
 import type { NoteQueryOptions } from "@/server/repositories/note.repo";
 import mongoose from "mongoose";
+import {
+  getInfrastructureHealth,
+  type QueueHealthSnapshot,
+  type RedisHealthSnapshot,
+  type WorkerHealthSnapshot,
+} from "@/server/services/system-health.service";
+import {
+  getTelegramHealth,
+  type TelegramHealthSnapshot,
+} from "@/server/services/telegram-health.service";
 import { AI_CONFIG, type AIProvider } from "@/server/config/ai_config";
-import { getAIUsageEvents } from "@/server/services/ai.service";
-import { pingRedis } from "@/server/config/redis";
-import { deriveSystemHealthStatus } from "@/server/utils/system-health";
-
+import { getUsageSince } from "@/server/services/ai-usage.service";
+import { generate } from "@/server/services/ai.service";
 // ─── Purpose ──────────────────────────────────────────────────────────────────
 // Admin-only operations. Every function here must be called from routes
 // protected by withAuth + withRole("admin") middleware.
@@ -286,22 +294,54 @@ export async function getOverviewStats(): Promise<{
 export type AdminAIProviderStatus =
   | "operational"
   | "configured"
-  | "not_configured";
+  | "not_configured"
+  | "degraded"
+  | "quota_exhausted";
 
 export interface AdminAIProviderUsage {
   provider: AIProvider;
   status: AdminAIProviderStatus;
   requestsToday: number;
+  successesToday: number;
+  failuresToday: number;
+  quotaExceededToday: number;
   tokensToday: number;
   averageLatencyMs: number;
   spendToday: number;
-  failuresToday: number;
+  lastRequestAt: string | null;
+}
+
+export interface AdminAIUsageActivity {
+  id: string;
+  userId: string | null;
+  noteId: string | null;
+  provider: AIProvider;
+  model: string;
+  usageLabel: string;
+  success: boolean;
+  tokensUsed: number;
+  latencyMs: number;
+  statusCode: number | null;
+  quotaExceeded: boolean;
+  createdAt: string;
 }
 
 export interface AdminAIUsage {
+  summary: {
+    requestsToday: number;
+    successesToday: number;
+    failuresToday: number;
+    quotaExceededToday: number;
+    tokensToday: number;
+    averageLatencyMs: number;
+    successRate: number;
+    lastSuccessAt: string | null;
+    lastFailureAt: string | null;
+  };
   providers: AdminAIProviderUsage[];
   monthlySpend: number;
   requestsLastSevenDays: Array<{
+    date: string;
     label: string;
     value: number;
   }>;
@@ -309,6 +349,16 @@ export interface AdminAIUsage {
     route: string;
     count: number;
   }>;
+  models: Array<{
+    provider: AIProvider;
+    model: string;
+    requests: number;
+    successes: number;
+    failures: number;
+    tokens: number;
+    averageLatencyMs: number;
+  }>;
+  recentActivity: AdminAIUsageActivity[];
   warning: string;
 }
 
@@ -318,16 +368,66 @@ function providerConfigured(provider: AIProvider): boolean {
     : Boolean(AI_CONFIG.gemini.apiKey.trim());
 }
 
-function providerStatus(provider: AIProvider): AdminAIProviderStatus {
+function providerStatus(
+  provider: AIProvider,
+  providerToday: Awaited<ReturnType<typeof getUsageSince>>,
+): AdminAIProviderStatus {
   if (!providerConfigured(provider)) {
     return "not_configured";
   }
 
-  return provider === AI_CONFIG.activeProvider ? "operational" : "configured";
+  if (provider !== AI_CONFIG.activeProvider) {
+    return "configured";
+  }
+
+  if (providerToday.length === 0) {
+    return "configured";
+  }
+
+  const ordered = [...providerToday].sort(
+    (left, right) =>
+      left.createdAt.getTime() -
+      right.createdAt.getTime(),
+  );
+
+  const latest = ordered.at(-1) ?? null;
+
+  const latestSuccess =
+    [...ordered]
+      .reverse()
+      .find((event) => event.success) ??
+    null;
+
+  const latestQuota =
+    [...ordered]
+      .reverse()
+      .find(
+        (event) =>
+          event.quotaExceeded,
+      ) ??
+    null;
+
+  const quotaExhausted =
+    latestQuota !== null &&
+    (
+      latestSuccess === null ||
+      latestQuota.createdAt.getTime() >
+        latestSuccess.createdAt.getTime()
+    );
+
+  if (quotaExhausted) {
+    return "quota_exhausted";
+  }
+
+  return latest?.success
+    ? "operational"
+    : "degraded";
 }
 
-function beginningOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function beginningOfUtcDay(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
 }
 
 function averageNumber(values: number[]): number {
@@ -340,71 +440,113 @@ function averageNumber(values: number[]): number {
   );
 }
 
+function latestIso(values: Date[]): string | null {
+  if (values.length === 0) {
+    return null;
+  }
+
+  return values
+    .reduce((latest, value) =>
+      value.getTime() > latest.getTime() ? value : latest,
+    )
+    .toISOString();
+}
+
 export async function getAIUsage(): Promise<AdminAIUsage> {
   const now = new Date();
-  const today = beginningOfDay(now);
+  const today = beginningOfUtcDay(now);
+  const monthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  );
+  const sevenDaysStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6),
+  );
 
-  const events = getAIUsageEvents();
+  const since = monthStart < sevenDaysStart ? monthStart : sevenDaysStart;
+
+  const events = await getUsageSince(since);
+  const todayEvents = events.filter((event) => event.createdAt >= today);
+  const successesToday = todayEvents.filter((event) => event.success);
+  const failuresToday = todayEvents.filter((event) => !event.success);
+
+  const summary = {
+    requestsToday: todayEvents.length,
+    successesToday: successesToday.length,
+    failuresToday: failuresToday.length,
+    quotaExceededToday: todayEvents.filter((event) => event.quotaExceeded)
+      .length,
+    tokensToday: todayEvents.reduce((sum, event) => sum + event.tokensUsed, 0),
+    averageLatencyMs: averageNumber(
+      todayEvents.map((event) => event.latencyMs),
+    ),
+    successRate:
+      todayEvents.length === 0
+        ? 0
+        : (successesToday.length / todayEvents.length) * 100,
+    lastSuccessAt: latestIso(
+      events.filter((event) => event.success).map((event) => event.createdAt),
+    ),
+    lastFailureAt: latestIso(
+      events.filter((event) => !event.success).map((event) => event.createdAt),
+    ),
+  };
 
   const providers: AIProvider[] = ["openai", "gemini"];
 
   const providerUsage = providers.map((provider): AdminAIProviderUsage => {
-    const todayEvents = events.filter(
-      (event) => event.provider === provider && event.createdAt >= today,
+    const providerEvents = events.filter(
+      (event) => event.provider === provider,
+    );
+    const providerToday = providerEvents.filter(
+      (event) => event.createdAt >= today,
     );
 
     return {
       provider,
-
-      status: providerStatus(provider),
-
-      requestsToday: todayEvents.length,
-
-      tokensToday: todayEvents.reduce(
+      status: providerStatus(
+        provider,
+        providerToday,
+      ),
+      requestsToday: providerToday.length,
+      successesToday: providerToday.filter((event) => event.success).length,
+      failuresToday: providerToday.filter((event) => !event.success).length,
+      quotaExceededToday: providerToday.filter((event) => event.quotaExceeded)
+        .length,
+      tokensToday: providerToday.reduce(
         (sum, event) => sum + event.tokensUsed,
         0,
       ),
-
       averageLatencyMs: averageNumber(
-        todayEvents.map((event) => event.latencyMs),
+        providerToday.map((event) => event.latencyMs),
       ),
-
       spendToday: 0,
-
-      failuresToday: todayEvents.filter((event) => !event.success).length,
+      lastRequestAt: latestIso(providerEvents.map((event) => event.createdAt)),
     };
   });
 
   const weekday = new Intl.DateTimeFormat("en", {
     weekday: "short",
+    timeZone: "UTC",
   });
 
-  const requestsLastSevenDays = Array.from(
-    {
-      length: 7,
-    },
-    (_, index) => {
-      const day = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() - (6 - index),
-      );
+  const requestsLastSevenDays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - (6 - index),
+      ),
+    );
+    const nextDay = new Date(day.getTime() + 86_400_000);
 
-      const nextDay = new Date(
-        day.getFullYear(),
-        day.getMonth(),
-        day.getDate() + 1,
-      );
-
-      return {
-        label: weekday.format(day),
-
-        value: events.filter(
-          (event) => event.createdAt >= day && event.createdAt < nextDay,
-        ).length,
-      };
-    },
-  );
+    return {
+      date: day.toISOString().slice(0, 10),
+      label: weekday.format(day),
+      value: events.filter(
+        (event) => event.createdAt >= day && event.createdAt < nextDay,
+      ).length,
+    };
+  });
 
   const routeCounts = new Map<string, number>();
 
@@ -415,23 +557,90 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
     );
   }
 
+  const modelMap = new Map<
+    string,
+    {
+      provider: AIProvider;
+      model: string;
+      requests: number;
+      successes: number;
+      failures: number;
+      tokens: number;
+      latencies: number[];
+    }
+  >();
+
+  for (const event of events) {
+    const key = `${event.provider}:${event.model}`;
+    const current = modelMap.get(key) ?? {
+      provider: event.provider,
+      model: event.model,
+      requests: 0,
+      successes: 0,
+      failures: 0,
+      tokens: 0,
+      latencies: [],
+    };
+
+    current.requests += 1;
+    current.tokens += event.tokensUsed;
+    current.latencies.push(event.latencyMs);
+
+    if (event.success) {
+      current.successes += 1;
+    } else {
+      current.failures += 1;
+    }
+
+    modelMap.set(key, current);
+  }
+
+  const models = Array.from(modelMap.values())
+    .map((item) => ({
+      provider: item.provider,
+      model: item.model,
+      requests: item.requests,
+      successes: item.successes,
+      failures: item.failures,
+      tokens: item.tokens,
+      averageLatencyMs: averageNumber(item.latencies),
+    }))
+    .sort((left, right) => right.requests - left.requests);
+
+  const recentActivity: AdminAIUsageActivity[] = [...events]
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+    .slice(0, 20)
+    .map((event) => ({
+      id: event.id,
+      userId: event.userId,
+      noteId: event.noteId,
+      provider: event.provider,
+      model: event.model,
+      usageLabel: event.usageLabel,
+      success: event.success,
+      tokensUsed: event.tokensUsed,
+      latencyMs: event.latencyMs,
+      statusCode: event.statusCode,
+      quotaExceeded: event.quotaExceeded,
+      createdAt: event.createdAt.toISOString(),
+    }));
+
   return {
+    summary,
     providers: providerUsage,
-
     monthlySpend: 0,
-
     requestsLastSevenDays,
-
     requestsByRoute: Array.from(routeCounts.entries())
       .map(([route, count]) => ({
         route,
         count,
       }))
       .sort((left, right) => right.count - left.count),
-
+    models,
+    recentActivity,
     warning:
-      "Usage telemetry is stored in memory and resets when the server restarts. " +
-      "Spend remains $0 until durable input/output token accounting and pricing are added.",
+      "Usage telemetry is stored durably in MongoDB. " +
+      "Spend remains $0 until provider pricing is explicitly configured.",
   };
 }
 
@@ -439,7 +648,6 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
 
 export interface AdminHealthCheck {
   status: "healthy" | "degraded" | "unhealthy";
-
   timestamp: string;
   uptime: number;
   version: string;
@@ -450,18 +658,46 @@ export interface AdminHealthCheck {
     latencyMs: number | null;
   };
 
-  redis: {
-    reachable: boolean;
-    latencyMs: number | null;
+  redis: RedisHealthSnapshot;
+
+  queues: {
+    studyGeneration: QueueHealthSnapshot;
+    pdfIngestion: QueueHealthSnapshot;
+  };
+
+  workers: {
+    studyGeneration: WorkerHealthSnapshot;
+    pdfIngestion: WorkerHealthSnapshot;
   };
 
   ai: {
+    status:
+      | "not_configured"
+      | "configured"
+      | "operational"
+      | "degraded"
+      | "quota_exhausted";
+
     reachable: boolean;
     configured: boolean;
+
     provider: AIProvider;
     model: string;
-    checkMode: "configuration";
+
+    checkMode:
+      "configuration_and_telemetry";
+
+    requestsToday: number;
+    successesToday: number;
+    failuresToday: number;
+    quotaExceededToday: number;
+
+    lastRequestAt: string | null;
+    lastSuccessAt: string | null;
+    lastFailureAt: string | null;
   };
+
+  telegram: TelegramHealthSnapshot;
 
   memory: {
     used: number;
@@ -511,61 +747,260 @@ async function databaseHealth(): Promise<AdminHealthCheck["database"]> {
   }
 }
 
-async function redisHealth(): Promise<AdminHealthCheck["redis"]> {
-  const startedAt = Date.now();
-  const reachable = await pingRedis();
+async function aiProviderHealth():
+Promise<AdminHealthCheck["ai"]> {
+  const provider = AI_CONFIG.activeProvider;
+  const configured = providerConfigured(provider);
+  const model =
+    provider === "openai"
+      ? AI_CONFIG.openai.model
+      : AI_CONFIG.gemini.model;
 
-  return {
-    reachable,
-    latencyMs: reachable ? Date.now() - startedAt : null,
+  const empty = {
+    reachable: false,
+    configured,
+    provider,
+    model,
+    checkMode:
+      "configuration_and_telemetry" as const,
+    requestsToday: 0,
+    successesToday: 0,
+    failuresToday: 0,
+    quotaExceededToday: 0,
+    lastRequestAt: null,
+    lastSuccessAt: null,
+    lastFailureAt: null,
   };
+
+  if (!configured) {
+    return {
+      ...empty,
+      status: "not_configured",
+    };
+  }
+
+  const now = new Date();
+  const today = beginningOfUtcDay(now);
+  const sevenDaysAgo =
+    new Date(
+      today.getTime() -
+        6 * 86_400_000,
+    );
+
+  try {
+    const events =
+      await getUsageSince(
+        sevenDaysAgo,
+      );
+
+    const providerEvents =
+      events
+        .filter(
+          (event) =>
+            event.provider === provider,
+        )
+        .sort(
+          (left, right) =>
+            left.createdAt.getTime() -
+            right.createdAt.getTime(),
+        );
+
+    const todayEvents =
+      providerEvents.filter(
+        (event) =>
+          event.createdAt >= today,
+      );
+
+    const successesToday =
+      todayEvents.filter(
+        (event) =>
+          event.success,
+      );
+
+    const failuresToday =
+      todayEvents.filter(
+        (event) =>
+          !event.success,
+      );
+
+    const quotaEventsToday =
+      todayEvents.filter(
+        (event) =>
+          event.quotaExceeded,
+      );
+
+    const latestToday =
+      todayEvents.at(-1) ?? null;
+
+    const latestSuccessToday =
+      successesToday.at(-1) ?? null;
+
+    const latestQuotaToday =
+      quotaEventsToday.at(-1) ?? null;
+
+    const quotaExhausted =
+      latestQuotaToday !== null &&
+      (
+        latestSuccessToday === null ||
+        latestQuotaToday.createdAt.getTime() >
+          latestSuccessToday.createdAt.getTime()
+      );
+
+    const status:
+      AdminHealthCheck["ai"]["status"] =
+      quotaExhausted
+        ? "quota_exhausted"
+        : latestToday === null
+          ? "configured"
+          : latestToday.success
+            ? "operational"
+            : "degraded";
+
+    return {
+      ...empty,
+      status,
+      reachable:
+        status === "operational",
+      requestsToday:
+        todayEvents.length,
+      successesToday:
+        successesToday.length,
+      failuresToday:
+        failuresToday.length,
+      quotaExceededToday:
+        quotaEventsToday.length,
+      lastRequestAt:
+        latestIso(
+          providerEvents.map(
+            (event) => event.createdAt,
+          ),
+        ),
+      lastSuccessAt:
+        latestIso(
+          providerEvents
+            .filter(
+              (event) => event.success,
+            )
+            .map(
+              (event) => event.createdAt,
+            ),
+        ),
+      lastFailureAt:
+        latestIso(
+          providerEvents
+            .filter(
+              (event) => !event.success,
+            )
+            .map(
+              (event) => event.createdAt,
+            ),
+        ),
+    };
+  } catch (error) {
+    logger.warn(
+      "Admin AI health telemetry lookup failed",
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      },
+    );
+
+    return {
+      ...empty,
+      status: "configured",
+    };
+  }
 }
 
 export async function getSystemHealth(): Promise<AdminHealthCheck> {
-  const [database, redis] = await Promise.all([
+  const [
+    database,
+    infrastructure,
+    telegram,
+    ai,
+  ] = await Promise.all([
     databaseHealth(),
-    redisHealth(),
+    getInfrastructureHealth(),
+    getTelegramHealth(),
+    aiProviderHealth(),
   ]);
 
-  const provider = AI_CONFIG.activeProvider;
+  const memory =
+    process.memoryUsage();
 
-  const configured = providerConfigured(provider);
+  const coreAvailable = database.connected && infrastructure.redis.connected;
 
-  const memory = process.memoryUsage();
+  const workersAvailable =
+    infrastructure.workers.studyGeneration.online &&
+    infrastructure.workers.pdfIngestion.online;
+
+  const queuesAvailable =
+    infrastructure.queues.studyGeneration.available &&
+    infrastructure.queues.pdfIngestion.available;
+
+  const telegramAvailable =
+    telegram.configured &&
+    telegram.reachable &&
+    telegram.webhook.configured &&
+    telegram.webhook.matchesExpectedUrl !== false;
+
+  const aiDegraded =
+    ai.status === "quota_exhausted" ||
+    ai.status === "degraded";
+
+  const status:
+    AdminHealthCheck["status"] =
+    !coreAvailable
+      ? "unhealthy"
+      : !workersAvailable ||
+          !queuesAvailable ||
+          !telegramAvailable ||
+          aiDegraded
+        ? "degraded"
+        : "healthy";
 
   return {
-    status: deriveSystemHealthStatus({
-      databaseConnected: database.connected,
-      redisReachable: redis.reachable,
-      aiConfigured: configured,
-    }),
-
+    status,
     timestamp: new Date().toISOString(),
-
     uptime: process.uptime(),
-
     version: process.env.npm_package_version ?? "unknown",
-
     database,
+    redis: infrastructure.redis,
+    queues: infrastructure.queues,
+    workers: infrastructure.workers,
+    ai,
 
-    redis,
-
-    ai: {
-      reachable: configured,
-      configured,
-      provider,
-
-      model:
-        provider === "openai" ? AI_CONFIG.openai.model : AI_CONFIG.gemini.model,
-
-      // This does not consume provider quota. It verifies configuration only.
-      checkMode: "configuration",
-    },
-
+    telegram,
     memory: {
       used: memory.heapUsed,
       total: memory.heapTotal,
       rss: memory.rss,
     },
+  };
+}
+export async function testAIProvider(adminId: string): Promise<{
+  provider: AIProvider;
+  model: string;
+  tokensUsed: number;
+  response: string;
+}> {
+  const result = await generate({
+    systemPrompt:
+      "You are performing an internal AI provider connectivity test.",
+    prompt: 'Reply with exactly: "AI provider operational"',
+    temperature: 0,
+    maxTokens: 30,
+    usageLabel: "admin_test",
+    userId: adminId,
+    skipUserQuota: true,
+  });
+
+  return {
+    provider: result.provider,
+    model: result.model,
+    tokensUsed: result.tokensUsed,
+    response: result.text.trim(),
   };
 }

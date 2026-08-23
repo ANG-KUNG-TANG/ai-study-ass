@@ -139,6 +139,8 @@ export async function generateSummary(
         temperature: 0.1,
         maxTokens: 2_000,
         usageLabel: "summary",
+        userId: note.userId,
+        noteId,
       });
       const parsed = parseAIDraft(aiResult.text);
       const validated = validateAIDraft(

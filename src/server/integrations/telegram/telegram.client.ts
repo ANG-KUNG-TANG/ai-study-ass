@@ -1,6 +1,8 @@
 import type {
   TelegramApiResponse,
   TelegramFile,
+  TelegramUser,
+  TelegramWebhookInfo,
 } from "./telegram.types";
 
 const TELEGRAM_API_URL = "https://api.telegram.org";
@@ -30,6 +32,31 @@ function createTelegramApiUrl(method: string): string {
 
 function createTelegramFileUrl(filePath: string): string {
   return `${TELEGRAM_API_URL}/file/bot${getBotToken()}/${filePath}`;
+}
+
+async function getTelegramMetadata<T>(method: string): Promise<T> {
+  const response = await fetch(createTelegramApiUrl(method), {
+    method: "GET",
+    signal: AbortSignal.timeout(10_000),
+  });
+  const data = (await response.json()) as TelegramApiResponse<T>;
+
+  if (!response.ok || !data.ok || !data.result) {
+    throw new Error(
+      `Telegram ${method} failed: ${data.description ?? response.statusText}`,
+    );
+  }
+
+  return data.result;
+}
+
+// Read-only metadata used by the admin health dashboard.
+export function getMe(): Promise<TelegramUser> {
+  return getTelegramMetadata<TelegramUser>("getMe");
+}
+
+export function getWebhookInfo(): Promise<TelegramWebhookInfo> {
+  return getTelegramMetadata<TelegramWebhookInfo>("getWebhookInfo");
 }
 
 // ─── Send Message ─────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { LayoutDashboard, FileText, AlignLeft, HelpCircle, Copy, MessageSquare, 
 
 export const studentNavItems = [
   { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/student/ai-usage", label: "AI Usage", icon: Sparkles },
   { href: "/student/notes", label: "Notes", icon: FileText },
   { href: "/student/summary", label: "Summary", icon: AlignLeft },
   { href: "/student/quiz", label: "Quiz", icon: HelpCircle },
