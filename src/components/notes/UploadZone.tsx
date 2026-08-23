@@ -6,30 +6,38 @@ import { Button } from "@/components/ui/Button";
 import { ALLOWED_EXTENSIONS, MAX_FILE_SIZE_BYTES } from "@/server/utils/constants";
 import { apiFetch } from "@/lib/api";
 import type { Note } from "@/types/notes";
+import { useLanguage } from "@/context/LanguageContext";
+import type { TranslationKey, TranslationValues } from "@/i18n/translations";
 
 interface UploadZoneProps {
   onUploaded: (note: Note) => void;
 }
 
-function validateFile(file: File): string | null {
+function validateFile(
+  file: File,
+  t: (key: TranslationKey, values?: TranslationValues) => string,
+): string | null {
   const ext = "." + file.name.split(".").pop()?.toLowerCase();
   if (!ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])) {
-    return `Unsupported file type. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`;
+    return t("upload.unsupported", { types: ALLOWED_EXTENSIONS.join(", ") });
   }
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return `File too large. Max size: ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB`;
+    return t("upload.tooLarge", {
+      size: MAX_FILE_SIZE_BYTES / 1024 / 1024,
+    });
   }
   return null;
 }
 
 export function UploadZone({ onUploaded }: UploadZoneProps) {
+  const { t } = useLanguage();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
-    const validationError = validateFile(file);
+    const validationError = validateFile(file, t);
     if (validationError) {
       setError(validationError);
       return;
@@ -50,7 +58,7 @@ export function UploadZone({ onUploaded }: UploadZoneProps) {
 
       onUploaded(note);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : t("upload.failed"));
     } finally {
       setIsUploading(false);
     }
@@ -83,10 +91,10 @@ export function UploadZone({ onUploaded }: UploadZoneProps) {
     >
       <Upload size={22} strokeWidth={1.6} className="text-ink-faint" />
       <h3 className="font-serif text-[15px] font-semibold">
-        {isUploading ? "Uploading…" : "Drop a PDF or DOCX to upload"}
+        {isUploading ? t("upload.uploading") : t("upload.drop")}
       </h3>
       <p className="max-w-[360px] text-[12.5px] text-ink-soft">
-        We&apos;ll extract the text and get it ready for summaries, quizzes, and chat.
+        {t("upload.description")}
       </p>
 
       {error && <p className="text-[12px] text-coral">{error}</p>}
@@ -99,7 +107,7 @@ export function UploadZone({ onUploaded }: UploadZoneProps) {
         className="hidden"
       />
       <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={isUploading}>
-        {isUploading ? "Uploading…" : "Browse files"}
+        {isUploading ? t("upload.uploading") : t("upload.browse")}
       </Button>
     </div>
   );

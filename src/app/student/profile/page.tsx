@@ -1,12 +1,18 @@
+"use client";
+
+import { useLanguage } from "@/context/LanguageContext";
+
 export default function StudentProfilePage() {
+  const { t } = useLanguage();
+
   return (
     <main>
       <h1 className="font-serif text-2xl font-semibold">
-        Student Profile
+        {t("profile.title")}
       </h1>
 
       <p className="mt-2 text-sm text-gray-600">
-        Manage your profile and account information.
+        {t("profile.description")}
       </p>
     </main>
   );

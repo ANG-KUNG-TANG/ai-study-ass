@@ -16,6 +16,7 @@ import {
 import type {
   AdminContentItem,
 } from "@/types/admin";
+import { useLanguage } from "@/context/LanguageContext";
 
 function normalizeContentItems(
   value: unknown,
@@ -64,6 +65,7 @@ function formatDate(
 }
 
 export default function AdminContentPage() {
+  const { t } = useLanguage();
   const [
     search,
     setSearch,
@@ -109,13 +111,13 @@ export default function AdminContentPage() {
         setError(
           unknownError instanceof Error
             ? unknownError.message
-            : "Failed to load content",
+            : t("admin.content.loadFailed"),
         );
       } finally {
         setIsLoading(false);
       }
     },
-    [search],
+    [search, t],
   );
 
   useEffect(() => {
@@ -140,7 +142,7 @@ export default function AdminContentPage() {
   ) {
     const approved =
       window.confirm(
-        `Delete "${title}"? This cannot be undone.`,
+        t("admin.content.deleteConfirm", { title }),
       );
 
     if (!approved) {
@@ -157,7 +159,7 @@ export default function AdminContentPage() {
       setError(
         unknownError instanceof Error
           ? unknownError.message
-          : "Failed to delete content",
+          : t("admin.content.deleteFailed"),
       );
     }
   }
@@ -170,19 +172,19 @@ export default function AdminContentPage() {
   return (
     <>
       <Topbar
-        eyebrow="Admin"
-        title="Content"
+        eyebrow={t("admin.eyebrow")}
+        title={t("admin.content.title")}
         search={{
           value: search,
           onChange: setSearch,
           placeholder:
-            "Search content…",
+            t("admin.content.search"),
         }}
       />
 
       {isLoading && (
         <p className="text-[13px] text-ink-soft">
-          Loading…
+          {t("admin.content.loading")}
         </p>
       )}
 
@@ -201,23 +203,23 @@ export default function AdminContentPage() {
               <thead>
                 <tr className="border-b border-line text-[11px] uppercase tracking-wide text-ink-faint">
                   <th className="px-4 py-3 font-medium">
-                    Title
+                    {t("admin.content.column.title")}
                   </th>
 
                   <th className="px-4 py-3 font-medium">
-                    Owner
+                    {t("admin.content.column.owner")}
                   </th>
 
                   <th className="px-4 py-3 font-medium">
-                    Type
+                    {t("admin.content.column.type")}
                   </th>
 
                   <th className="px-4 py-3 font-medium">
-                    Created
+                    {t("admin.content.column.created")}
                   </th>
 
                   <th className="px-4 py-3 text-right font-medium">
-                    Actions
+                    {t("admin.content.column.actions")}
                   </th>
                 </tr>
               </thead>
@@ -231,7 +233,7 @@ export default function AdminContentPage() {
                     >
                       <td className="max-w-[300px] truncate px-4 py-3 font-medium">
                         {item.title ||
-                          "Untitled note"}
+                          t("admin.content.untitled")}
                       </td>
 
                       <td className="px-4 py-3 text-ink-soft">
@@ -260,7 +262,7 @@ export default function AdminContentPage() {
                             )
                           }
                           className="rounded-md p-1 text-coral hover:bg-coral-soft"
-                          aria-label={`Delete ${item.title}`}
+                          aria-label={t("note.deleteLabel", { title: item.title })}
                         >
                           <Trash2
                             size={14}
@@ -279,7 +281,7 @@ export default function AdminContentPage() {
                       colSpan={5}
                       className="px-4 py-8 text-center text-ink-faint"
                     >
-                      No content found.
+                      {t("admin.content.empty")}
                     </td>
                   </tr>
                 )}

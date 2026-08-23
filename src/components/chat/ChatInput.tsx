@@ -1,6 +1,7 @@
 "use client";
 import { useState, KeyboardEvent } from "react";
 import { Send } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -8,6 +9,7 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
+  const { t } = useLanguage();
   const [value, setValue] = useState("");
 
   function handleSubmit() {
@@ -31,7 +33,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        placeholder="Ask a question about this note…"
+        placeholder={t("chat.placeholderNote")}
         rows={1}
         className="max-h-32 flex-1 resize-none bg-transparent px-2 py-1.5 text-[13.5px] outline-none placeholder:text-ink-faint"
       />
@@ -39,7 +41,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         onClick={handleSubmit}
         disabled={disabled || !value.trim()}
         className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-ink text-paper transition-opacity disabled:opacity-30"
-        aria-label="Send"
+        aria-label={t("chat.sendShort")}
       >
         <Send size={15} strokeWidth={1.8} />
       </button>

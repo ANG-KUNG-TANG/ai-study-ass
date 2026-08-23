@@ -12,6 +12,7 @@ import { DeleteNoteDialog } from "@/components/notes/DeleteNoteDialog";
 import { UploadZone } from "@/components/notes/UploadZone";
 import { useNotes } from "@/hooks/useNotes";
 import { deleteNote } from "@/services/note.service";
+import { useLanguage } from "@/context/LanguageContext";
 
 const VIEW_ALL_PAGE_SIZE = 50;
 
@@ -21,6 +22,7 @@ interface DeleteTarget {
 }
 
 export default function NotesPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
@@ -73,7 +75,7 @@ export default function NotesPage() {
       }
     } catch (cause) {
       setDeleteError(
-        cause instanceof Error ? cause.message : "Failed to delete paper",
+        cause instanceof Error ? cause.message : t("notes.deleteFailed"),
       );
     } finally {
       setIsDeleting(false);
@@ -91,11 +93,11 @@ export default function NotesPage() {
   return (
     <>
       <Topbar
-        title="All papers"
+        title={t("notes.title")}
         search={{
           value: search,
           onChange: handleSearchChange,
-          placeholder: "Search all papers…",
+          placeholder: t("notes.search"),
         }}
       />
 
@@ -106,19 +108,19 @@ export default function NotesPage() {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-serif text-[19px] font-semibold text-ink">
-            Uploaded papers
+            {t("notes.uploaded")}
           </h2>
 
           <p className="mt-1 text-[12px] text-ink-soft">
             {meta
-              ? `${meta.total} paper${meta.total === 1 ? "" : "s"} in your library`
-              : "Your uploaded papers"}
+              ? t(meta.total === 1 ? "notes.libraryCountOne" : "notes.libraryCount", { count: meta.total })
+              : t("notes.yourPapers")}
           </p>
         </div>
 
         {meta && meta.total > 0 && (
           <p className="font-mono text-[10.5px] text-ink-faint">
-            Showing {firstVisible}–{lastVisible} of {meta.total}
+            {t("notes.showing", { first: firstVisible, last: lastVisible, total: meta.total })}
           </p>
         )}
       </div>
@@ -157,13 +159,13 @@ export default function NotesPage() {
           </div>
 
           <h3 className="font-serif text-lg font-semibold text-ink">
-            {search.trim() ? "No matching papers" : "No papers yet"}
+            {search.trim() ? t("notes.noMatch") : t("notes.noPapers")}
           </h3>
 
           <p className="mt-1 text-sm text-ink-soft">
             {search.trim()
-              ? "Try a different search term."
-              : "Upload your first PDF or DOCX above to start learning."}
+              ? t("notes.trySearch")
+              : t("notes.uploadFirst")}
           </p>
         </div>
       )}
@@ -193,11 +195,11 @@ export default function NotesPage() {
                 className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-paper-raised px-3 py-2 text-[12px] font-medium text-ink transition hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronLeft size={14} strokeWidth={1.8} />
-                Previous
+                {t("common.previous")}
               </button>
 
               <span className="font-mono text-[10.5px] text-ink-faint">
-                Page {meta.page} of {meta.totalPages}
+                {t("notes.pageOf", { page: meta.page, total: meta.totalPages })}
               </span>
 
               <button
@@ -210,7 +212,7 @@ export default function NotesPage() {
                 }
                 className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-paper-raised px-3 py-2 text-[12px] font-medium text-ink transition hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Next
+                {t("common.next")}
                 <ChevronRight size={14} strokeWidth={1.8} />
               </button>
             </div>

@@ -28,6 +28,14 @@ import {
 import type {
   Note,
 } from "@/types/notes";
+import {
+  useLanguage,
+} from "@/context/LanguageContext";
+import type {
+  Locale,
+  TranslationKey,
+  TranslationValues,
+} from "@/i18n/translations";
 
 export type StudyFeature =
   | "summary"
@@ -40,12 +48,12 @@ interface FeatureNoteListProps {
 }
 
 interface FeatureConfig {
-  title: string;
-  eyebrow: string;
-  description: string;
-  emptyTitle: string;
-  emptyDescription: string;
-  actionLabel: string;
+  titleKey: TranslationKey;
+  eyebrowKey: TranslationKey;
+  descriptionKey: TranslationKey;
+  emptyTitleKey: TranslationKey;
+  emptyDescriptionKey: TranslationKey;
+  actionLabelKey: TranslationKey;
   icon: LucideIcon;
   iconClassName: string;
 }
@@ -58,18 +66,18 @@ const FEATURE_CONFIG:
     FeatureConfig
   > = {
     summary: {
-      title:
-        "Summaries",
-      eyebrow:
-        "Study materials",
-      description:
-        "Open a note to review its generated summary.",
-      emptyTitle:
-        "No notes available",
-      emptyDescription:
-        "Upload a PDF or DOCX before opening a generated summary.",
-      actionLabel:
-        "Open summary",
+      titleKey:
+        "feature.summaries",
+      eyebrowKey:
+        "feature.studyMaterials",
+      descriptionKey:
+        "feature.summariesDescription",
+      emptyTitleKey:
+        "feature.noNotes",
+      emptyDescriptionKey:
+        "feature.summariesEmpty",
+      actionLabelKey:
+        "feature.openSummary",
       icon:
         AlignLeft,
       iconClassName:
@@ -77,18 +85,18 @@ const FEATURE_CONFIG:
     },
 
     quiz: {
-      title:
-        "Quizzes",
-      eyebrow:
-        "Study materials",
-      description:
-        "Choose a note to open its quiz or generate missing questions.",
-      emptyTitle:
-        "No notes available",
-      emptyDescription:
-        "Upload a document before starting a quiz.",
-      actionLabel:
-        "Open quiz",
+      titleKey:
+        "feature.quizzes",
+      eyebrowKey:
+        "feature.studyMaterials",
+      descriptionKey:
+        "feature.quizzesDescription",
+      emptyTitleKey:
+        "feature.noNotes",
+      emptyDescriptionKey:
+        "feature.quizzesEmpty",
+      actionLabelKey:
+        "feature.openQuiz",
       icon:
         HelpCircle,
       iconClassName:
@@ -96,18 +104,18 @@ const FEATURE_CONFIG:
     },
 
     flashcards: {
-      title:
-        "Flashcards",
-      eyebrow:
-        "Study materials",
-      description:
-        "Choose a note to study its generated flashcard deck.",
-      emptyTitle:
-        "No notes available",
-      emptyDescription:
-        "Upload a document before reviewing flashcards.",
-      actionLabel:
-        "Open flashcards",
+      titleKey:
+        "nav.flashcards",
+      eyebrowKey:
+        "feature.studyMaterials",
+      descriptionKey:
+        "feature.flashcardsDescription",
+      emptyTitleKey:
+        "feature.noNotes",
+      emptyDescriptionKey:
+        "feature.flashcardsEmpty",
+      actionLabelKey:
+        "feature.openFlashcards",
       icon:
         Copy,
       iconClassName:
@@ -115,18 +123,18 @@ const FEATURE_CONFIG:
     },
 
     chat: {
-      title:
-        "Chat",
-      eyebrow:
-        "Study assistant",
-      description:
-        "Choose a note and ask questions using its saved knowledge context.",
-      emptyTitle:
-        "No notes available",
-      emptyDescription:
-        "Upload a document before starting a note-based chat.",
-      actionLabel:
-        "Open chat",
+      titleKey:
+        "nav.chat",
+      eyebrowKey:
+        "feature.studyAssistant",
+      descriptionKey:
+        "feature.chatDescription",
+      emptyTitleKey:
+        "feature.noNotes",
+      emptyDescriptionKey:
+        "feature.chatEmpty",
+      actionLabelKey:
+        "feature.openChat",
       icon:
         MessageSquare,
       iconClassName:
@@ -145,6 +153,8 @@ function featureHref(
 
 function formatDate(
   value: string,
+  locale: Locale,
+  t: (key: TranslationKey, values?: TranslationValues) => string,
 ): string {
   const date =
     new Date(value);
@@ -154,11 +164,11 @@ function formatDate(
       date.getTime(),
     )
   ) {
-    return "Unknown date";
+    return t("common.unknownDate");
   }
 
   return new Intl.DateTimeFormat(
-    undefined,
+    locale,
     {
       year: "numeric",
       month: "short",
@@ -169,12 +179,13 @@ function formatDate(
 
 function formatFileSize(
   bytes: number,
+  t: (key: TranslationKey, values?: TranslationValues) => string,
 ): string {
   if (
     !Number.isFinite(bytes) ||
     bytes <= 0
   ) {
-    return "Unknown size";
+    return t("common.unknownSize");
   }
 
   if (bytes < 1024) {
@@ -198,6 +209,7 @@ function formatFileSize(
 
 function summaryPreview(
   note: Note,
+  t: (key: TranslationKey, values?: TranslationValues) => string,
 ): string {
   const summary =
     note.summary?.trim();
@@ -206,7 +218,7 @@ function summaryPreview(
     return summary;
   }
 
-  return "Open this note to view its generated study material.";
+  return t("feature.preview");
 }
 
 function FeatureCard({
@@ -218,6 +230,10 @@ function FeatureCard({
   feature: StudyFeature;
   config: FeatureConfig;
 }) {
+  const {
+    locale,
+    t,
+  } = useLanguage();
   const Icon =
     config.icon;
 
@@ -255,6 +271,7 @@ function FeatureCard({
       <p className="mt-2 line-clamp-3 text-[12px] leading-5 text-ink-soft">
         {summaryPreview(
           note,
+          t,
         )}
       </p>
 
@@ -262,6 +279,8 @@ function FeatureCard({
         <span>
           {formatDate(
             note.createdAt,
+            locale,
+            t,
           )}
         </span>
 
@@ -272,6 +291,7 @@ function FeatureCard({
         <span>
           {formatFileSize(
             note.fileSize,
+            t,
           )}
         </span>
       </div>
@@ -286,8 +306,8 @@ function FeatureCard({
         >
           <span>
             {summaryReady
-              ? "View summary"
-              : config.actionLabel}
+              ? t("feature.viewSummary")
+              : t(config.actionLabelKey)}
           </span>
 
           <ArrowRight
@@ -305,6 +325,9 @@ function FeatureCard({
 export function FeatureNoteList({
   feature,
 }: FeatureNoteListProps) {
+  const {
+    t,
+  } = useLanguage();
   const config =
     FEATURE_CONFIG[feature];
 
@@ -391,10 +414,10 @@ export function FeatureNoteList({
     <>
       <Topbar
         eyebrow={
-          config.eyebrow
+          t(config.eyebrowKey)
         }
         title={
-          config.title
+          t(config.titleKey)
         }
         search={{
           value:
@@ -402,7 +425,7 @@ export function FeatureNoteList({
           onChange:
             setSearch,
           placeholder:
-            "Search notes…",
+            t("feature.search"),
         }}
         actions={
           <button
@@ -423,20 +446,25 @@ export function FeatureNoteList({
               }
             />
 
-            Refresh
+            {t("common.refresh")}
           </button>
         }
       />
 
       <div className="-mt-5 mb-5 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11.5px] text-ink-faint">
-          {config.description}
+          {t(config.descriptionKey)}
         </p>
 
         <p className="font-mono text-[10px] text-ink-faint">
           {meta
-            ? `${meta.total.toLocaleString()} note${meta.total === 1 ? "" : "s"}`
-            : "Loading notes…"}
+            ? t(
+                meta.total === 1
+                  ? "feature.noteCountOne"
+                  : "feature.noteCount",
+                { count: meta.total.toLocaleString() },
+              )
+            : t("feature.loadingNotes")}
         </p>
       </div>
 
@@ -451,7 +479,7 @@ export function FeatureNoteList({
             onClick={refetch}
             className="rounded-lg border border-coral/30 px-3 py-1.5 text-[11px] font-medium text-coral hover:bg-paper-raised"
           >
-            Try again
+            {t("common.tryAgain")}
           </button>
         </div>
       )}
@@ -497,14 +525,14 @@ export function FeatureNoteList({
 
             <h2 className="mt-4 font-serif text-[18px] font-semibold text-ink">
               {debouncedSearch
-                ? "No matching notes"
-                : config.emptyTitle}
+                ? t("feature.noMatch")
+                : t(config.emptyTitleKey)}
             </h2>
 
             <p className="mt-2 max-w-md text-[12.5px] leading-5 text-ink-soft">
               {debouncedSearch
-                ? "Try a different title or clear the search field."
-                : config.emptyDescription}
+                ? t("feature.tryDifferent")
+                : t(config.emptyDescriptionKey)}
             </p>
 
             <Link
@@ -516,7 +544,7 @@ export function FeatureNoteList({
                 strokeWidth={1.8}
               />
 
-              Open notes
+              {t("feature.openNotes")}
             </Link>
           </div>
         )}
@@ -570,13 +598,14 @@ export function FeatureNoteList({
                 }
                 className="rounded-xl border border-line bg-paper-raised px-3.5 py-2 text-[12px] font-medium text-ink-soft transition hover:bg-line-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Previous
+                {t("common.previous")}
               </button>
 
               <span className="font-mono text-[10.5px] text-ink-faint">
-                Page{" "}
-                {currentPage} of{" "}
-                {totalPages}
+                {t("notes.pageOf", {
+                  page: currentPage,
+                  total: totalPages,
+                })}
               </span>
 
               <button
@@ -597,7 +626,7 @@ export function FeatureNoteList({
                 }
                 className="rounded-xl border border-line bg-paper-raised px-3.5 py-2 text-[12px] font-medium text-ink-soft transition hover:bg-line-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Next
+                {t("common.next")}
               </button>
             </div>
           </>

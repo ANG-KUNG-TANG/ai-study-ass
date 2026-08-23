@@ -1,6 +1,5 @@
 "use client";
 
-import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 import {
   FileText,
@@ -12,6 +11,8 @@ import {
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { Chip } from "@/components/ui/Chip";
+import { useLanguage } from "@/context/LanguageContext";
+import type { Locale } from "@/i18n/translations";
 
 interface NoteCardProps {
   note: {
@@ -51,16 +52,42 @@ function getFileIcon(fileType: string = "pdf") {
   };
 }
 
+function formatRelativeDate(value: string, locale: Locale): string {
+  const elapsedSeconds = (new Date(value).getTime() - Date.now()) / 1000;
+  const ranges = [
+    [60, "second"],
+    [60, "minute"],
+    [24, "hour"],
+    [7, "day"],
+    [4.345, "week"],
+    [12, "month"],
+    [Number.POSITIVE_INFINITY, "year"],
+  ] as const;
+  let duration = elapsedSeconds;
+
+  for (const [amount, unit] of ranges) {
+    if (Math.abs(duration) < amount) {
+      return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(
+        Math.round(duration),
+        unit,
+      );
+    }
+
+    duration /= amount;
+  }
+
+  return "";
+}
+
 export function NoteCard({
   note,
   onDelete,
   isDeleting = false,
 }: NoteCardProps) {
   const router = useRouter();
+  const { locale, t } = useLanguage();
   const { icon: FileIcon, bg } = getFileIcon(note.fileType);
-  const timeAgo = formatDistanceToNow(new Date(note.createdAt), {
-    addSuffix: true,
-  });
+  const timeAgo = formatRelativeDate(note.createdAt, locale);
 
   return (
     <Card
@@ -86,8 +113,8 @@ export function NoteCard({
           {onDelete && (
             <button
               type="button"
-              title={`Delete ${note.title}`}
-              aria-label={`Delete ${note.title}`}
+              title={t("note.deleteLabel", { title: note.title })}
+              aria-label={t("note.deleteLabel", { title: note.title })}
               disabled={isDeleting}
               onClick={(event) => {
                 event.stopPropagation();
@@ -114,31 +141,31 @@ export function NoteCard({
       </h4>
 
       <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-soft">
-        {note.summary || "No summary yet"}
+        {note.summary || t("note.noSummary")}
       </p>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {note.status === "ready" && (
           <Chip tone="sage" className="text-[10px]">
-            Summary ready
+            {t("note.summaryReady")}
           </Chip>
         )}
 
         {note.status === "processing" && (
           <Chip tone="neutral" className="text-[10px]">
-            Processing…
+            {t("note.processing")}
           </Chip>
         )}
 
         {note.quizCount && note.quizCount > 0 && (
           <Chip tone="violet" className="text-[10px]">
-            Quiz: {note.quizCount}
+            {t("note.quizCount", { count: note.quizCount })}
           </Chip>
         )}
 
         {note.flashcardCount && note.flashcardCount > 0 && (
           <Chip tone="yellow" className="text-[10px]">
-            Cards: {note.flashcardCount}
+            {t("note.cardCount", { count: note.flashcardCount })}
           </Chip>
         )}
       </div>

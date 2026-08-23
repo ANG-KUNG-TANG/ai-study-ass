@@ -16,11 +16,17 @@ import {
 import {
   useNoteContext,
 } from "@/context/NoteContext";
+import {
+  useLanguage,
+} from "@/context/LanguageContext";
 
 export default function OriginalTextPage() {
   const {
     note,
   } = useNoteContext();
+  const {
+    t,
+  } = useLanguage();
 
   const [
     copied,
@@ -90,16 +96,15 @@ export default function OriginalTextPage() {
                 aria-hidden="true"
               />
 
-              Source document
+              {t("original.source")}
             </div>
 
             <h2 className="mt-2 font-serif text-[19px] font-semibold">
-              Original extracted text
+              {t("original.title")}
             </h2>
 
             <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
-              This is the text extracted from the uploaded document before
-              study-note generation.
+              {t("original.description")}
             </p>
           </div>
 
@@ -126,14 +131,14 @@ export default function OriginalTextPage() {
             )}
 
             {copied
-              ? "Copied"
-              : "Copy text"}
+              ? t("common.copied")
+              : t("common.copy")}
           </button>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-3 border-t border-line pt-3 text-[11px] text-ink-faint">
           <span>
-            {wordCount.toLocaleString()} words
+            {t("common.words", { count: wordCount.toLocaleString() })}
           </span>
 
           <span aria-hidden="true">
@@ -141,7 +146,9 @@ export default function OriginalTextPage() {
           </span>
 
           <span>
-            {content.length.toLocaleString()} characters
+            {t("common.characters", {
+              count: content.length.toLocaleString(),
+            })}
           </span>
         </div>
       </Card>
@@ -161,12 +168,11 @@ export default function OriginalTextPage() {
           />
 
           <h3 className="mt-3 font-serif text-[16px] font-semibold">
-            No extracted text available
+            {t("original.empty")}
           </h3>
 
           <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-soft">
-            This note does not contain stored source text. Re-upload or
-            reprocess the document to restore it.
+            {t("original.emptyDescription")}
           </p>
         </Card>
       )}

@@ -17,6 +17,8 @@ import { Topbar } from "@/components/layout/Topbar";
 import { getAdminActivity } from "@/services/admin.service";
 import type { AdminActivityItem } from "@/types/admin";
 import type { PaginationMeta } from "@/types/pagination";
+import { useLanguage } from "@/context/LanguageContext";
+import type { Locale } from "@/i18n/translations";
 
 const PAGE_SIZE = 25;
 
@@ -31,7 +33,7 @@ function formatAction(action: string): string {
     .replaceAll("_", " ");
 }
 
-function activityText(item: AdminActivityItem): string {
+function activityText(item: AdminActivityItem, systemLabel: string): string {
   if (
     typeof item.text === "string" &&
     item.text.trim()
@@ -39,7 +41,7 @@ function activityText(item: AdminActivityItem): string {
     return item.text;
   }
 
-  return `${item.actorEmail ?? "System"} ${formatAction(item.action)}`;
+  return `${item.actorEmail ?? systemLabel} ${formatAction(item.action)}`;
 }
 
 function activityTone(action: string): string {
@@ -83,15 +85,16 @@ function formatTarget(item: AdminActivityItem): string {
   return item.targetType ?? item.targetId ?? "—";
 }
 
-function formatTimestamp(value: string): string {
+function formatTimestamp(value: string, locale: Locale): string {
   const date = new Date(value);
 
   return Number.isNaN(date.getTime())
     ? "—"
-    : date.toLocaleString();
+    : date.toLocaleString(locale);
 }
 
 export default function AdminActivityPage() {
+  const { locale, t } = useLanguage();
   const [page, setPage] = useState(1);
   const [activity, setActivity] =
     useState<ActivityPage | null>(null);
@@ -115,12 +118,12 @@ export default function AdminActivityPage() {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Activity could not be loaded.",
+          : t("admin.activity.loadFailed"),
       );
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -134,17 +137,19 @@ export default function AdminActivityPage() {
 
   return (
     <>
-      <Topbar eyebrow="Admin" title="Activity log" />
+      <Topbar eyebrow={t("admin.eyebrow")} title={t("admin.activity.title")} />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[12px] text-ink-faint">
-            Review security, account, content, and AI audit events.
+            {t("admin.activity.description")}
           </p>
 
           {activity && (
             <p className="mt-1 font-mono text-[10px] text-ink-faint">
-              {activity.meta.total.toLocaleString()} events retained
+              {t("admin.activity.eventsRetained", {
+                count: activity.meta.total.toLocaleString(locale),
+              })}
             </p>
           )}
         </div>
@@ -159,7 +164,7 @@ export default function AdminActivityPage() {
             size={14}
             className={isLoading ? "animate-spin" : ""}
           />
-          Refresh
+          {t("common.refresh")}
         </button>
       </div>
 
@@ -184,11 +189,11 @@ export default function AdminActivityPage() {
             <table className="w-full min-w-[920px] text-left text-[12px]">
               <thead>
                 <tr className="border-b border-line text-[10px] uppercase tracking-wide text-ink-faint">
-                  <th className="px-5 py-3 font-medium">Event</th>
-                  <th className="px-4 py-3 font-medium">Actor</th>
-                  <th className="px-4 py-3 font-medium">Target</th>
-                  <th className="px-4 py-3 font-medium">Action</th>
-                  <th className="px-5 py-3 text-right font-medium">Time</th>
+                  <th className="px-5 py-3 font-medium">{t("admin.activity.event")}</th>
+                  <th className="px-4 py-3 font-medium">{t("admin.activity.actor")}</th>
+                  <th className="px-4 py-3 font-medium">{t("admin.activity.target")}</th>
+                  <th className="px-4 py-3 font-medium">{t("admin.activity.action")}</th>
+                  <th className="px-5 py-3 text-right font-medium">{t("admin.activity.time")}</th>
                 </tr>
               </thead>
 
@@ -207,13 +212,13 @@ export default function AdminActivityPage() {
                           ].join(" ")}
                         />
                         <p className="leading-5 text-ink">
-                          {activityText(item)}
+                          {activityText(item, t("admin.health.system"))}
                         </p>
                       </div>
                     </td>
 
                     <td className="max-w-[220px] truncate px-4 py-3.5 text-ink-soft">
-                      {item.actorEmail ?? "System"}
+                      {item.actorEmail ?? t("admin.health.system")}
                     </td>
 
                     <td className="max-w-[260px] truncate px-4 py-3.5 text-ink-soft">
@@ -227,7 +232,7 @@ export default function AdminActivityPage() {
                     </td>
 
                     <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-[10px] text-ink-faint">
-                      {formatTimestamp(item.createdAt)}
+                      {formatTimestamp(item.createdAt, locale)}
                     </td>
                   </tr>
                 ))}
@@ -238,10 +243,10 @@ export default function AdminActivityPage() {
           <div className="flex flex-col items-center justify-center px-5 py-16 text-center">
             <History size={24} className="mb-3 text-ink-faint" />
             <p className="text-[13px] font-medium text-ink">
-              No activity recorded
+              {t("admin.activity.empty")}
             </p>
             <p className="mt-1 text-[11px] text-ink-faint">
-              New audit events will appear here.
+              {t("admin.activity.emptyDescription")}
             </p>
           </div>
         )}
@@ -256,11 +261,14 @@ export default function AdminActivityPage() {
             className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-2 hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronLeft size={14} />
-            Previous
+            {t("common.previous")}
           </button>
 
           <span className="font-mono text-[10px]">
-            Page {activity.meta.page} of {activity.meta.totalPages}
+            {t("notes.pageOf", {
+              page: activity.meta.page,
+              total: activity.meta.totalPages,
+            })}
           </span>
 
           <button
@@ -269,7 +277,7 @@ export default function AdminActivityPage() {
             onClick={() => setPage((current) => current + 1)}
             className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-2 hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Next
+            {t("common.next")}
             <ChevronRight size={14} />
           </button>
         </div>

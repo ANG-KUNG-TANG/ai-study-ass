@@ -36,18 +36,24 @@ import type {
 } from "@/components/knowledge/types";
 import { useNoteContext } from "@/context/NoteContext";
 import { apiFetch } from "@/lib/api";
+import { useLanguage } from "@/context/LanguageContext";
+import type { TranslationKey } from "@/i18n/translations";
 
-const MIN_CONFIDENCE_OPTIONS = [
-  { value: "0", label: "All confidence" },
-  { value: "0.5", label: "50% or higher" },
-  { value: "0.7", label: "70% or higher" },
-  { value: "0.85", label: "85% or higher" },
+const MIN_CONFIDENCE_OPTIONS: ReadonlyArray<{
+  value: string;
+  labelKey: TranslationKey;
+}> = [
+  { value: "0", labelKey: "knowledge.allConfidence" },
+  { value: "0.5", labelKey: "knowledge.confidence50" },
+  { value: "0.7", labelKey: "knowledge.confidence70" },
+  { value: "0.85", labelKey: "knowledge.confidence85" },
 ];
 
 export default function KnowledgePage() {
   const params = useParams<{ id: string }>();
   const noteId = params.id;
   const { note } = useNoteContext();
+  const { t } = useLanguage();
 
   const [knowledge, setKnowledge] =
     useState<KnowledgeResponse | null>(null);
@@ -101,7 +107,7 @@ export default function KnowledgePage() {
           setError(
             unknownError instanceof Error
               ? unknownError.message
-              : "Failed to load knowledge",
+              : "",
           );
         }
       } finally {
@@ -228,7 +234,7 @@ export default function KnowledgePage() {
   if (!note) {
     return (
       <p className="text-[13px] text-[#726B5C]">
-        Loading note…
+        {t("note.loading")}
       </p>
     );
   }
@@ -238,22 +244,20 @@ export default function KnowledgePage() {
       <header className="mb-6 flex flex-wrap items-start justify-between gap-5">
         <div>
           <div className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-[#E85D46]">
-            Knowledge
+            {t("knowledge.eyebrow")}
           </div>
 
           <h1 className="font-serif text-[28px] font-semibold text-[#221F1A]">
-            Learning Knowledge Map
+            {t("knowledge.title")}
           </h1>
 
           <p className="mt-2 max-w-[680px] text-[13px] leading-5 text-[#726B5C]">
-            Understand what “{note.title}” teaches,
-            how its ideas fit together, and where each
-            idea comes from in the source.
+            {t("knowledge.description", { title: note.title })}
           </p>
 
           <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#CFE3D3] bg-[#F2F8F3] px-3 py-1.5 text-[10.5px] font-medium text-[#4C7A5A]">
             <ShieldCheck size={13} />
-            Document-grounded knowledge
+            {t("knowledge.grounded")}
           </div>
         </div>
 
@@ -261,12 +265,12 @@ export default function KnowledgePage() {
           <MetricCard
             icon={BookOpen}
             value={sectionCount || "—"}
-            label="Sections"
+            label={t("knowledge.sections")}
           />
           <MetricCard
             icon={Brain}
             value={conceptNodes.length}
-            label="Knowledge items"
+            label={t("knowledge.items")}
           />
           <MetricCard
             icon={ShieldCheck}
@@ -277,7 +281,7 @@ export default function KnowledgePage() {
                     averageConfidence * 100,
                   )}%`
             }
-            label="Grounding"
+            label={t("knowledge.grounding")}
           />
         </div>
       </header>
@@ -287,10 +291,10 @@ export default function KnowledgePage() {
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
           <p className="text-[13px] font-medium text-[#E85D46]">
-            Knowledge could not be loaded.
+            {t("knowledge.loadFailed")}
           </p>
           <p className="mt-2 text-[12px] text-[#726B5C]">
-            {error}
+            {error || t("knowledge.loadFailed")}
           </p>
         </div>
       )}
@@ -299,8 +303,8 @@ export default function KnowledgePage() {
         !error &&
         knowledge?.status === "not_generated" && (
           <EmptyState
-            title="Knowledge has not been generated yet"
-            description="Run study-material generation for this note, then reload this page."
+            title={t("knowledge.notGenerated")}
+            description={t("knowledge.notGeneratedDescription")}
           />
         )}
 
@@ -308,10 +312,10 @@ export default function KnowledgePage() {
         !error &&
         knowledge?.status === "failed" && (
           <EmptyState
-            title="Knowledge processing failed"
+            title={t("knowledge.processingFailed")}
             description={
               knowledge.error ??
-              "The intelligence pipeline did not complete."
+              t("knowledge.pipelineFailed")
             }
             danger
           />
@@ -327,7 +331,7 @@ export default function KnowledgePage() {
               <div className="inline-flex flex-wrap rounded-xl border border-[#E6DDC8] bg-white p-1">
                 <TabButton
                   active={activeTab === "learn"}
-                  label="Learning Path"
+                  label={t("knowledge.learningPath")}
                   count={sectionCount}
                   onClick={() =>
                     setActiveTab("learn")
@@ -336,7 +340,7 @@ export default function KnowledgePage() {
 
                 <TabButton
                   active={activeTab === "graph"}
-                  label="Concept Map"
+                  label={t("knowledge.conceptMap")}
                   count={conceptNodes.length}
                   onClick={() =>
                     setActiveTab("graph")
@@ -345,7 +349,7 @@ export default function KnowledgePage() {
 
                 <TabButton
                   active={activeTab === "concepts"}
-                  label="Concepts"
+                  label={t("knowledge.concepts")}
                   count={conceptNodes.length}
                   onClick={() =>
                     setActiveTab("concepts")
@@ -354,7 +358,7 @@ export default function KnowledgePage() {
 
                 <TabButton
                   active={activeTab === "evidence"}
-                  label="Evidence"
+                  label={t("knowledge.evidence")}
                   count={evidence.length}
                   onClick={() =>
                     setActiveTab("evidence")
@@ -594,6 +598,8 @@ function GraphFilters({
     value: number,
   ) => void;
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6DDC8] bg-white p-3">
       <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-[#E6DDC8] bg-[#FFFCF6] px-3 py-2.5">
@@ -608,7 +614,7 @@ function GraphFilters({
           onChange={(event) =>
             onSearch(event.target.value)
           }
-          placeholder="Search what you learned…"
+          placeholder={t("knowledge.search")}
           className="w-full bg-transparent text-[12.5px] text-[#38342C] outline-none placeholder:text-[#B3A98F]"
         />
       </div>
@@ -616,10 +622,10 @@ function GraphFilters({
       <FilterSelect
         value={nodeType}
         onChange={onNodeType}
-        label="Knowledge type"
+        label={t("knowledge.type")}
       >
         <option value="all">
-          All knowledge types
+          {t("knowledge.allTypes")}
         </option>
 
         {nodeTypes.map((type) => (
@@ -635,10 +641,10 @@ function GraphFilters({
       <FilterSelect
         value={relationType}
         onChange={onRelationType}
-        label="Relationship"
+        label={t("knowledge.relationship")}
       >
         <option value="all">
-          All relationships
+          {t("knowledge.allRelationships")}
         </option>
 
         {relationTypes.map((type) => (
@@ -660,7 +666,7 @@ function GraphFilters({
             Number(value),
           )
         }
-        label="Minimum confidence"
+        label={t("knowledge.minimumConfidence")}
       >
         {MIN_CONFIDENCE_OPTIONS.map(
           (option) => (
@@ -668,7 +674,7 @@ function GraphFilters({
               key={option.value}
               value={option.value}
             >
-              {option.label}
+              {t(option.labelKey)}
             </option>
           ),
         )}
@@ -791,11 +797,13 @@ function ConceptGrid({
   nodes: KnowledgeGraphNode[];
   onOpen: (nodeId: string) => void;
 }) {
+  const { t } = useLanguage();
+
   if (nodes.length === 0) {
     return (
       <EmptyState
-        title="No concepts were extracted"
-        description="The analysis completed without document-grounded knowledge items."
+        title={t("knowledge.noConcepts")}
+        description={t("knowledge.noConceptsDescription")}
       />
     );
   }
@@ -847,7 +855,7 @@ function ConceptGrid({
               <div className="mt-4">
                 <div className="flex justify-between text-[10px] text-[#726B5C]">
                   <span>
-                    Source confidence
+                    {t("knowledge.sourceConfidence")}
                   </span>
                   <span>
                     {Math.round(
@@ -884,11 +892,13 @@ function EvidenceGrid({
     typeof collectEvidence
   >;
 }) {
+  const { t } = useLanguage();
+
   if (evidence.length === 0) {
     return (
       <EmptyState
-        title="No evidence snippets are available"
-        description="Evidence appears when knowledge items include grounded source spans."
+        title={t("knowledge.noEvidence")}
+        description={t("knowledge.noEvidenceDescription")}
       />
     );
   }
@@ -904,8 +914,8 @@ function EvidenceGrid({
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F4EFE4] px-2.5 py-1 text-[10px] font-medium text-[#726B5C]">
               <BookOpen size={12} />
               {item.pageNumber
-                ? `Page ${item.pageNumber}`
-                : "Source evidence"}
+                ? t("knowledge.page", { page: item.pageNumber })
+                : t("knowledge.sourceEvidence")}
             </span>
 
             <span className="rounded-full bg-[#EEF4FF] px-2 py-1 text-[10px] font-medium text-[#255FD6]">
@@ -920,7 +930,7 @@ function EvidenceGrid({
           </blockquote>
 
           <p className="mt-4 text-[11px] font-medium text-[#726B5C]">
-            Supports:{" "}
+            {t("knowledge.supports")} {" "}
             <span className="text-[#38342C]">
               {item.nodeLabel}
             </span>
@@ -938,11 +948,13 @@ function GraphLegend({
   nodeTypes: string[];
   relationTypes: string[];
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className="mt-4 rounded-2xl border border-[#E6DDC8] bg-white p-4">
       <div className="flex flex-wrap gap-x-5 gap-y-3">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">
-          Knowledge types
+          {t("knowledge.types")}
         </span>
 
         {nodeTypes.map((type) => (
@@ -965,7 +977,7 @@ function GraphLegend({
       {relationTypes.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-3 border-t border-[#EFE8D6] pt-3">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">
-            Relationships
+            {t("knowledge.relationships")}
           </span>
 
           {relationTypes
@@ -985,6 +997,8 @@ function GraphLegend({
 }
 
 function InspectorPlaceholder() {
+  const { t } = useLanguage();
+
   return (
     <div className="sticky top-5 flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-[#E6DDC8] bg-white p-8 text-center">
       <div>
@@ -994,12 +1008,11 @@ function InspectorPlaceholder() {
         />
 
         <p className="mt-3 text-[13px] font-medium text-[#38342C]">
-          Select a knowledge item
+          {t("knowledge.selectItem")}
         </p>
 
         <p className="mt-2 text-[12px] leading-5 text-[#726B5C]">
-          You will see what it means, why it connects
-          to other ideas, and the source evidence.
+          {t("knowledge.selectDescription")}
         </p>
       </div>
     </div>

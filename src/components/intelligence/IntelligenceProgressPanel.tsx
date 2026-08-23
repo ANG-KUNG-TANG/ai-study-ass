@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface StageView {
   stage: string;
@@ -42,6 +43,7 @@ export function IntelligenceProgressPanel({
   pollIntervalMs = 900,
   onComplete,
 }: IntelligenceProgressPanelProps) {
+  const { t } = useLanguage();
   const [data, setData] = useState<StatusResponse | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
 
@@ -93,17 +95,18 @@ export function IntelligenceProgressPanel({
       <section className="rounded-xl border bg-background p-5" aria-live="polite">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold">Document intelligence</h2>
+            <h2 className="text-base font-semibold">{t("intelligence.title")}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Analysis completed. The detailed live-stage history has expired,
-              but validated intelligence is available.
+              {t("intelligence.completedExpired")}
             </p>
           </div>
           <span className="text-sm font-semibold">100%</span>
         </div>
         {data.confidence !== null ? (
           <p className="mt-4 border-t pt-4 text-sm">
-            Evidence confidence: <strong>{Math.round(data.confidence * 100)}%</strong>
+            {t("intelligence.confidence", {
+              confidence: Math.round(data.confidence * 100),
+            })}
           </p>
         ) : null}
       </section>
@@ -113,9 +116,9 @@ export function IntelligenceProgressPanel({
   if (!progress && data?.hasFailed) {
     return (
       <section className="rounded-xl border bg-background p-5" aria-live="polite">
-        <h2 className="text-base font-semibold">Document intelligence</h2>
+        <h2 className="text-base font-semibold">{t("intelligence.title")}</h2>
         <p className="mt-2 text-sm text-destructive">
-          Intelligence analysis failed. Regenerate the study materials to retry the pipeline.
+          {t("intelligence.failed")}
         </p>
       </section>
     );
@@ -124,7 +127,7 @@ export function IntelligenceProgressPanel({
   if (!progress && !requestError) {
     return (
       <section className="rounded-xl border p-5" aria-live="polite">
-        <p className="text-sm font-medium">Preparing intelligence analysis…</p>
+        <p className="text-sm font-medium">{t("intelligence.preparing")}</p>
       </section>
     );
   }
@@ -133,13 +136,13 @@ export function IntelligenceProgressPanel({
     <section className="rounded-xl border bg-background p-5" aria-live="polite">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold">Document intelligence</h2>
+          <h2 className="text-base font-semibold">{t("intelligence.title")}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {progress?.state === "complete"
-              ? "Analysis completed. Study materials can now use validated evidence."
+              ? t("intelligence.completed")
               : progress?.state === "failed"
-                ? "Analysis stopped before completion."
-                : "The engine is analysing each stage and preserving its evidence."}
+                ? t("intelligence.stopped")
+                : t("intelligence.running")}
           </p>
         </div>
         <span className="text-sm font-semibold tabular-nums">
@@ -189,7 +192,9 @@ export function IntelligenceProgressPanel({
 
       {data?.confidence !== null && data?.confidence !== undefined ? (
         <p className="mt-5 border-t pt-4 text-sm">
-          Evidence confidence: <strong>{Math.round(data.confidence * 100)}%</strong>
+          {t("intelligence.confidence", {
+            confidence: Math.round(data.confidence * 100),
+          })}
         </p>
       ) : null}
     </section>

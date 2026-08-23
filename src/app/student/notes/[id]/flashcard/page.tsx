@@ -7,8 +7,10 @@ import { useFlashcards } from "@/hooks/useFlashcards";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import type { FlashcardDifficulty } from "@/types/flashcard";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function FlashcardPage() {
+  const { t } = useLanguage();
   const { note } = useNoteContext();
   const noteId = note?.id ?? "";
 
@@ -51,19 +53,18 @@ export default function FlashcardPage() {
   }
 
   if (isLoading) {
-    return <p className="text-[13px] text-ink-soft">Loading flashcards…</p>;
+    return <p className="text-[13px] text-ink-soft">{t("flashcards.loading")}</p>;
   }
 
   if (flashcards.length === 0) {
     return (
       <Card className="flex min-h-[260px] flex-col items-center justify-center text-center">
         <h2 className="font-serif text-[18px] font-semibold">
-          No flashcards generated yet
+          {t("flashcards.unavailable")}
         </h2>
 
         <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-soft">
-          Generate a deck from the selected document and review each concept
-          using spaced-repetition difficulty ratings.
+          {t("flashcards.generateDescription")}
         </p>
 
         <Button
@@ -71,7 +72,7 @@ export default function FlashcardPage() {
           onClick={handleGenerate}
           disabled={isGenerating}
         >
-          {isGenerating ? "Generating flashcards…" : "Generate flashcards"}
+          {isGenerating ? t("flashcards.generating") : t("flashcards.generate")}
         </Button>
 
         {error && (
@@ -88,10 +89,10 @@ export default function FlashcardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Review deck
+            {t("flashcards.reviewDeck")}
           </p>
           <h2 className="mt-1 font-serif text-[20px] font-semibold">
-            Card {currentIndex + 1} of {flashcards.length}
+            {t("flashcards.position", { current: currentIndex + 1, total: flashcards.length })}
           </h2>
         </div>
 
@@ -105,7 +106,7 @@ export default function FlashcardPage() {
             size={14}
             className={isGenerating ? "animate-spin" : ""}
           />
-          {isGenerating ? "Regenerating" : "Regenerate deck"}
+          {isGenerating ? t("flashcards.regenerating") : t("flashcards.regenerate")}
         </button>
       </div>
 
@@ -116,7 +117,7 @@ export default function FlashcardPage() {
       >
         <Card className="flex min-h-[320px] flex-col items-center justify-center text-center transition hover:shadow-lg">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            {revealed ? "Answer" : "Question"}
+            {revealed ? t("flashcards.answer") : t("flashcards.question")}
           </p>
 
           <p className="mt-5 max-w-2xl font-serif text-[22px] leading-relaxed">
@@ -125,8 +126,8 @@ export default function FlashcardPage() {
 
           <p className="mt-6 text-[12px] text-ink-faint">
             {revealed
-              ? "Rate how difficult this card was."
-              : "Click the card to reveal the answer."}
+              ? t("flashcards.ratePrompt")
+              : t("flashcards.revealPrompt")}
           </p>
         </Card>
       </button>
@@ -143,7 +144,7 @@ export default function FlashcardPage() {
           className="flex items-center gap-1 text-[12px] text-ink-soft hover:text-ink"
         >
           <ChevronLeft size={15} />
-          Previous
+          {t("common.previous")}
         </button>
 
         {revealed && (
@@ -154,7 +155,7 @@ export default function FlashcardPage() {
                 onClick={() => handleRate(difficulty)}
                 disabled={isRating}
               >
-                {difficulty[0].toUpperCase() + difficulty.slice(1)}
+                {t(`flashcards.${difficulty}`)}
               </Button>
             ))}
           </div>
@@ -170,7 +171,7 @@ export default function FlashcardPage() {
           }}
           className="flex items-center gap-1 text-[12px] text-ink-soft hover:text-ink"
         >
-          Next
+          {t("common.next")}
           <ChevronRight size={15} />
         </button>
       </div>

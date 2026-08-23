@@ -28,4 +28,26 @@ describe("language translations", () => {
     expect(translate("en", key)).toBe("Dashboard");
     expect(translate("my", key)).toBe("ပင်မစာမျက်နှာ");
   });
+
+  it("translates the student study workspace", () => {
+    expect(translate("my", "summary.keyPoints")).toBe("အဓိကအချက်များ");
+    expect(
+      translate("my", "flashcards.position", { current: 2, total: 10 }),
+    ).toBe("ကတ် 2 / 10");
+    expect(
+      translate("en", "knowledge.page", { page: 4 }),
+    ).toBe("Page 4");
+  });
+
+  it("translates the current usage and observability screens", () => {
+    expect(translate("my", "student.ai.title")).toBe("AI အသုံးပြုမှု");
+    expect(translate("my", "admin.activity.title")).toBe(
+      "လုပ်ဆောင်မှုမှတ်တမ်း",
+    );
+    expect(
+      translate("en", "admin.health.lastSnapshot", {
+        value: "2026-08-23 18:00",
+      }),
+    ).toBe("Last server snapshot: 2026-08-23 18:00");
+  });
 });

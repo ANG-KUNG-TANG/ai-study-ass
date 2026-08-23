@@ -15,6 +15,7 @@ import {
   getNodeDescription,
   nodeConfidence,
 } from "./knowledge-graph.utils";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface LearningPathProps {
   nodes: KnowledgeGraphNode[];
@@ -32,6 +33,7 @@ export function LearningPath({
   edges,
   onOpen,
 }: LearningPathProps) {
+  const { t } = useLanguage();
   const sections = nodes
     .filter((node) => node.type === "section")
     .sort(
@@ -96,12 +98,10 @@ export function LearningPath({
     return (
       <div className="rounded-2xl border border-[#E6DDC8] bg-white p-5">
         <h2 className="font-serif text-[18px] font-semibold text-[#221F1A]">
-          Key concepts
+          {t("knowledge.keyConcepts")}
         </h2>
         <p className="mt-1 text-[12px] text-[#726B5C]">
-          This older knowledge result has no section
-          structure yet. Regenerate the note to build the
-          full learning path.
+          {t("knowledge.legacyDescription")}
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -135,12 +135,10 @@ export function LearningPath({
           />
           <div>
             <p className="text-[13px] font-semibold text-[#255FD6]">
-              Follow the document in learning order
+              {t("knowledge.followOrder")}
             </p>
             <p className="mt-1 text-[12px] leading-5 text-[#5F6F91]">
-              Each step comes from a source section. Open a
-              concept to see what it means, why it connects,
-              and the evidence supporting it.
+              {t("knowledge.followOrderDescription")}
             </p>
           </div>
         </div>
@@ -169,7 +167,7 @@ export function LearningPath({
                     <div>
                       <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9B7221]">
                         <Layers3 size={13} />
-                        Learning section
+                        {t("knowledge.learningSection")}
                       </div>
 
                       <h3 className="mt-2 font-serif text-[19px] font-semibold text-[#221F1A]">
@@ -180,7 +178,7 @@ export function LearningPath({
                     {pageNumber && (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F4EFE4] px-2.5 py-1 text-[10px] text-[#726B5C]">
                         <BookOpen size={11} />
-                        Page {pageNumber}
+                        {t("knowledge.page", { page: pageNumber })}
                       </span>
                     )}
                   </div>
@@ -215,8 +213,7 @@ export function LearningPath({
                     </div>
                   ) : (
                     <p className="mt-4 text-[12px] text-[#726B5C]">
-                      No key concepts were attached to this
-                      section.
+                      {t("knowledge.noSectionConcepts")}
                     </p>
                   )}
                 </div>

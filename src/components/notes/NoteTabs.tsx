@@ -2,8 +2,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { noteTabItems } from "./note-tabs-config";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function NoteTabs({ noteId }: { noteId: string }) {
+  const { t } = useLanguage();
   const pathname = usePathname();
   const tabs = noteTabItems(noteId);
 
@@ -20,7 +22,7 @@ export function NoteTabs({ noteId }: { noteId: string }) {
             }`}
           >
             <tab.icon size={15} strokeWidth={1.6} />
-            {tab.label}
+            {t(tab.labelKey)}
           </Link>
         );
       })}

@@ -18,6 +18,7 @@ import { layoutKnowledgeGraph } from "./knowledge-graph.layout";
 import { mapKnowledgeGraph } from "./knowledge-graph.mapper";
 import { nodeColor } from "./knowledge-graph.utils";
 import type { GraphDirection, KnowledgeGraphEdge, KnowledgeGraphNode } from "./types";
+import { useLanguage } from "@/context/LanguageContext";
 
 const nodeTypes: NodeTypes = { knowledge: KnowledgeNode };
 
@@ -34,6 +35,7 @@ function KnowledgeGraphCanvasInner({
   selectedNodeId,
   onSelectNode,
 }: KnowledgeGraphCanvasProps) {
+  const { t } = useLanguage();
   const [direction, setDirection] = useState<GraphDirection>("LR");
   const { fitView } = useReactFlow();
 
@@ -92,7 +94,7 @@ function KnowledgeGraphCanvasInner({
           <div className="flex items-center gap-2 rounded-xl border border-[#E6DDC8] bg-white/95 p-1.5 shadow-sm backdrop-blur">
             <button type="button" onClick={fitGraph}
               className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-[#514B40] hover:bg-[#F4EFE4]">
-              <Maximize2 size={14} /> Fit
+              <Maximize2 size={14} /> {t("knowledge.fitGraph")}
             </button>
             <button type="button" onClick={toggleDirection}
               className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-[#514B40] hover:bg-[#F4EFE4]">
@@ -101,7 +103,7 @@ function KnowledgeGraphCanvasInner({
             </button>
             <button type="button" onClick={resetLayout}
               className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-[#514B40] hover:bg-[#F4EFE4]">
-              <RotateCcw size={14} /> Reset
+              <RotateCcw size={14} /> {t("knowledge.resetGraph")}
             </button>
           </div>
         </Panel>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 interface FlipCardProps {
   front: string;
   back: string;
@@ -8,13 +10,19 @@ interface FlipCardProps {
 }
 
 export function FlipCard({ front, back, isFlipped, onFlip }: FlipCardProps) {
+  const { t } = useLanguage();
+
   return (
     <div className="mx-auto h-[260px] w-full max-w-[480px]" style={{ perspective: "1200px" }}>
       <button
         type="button"
         onClick={onFlip}
         aria-pressed={isFlipped}
-        aria-label={isFlipped ? "Showing answer. Click to show question." : "Showing question. Click to show answer."}
+        aria-label={
+          isFlipped
+            ? t("flashcards.showQuestion")
+            : t("flashcards.showAnswer")
+        }
         className="relative h-full w-full cursor-pointer rounded-card text-left transition-transform duration-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
         style={{
           transformStyle: "preserve-3d",

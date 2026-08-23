@@ -6,8 +6,10 @@ import { useNoteContext } from "@/context/NoteContext";
 import { useQuiz } from "@/hooks/useQuiz";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function QuizPage() {
+  const { t } = useLanguage();
   const { note } = useNoteContext();
   const noteId = note?.id ?? "";
 
@@ -46,19 +48,18 @@ export default function QuizPage() {
   }
 
   if (isLoading) {
-    return <p className="text-[13px] text-ink-soft">Loading quiz…</p>;
+    return <p className="text-[13px] text-ink-soft">{t("quiz.loading")}</p>;
   }
 
   if (!quiz) {
     return (
       <Card className="flex min-h-[260px] flex-col items-center justify-center text-center">
         <h2 className="font-serif text-[18px] font-semibold">
-          No quiz generated yet
+          {t("quiz.unavailable")}
         </h2>
 
         <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-soft">
-          Generate a quiz from the selected document. Questions will be based
-          on its study notes and extracted content.
+          {t("quiz.generateDescription")}
         </p>
 
         <Button
@@ -66,7 +67,7 @@ export default function QuizPage() {
           onClick={handleGenerate}
           disabled={isGenerating}
         >
-          {isGenerating ? "Generating quiz…" : "Generate quiz"}
+          {isGenerating ? t("quiz.generating") : t("quiz.generate")}
         </Button>
 
         {error && (
@@ -81,10 +82,10 @@ export default function QuizPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Practice
+            {t("quiz.practice")}
           </p>
           <h2 className="mt-1 font-serif text-[20px] font-semibold">
-            {quiz.questions.length}-question quiz
+            {t("quiz.questionCount", { count: quiz.questions.length })}
           </h2>
         </div>
 
@@ -98,7 +99,7 @@ export default function QuizPage() {
             size={14}
             className={isGenerating ? "animate-spin" : ""}
           />
-          {isGenerating ? "Regenerating" : "Regenerate"}
+          {isGenerating ? t("quiz.regenerating") : t("quiz.regenerate")}
         </button>
       </div>
 
@@ -121,7 +122,13 @@ export default function QuizPage() {
                   {question.question}
                 </h3>
                 <p className="mt-1 text-[11px] uppercase tracking-wide text-ink-faint">
-                  {question.questionType.replaceAll("_", " ")}
+                  {question.questionType === "multiple_choice"
+                    ? t("quiz.type.multipleChoice")
+                    : question.questionType === "true_false"
+                      ? t("quiz.type.trueFalse")
+                      : question.questionType === "short_answer"
+                        ? t("quiz.type.shortAnswer")
+                        : String(question.questionType).replaceAll("_", " ")}
                 </p>
               </div>
             </div>
@@ -136,7 +143,7 @@ export default function QuizPage() {
                     [question.id]: event.target.value,
                   }))
                 }
-                placeholder="Type your answer"
+                placeholder={t("quiz.typeAnswer")}
                 className="w-full rounded-xl border border-[#E6DDC8] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#8C82C8]"
               />
             ) : (
@@ -176,8 +183,8 @@ export default function QuizPage() {
                 <div className="flex items-center gap-2 font-semibold">
                   <CheckCircle2 size={14} />
                   {isCorrect
-                    ? "Correct"
-                    : `Correct answer: ${question.answer}`}
+                    ? t("quiz.correct")
+                    : t("quiz.correctAnswer", { answer: question.answer })}
                 </div>
 
                 {question.explanation && (
@@ -195,12 +202,12 @@ export default function QuizPage() {
         <div>
           {score === null ? (
             <p className="text-[13px] text-ink-soft">
-              Answer the questions and submit your quiz.
+              {t("quiz.instructions")}
             </p>
           ) : (
             <>
               <p className="text-[11px] uppercase tracking-wide text-ink-faint">
-                Result
+                {t("quiz.result")}
               </p>
               <p className="font-serif text-[20px] font-semibold">
                 {score} / {quiz.questions.length}
@@ -213,7 +220,7 @@ export default function QuizPage() {
           onClick={() => setSubmitted(true)}
           disabled={submitted || quiz.questions.length === 0}
         >
-          {submitted ? "Submitted" : "Submit quiz"}
+          {submitted ? t("quiz.submitted") : t("quiz.submit")}
         </Button>
       </Card>
 

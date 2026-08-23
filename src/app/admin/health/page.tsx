@@ -13,6 +13,17 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { getHealth } from "@/services/health.service";
 import type { HealthCheck, QueueHealth, WorkerHealth } from "@/types/health";
+import { useLanguage } from "@/context/LanguageContext";
+import type {
+  Locale,
+  TranslationKey,
+  TranslationValues,
+} from "@/i18n/translations";
+
+type Translate = (
+  key: TranslationKey,
+  values?: TranslationValues,
+) => string;
 
 function StatusIcon({ ok }: { ok: boolean | undefined }) {
   if (ok === true) {
@@ -38,7 +49,7 @@ function OverallStatusIcon({ status }: { status: HealthCheck["status"] }) {
   return <XCircle size={16} className="text-coral" />;
 }
 
-function formatUptime(seconds?: number): string {
+function formatUptime(seconds: number | undefined, t: Translate): string {
   if (seconds === undefined || !Number.isFinite(seconds)) {
     return "—";
   }
@@ -49,7 +60,11 @@ function formatUptime(seconds?: number): string {
 
   const minutes = Math.floor((seconds % 3_600) / 60);
 
-  return [days > 0 ? `${days}d` : "", `${hours}h`, `${minutes}m`]
+  return [
+    days > 0 ? t("admin.health.days", { count: days }) : "",
+    t("admin.health.hours", { count: hours }),
+    t("admin.health.minutes", { count: minutes }),
+  ]
     .filter(Boolean)
     .join(" ");
 }
@@ -62,14 +77,14 @@ function formatBytes(value?: number): string {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatHeartbeat(worker: WorkerHealth): string {
+function formatHeartbeat(worker: WorkerHealth, t: Translate): string {
   if (!worker.online || worker.ageMs === null) {
-    return "No fresh heartbeat";
+    return t("admin.health.noHeartbeat");
   }
 
   const seconds = Math.max(0, Math.round(worker.ageMs / 1_000));
 
-  return `${seconds}s ago`;
+  return t("admin.health.secondsAgo", { count: seconds });
 }
 
 function queueValue(input: number | null): string {
@@ -78,6 +93,7 @@ function queueValue(input: number | null): string {
 
 function formatHealthTimestamp(
   value: string | null,
+  locale: Locale,
 ): string {
   if (!value) {
     return "—";
@@ -90,7 +106,7 @@ function formatHealthTimestamp(
     date.getTime(),
   )
     ? "—"
-    : date.toLocaleString();
+    : date.toLocaleString(locale);
 }
 
 function WorkerCard({
@@ -100,6 +116,8 @@ function WorkerCard({
   title: string;
   worker: WorkerHealth;
 }) {
+  const { t } = useLanguage();
+
   return (
     <Card>
       <div className="mb-2 flex items-center justify-between">
@@ -108,10 +126,12 @@ function WorkerCard({
         <StatusIcon ok={worker.online} />
       </div>
 
-      <p className="text-[13px]">{worker.online ? "Online" : "Offline"}</p>
+      <p className="text-[13px]">
+        {worker.online ? t("admin.health.online") : t("admin.health.offline")}
+      </p>
 
       <p className="mt-1 text-[11px] text-ink-faint">
-        Heartbeat: {formatHeartbeat(worker)}
+        {t("admin.health.heartbeat", { value: formatHeartbeat(worker, t) })}
       </p>
 
       {worker.lastHeartbeatAt && (
@@ -124,6 +144,8 @@ function WorkerCard({
 }
 
 function QueueRow({ name, queue }: { name: string; queue: QueueHealth }) {
+  const { t } = useLanguage();
+
   return (
     <tr className="border-t border-line">
       <td className="px-3 py-3 font-medium text-ink">{name}</td>
@@ -132,7 +154,11 @@ function QueueRow({ name, queue }: { name: string; queue: QueueHealth }) {
         <div className="flex items-center gap-2">
           <StatusIcon ok={queue.available} />
 
-          <span>{queue.available ? "Available" : "Unavailable"}</span>
+          <span>
+            {queue.available
+              ? t("admin.health.available")
+              : t("admin.health.unavailable")}
+          </span>
         </div>
       </td>
 
@@ -150,6 +176,7 @@ function QueueRow({ name, queue }: { name: string; queue: QueueHealth }) {
 }
 
 export default function AdminHealthPage() {
+  const { locale, t } = useLanguage();
   const [health, setHealth] = useState<HealthCheck | null>(null);
 
   const [error, setError] = useState<string | null>(null);
@@ -174,12 +201,12 @@ export default function AdminHealthPage() {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Failed to load system health.",
+          : t("admin.health.loadFailed"),
       );
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     /**
@@ -210,18 +237,19 @@ export default function AdminHealthPage() {
 
   return (
     <>
-      <Topbar eyebrow="Admin" title="System health" />
+      <Topbar eyebrow={t("admin.eyebrow")} title={t("admin.health.title")} />
 
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-[12px] text-ink-faint">
-            Live infrastructure status. Refreshes every 10 seconds.
+            {t("admin.health.description")}
           </p>
 
           {health && (
             <p className="mt-1 text-[10px] text-ink-faint">
-              Last server snapshot:{" "}
-              {new Date(health.timestamp).toLocaleString()}
+              {t("admin.health.lastSnapshot", {
+                value: new Date(health.timestamp).toLocaleString(locale),
+              })}
             </p>
           )}
         </div>
@@ -233,13 +261,13 @@ export default function AdminHealthPage() {
           className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] text-ink-soft disabled:opacity-50"
         >
           <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
-          Refresh
+          {t("common.refresh")}
         </button>
       </div>
 
       {isLoading && !health && (
         <p className="mb-4 text-[13px] text-ink-soft">
-          Checking system health…
+          {t("admin.health.checking")}
         </p>
       )}
 
@@ -249,7 +277,7 @@ export default function AdminHealthPage() {
 
           {health && (
             <p className="mt-1 text-[11px] text-coral">
-              Showing the most recent successful snapshot.
+              {t("admin.health.staleSnapshot")}
             </p>
           )}
         </div>
@@ -261,16 +289,24 @@ export default function AdminHealthPage() {
             <Card>
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-[12px] font-medium text-ink-soft">
-                  System
+                  {t("admin.health.system")}
                 </h4>
 
                 <OverallStatusIcon status={health.status} />
               </div>
 
-              <p className="text-[13px] capitalize">{health.status}</p>
+              <p className="text-[13px] capitalize">
+                {health.status === "healthy"
+                  ? t("admin.health.healthy")
+                  : health.status === "degraded"
+                    ? t("admin.health.degraded")
+                    : t("admin.health.unhealthy")}
+              </p>
 
               <p className="mt-1 text-[11px] text-ink-faint">
-                Uptime: {formatUptime(health.uptime)}
+                {t("admin.health.uptimeValue", {
+                  value: formatUptime(health.uptime, t),
+                })}
               </p>
             </Card>
 
@@ -285,15 +321,17 @@ export default function AdminHealthPage() {
 
               <p className="text-[13px]">
                 {health.database.connected
-                  ? "Connected"
-                  : health.database.state}
+                  ? t("admin.health.connected")
+                  : t("admin.health.unavailable")}
               </p>
 
               <p className="mt-1 text-[11px] text-ink-faint">
-                Latency:{" "}
-                {health.database.latencyMs === null
-                  ? "—"
-                  : `${health.database.latencyMs}ms`}
+                {t("admin.health.latency", {
+                  latency:
+                    health.database.latencyMs === null
+                      ? "—"
+                      : `${health.database.latencyMs}ms`,
+                })}
               </p>
             </Card>
 
@@ -305,21 +343,25 @@ export default function AdminHealthPage() {
               </div>
 
               <p className="text-[13px]">
-                {health.redis.connected ? "Connected" : "Unavailable"}
+                {health.redis.connected
+                  ? t("admin.health.connected")
+                  : t("admin.health.unavailable")}
               </p>
 
               <p className="mt-1 text-[11px] text-ink-faint">
-                Latency:{" "}
-                {health.redis.latencyMs === null
-                  ? "—"
-                  : `${health.redis.latencyMs}ms`}
+                {t("admin.health.latency", {
+                  latency:
+                    health.redis.latencyMs === null
+                      ? "—"
+                      : `${health.redis.latencyMs}ms`,
+                })}
               </p>
             </Card>
 
             <Card>
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-[12px] font-medium text-ink-soft">
-                  AI provider
+                  {t("admin.health.aiProvider")}
                 </h4>
 
                 <StatusIcon
@@ -343,19 +385,26 @@ export default function AdminHealthPage() {
               </p>
 
               <p className="mt-2 text-[11px] capitalize text-ink-soft">
-                {health.ai.status.replaceAll(
-                  "_",
-                  " ",
-                )}
+                {health.ai.status === "operational"
+                  ? t("admin.health.operational")
+                  : health.ai.status === "quota_exhausted"
+                    ? t("admin.health.quotaExhausted")
+                    : health.ai.status === "degraded"
+                      ? t("admin.health.degraded")
+                      : t("admin.health.unavailable")}
               </p>
 
               <p className="mt-1 text-[10px] text-ink-faint">
-                Today: {health.ai.successesToday} successful ·{" "}
-                {health.ai.failuresToday} failed
+                {t("admin.health.aiToday", {
+                  successes: health.ai.successesToday,
+                  failures: health.ai.failuresToday,
+                })}
               </p>
 
               <p className="mt-1 text-[10px] text-ink-faint">
-                Provider quota errors: {health.ai.quotaExceededToday}
+                {t("admin.health.quotaErrors", {
+                  count: health.ai.quotaExceededToday,
+                })}
               </p>
             </Card>
           </div>
@@ -370,20 +419,22 @@ export default function AdminHealthPage() {
 
                 <div>
                   <p className="text-[12px] font-medium text-coral">
-                    AI provider quota is exhausted
+                    {t("admin.health.quotaAlertTitle")}
                   </p>
 
                   <p className="mt-1 text-[11px] text-coral">
-                    {health.ai.provider} rejected the latest provider request
-                    because its account or daily quota was exhausted.
-                    Symbolic study generation remains available.
+                    {t("admin.health.quotaAlertDescription", {
+                      provider: health.ai.provider,
+                    })}
                   </p>
 
                   <p className="mt-1 text-[10px] text-coral">
-                    Last failure:{" "}
-                    {formatHealthTimestamp(
-                      health.ai.lastFailureAt,
-                    )}
+                    {t("admin.health.lastFailure", {
+                      value: formatHealthTimestamp(
+                        health.ai.lastFailureAt,
+                        locale,
+                      ),
+                    })}
                   </p>
                 </div>
               </div>
@@ -400,24 +451,24 @@ export default function AdminHealthPage() {
 
                 <div>
                   <p className="text-[12px] font-medium text-ink">
-                    Recent AI provider failure
+                    {t("admin.health.recentFailureTitle")}
                   </p>
 
                   <p className="mt-1 text-[11px] text-ink-soft">
-                    The latest provider call failed, but it was not classified
-                    as account quota exhaustion. Symbolic study generation
-                    remains available.
+                    {t("admin.health.recentFailureDescription")}
                   </p>
 
                   <p className="mt-1 text-[10px] text-ink-faint">
-                    Last success:{" "}
-                    {formatHealthTimestamp(
-                      health.ai.lastSuccessAt,
-                    )}{" "}
-                    · Last failure:{" "}
-                    {formatHealthTimestamp(
-                      health.ai.lastFailureAt,
-                    )}
+                    {t("admin.health.lastSuccessAndFailure", {
+                      success: formatHealthTimestamp(
+                        health.ai.lastSuccessAt,
+                        locale,
+                      ),
+                      failure: formatHealthTimestamp(
+                        health.ai.lastFailureAt,
+                        locale,
+                      ),
+                    })}
                   </p>
                 </div>
               </div>
@@ -425,16 +476,18 @@ export default function AdminHealthPage() {
           )}
 
           <section>
-            <h3 className="mb-2 text-[13px] font-semibold text-ink">Workers</h3>
+            <h3 className="mb-2 text-[13px] font-semibold text-ink">
+              {t("admin.health.workers")}
+            </h3>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <WorkerCard
-                title="Study generation worker"
+                title={t("admin.health.studyWorker")}
                 worker={health.workers.studyGeneration}
               />
 
               <WorkerCard
-                title="PDF ingestion worker"
+                title={t("admin.health.pdfWorker")}
                 worker={health.workers.pdfIngestion}
               />
             </div>
@@ -443,12 +496,11 @@ export default function AdminHealthPage() {
           <Card>
             <div className="mb-3">
               <h3 className="text-[13px] font-semibold text-ink">
-                BullMQ queues
+                {t("admin.health.queues")}
               </h3>
 
               <p className="mt-1 text-[11px] text-ink-faint">
-                Current queue state. Completed and failed values represent
-                retained BullMQ jobs, not lifetime totals.
+                {t("admin.health.queuesDescription")}
               </p>
             </div>
 
@@ -456,30 +508,30 @@ export default function AdminHealthPage() {
               <table className="w-full min-w-[760px] text-left text-[12px] text-ink-soft">
                 <thead>
                   <tr>
-                    <th className="px-3 py-2 font-medium">Queue</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.health.queue")}</th>
 
-                    <th className="px-3 py-2 font-medium">Status</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.health.status")}</th>
 
-                    <th className="px-3 py-2 font-medium">Waiting</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.health.waiting")}</th>
 
-                    <th className="px-3 py-2 font-medium">Active</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.health.active")}</th>
 
-                    <th className="px-3 py-2 font-medium">Delayed</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.health.delayed")}</th>
 
-                    <th className="px-3 py-2 font-medium">Failed</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.health.failed")}</th>
 
-                    <th className="px-3 py-2 font-medium">Completed</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.health.completed")}</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   <QueueRow
-                    name="Study generation"
+                    name={t("admin.health.studyGeneration")}
                     queue={health.queues.studyGeneration}
                   />
 
                   <QueueRow
-                    name="PDF ingestion"
+                    name={t("admin.health.pdfIngestion")}
                     queue={health.queues.pdfIngestion}
                   />
                 </tbody>
@@ -489,14 +541,14 @@ export default function AdminHealthPage() {
 
           <section>
             <h3 className="mb-2 text-[13px] font-semibold text-ink">
-              Telegram integration
+              {t("admin.health.telegram")}
             </h3>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Card>
                 <div className="mb-2 flex items-center justify-between">
                   <h4 className="text-[12px] font-medium text-ink-soft">
-                    Telegram bot
+                    {t("admin.health.telegramBot")}
                   </h4>
 
                   <StatusIcon ok={health.telegram.reachable} />
@@ -504,10 +556,10 @@ export default function AdminHealthPage() {
 
                 <p className="text-[13px]">
                   {health.telegram.reachable
-                    ? "Online"
+                    ? t("admin.health.online")
                     : health.telegram.configured
-                      ? "Unavailable"
-                      : "Not configured"}
+                      ? t("admin.health.unavailable")
+                      : t("admin.health.notConfigured")}
                 </p>
 
                 <p className="mt-1 text-[11px] text-ink-faint">
@@ -520,7 +572,7 @@ export default function AdminHealthPage() {
               <Card>
                 <div className="mb-2 flex items-center justify-between">
                   <h4 className="text-[12px] font-medium text-ink-soft">
-                    Telegram webhook
+                    {t("admin.health.telegramWebhook")}
                   </h4>
 
                   <StatusIcon
@@ -534,9 +586,9 @@ export default function AdminHealthPage() {
                 <p className="text-[13px]">
                   {health.telegram.webhook.configured
                     ? health.telegram.webhook.matchesExpectedUrl === false
-                      ? "URL mismatch"
-                      : "Active"
-                    : "Not configured"}
+                      ? t("admin.health.urlMismatch")
+                      : t("admin.health.active")
+                    : t("admin.health.notConfigured")}
                 </p>
 
                 <p className="mt-1 truncate text-[11px] text-ink-faint">
@@ -546,7 +598,7 @@ export default function AdminHealthPage() {
 
               <Card>
                 <h4 className="mb-2 text-[12px] font-medium text-ink-soft">
-                  Pending updates
+                  {t("admin.health.pendingUpdates")}
                 </h4>
 
                 <p className="text-[13px]">
@@ -556,29 +608,30 @@ export default function AdminHealthPage() {
                 </p>
 
                 <p className="mt-1 text-[11px] text-ink-faint">
-                  Webhook secret:{" "}
-                  {health.telegram.webhook.secretConfigured
-                    ? "Configured"
-                    : "Missing"}
+                  {t("admin.health.webhookSecret", {
+                    value: health.telegram.webhook.secretConfigured
+                      ? t("admin.health.configured")
+                      : t("admin.health.missing"),
+                  })}
                 </p>
               </Card>
 
               <Card>
                 <div className="mb-2 flex items-center justify-between">
                   <h4 className="text-[12px] font-medium text-ink-soft">
-                    Last webhook error
+                    {t("admin.health.lastWebhookError")}
                   </h4>
 
                   <StatusIcon ok={!health.telegram.webhook.lastErrorMessage} />
                 </div>
 
                 <p className="truncate text-[13px]">
-                  {health.telegram.webhook.lastErrorMessage ?? "None"}
+                  {health.telegram.webhook.lastErrorMessage ?? t("admin.health.none")}
                 </p>
 
                 <p className="mt-1 text-[11px] text-ink-faint">
                   {health.telegram.webhook.lastErrorAt ??
-                    "No recent Telegram error"}
+                    t("admin.health.noRecentTelegramError")}
                 </p>
               </Card>
             </div>
@@ -587,36 +640,43 @@ export default function AdminHealthPage() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Card>
               <h4 className="mb-2 text-[12px] font-medium text-ink-soft">
-                Runtime
+                {t("admin.health.runtime")}
               </h4>
 
-              <p className="text-[13px]">Version {health.version}</p>
+              <p className="text-[13px]">
+                {t("admin.health.version", { value: health.version })}
+              </p>
 
               <p className="mt-1 text-[11px] text-ink-faint">
-                Uptime: {formatUptime(health.uptime)}
+                {t("admin.health.uptimeValue", {
+                  value: formatUptime(health.uptime, t),
+                })}
               </p>
             </Card>
 
             <Card>
               <h4 className="mb-2 text-[12px] font-medium text-ink-soft">
-                Memory
+                {t("admin.health.memory")}
               </h4>
 
               <p className="text-[13px]">
-                Heap used: {formatBytes(health.memory.used)}
+                {t("admin.health.heapUsed", {
+                  value: formatBytes(health.memory.used),
+                })}
               </p>
 
               <p className="mt-1 text-[11px] text-ink-faint">
-                Heap total: {formatBytes(health.memory.total)}
-                {" · "}
-                RSS: {formatBytes(health.memory.rss)}
+                {t("admin.health.heapDetails", {
+                  total: formatBytes(health.memory.total),
+                  rss: formatBytes(health.memory.rss),
+                })}
               </p>
             </Card>
           </div>
 
           <details>
             <summary className="cursor-pointer text-[12px] text-ink-faint">
-              Raw response
+              {t("admin.health.raw")}
             </summary>
 
             <pre className="mt-2 overflow-x-auto rounded-card border border-line bg-paper-raised p-3 text-[11px] text-ink-soft">

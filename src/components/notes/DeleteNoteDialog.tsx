@@ -1,6 +1,7 @@
 "use client";
 
 import { LoaderCircle, Trash2, X } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface DeleteNoteDialogProps {
   open: boolean;
@@ -19,6 +20,8 @@ export function DeleteNoteDialog({
   onCancel,
   onConfirm,
 }: DeleteNoteDialogProps) {
+  const { t } = useLanguage();
+
   if (!open) return null;
 
   return (
@@ -45,7 +48,7 @@ export function DeleteNoteDialog({
 
           <button
             type="button"
-            aria-label="Close delete dialog"
+            aria-label={t("note.deleteDialog.close")}
             disabled={isDeleting}
             onClick={onCancel}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint transition hover:bg-line-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
@@ -58,20 +61,18 @@ export function DeleteNoteDialog({
           id="delete-note-title"
           className="mt-4 font-serif text-[19px] font-semibold text-ink"
         >
-          Delete this paper?
+          {t("note.deleteDialog.title")}
         </h2>
 
         <p
           id="delete-note-description"
           className="mt-2 text-[13px] leading-5 text-ink-soft"
         >
-          <span className="font-medium text-ink">“{title}”</span> will be
-          permanently deleted together with its summary, quiz, flashcards,
-          chat, knowledge and generated study data.
+          {t("note.deleteDialog.description", { title })}
         </p>
 
         <p className="mt-2 text-[12px] text-coral">
-          This action cannot be undone.
+          {t("note.deleteDialog.warning")}
         </p>
 
         {error && (
@@ -90,7 +91,7 @@ export function DeleteNoteDialog({
             onClick={onCancel}
             className="rounded-lg border border-line bg-paper-raised px-4 py-2 text-[13px] font-medium text-ink transition hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -106,12 +107,12 @@ export function DeleteNoteDialog({
                   size={15}
                   strokeWidth={1.8}
                 />
-                Deleting…
+                {t("common.deleting")}
               </>
             ) : (
               <>
                 <Trash2 size={15} strokeWidth={1.8} />
-                Delete
+                {t("common.delete")}
               </>
             )}
           </button>

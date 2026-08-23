@@ -8,8 +8,10 @@ import { parseSummary } from "@/lib/parse-summary";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Card } from "@/components/ui/Card";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function SummaryPage() {
+  const { t } = useLanguage();
   const { note, setNote } = useNoteContext();
   const { isGenerating, error, generate } = useSummary(note?.id ?? "");
   const attempted = useRef(false);
@@ -35,16 +37,16 @@ export default function SummaryPage() {
         <Card className="flex min-h-[260px] flex-col items-center justify-center text-center">
           <RefreshCw size={24} className={isGenerating ? "mb-3 animate-spin" : "mb-3"} />
           <h3 className="font-serif text-[16px] font-semibold">
-            {isGenerating ? "Generating study notes" : "Study notes are not available"}
+            {isGenerating ? t("summary.generating") : t("summary.unavailable")}
           </h3>
           <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-soft">
             {isGenerating
-              ? "The paper is being condensed into structured revision notes."
-              : "Automatic generation did not complete. Try again."}
+              ? t("summary.generatingDescription")
+              : t("summary.retryDescription")}
           </p>
           {!isGenerating && (
             <Button className="mt-4" onClick={() => void handleGenerate(false)}>
-              Generate summary
+              {t("summary.generate")}
             </Button>
           )}
         </Card>
@@ -55,7 +57,7 @@ export default function SummaryPage() {
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-                Generated study notes
+                {t("summary.generated")}
               </p>
               <h3 className="mt-1 font-serif text-[18px] font-semibold">{note.title}</h3>
             </div>
@@ -66,16 +68,16 @@ export default function SummaryPage() {
               className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
             >
               <RefreshCw size={14} className={isGenerating ? "animate-spin" : ""} />
-              {isGenerating ? "Regenerating" : "Regenerate"}
+              {isGenerating ? t("summary.regenerating") : t("summary.regenerate")}
             </button>
           </div>
 
-          <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Overview</h4>
+          <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.overview")}</h4>
           <p className="whitespace-pre-wrap text-[13px] leading-7 text-ink-soft">{parsed.prose}</p>
 
           {parsed.keyPoints.length > 0 && (
             <section className="mt-6">
-              <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Key points</h4>
+              <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.keyPoints")}</h4>
               <ul className="space-y-2">
                 {parsed.keyPoints.map((point, index) => (
                   <li key={`${point}-${index}`} className="flex gap-3 text-[13px] leading-relaxed text-ink-soft">
@@ -88,7 +90,7 @@ export default function SummaryPage() {
 
           {parsed.importantConcepts.length > 0 && (
             <section className="mt-6">
-              <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Important concepts</h4>
+              <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.concepts")}</h4>
               <div className="flex flex-wrap gap-1.5">
                 {parsed.importantConcepts.map((concept) => (
                   <Chip key={concept} tone="violet">{concept}</Chip>
