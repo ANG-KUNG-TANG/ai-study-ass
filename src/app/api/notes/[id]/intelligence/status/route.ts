@@ -1,21 +1,6 @@
-import { NextResponse } from "next/server";
-import * as intelligenceService from "@/server/services/intelligence.service";
+import { withAuth } from "@/server/middleware/auth.middleware";
+import { getIntelligenceStatus } from "@/server/controller/intelligence.controller";
 
-/**
- * Apply the same authentication/ownership wrapper used by your other note
- * routes. The response contains processing metadata only, but note access
- * should still be restricted to the note owner.
- */
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
-  const { id: noteId } = await context.params;
-  const status = await intelligenceService.getStatus(noteId);
-
-  return NextResponse.json(status, {
-    headers: {
-      "Cache-Control": "no-store, max-age=0",
-    },
-  });
-}
+// Legacy alias for /api/notes/[id]/intelligence.
+// Authentication and note ownership are enforced by the shared controller.
+export const GET = withAuth(getIntelligenceStatus);
