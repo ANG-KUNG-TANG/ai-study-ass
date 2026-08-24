@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import type { TranslationKey } from "@/i18n/translations";
+import { ApiClientError } from "@/lib/api";
 
 const OAUTH_ERROR_KEYS: Record<string, TranslationKey> = {
   access_denied: "login.oauth.accessDenied",
@@ -31,6 +32,7 @@ function LoginContent() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [oauthErrorDismissed, setOauthErrorDismissed] = useState(false);
   const oauthErrorCode = searchParams.get("oauth_error");
   const oauthError =
@@ -42,6 +44,7 @@ function LoginContent() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    setNeedsVerification(false);
     setOauthErrorDismissed(true);
     setIsLoading(true);
 
@@ -49,6 +52,10 @@ function LoginContent() {
       await login(email, password);
       router.push("/student/dashboard");
     } catch (unknownError: unknown) {
+      setNeedsVerification(
+        unknownError instanceof ApiClientError &&
+          unknownError.code === "EMAIL_NOT_VERIFIED",
+      );
       setError(
         unknownError instanceof Error && unknownError.message
           ? unknownError.message
@@ -120,9 +127,17 @@ function LoginContent() {
         </div>
 
         {displayedError && (
-          <p className="rounded-xl bg-coral-soft px-4 py-3 text-[13px] text-coral">
-            {displayedError}
-          </p>
+          <div className="rounded-xl bg-coral-soft px-4 py-3 text-[13px] text-coral">
+            <p>{displayedError}</p>
+            {needsVerification && (
+              <Link
+                href={`/auth/verify-email?email=${encodeURIComponent(email)}`}
+                className="mt-2 inline-block font-semibold underline underline-offset-2"
+              >
+                {t("login.resendVerification")}
+              </Link>
+            )}
+          </div>
         )}
 
         <div className="flex items-center justify-between gap-4 text-[12px]">

@@ -12,12 +12,19 @@ import { revokeAllUserTokens } from "@/server/utils/jwt";
 import { NotFoundError, ForbiddenError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 
+export type AccountProfile = ReturnType<UserEntity["toPublic"]> & {
+  googleConnected: boolean;
+};
+
 export async function getProfile(
   userId: string,
-): Promise<ReturnType<UserEntity["toPublic"]>> {
-  const user = await userRepo.findById(userId);
+): Promise<AccountProfile> {
+  const user = await userRepo.findById(userId, { withGoogleSubject: true });
   if (!user) throw new NotFoundError("User");
-  return user.toPublic();
+  return {
+    ...user.toPublic(),
+    googleConnected: Boolean(user.googleSubject),
+  };
 }
 
 export async function updateProfile(

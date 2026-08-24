@@ -11,6 +11,25 @@ interface ApiOptions extends RequestInit {
   skipAuth?: boolean;
 }
 
+export class ApiClientError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly fields?: Record<string, string>;
+
+  constructor(input: {
+    message: string;
+    status: number;
+    code: string;
+    fields?: Record<string, string>;
+  }) {
+    super(input.message);
+    this.name = "ApiClientError";
+    this.status = input.status;
+    this.code = input.code;
+    this.fields = input.fields;
+  }
+}
+
 function asRecord(value: unknown): JsonRecord | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonRecord)
@@ -114,7 +133,26 @@ async function rawRequest(
         ? error.message
         : `Request failed: ${response.status}`;
 
-    throw new Error(message);
+    const code =
+      typeof error?.code === "string"
+        ? error.code
+        : "REQUEST_FAILED";
+    const rawFields = asRecord(error?.fields);
+    const fields = rawFields
+      ? Object.fromEntries(
+          Object.entries(rawFields).filter(
+            (entry): entry is [string, string] =>
+              typeof entry[1] === "string",
+          ),
+        )
+      : undefined;
+
+    throw new ApiClientError({
+      message,
+      status: response.status,
+      code,
+      fields,
+    });
   }
 
   return {

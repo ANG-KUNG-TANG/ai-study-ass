@@ -71,6 +71,16 @@ export default function RegisterPage() {
         <p className="mx-auto mb-5 max-w-[330px] text-[13px] leading-5 text-ink-soft">
           {success}
         </p>
+        <p className="mx-auto mb-5 max-w-[330px] text-[12px] leading-5 text-ink-faint">
+          {t("register.verificationSent", { email: form.email })}
+        </p>
+        <Link
+          href={`/auth/verify-email?email=${encodeURIComponent(form.email)}`}
+          className="mb-4 inline-flex h-10 items-center justify-center rounded-[11px] bg-yellow px-4 text-[12.5px] font-semibold text-ink hover:brightness-95"
+        >
+          {t("register.verificationHelp")}
+        </Link>
+        <br />
         <Link
           href="/auth/login"
           className="text-[12.5px] font-medium text-ink hover:underline"

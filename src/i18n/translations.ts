@@ -48,6 +48,7 @@ const en = {
     "Too many sign-in attempts. Please wait and try again.",
   "login.oauth.failed":
     "Google sign-in could not be completed. Please try again.",
+  "login.resendVerification": "Resend the verification email",
 
   "register.title": "Create your account",
   "register.subtitle": "Start studying smarter.",
@@ -63,6 +64,9 @@ const en = {
   "register.login": "Log in",
   "register.checkEmail": "Check your email",
   "register.backToLogin": "Back to log in",
+  "register.verificationSent":
+    "If the account can be created, the verification message was sent to {email}.",
+  "register.verificationHelp": "Verification help",
 
   "forgot.title": "Reset password",
   "forgot.subtitle":
@@ -92,7 +96,18 @@ const en = {
   "verify.title.verifying": "Verifying your email",
   "verify.title.verified": "Email verified",
   "verify.title.failed": "Verification failed",
+  "verify.title.waiting": "Check your inbox",
   "verify.continue": "Continue to login",
+  "verify.waiting":
+    "Open the verification link sent to {email}. If it did not arrive, request another below.",
+  "verify.enterEmail":
+    "Enter your registration email to request a new verification link.",
+  "verify.resend": "Resend verification email",
+  "verify.resending": "Sending…",
+  "verify.resendCooldown": "Try again in {seconds}s",
+  "verify.resendSuccess":
+    "If the account is registered and unverified, a new link has been sent.",
+  "verify.resendFailed": "The verification email could not be sent.",
   "logout.progress": "Logging out…",
 
   "nav.dashboard": "Dashboard",
@@ -107,6 +122,8 @@ const en = {
   "nav.aiUsage": "AI Usage",
   "nav.health": "Health",
   "nav.originalText": "Original text",
+  "nav.profile": "Profile",
+  "nav.settings": "Settings",
   "sidebar.closeMenu": "Close menu",
   "sidebar.openMenu": "Open menu",
   "sidebar.expand": "Expand sidebar",
@@ -442,6 +459,59 @@ const en = {
     "The engine is analysing each stage and preserving its evidence.",
   "profile.title": "Student Profile",
   "profile.description": "Manage your profile and account information.",
+  "profile.eyebrow": "Account",
+  "profile.openSettings": "Open settings",
+  "profile.personalDetails": "Personal details",
+  "profile.personalDetailsDescription":
+    "This name appears throughout your study workspace.",
+  "profile.updated": "Your profile has been updated.",
+  "profile.updateFailed": "Your profile could not be updated.",
+  "profile.saving": "Saving…",
+  "profile.save": "Save changes",
+  "profile.accountDetails": "Account details",
+  "profile.emailStatus": "Email status",
+  "profile.verified": "Verified",
+  "profile.notVerified": "Not verified",
+  "profile.memberSince": "Member since",
+
+  "settings.eyebrow": "Account",
+  "settings.title": "Settings",
+  "settings.description":
+    "Manage language, password security, sessions, and your account.",
+  "settings.loadFailed": "Account settings could not be loaded.",
+  "settings.language": "Language",
+  "settings.languageDescription":
+    "Choose the interface language for this browser. Imported document text is not translated.",
+  "settings.password": "Password and sign-in",
+  "settings.passwordDescription":
+    "Use a strong, unique password and change it if you suspect it has been exposed.",
+  "settings.googleConnected": "Google connected",
+  "settings.googlePasswordHelp":
+    "This account currently signs in with Google and does not have a user-created password. Use the secure email reset flow to create one.",
+  "settings.createPassword": "Create an account password",
+  "settings.currentPassword": "Current password",
+  "settings.newPassword": "New password",
+  "settings.confirmPassword": "Confirm new password",
+  "settings.passwordMismatch": "The new passwords do not match.",
+  "settings.passwordFailed": "The password could not be changed.",
+  "settings.changingPassword": "Changing password…",
+  "settings.changePassword": "Change password",
+  "settings.sessions": "Active sessions",
+  "settings.sessionsDescription":
+    "Sign out every browser and device connected to your account, including this one.",
+  "settings.signingOut": "Signing out…",
+  "settings.signOutAll": "Sign out all devices",
+  "settings.sessionsFailed": "The sessions could not be revoked.",
+  "settings.dangerZone": "Danger zone",
+  "settings.deleteDescription":
+    "Permanently delete your account and all owned notes, quizzes, flashcards, chats, and generated study data.",
+  "settings.deleteNeedsPassword":
+    "Create an account password through the secure email reset flow before deleting a Google-created account.",
+  "settings.confirmWithPassword": "Confirm with your password",
+  "settings.deleteConfirmation":
+    "I understand that this action is permanent and cannot be undone.",
+  "settings.deleteAccount": "Delete account permanently",
+  "settings.deleteFailed": "The account could not be deleted.",
 
   "admin.eyebrow": "Admin",
   "admin.system": "System",
@@ -628,6 +698,7 @@ const en = {
   "admin.users.column.actions": "Actions",
   "admin.users.active": "Active",
   "admin.users.banned": "Banned",
+  "admin.users.pendingVerification": "Pending verification",
   "admin.users.ban": "Ban",
   "admin.users.unban": "Unban",
   "admin.users.empty": "No users found.",
@@ -745,6 +816,7 @@ const my: Record<TranslationKey, string> = {
   "login.oauth.notConfigured": "Google ဝင်ရောက်မှုကို မသတ်မှတ်ရသေးပါ။",
   "login.oauth.rateLimited": "ဝင်ရောက်ရန် အကြိမ်များလွန်းသည်။ ခဏစောင့်ပြီး ထပ်မံကြိုးစားပါ။",
   "login.oauth.failed": "Google ဖြင့် ဝင်ရောက်မှု မပြီးမြောက်ပါ။ ထပ်မံကြိုးစားပါ။",
+  "login.resendVerification": "အတည်ပြုအီးမေးလ်ကို ထပ်ပို့ရန်",
 
   "register.title": "သင့်အကောင့်ကို ဖန်တီးပါ",
   "register.subtitle": "ပိုမိုထိရောက်စွာ စတင်လေ့လာပါ။",
@@ -760,6 +832,9 @@ const my: Record<TranslationKey, string> = {
   "register.login": "ဝင်ရောက်ရန်",
   "register.checkEmail": "သင့်အီးမေးလ်ကို စစ်ဆေးပါ",
   "register.backToLogin": "ဝင်ရောက်ရန် ပြန်သွားရန်",
+  "register.verificationSent":
+    "အကောင့်ဖန်တီးနိုင်ပါက အတည်ပြုစာကို {email} သို့ ပို့ထားပါသည်။",
+  "register.verificationHelp": "အတည်ပြုမှု အကူအညီ",
 
   "forgot.title": "စကားဝှက် ပြန်လည်သတ်မှတ်ရန်",
   "forgot.subtitle":
@@ -788,7 +863,18 @@ const my: Record<TranslationKey, string> = {
   "verify.title.verifying": "အီးမေးလ် အတည်ပြုနေသည်",
   "verify.title.verified": "အီးမေးလ် အတည်ပြုပြီးပါပြီ",
   "verify.title.failed": "အတည်ပြုမှု မအောင်မြင်ပါ",
+  "verify.title.waiting": "ဝင်စာပုံးကို စစ်ဆေးပါ",
   "verify.continue": "ဝင်ရောက်ရန် ဆက်သွားရန်",
+  "verify.waiting":
+    "{email} သို့ ပို့ထားသော အတည်ပြုလင့်ခ်ကို ဖွင့်ပါ။ မရရှိပါက အောက်တွင် ထပ်မံတောင်းဆိုနိုင်ပါသည်။",
+  "verify.enterEmail":
+    "အတည်ပြုလင့်ခ်အသစ် တောင်းရန် စာရင်းသွင်းထားသော အီးမေးလ်ကို ထည့်ပါ။",
+  "verify.resend": "အတည်ပြုအီးမေးလ် ထပ်ပို့ရန်",
+  "verify.resending": "ပို့နေသည်…",
+  "verify.resendCooldown": "{seconds} စက္ကန့်အကြာ ထပ်ကြိုးစားပါ",
+  "verify.resendSuccess":
+    "အကောင့်သည် စာရင်းသွင်းထားပြီး အတည်မပြုရသေးပါက လင့်ခ်အသစ် ပို့ထားပါသည်။",
+  "verify.resendFailed": "အတည်ပြုအီးမေးလ် ပို့၍မရပါ။",
   "logout.progress": "ထွက်နေသည်…",
 
   "nav.dashboard": "ပင်မစာမျက်နှာ",
@@ -803,6 +889,8 @@ const my: Record<TranslationKey, string> = {
   "nav.aiUsage": "AI အသုံးပြုမှု",
   "nav.health": "စနစ်အခြေအနေ",
   "nav.originalText": "မူရင်းစာသား",
+  "nav.profile": "ပရိုဖိုင်",
+  "nav.settings": "ဆက်တင်များ",
   "sidebar.closeMenu": "မီနူးပိတ်ရန်",
   "sidebar.openMenu": "မီနူးဖွင့်ရန်",
   "sidebar.expand": "ဘေးဘားဖြန့်ရန်",
@@ -1105,6 +1193,59 @@ const my: Record<TranslationKey, string> = {
   "intelligence.running": "အဆင့်တစ်ခုစီကို ခွဲခြမ်းပြီး အထောက်အထားများကို သိမ်းဆည်းနေသည်။",
   "profile.title": "ကျောင်းသား ပရိုဖိုင်",
   "profile.description": "သင့်ပရိုဖိုင်နှင့် အကောင့်အချက်အလက်များကို စီမံပါ။",
+  "profile.eyebrow": "အကောင့်",
+  "profile.openSettings": "ဆက်တင်များ ဖွင့်ရန်",
+  "profile.personalDetails": "ကိုယ်ရေးအချက်အလက်",
+  "profile.personalDetailsDescription":
+    "ဤအမည်ကို သင့်လေ့လာရေးနေရာတစ်လျှောက် ပြသပါမည်။",
+  "profile.updated": "သင့်ပရိုဖိုင်ကို ပြင်ဆင်ပြီးပါပြီ။",
+  "profile.updateFailed": "သင့်ပရိုဖိုင်ကို ပြင်ဆင်၍မရပါ။",
+  "profile.saving": "သိမ်းနေသည်…",
+  "profile.save": "ပြောင်းလဲမှုများ သိမ်းရန်",
+  "profile.accountDetails": "အကောင့်အသေးစိတ်",
+  "profile.emailStatus": "အီးမေးလ်အခြေအနေ",
+  "profile.verified": "အတည်ပြုပြီး",
+  "profile.notVerified": "အတည်မပြုရသေး",
+  "profile.memberSince": "စတင်အသုံးပြုသည့်နေ့",
+
+  "settings.eyebrow": "အကောင့်",
+  "settings.title": "ဆက်တင်များ",
+  "settings.description":
+    "ဘာသာစကား၊ စကားဝှက်လုံခြုံရေး၊ ဝင်ရောက်ထားမှုနှင့် အကောင့်ကို စီမံပါ။",
+  "settings.loadFailed": "အကောင့်ဆက်တင်များကို ဖွင့်၍မရပါ။",
+  "settings.language": "ဘာသာစကား",
+  "settings.languageDescription":
+    "ဤဘရောက်ဇာအတွက် အင်တာဖေ့စ်ဘာသာစကားကို ရွေးပါ။ တင်သွင်းထားသောစာတမ်းကို ဘာသာမပြန်ပါ။",
+  "settings.password": "စကားဝှက်နှင့် ဝင်ရောက်မှု",
+  "settings.passwordDescription":
+    "ခန့်မှန်းရခက်သော သီးသန့်စကားဝှက်ကို သုံးပြီး ပေါက်ကြားနိုင်သည်ဟု သံသယရှိပါက ပြောင်းပါ။",
+  "settings.googleConnected": "Google ချိတ်ဆက်ထားသည်",
+  "settings.googlePasswordHelp":
+    "ဤအကောင့်သည် Google ဖြင့် ဝင်ရောက်ထားပြီး ကိုယ်တိုင်သတ်မှတ်သော စကားဝှက် မရှိသေးပါ။ လုံခြုံသော အီးမေးလ်ပြန်လည်သတ်မှတ်မှုဖြင့် စကားဝှက်ဖန်တီးပါ။",
+  "settings.createPassword": "အကောင့်စကားဝှက် ဖန်တီးရန်",
+  "settings.currentPassword": "လက်ရှိစကားဝှက်",
+  "settings.newPassword": "စကားဝှက်အသစ်",
+  "settings.confirmPassword": "စကားဝှက်အသစ် အတည်ပြုရန်",
+  "settings.passwordMismatch": "စကားဝှက်အသစ်များ မတူညီပါ။",
+  "settings.passwordFailed": "စကားဝှက် ပြောင်း၍မရပါ။",
+  "settings.changingPassword": "စကားဝှက် ပြောင်းနေသည်…",
+  "settings.changePassword": "စကားဝှက် ပြောင်းရန်",
+  "settings.sessions": "ဝင်ရောက်ထားသော စက်များ",
+  "settings.sessionsDescription":
+    "ဤစက်အပါအဝင် သင့်အကောင့်သို့ ချိတ်ဆက်ထားသော ဘရောက်ဇာနှင့် စက်အားလုံးမှ ထွက်ပါ။",
+  "settings.signingOut": "ထွက်နေသည်…",
+  "settings.signOutAll": "စက်အားလုံးမှ ထွက်ရန်",
+  "settings.sessionsFailed": "ဝင်ရောက်ထားမှုများကို ပိတ်၍မရပါ။",
+  "settings.dangerZone": "သတိထားရမည့် နေရာ",
+  "settings.deleteDescription":
+    "သင့်အကောင့်နှင့် ပိုင်ဆိုင်သော မှတ်စု၊ မေးခွန်း၊ ကတ်၊ စကားပြောခန်းနှင့် ဖန်တီးထားသော လေ့လာရေးဒေတာအားလုံးကို အပြီးဖျက်ပါ။",
+  "settings.deleteNeedsPassword":
+    "Google ဖြင့် ဖန်တီးထားသောအကောင့်ကို မဖျက်မီ လုံခြုံသော အီးမေးလ်ပြန်လည်သတ်မှတ်မှုဖြင့် အကောင့်စကားဝှက် ဖန်တီးပါ။",
+  "settings.confirmWithPassword": "စကားဝှက်ဖြင့် အတည်ပြုရန်",
+  "settings.deleteConfirmation":
+    "ဤလုပ်ဆောင်ချက်သည် အပြီးဖြစ်ပြီး ပြန်ပြင်၍မရကြောင်း နားလည်ပါသည်။",
+  "settings.deleteAccount": "အကောင့်ကို အပြီးဖျက်ရန်",
+  "settings.deleteFailed": "အကောင့်ကို ဖျက်၍မရပါ။",
 
   "admin.eyebrow": "စီမံခန့်ခွဲသူ",
   "admin.system": "စနစ်",
@@ -1287,6 +1428,7 @@ const my: Record<TranslationKey, string> = {
   "admin.users.column.actions": "လုပ်ဆောင်ချက်များ",
   "admin.users.active": "အသုံးပြုနိုင်",
   "admin.users.banned": "ပိတ်ထားသည်",
+  "admin.users.pendingVerification": "အီးမေးလ် အတည်ပြုရန် စောင့်နေသည်",
   "admin.users.ban": "ပိတ်ရန်",
   "admin.users.unban": "ပြန်ဖွင့်ရန်",
   "admin.users.empty": "အသုံးပြုသူ မတွေ့ပါ။",

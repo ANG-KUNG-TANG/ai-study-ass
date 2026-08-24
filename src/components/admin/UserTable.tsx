@@ -201,14 +201,18 @@ export function UserTable({
                   <Chip
                     className=""
                     tone={
-                      user.isActive
-                        ? "sage"
-                        : "coral"
+                      !user.isActive
+                        ? "coral"
+                        : user.emailVerified
+                          ? "sage"
+                          : "yellow"
                     }
                   >
-                    {user.isActive
-                      ? t("admin.users.active")
-                      : t("admin.users.banned")}
+                    {!user.isActive
+                      ? t("admin.users.banned")
+                      : user.emailVerified
+                        ? t("admin.users.active")
+                        : t("admin.users.pendingVerification")}
                   </Chip>
                 </td>
 

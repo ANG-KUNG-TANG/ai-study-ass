@@ -14,6 +14,7 @@ import { UserEntity } from "@/server/entities/user.entity";
 import { USER_RULES } from "@/server/entities/user.entity";
 import {
   UnauthorizedError,
+  EmailNotVerifiedError,
   NotFoundError,
   BadRequestError,
   ConflictError,
@@ -163,11 +164,20 @@ export async function resendVerification(
   email: string,
   sendVerificationEmail: (email: string, token: string) => Promise<void>
 ): Promise<{ message: string }> {
-  const user = await userRepo.findByEmail(email);
+  const user = await userRepo.findByEmail(email, {
+    withVerificationToken: true,
+  });
   const genericMessage = "If that email is registered and unverified, a new link has been sent";
 
   if (!user) return { message: genericMessage };
-  if (user.isActive) return { message: genericMessage };
+  if (user.emailVerified) return { message: genericMessage };
+
+  // A disabled account with no pending legacy verification token is an
+  // administrator-disabled account, not an unverified registration. Never
+  // issue a token that could be used to undo the administrator's decision.
+  if (!user.isActive && !user.emailVerificationToken) {
+    return { message: genericMessage };
+  }
 
   const newToken = generateActionToken();
   const newTokenHash = hashActionToken(newToken);
@@ -193,7 +203,10 @@ export async function resendVerification(
 
 export async function login(input: LoginInput): Promise<AuthResult> {
   // Need passwordHash to compare — explicit opt-in
-  const user = await userRepo.findByEmail(input.email, { withPassword: true });
+  const user = await userRepo.findByEmail(input.email, {
+    withPassword: true,
+    withVerificationToken: true,
+  });
 
   // Same public error for wrong email OR wrong password — prevents user enumeration.
   if (!user) {
@@ -204,20 +217,6 @@ export async function login(input: LoginInput): Promise<AuthResult> {
       metadata: { reason: "invalid_credentials" },
     });
     throw new UnauthorizedError("Invalid email or password");
-  }
-
-  // Domain rule: must be verified before login.
-  const { allowed, reason } = user.canLogin();
-  if (!allowed) {
-    await logActivity({
-      actorId: user.id,
-      actorEmail: user.email,
-      action: "auth.login_failed",
-      targetType: "user",
-      targetId: user.id,
-      metadata: { reason: "account_not_allowed" },
-    });
-    throw new UnauthorizedError(reason);
   }
 
   const passwordMatch = await bcrypt.compare(input.password, user.passwordHash);
@@ -231,6 +230,31 @@ export async function login(input: LoginInput): Promise<AuthResult> {
       metadata: { reason: "invalid_credentials" },
     });
     throw new UnauthorizedError("Invalid email or password");
+  }
+
+  // Only reveal verification state after the password has been proved. This
+  // avoids turning the login endpoint into an account-status oracle.
+  const { allowed, reason } = user.canLogin();
+  if (!allowed) {
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.login_failed",
+      targetType: "user",
+      targetId: user.id,
+      metadata: {
+        reason:
+          user.isActive && !user.emailVerified
+            ? "email_not_verified"
+            : "account_disabled",
+      },
+    });
+
+    if (user.isActive && !user.emailVerified) {
+      throw new EmailNotVerifiedError();
+    }
+
+    throw new UnauthorizedError(reason);
   }
 
   const result = await issueSession(user);
@@ -255,9 +279,17 @@ export async function loginWithGoogle(
   if (!user) {
     const existingUser = await userRepo.findByEmail(identity.email, {
       withGoogleSubject: true,
+      withVerificationToken: true,
     });
 
     if (existingUser) {
+      // Never let a provider-linking path override an administrative ban.
+      // Legacy unverified accounts must consume their verification token
+      // first, which migrates them into the separated account-state model.
+      if (!existingUser.isActive) {
+        throw new UnauthorizedError("Account disabled");
+      }
+
       if (
         existingUser.googleSubject &&
         existingUser.googleSubject !== identity.subject
@@ -280,11 +312,13 @@ export async function loginWithGoogle(
       if (!existingUser.googleSubject) {
         await userRepo.setGoogleSubject(existingUser.id, identity.subject);
       }
-      if (!existingUser.isActive) {
+      if (!existingUser.emailVerified) {
         await userRepo.activate(existingUser.id);
       }
 
-      user = await userRepo.findById(existingUser.id);
+      user = await userRepo.findById(existingUser.id, {
+        withGoogleSubject: true,
+      });
       if (!user) {
         throw new UnauthorizedError("Google sign-in could not be completed");
       }
@@ -360,7 +394,7 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
 
   // A banned/inactive account or an explicit revoke-all decision must not be
   // able to rotate its refresh token into a new credential pair.
-  if (!user.isActive || allRevoked) {
+  if (!user.isActive || !user.emailVerified || allRevoked) {
     if (user.refreshTokenId !== null) {
       await userRepo.updateRefreshTokenId(payload.userId, null);
     }
@@ -430,7 +464,7 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
 // ─── Get current user ─────────────────────────────────────────────────────────
 
 export async function getMe(userId: string): Promise<ReturnType<UserEntity["toPublic"]>> {
-  const user = await userRepo.findById(userId);
+  const user = await userRepo.findById(userId, { withGoogleSubject: true });
   if (!user) throw new NotFoundError("User");
   return user.toPublic();
 }
@@ -466,6 +500,28 @@ export async function changePassword(
   });
 }
 
+// ─── Sign out all sessions ────────────────────────────────────────────────────
+
+export async function logoutAll(userId: string): Promise<void> {
+  const user = await userRepo.findById(userId);
+  if (!user) throw new NotFoundError("User");
+
+  await Promise.all([
+    userRepo.updateRefreshTokenId(userId, null),
+    revokeAllUserTokens(userId),
+  ]);
+
+  logger.info("All user sessions revoked", { userId });
+
+  await logActivity({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "auth.sessions_revoked",
+    targetType: "user",
+    targetId: user.id,
+  });
+}
+
 // ─── Forgot password — request reset link ────────────────────────────────────
 
 export async function forgotPassword(
@@ -476,7 +532,9 @@ export async function forgotPassword(
 
   const user = await userRepo.findByEmail(email);
   if (!user) return { message: genericMessage };
-  if (!user.isActive) return { message: genericMessage };
+  if (!user.isActive || !user.emailVerified) {
+    return { message: genericMessage };
+  }
 
   const resetToken = generateActionToken();
   const resetTokenHash = hashActionToken(resetToken);

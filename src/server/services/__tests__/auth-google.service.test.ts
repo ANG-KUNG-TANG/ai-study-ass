@@ -46,9 +46,11 @@ const googleIdentity = {
 
 function persistedUser(input: {
   active: boolean;
+  emailVerified?: boolean;
   googleSubject?: string | null;
 }): UserEntity {
   const now = new Date("2026-08-23T00:00:00.000Z");
+  const emailVerified = input.emailVerified ?? input.active;
   return UserEntity.fromPersistence({
     id: "user-1",
     name: "Ada Student",
@@ -57,8 +59,9 @@ function persistedUser(input: {
     googleSubject: input.googleSubject ?? null,
     role: "user",
     isActive: input.active,
-    emailVerificationToken: input.active ? null : "verification-token",
-    emailVerificationExpires: input.active ? null : now,
+    emailVerified,
+    emailVerificationToken: emailVerified ? null : "verification-token",
+    emailVerificationExpires: emailVerified ? null : now,
     passwordResetToken: null,
     passwordResetExpires: null,
     refreshTokenId: null,
@@ -99,15 +102,18 @@ describe("loginWithGoogle", () => {
     );
   });
 
-  it("links and activates a matching verified Gmail account", async () => {
-    const inactiveUser = persistedUser({ active: false });
+  it("links and verifies a matching enabled Gmail account", async () => {
+    const pendingUser = persistedUser({
+      active: true,
+      emailVerified: false,
+    });
     const activeUser = persistedUser({
       active: true,
       googleSubject: googleIdentity.subject,
     });
 
     jest.mocked(userRepo.findByGoogleSubject).mockResolvedValue(null);
-    jest.mocked(userRepo.findByEmail).mockResolvedValue(inactiveUser);
+    jest.mocked(userRepo.findByEmail).mockResolvedValue(pendingUser);
     jest.mocked(userRepo.findById).mockResolvedValue(activeUser);
     jest.mocked(userRepo.setGoogleSubject).mockResolvedValue(undefined);
     jest.mocked(userRepo.activate).mockResolvedValue(undefined);
@@ -115,11 +121,26 @@ describe("loginWithGoogle", () => {
     await loginWithGoogle(googleIdentity);
 
     expect(userRepo.setGoogleSubject).toHaveBeenCalledWith(
-      inactiveUser.id,
+      pendingUser.id,
       googleIdentity.subject,
     );
-    expect(userRepo.activate).toHaveBeenCalledWith(inactiveUser.id);
+    expect(userRepo.activate).toHaveBeenCalledWith(pendingUser.id);
     expect(userRepo.create).not.toHaveBeenCalled();
+  });
+
+  it("does not let Google linking reactivate an administratively disabled account", async () => {
+    jest.mocked(userRepo.findByGoogleSubject).mockResolvedValue(null);
+    jest.mocked(userRepo.findByEmail).mockResolvedValue(
+      persistedUser({ active: false, emailVerified: false }),
+    );
+
+    await expect(loginWithGoogle(googleIdentity)).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+      message: "Account disabled",
+    });
+
+    expect(userRepo.setGoogleSubject).not.toHaveBeenCalled();
+    expect(userRepo.activate).not.toHaveBeenCalled();
   });
 
   it("does not automatically link a password account on another domain", async () => {

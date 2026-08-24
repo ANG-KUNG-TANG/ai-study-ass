@@ -10,6 +10,7 @@ export const AUDIT_ACTIONS = [
   "auth.email_verified",
   "auth.password_changed",
   "auth.password_reset",
+  "auth.sessions_revoked",
   "auth.refresh_reuse_detected",
   "note.uploaded",
   "note.deleted",
@@ -76,6 +77,7 @@ export class AuditLogEntity {
       case "auth.email_verified": return `${who} verified their email`;
       case "auth.password_changed": return `${who} changed their password`;
       case "auth.password_reset": return `${who} reset their password`;
+      case "auth.sessions_revoked": return `${who} signed out all sessions`;
       case "auth.refresh_reuse_detected": return `Refresh-token reuse detected for ${who}`;
       case "note.uploaded": return `${who} uploaded a new note`;
       case "note.deleted": return `${who} deleted a note`;

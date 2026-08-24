@@ -40,8 +40,17 @@ export interface UserProps {
   email: string;
   passwordHash: string;
   googleSubject?: string | null;
+  /**
+   * Optional for backward compatibility with accounts created before this
+   * field existed. The entity derives a safe value from googleSubject when it
+   * is absent.
+   */
+  passwordConfigured?: boolean;
   role: UserRole;
+  /** Administrative account state (for example, banned/unbanned). */
   isActive: boolean;              // was Boolean (capital B) — use primitive boolean
+  /** Separate from isActive so email verification cannot undo an admin ban. */
+  emailVerified?: boolean;
   emailVerificationToken: string | null;
   emailVerificationExpires: Date | null;
   passwordResetToken: string | null;
@@ -57,6 +66,8 @@ export interface UserPublicProfile {
   email: string;
   role: UserRole;
   isActive: boolean;
+  emailVerified: boolean;
+  passwordConfigured: boolean;
   createdAt: Date;
   updatedAt: Date;              // was "updateAt" (typo) in your version
 }
@@ -127,8 +138,10 @@ export class UserEntity {
   readonly #email: string;
   readonly #passwordHash: string;
   readonly #googleSubject: string | null;
+  readonly #passwordConfigured: boolean;
   readonly #role: UserRole;
   readonly #isActive: boolean;
+  readonly #emailVerified: boolean;
   readonly #emailVerificationToken: string | null;
   readonly #emailVerificationExpires: Date | null;
   readonly #passwordResetToken: string | null;    // was Date | null — wrong type
@@ -143,8 +156,14 @@ export class UserEntity {
     this.#email = props.email;
     this.#passwordHash = props.passwordHash;
     this.#googleSubject = props.googleSubject ?? null;
+    this.#passwordConfigured =
+      props.passwordConfigured ?? !props.googleSubject;
     this.#role = props.role;
     this.#isActive = props.isActive;
+    // Existing records used isActive as the verification flag. Active legacy
+    // accounts are therefore treated as verified until they are persisted in
+    // the new shape.
+    this.#emailVerified = props.emailVerified ?? props.isActive;
     this.#emailVerificationToken = props.emailVerificationToken;
     this.#emailVerificationExpires = props.emailVerificationExpires;
     this.#passwordResetToken = props.passwordResetToken;
@@ -161,8 +180,10 @@ export class UserEntity {
   get email(): string { return this.#email; }          // was "return this.email" — infinite loop
   get passwordHash(): string { return this.#passwordHash; }
   get googleSubject(): string | null { return this.#googleSubject; }
+  get passwordConfigured(): boolean { return this.#passwordConfigured; }
   get role(): UserRole { return this.#role; }
   get isActive(): boolean { return this.#isActive; }
+  get emailVerified(): boolean { return this.#emailVerified; }
   get emailVerificationToken(): string | null { return this.#emailVerificationToken; }
   get emailVerificationExpires(): Date | null { return this.#emailVerificationExpires; } // was string | null — wrong type
   get passwordResetToken(): string | null { return this.#passwordResetToken; }
@@ -193,8 +214,12 @@ export class UserEntity {
       email: input.email.toLowerCase().trim(),
       passwordHash: input.passwordHash,
       googleSubject: null,
+      passwordConfigured: true,
       role: "user",
-      isActive: false,
+      // A newly registered account is enabled but cannot log in until its
+      // email is verified. Administrative activation is a separate concern.
+      isActive: true,
+      emailVerified: false,
       emailVerificationToken: input.emailVerificationToken,
       emailVerificationExpires: expiresAt,
       passwordResetToken: null,
@@ -229,8 +254,10 @@ export class UserEntity {
       email: input.email.toLowerCase().trim(),
       passwordHash: input.passwordHash,
       googleSubject: input.googleSubject,
+      passwordConfigured: false,
       role: "user",
       isActive: true,
+      emailVerified: true,
       emailVerificationToken: null,
       emailVerificationExpires: null,
       passwordResetToken: null,
@@ -259,6 +286,12 @@ export class UserEntity {
 
   canLogin(): { allowed: boolean; reason?: string } {
     if (!this.#isActive) {
+      return {
+        allowed: false,
+        reason: "Account disabled",
+      };
+    }
+    if (!this.#emailVerified) {
       return {
         allowed: false,
         reason: "Account not verified — please check your email",
@@ -290,6 +323,8 @@ export class UserEntity {
       email: this.#email,
       role: this.#role,
       isActive: this.#isActive,
+      emailVerified: this.#emailVerified,
+      passwordConfigured: this.#passwordConfigured,
       createdAt: this.#createdAt,
       updatedAt: this.#updatedAt,   // was "updateAt" (typo) + was this.createdAt (wrong field)
     };
@@ -302,8 +337,10 @@ export class UserEntity {
       email: this.#email,
       passwordHash: this.#passwordHash,
       googleSubject: this.#googleSubject,
+      passwordConfigured: this.#passwordConfigured,
       role: this.#role,
       isActive: this.#isActive,           // was this.isActive (getter) instead of #isActive
+      emailVerified: this.#emailVerified,
       emailVerificationToken: this.#emailVerificationToken,
       emailVerificationExpires: this.#emailVerificationExpires,
       passwordResetToken: this.#passwordResetToken,   // was this.passwordResetToken (getter)

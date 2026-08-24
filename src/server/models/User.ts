@@ -10,8 +10,10 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   googleSubject: string | null;
+  passwordConfigured?: boolean;
   role: UserRole;
   isActive: boolean;
+  emailVerified?: boolean;
   emailVerificationToken: string | null;
   emailVerificationExpires: Date | null;  // was "emailVerifictionExpires" (typo)
   passwordResetToken: string | null;
@@ -54,6 +56,10 @@ const userSchema = new Schema<IUser>(
       default: null,
       select: false,
     },
+    passwordConfigured: {
+      type: Boolean,
+      required: false,
+    },
     role: {
       type: String,
       enum: ["user", "admin"] satisfies UserRole[],
@@ -61,7 +67,11 @@ const userSchema = new Schema<IUser>(
     },
     isActive: {
       type: Boolean,
-      default: false,
+      default: true,
+    },
+    emailVerified: {
+      type: Boolean,
+      required: false,
     },
     emailVerificationToken: {
       type: String,
@@ -119,6 +129,7 @@ const toPublicJSON = (_doc: unknown, ret: any) => {
   const {
     passwordHash,
     googleSubject,
+    passwordConfigured,
     emailVerificationToken,
     emailVerificationExpires,
     passwordResetToken,
@@ -127,7 +138,10 @@ const toPublicJSON = (_doc: unknown, ret: any) => {
     __v,
     ...publicRet
   } = ret;
-  return publicRet;
+  return {
+    ...publicRet,
+    passwordConfigured,
+  };
 };
 
 userSchema.set("toJSON", { transform: toPublicJSON });

@@ -54,6 +54,8 @@ const NAVIGATION_KEYS: Record<string, TranslationKey> = {
   "AI Usage": "nav.aiUsage",
   Health: "nav.health",
   "Original text": "nav.originalText",
+  Profile: "nav.profile",
+  Settings: "nav.settings",
 };
 
 interface SidebarProps {
@@ -139,7 +141,7 @@ export function Sidebar({
   async function handleLogout() {
     await logout();
 
-    router.replace("/login");
+    router.replace("/auth/login");
     router.refresh();
   }
 

@@ -51,4 +51,14 @@ describe("language translations", () => {
       }),
     ).toBe("Last server snapshot: 2026-08-23 18:00");
   });
+
+  it("translates account verification, profile, and settings screens", () => {
+    expect(translate("en", "settings.signOutAll")).toBe(
+      "Sign out all devices",
+    );
+    expect(translate("my", "nav.profile")).toBe("ပရိုဖိုင်");
+    expect(
+      translate("en", "verify.resendCooldown", { seconds: 12 }),
+    ).toBe("Try again in 12s");
+  });
 });

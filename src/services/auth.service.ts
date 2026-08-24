@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import type { User } from "@/types/user";
 
 export interface RegisterInput {
   name: string;
@@ -21,11 +22,11 @@ export function register(input: RegisterInput): Promise<{ message: string }> {
   return apiFetch("/auth/register", { method: "POST", skipAuth: true, body: JSON.stringify(input) });
 }
 
-export function login(input: LoginInput): Promise<{message: string}>{
+export function login(input: LoginInput): Promise<{ accessToken: string; user: User }> {
   return apiFetch('/auth/login', { method: "POST", skipAuth: true, body: JSON.stringify(input)})
 }
 
-export function logout(): Promise<{messsage: string}> {
+export function logout(): Promise<void> {
   return apiFetch('/auth/logout', { method: "POST"})
 }
 export function verifyEmail(token: string): Promise<{ message: string }> {
@@ -55,4 +56,8 @@ export function resetPassword(
 
 export function changePassword(input: ChangePasswordInput): Promise<{ message: string }> {
   return apiFetch("/auth/password", { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export function logoutAllSessions(): Promise<{ message: string }> {
+  return apiFetch("/auth/sessions", { method: "DELETE" });
 }

@@ -35,6 +35,12 @@ export class UnauthorizedError extends AppError {
   }
 }
 
+export class EmailNotVerifiedError extends AppError {
+  constructor(message = "Account not verified — please check your email") {
+    super(message, 403, "EMAIL_NOT_VERIFIED");
+  }
+}
+
 export class ForbiddenError extends AppError {
   constructor(message = "You do not have permission to perform this action") {
     super(message, 403, "FORBIDDEN");

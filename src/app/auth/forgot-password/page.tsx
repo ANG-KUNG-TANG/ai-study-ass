@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { AuthPageMark } from "@/components/auth/AuthPageMark";
@@ -10,9 +11,10 @@ import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/context/LanguageContext";
 import { forgotPassword } from "@/services/auth.service";
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordContent() {
   const { t } = useLanguage();
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -114,5 +116,13 @@ export default function ForgotPasswordPage() {
         {t("forgot.backToLogin")}
       </Link>
     </div>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[420px]" aria-hidden="true" />}>
+      <ForgotPasswordContent />
+    </Suspense>
   );
 }

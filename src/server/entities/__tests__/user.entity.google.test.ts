@@ -16,8 +16,30 @@ describe("UserEntity.createGoogle", () => {
       email: "ada@gmail.com",
       googleSubject: "google-subject-1",
       isActive: true,
+      emailVerified: true,
+      passwordConfigured: false,
       emailVerificationToken: null,
       emailVerificationExpires: null,
+    });
+  });
+
+  it("keeps administrative activation separate from email verification", () => {
+    const user = UserEntity.create({
+      id: "user-password",
+      name: "Ada Student",
+      email: "ada@example.com",
+      passwordHash: "hashed-password",
+      emailVerificationToken: "hashed-verification-token",
+    });
+
+    expect(user.toPublic()).toMatchObject({
+      isActive: true,
+      emailVerified: false,
+      passwordConfigured: true,
+    });
+    expect(user.canLogin()).toEqual({
+      allowed: false,
+      reason: "Account not verified — please check your email",
     });
   });
 
