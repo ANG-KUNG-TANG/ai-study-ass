@@ -5,6 +5,7 @@ import type {
   KeyPoint,
   KnowledgeCore,
 } from "@/server/intelligence/types";
+import type { GroundedKnowledge } from "@/server/intelligence/grounding";
 
 export interface ValidatedGenerationContext {
   noteId: string;
@@ -13,6 +14,7 @@ export interface ValidatedGenerationContext {
   claims: ExtractedClaim[];
   concepts: ConceptCandidate[];
   keyPoints: KeyPoint[];
+  grounding: GroundedKnowledge | null;
   warnings: string[];
 }
 
@@ -41,6 +43,7 @@ export async function getValidatedGenerationContext(
   const warnings = core.validation?.issues
     ?.filter((issue) => issue.severity === "warning")
     .map((issue) => issue.message) ?? [];
+  const grounding = result.grounding;
 
   return {
     noteId,
@@ -49,6 +52,10 @@ export async function getValidatedGenerationContext(
     claims,
     concepts,
     keyPoints: core.keyPoints ?? [],
-    warnings,
+    grounding,
+    warnings: [
+      ...warnings,
+      ...(grounding?.quality.warnings ?? []),
+    ],
   };
 }

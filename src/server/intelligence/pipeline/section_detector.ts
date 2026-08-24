@@ -101,6 +101,19 @@ function findHeadingCandidates(text: string): HeadingCandidate[] {
 
     if (!trimmed || trimmed.length > HEADING_MAX_LENGTH) continue;
 
+    const slide = trimmed.match(/^slide\s+(\d+)\s*(?:[-–—:]\s*)?(.+)$/i);
+    if (slide && looksLikeHeadingText(slide[2])) {
+      candidates.push({
+        line,
+        heading: `Slide ${slide[1]} - ${slide[2].trim()}`,
+        number: slide[1],
+        level: 1,
+        startOffset: lineStart,
+        lineEndOffset: lineEnd + 1,
+      });
+      continue;
+    }
+
     const numbered = trimmed.match(/^(\d+(?:\.\d+)*)[.)]?\s+(.+)$/);
     if (numbered && looksLikeHeadingText(numbered[2])) {
       const level = numbered[1].split(".").length;
@@ -126,7 +139,10 @@ function findHeadingCandidates(text: string): HeadingCandidate[] {
     }
   }
 
-  return removeFalsePositiveHeadings(candidates, text);
+  return removeNumberedListCandidates(
+    removeFalsePositiveHeadings(candidates, text),
+    text,
+  );
 }
 
 function looksLikeHeadingText(value: string): boolean {
@@ -148,10 +164,58 @@ function isUppercaseHeading(value: string): boolean {
 }
 
 function isTitleCaseHeading(value: string): boolean {
+  if (/^[\u2022\u25AA\u25E6\u2023\u2043*+-]/u.test(value)) return false;
   const words = value.split(/\s+/);
   if (words.length < 1 || words.length > 10) return false;
   const titleWords = words.filter((word) => /^[A-Z][A-Za-z0-9&/-]*$/.test(word));
   return titleWords.length / words.length >= 0.75 && !/[.!?]$/.test(value);
+}
+
+function removeNumberedListCandidates(
+  candidates: HeadingCandidate[],
+  text: string,
+): HeadingCandidate[] {
+  const listIndexes = new Set<number>();
+  let run: number[] = [];
+
+  const flush = (): void => {
+    if (run.length >= 3) {
+      for (const index of run) listIndexes.add(index);
+    }
+    run = [];
+  };
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
+    const numeric = candidate.number?.match(/^\d+$/)
+      ? Number(candidate.number)
+      : null;
+
+    if (numeric === null || candidate.heading.toLowerCase().startsWith("slide ")) {
+      flush();
+      continue;
+    }
+
+    if (run.length === 0) {
+      run = [index];
+      continue;
+    }
+
+    const previousIndex = run.at(-1)!;
+    const previous = candidates[previousIndex];
+    const previousNumber = Number(previous.number);
+    const gap = text.slice(previous.lineEndOffset, candidate.startOffset).trim();
+
+    if (numeric === previousNumber + 1 && gap.length === 0) {
+      run.push(index);
+    } else {
+      flush();
+      run = [index];
+    }
+  }
+
+  flush();
+  return candidates.filter((_, index) => !listIndexes.has(index));
 }
 
 function removeFalsePositiveHeadings(

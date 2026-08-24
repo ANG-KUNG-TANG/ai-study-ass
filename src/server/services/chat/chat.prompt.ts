@@ -6,6 +6,7 @@ import {
   buildUntrustedTextBlock,
   buildUntrustedValueBlock,
 } from "@/server/utils/prompt-security";
+import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
 
 export interface ChatHistoryMessage {
   question: string;
@@ -33,6 +34,18 @@ function buildFactBlock(
     | IntelligenceResultEntity
     | null,
 ): string {
+  if (isIntelligenceV2Enabled() && intelligence?.grounding?.facts.length) {
+    return intelligence.grounding.facts
+      .filter((fact) => fact.verificationStatus === "supported")
+      .sort((left, right) => right.importanceScore - left.importanceScore)
+      .slice(0, 24)
+      .map((fact) => {
+        const page = fact.evidence[0]?.pageNumber;
+        return `${fact.type}: ${fact.content}${page ? ` [page ${page}]` : ""}`;
+      })
+      .join("\n");
+  }
+
   if (!intelligence?.core) {
     return "(no structured facts were extracted)";
   }
