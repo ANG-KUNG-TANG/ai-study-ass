@@ -66,6 +66,13 @@ export function LearningPath({
             ].includes(node.type),
         )
         .sort((a, b) => {
+          const aOrder = asNumber(a.properties?.learningOrder);
+          const bOrder = asNumber(b.properties?.learningOrder);
+
+          if (aOrder !== undefined || bOrder !== undefined) {
+            return (aOrder ?? 999) - (bOrder ?? 999);
+          }
+
           const aKey =
             nodeConfidence(a) ??
             asNumber(a.properties?.score) ??
@@ -75,8 +82,7 @@ export function LearningPath({
             asNumber(b.properties?.score) ??
             0;
           return bKey - aKey;
-        })
-        .slice(0, 6);
+        });
 
       return {
         node: section,

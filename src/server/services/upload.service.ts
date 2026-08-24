@@ -25,6 +25,10 @@ export interface ProcessedFile {
   fileSize: number;
   content: string; // extracted text
   pageCount?: number; // PDF only
+  pages?: Array<{
+    pageNumber: number;
+    rawText: string;
+  }>;
   charCount: number;
 }
 
@@ -194,6 +198,7 @@ export async function processUpload(
       fileSize: file.size,
       content: parsed.text,
       pageCount: parsed.pageCount,
+      pages: parsed.pages,
       charCount: parsed.charCount,
     };
   }

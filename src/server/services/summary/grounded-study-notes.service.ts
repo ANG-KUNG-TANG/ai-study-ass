@@ -6,7 +6,7 @@ import type {
 import type { ReliableDocumentProfile } from "@/server/intelligence/reliability/types";
 import { NOTE_RULES } from "@/server/entities/note.entity";
 
-export const STUDY_NOTES_VERSION_MARKER = "<!-- intelligence-engine:v2 -->";
+export const STUDY_NOTES_VERSION_MARKER = "<!-- intelligence-engine:v2.2 -->";
 
 export interface GroundedStudyNotesResult {
   summary: string;
@@ -27,41 +27,55 @@ export function buildGroundedStudyNotes(
   profile: ReliableDocumentProfile | null,
   fallbackTitle: string,
 ): GroundedStudyNotesResult {
-  const supportedFacts = uniqueFacts(
-    grounding.facts.filter(
-      (fact) => fact.verificationStatus === "supported",
-    ),
+  const supportedFacts = grounding.facts.filter(
+    (fact) => fact.verificationStatus === "supported",
   );
+  const uniqueSupportedFacts = uniqueFacts(supportedFacts);
   const factsById = new Map(supportedFacts.map((fact) => [fact.id, fact]));
   const visibleSections = grounding.sections.filter(
     (section) => ["covered", "no_extractable_knowledge"].includes(section.status),
   );
 
   const overviewFacts = selectFacts(
-    supportedFacts.filter(isNarrativeFact),
+    uniqueSupportedFacts.filter(isNarrativeFact),
     ["objective", "claim", "relationship", "definition"],
     4,
   );
   const keyPointFacts = selectFacts(
-    supportedFacts.filter(isKeyPointFact),
+    uniqueSupportedFacts.filter(isKeyPointFact),
     ["rule", "condition", "result", "relationship", "claim", "number"],
     10,
   );
-  const keyPointIds = new Set(keyPointFacts.map((fact) => fact.id));
-  const takeawayFacts = selectFacts(
-    supportedFacts.filter((fact) => !keyPointIds.has(fact.id)),
-    ["objective", "procedure_step", "warning", "common_mistake", "limitation", "claim"],
+  const keyPointKeys = new Set(
+    keyPointFacts.map((fact) => normalise(fact.content)),
+  );
+  const takeawayFacts = selectDiverseFacts(
+    uniqueSupportedFacts.filter(
+      (fact) =>
+        !keyPointKeys.has(normalise(fact.content)) &&
+        isTakeawayFact(fact),
+    ),
+    [
+      "limitation",
+      "warning",
+      "common_mistake",
+      "objective",
+      "condition",
+      "relationship",
+      "procedure_step",
+      "claim",
+    ],
     6,
   );
   const numberFacts = selectFacts(
-    supportedFacts.filter((fact) =>
+    uniqueSupportedFacts.filter((fact) =>
       ["number", "result", "formula"].includes(fact.type),
     ),
     ["result", "formula", "number"],
     12,
   );
   const warningFacts = selectFacts(
-    supportedFacts.filter((fact) =>
+    uniqueSupportedFacts.filter((fact) =>
       ["warning", "common_mistake", "limitation"].includes(fact.type),
     ),
     ["limitation", "warning", "common_mistake"],
@@ -107,9 +121,9 @@ export function buildGroundedStudyNotes(
       .trim();
   };
 
-  let summary = render({ factsPerSection: 5, compactSections: false });
+  let summary = render({ factsPerSection: 24, compactSections: false });
 
-  for (const factsPerSection of [3, 2, 1]) {
+  for (const factsPerSection of [16, 12, 8, 5, 3, 2, 1]) {
     if (summary.length <= NOTE_RULES.SUMMARY_MAX) break;
     summary = render({ factsPerSection, compactSections: false });
   }
@@ -195,6 +209,45 @@ function selectFacts(
     .slice(0, limit);
 }
 
+function selectDiverseFacts(
+  facts: AtomicFact[],
+  typePriority: AtomicFact["type"][],
+  limit: number,
+): AtomicFact[] {
+  const ranked = selectFacts(facts, typePriority, facts.length);
+  const selected: AtomicFact[] = [];
+  const selectedIds = new Set<string>();
+  const sectionCounts = new Map<string, number>();
+
+  for (const fact of ranked) {
+    if (sectionCounts.has(fact.sourceSectionId)) continue;
+
+    selected.push(fact);
+    selectedIds.add(fact.id);
+    sectionCounts.set(fact.sourceSectionId, 1);
+
+    if (selected.length >= limit) return selected;
+  }
+
+  for (const fact of ranked) {
+    if (
+      selectedIds.has(fact.id) ||
+      (sectionCounts.get(fact.sourceSectionId) ?? 0) >= 2
+    ) {
+      continue;
+    }
+
+    selected.push(fact);
+    sectionCounts.set(
+      fact.sourceSectionId,
+      (sectionCounts.get(fact.sourceSectionId) ?? 0) + 1,
+    );
+    if (selected.length >= limit) break;
+  }
+
+  return selected;
+}
+
 function uniqueFacts(facts: AtomicFact[]): AtomicFact[] {
   const seen = new Set<string>();
   return facts.filter((fact) => {
@@ -226,6 +279,39 @@ function isKeyPointFact(fact: AtomicFact): boolean {
 
   return isNarrativeFact(fact) ||
     ["result", "rule", "condition", "relationship"].includes(fact.type);
+}
+
+function isTakeawayFact(fact: AtomicFact): boolean {
+  const value = fact.content.trim();
+
+  if (value.endsWith(":") || value.endsWith("?")) return false;
+
+  if (
+    /^(?:purpose of the system|system purpose|use case list|use case diagram|domain model|project name|problem summary|stakeholders|system scope)$/i.test(
+      value,
+    )
+  ) {
+    return false;
+  }
+
+  if (fact.type === "common_mistake") {
+    return value.length >= 18;
+  }
+
+  if (value.length < 32 || !isNarrativeFact(fact)) return false;
+
+  return [
+    "objective",
+    "procedure_step",
+    "warning",
+    "common_mistake",
+    "limitation",
+    "condition",
+    "relationship",
+  ].includes(fact.type) ||
+    /\b(?:must|should|ensure|avoid|confirm|validate|invite|demonstrate|communicate|align|prevent|explain|show)\b/i.test(
+      value,
+    );
 }
 
 function cleanHeading(value: string): string {

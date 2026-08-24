@@ -259,12 +259,15 @@ function estimatePages(
   endOffset: number,
 ): { pageStart?: number; pageEnd?: number; pageEstimate: boolean } {
   if (doc.sourcePages.length > 1) {
-    const startPage = doc.sourcePages.find(
-      (page) => startOffset >= page.startOffset && startOffset <= page.endOffset,
+    const exclusiveEnd = Math.max(startOffset + 1, endOffset);
+    const overlappingPages = doc.sourcePages.filter(
+      (page) =>
+        page.startOffset < exclusiveEnd &&
+        page.endOffset >= startOffset,
     );
-    const endPage = [...doc.sourcePages]
-      .reverse()
-      .find((page) => endOffset >= page.startOffset && endOffset <= page.endOffset);
+    const startPage = overlappingPages[0];
+    const endPage = overlappingPages.at(-1);
+
     return {
       pageStart: startPage?.pageNumber,
       pageEnd: endPage?.pageNumber ?? startPage?.pageNumber,
@@ -272,9 +275,13 @@ function estimatePages(
     };
   }
 
-  const pageCount = doc.pageCount ?? 1;
+  if (doc.pageCount === undefined) {
+    return { pageEstimate: false };
+  }
+
+  const pageCount = doc.pageCount;
   if (pageCount <= 1 || doc.displayText.length === 0) {
-    return { pageStart: 1, pageEnd: 1, pageEstimate: pageCount > 1 };
+    return { pageStart: 1, pageEnd: 1, pageEstimate: false };
   }
 
   const ratioStart = startOffset / doc.displayText.length;

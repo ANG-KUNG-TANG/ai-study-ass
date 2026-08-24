@@ -12,6 +12,7 @@ import * as progressService from "@/server/services/intelligence-progress.servic
 import type { IntelligenceProgressSnapshot } from "@/server/services/intelligence-progress.service";
 import { logger } from "@/server/utils/logger";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
+import { GROUNDING_PIPELINE_VERSION } from "@/server/intelligence/grounding";
 
 export function toRawDocument(input: {
   content: string;
@@ -145,7 +146,10 @@ export async function getOrRunPipeline(
   const existing = await intelligenceRepo.findByNoteId(noteId);
   if (
     existing?.isComplete() &&
-    (!isIntelligenceV2Enabled() || existing.grounding)
+    (
+      !isIntelligenceV2Enabled() ||
+      existing.grounding?.pipelineVersion === GROUNDING_PIPELINE_VERSION
+    )
   ) {
     return existing;
   }
@@ -156,6 +160,8 @@ export async function getOrRunPipeline(
     fileName: note.fileName,
     fileType: note.fileType,
     fileSize: note.fileSize,
+    pageCount: note.sourcePageCount,
+    pages: note.sourcePages,
   });
 
   const result = await runAndPersistPipeline(noteId, document);

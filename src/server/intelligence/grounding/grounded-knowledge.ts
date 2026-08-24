@@ -25,13 +25,16 @@ import type {
   QualifiedTerm,
   SectionCoverage,
 } from "./types";
-import { GROUNDING_SCHEMA_VERSION } from "./types";
+import {
+  GROUNDING_PIPELINE_VERSION,
+  GROUNDING_SCHEMA_VERSION,
+} from "./types";
 
-const PIPELINE_VERSION = "intelligence-v2.0";
 const MAX_FACTS_PER_SECTION = 24;
 
 const PLACEHOLDER_RE = /^(?:\(?\s*insert\s+(?:a\s+)?(?:diagram|image|figure|chart)\s*\)?|placeholder|n\/?a)$/i;
 const UI_ARTIFACT_RE = /^(?:svg\s*regenerate|regenerate\s+svg|generated\s+study\s+notes)$/i;
+const PAGE_ARTIFACT_RE = /^(?:(?:[-–—]{1,2}\s*)?(?:page\s*)?\d+(?:\s+(?:of|\/)\s+\d+)(?:\s*[-–—]{1,2})?)$/i;
 const SUBORDINATE_TERM_RE = /^(?:once|when|while|because|after|before|although|if|students?|the\s+goal|the\s+presentation)\b/i;
 const TERM_VERB_RE = /\b(?:must|should|completed|finished|understand|presenting|communicate|showing|insert)\b/i;
 
@@ -100,7 +103,7 @@ export function buildGroundedKnowledge(
 
   return {
     schemaVersion: GROUNDING_SCHEMA_VERSION,
-    pipelineVersion: PIPELINE_VERSION,
+    pipelineVersion: GROUNDING_PIPELINE_VERSION,
     sourceHash: createHash("sha256")
       .update(input.document.sourceText)
       .digest("hex"),
@@ -248,12 +251,22 @@ function createEvidence(
   const startOffset = locatedOffset >= section.startOffset && locatedOffset <= section.endOffset
     ? locatedOffset
     : undefined;
+  const hasExactPageBoundary =
+    document.sourcePages.length > 1 ||
+    document.pageCount === 1;
+  const sourcePage = startOffset === undefined || !hasExactPageBoundary
+    ? undefined
+    : document.sourcePages.find(
+        (page) =>
+          startOffset >= page.startOffset &&
+          startOffset <= page.endOffset,
+      );
 
   return {
     id: `evidence-v2-${safeId(section.id)}-${index + 1}`,
     sectionId: section.id,
     sectionTitle: section.rawHeading,
-    pageNumber: section.pageStart,
+    pageNumber: sourcePage?.pageNumber ?? section.pageStart,
     text,
     startOffset,
     endOffset: startOffset === undefined ? undefined : startOffset + text.length,
@@ -450,6 +463,16 @@ function locateEvidence(
     : sentenceContaining(section.analysisBody, fallbackTerm) ?? fallbackTerm;
   const localIndex = section.body.indexOf(text);
   const startOffset = localIndex >= 0 ? section.startOffset + localIndex : undefined;
+  const hasExactPageBoundary =
+    document.sourcePages.length > 1 ||
+    document.pageCount === 1;
+  const sourcePage = startOffset === undefined || !hasExactPageBoundary
+    ? undefined
+    : document.sourcePages.find(
+        (page) =>
+          startOffset >= page.startOffset &&
+          startOffset <= page.endOffset,
+      );
 
   return {
     section,
@@ -457,7 +480,7 @@ function locateEvidence(
       id: `evidence-term-${safeId(section.id)}-${safeId(fallbackTerm)}`,
       sectionId: section.id,
       sectionTitle: section.rawHeading,
-      pageNumber: section.pageStart,
+      pageNumber: sourcePage?.pageNumber ?? section.pageStart,
       text,
       startOffset,
       endOffset: startOffset === undefined ? undefined : startOffset + text.length,
@@ -597,6 +620,7 @@ function isPlaceholderOrArtifact(value: string): boolean {
   const text = normaliseText(value);
   return PLACEHOLDER_RE.test(text) ||
     UI_ARTIFACT_RE.test(text) ||
+    PAGE_ARTIFACT_RE.test(text) ||
     /^svg\p{L}*/iu.test(text) ||
     /\bdiagram\s+insert\s+diagram\b/i.test(text);
 }

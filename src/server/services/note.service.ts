@@ -56,6 +56,8 @@ export async function createNote(
     fileType: file.fileType,
     fileSize: file.fileSize,
     content: file.content,
+    sourcePageCount: file.pageCount,
+    sourcePages: file.pages,
   });
 
   const saved = await noteRepo.create(entity);

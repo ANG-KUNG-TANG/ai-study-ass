@@ -26,7 +26,7 @@ const PAREN_CITATION_RE =
   /\((?:[A-Z][a-zA-Z]+(?:\s+(?:et\s+al\.?|&\s+[A-Z][a-zA-Z]+))?,\s*\d{4})(?:;\s*(?:[A-Z][a-zA-Z]+(?:\s+(?:et\s+al\.?|&\s+[A-Z][a-zA-Z]+))?,\s*\d{4}))*\)/g;
 
 const PAGE_NUMBER_RE =
-  /^(?:[-–—]?\s*(?:page\s+)?\d+\s*[-–—]?)$/i;
+  /^(?:(?:[-–—]{1,2}\s*)?(?:page\s*)?\d+(?:\s+(?:of|\/)\s+\d+)?(?:\s*[-–—]{1,2})?)$/i;
 
 const RUNNING_HEADER_MAX_LENGTH =
   140;
@@ -38,6 +38,9 @@ export function cleanDocument(
     normaliseInputPages(
       raw,
     );
+  const hasPageBoundaries =
+    Boolean(raw.pages?.length) ||
+    pages.length > 1;
 
   const stats: CleaningStats = {
     rawLength:
@@ -299,7 +302,9 @@ export function cleanDocument(
       raw.fileSize,
     pageCount:
       raw.pageCount ??
-      sourcePages.length,
+      (hasPageBoundaries
+        ? sourcePages.length
+        : undefined),
     cleaningStats:
       stats,
   };
@@ -323,6 +328,12 @@ function normaliseInputPages(
           page.rawText,
       }),
     );
+  }
+
+  const legacyPdfPages = splitLegacyPdfParsePages(raw.rawText);
+
+  if (legacyPdfPages.length > 1) {
+    return legacyPdfPages;
   }
 
   const formFeedPages =
@@ -354,6 +365,55 @@ function normaliseInputPages(
         raw.rawText,
     },
   ];
+}
+
+function splitLegacyPdfParsePages(text: string): RawDocumentPage[] {
+  const marker = /^[ \t]*[-–—]{1,3}[ \t]*(?:page[ \t]+)?(\d+)[ \t]+(?:of|\/)[ \t]+(\d+)[ \t]*[-–—]{1,3}[ \t]*$/gim;
+  const matches = [...text.matchAll(marker)];
+
+  if (matches.length < 2) return [];
+
+  const declaredTotal = Number(matches[0][2]);
+
+  if (
+    !Number.isInteger(declaredTotal) ||
+    declaredTotal < 2 ||
+    matches.some((match) => Number(match[2]) !== declaredTotal)
+  ) {
+    return [];
+  }
+
+  const pages: RawDocumentPage[] = [];
+  let cursor = 0;
+
+  for (const match of matches) {
+    const pageNumber = Number(match[1]);
+    const start = match.index ?? cursor;
+    const rawText = text.slice(cursor, start).trim();
+
+    if (
+      !Number.isInteger(pageNumber) ||
+      pageNumber !== pages.length + 1 ||
+      pageNumber > declaredTotal ||
+      !rawText
+    ) {
+      return [];
+    }
+
+    pages.push({ pageNumber, rawText });
+    cursor = start + match[0].length;
+  }
+
+  const remainder = text.slice(cursor).trim();
+
+  if (remainder && pages.length < declaredTotal) {
+    pages.push({
+      pageNumber: pages.length + 1,
+      rawText: remainder,
+    });
+  }
+
+  return pages.length === declaredTotal ? pages : [];
 }
 
 function detectRunningHeaders(

@@ -4,6 +4,7 @@ import type {
 } from "../types";
 
 export const GROUNDING_SCHEMA_VERSION = "2.0" as const;
+export const GROUNDING_PIPELINE_VERSION = "intelligence-v2.2" as const;
 
 export type AtomicFactType =
   | "definition"

@@ -60,7 +60,10 @@ async function processPdfJob(
     throw new Error("PDF extraction completed without readable content");
   }
 
-  await noteRepo.updateContent(noteId, processed.content);
+  await noteRepo.updateContent(noteId, processed.content, {
+    pageCount: processed.pageCount,
+    pages: processed.pages,
+  });
   await generationRepo.updateStage(noteId, "pending");
   await enqueueStudyGeneration({
     noteId,
