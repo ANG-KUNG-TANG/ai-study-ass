@@ -58,6 +58,7 @@ describe("study-material-generation.service", () => {
       summaryService.generateSummary,
     ).mockResolvedValue({
       summary: "Summary",
+      mode: "comprehensive",
       keyPoints: ["Point"],
       importantConcepts: ["Concept"],
       cached: false,

@@ -4,7 +4,7 @@ describe("parseSummary", () => {
   it("parses all V2 sections without exposing metadata or markdown syntax", () => {
     const parsed = parseSummary(`# Lecture Note
 
-<!-- intelligence-engine:v2.3 -->
+<!-- intelligence-engine:v2.4;mode:exam -->
 
 ## Overview
 
@@ -36,6 +36,7 @@ The goal is to communicate understanding.
 - Validate the analysis before design begins. _(p. 6)_`);
 
     expect(parsed.version).toBe("v2");
+    expect(parsed.mode).toBe("exam");
     expect(parsed.title).toBe("Lecture Note");
     expect(parsed.prose).toBe("The goal is to communicate understanding.");
     expect(parsed.keyPoints).toEqual(["Confirm stakeholder needs. (p. 1)"]);
@@ -76,6 +77,7 @@ The goal is to communicate understanding.
 
     expect(parsed).toEqual({
       version: "legacy",
+      mode: "comprehensive",
       title: null,
       prose: "A concise overview.",
       keyPoints: ["First point", "Second point"],

@@ -11,10 +11,12 @@ import {
   ValidationError,
 } from "@/server/utils/errors";
 import { logActivity } from "@/server/services/auditLog.service";
+import { SUMMARY_MODES } from "@/types/summary";
 
 const bodySchema = z.object({
   noteId: z.string().min(1),
   force: z.boolean().optional(),
+  mode: z.enum(SUMMARY_MODES).optional(),
 });
 
 async function readJsonBody(req: Request): Promise<unknown> {
@@ -32,7 +34,7 @@ export async function postSummary(
   _context: RouteContext,
   auth: AuthContext,
 ) {
-  const { noteId, force } = bodySchema.parse(await readJsonBody(req));
+  const { noteId, force, mode } = bodySchema.parse(await readJsonBody(req));
   const note = await findNoteByIdAndUserId(
     noteId,
     auth.userId,
@@ -42,7 +44,7 @@ export async function postSummary(
     throw new NotFoundError("Note");
   }
 
-  const result = await generateSummary(noteId, { force });
+  const result = await generateSummary(noteId, { force, mode });
 
   await logActivity({
     actorId: auth.userId,
@@ -54,6 +56,7 @@ export async function postSummary(
       source: result.source,
       status: result.status,
       forced: force ?? false,
+      mode: result.mode,
     },
   });
 

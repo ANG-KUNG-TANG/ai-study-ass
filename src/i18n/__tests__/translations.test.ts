@@ -31,6 +31,7 @@ describe("language translations", () => {
 
   it("translates the student study workspace", () => {
     expect(translate("my", "summary.keyPoints")).toBe("အဓိကအချက်များ");
+    expect(translate("en", "summary.mode.exam")).toBe("Exam revision");
     expect(
       translate("my", "flashcards.position", { current: 2, total: 10 }),
     ).toBe("ကတ် 2 / 10");

@@ -11,7 +11,7 @@ import {
 } from "@/server/services/summary/reliable-summary.service";
 import {
   buildGroundedStudyNotes,
-  STUDY_NOTES_VERSION_MARKER,
+  getStudyNotesVersionMarker,
 } from "@/server/services/summary/grounded-study-notes.service";
 import { buildGroundedPromptSource } from "@/server/services/grounded-artifacts.service";
 import { getReliableProfile } from "@/server/intelligence/reliability/profile";
@@ -23,11 +23,13 @@ import type {
 } from "@/server/types/generation";
 import { z } from "zod";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
+import type { SummaryMode } from "@/types/summary";
 
 export interface SummaryResult extends GenerationMetadata {
   summary: string;
   keyPoints: string[];
   importantConcepts: string[];
+  mode: SummaryMode;
   cached: boolean;
   qualityScoreOutOf10?: number;
   warnings?: string[];
@@ -54,10 +56,15 @@ function parseAIDraft(rawText: string): AIStudyNotesDraft {
 
 export async function generateSummary(
   noteId: string,
-  options: { force?: boolean } = {},
+  options: { force?: boolean; mode?: SummaryMode } = {},
 ): Promise<SummaryResult> {
   const note = await noteRepo.findById(noteId);
   const v2Enabled = isIntelligenceV2Enabled();
+  const requestedMode = options.mode ?? "comprehensive";
+  const mode: SummaryMode = v2Enabled
+    ? requestedMode
+    : "comprehensive";
+  const expectedVersionMarker = getStudyNotesVersionMarker(mode);
 
   if (!note) {
     throw new NotFoundError(`Note ${noteId} not found`);
@@ -68,12 +75,13 @@ export async function generateSummary(
     note.summary?.trim() &&
     (
       v2Enabled
-        ? note.summary.includes(STUDY_NOTES_VERSION_MARKER)
+        ? note.summary.includes(expectedVersionMarker)
         : isReliableCachedSummary(note.summary)
     )
   ) {
     return {
       summary: note.summary,
+      mode,
       keyPoints: [],
       importantConcepts: [],
       cached: true,
@@ -104,6 +112,7 @@ export async function generateSummary(
         grounding,
         getReliableProfile(intelligence?.core),
         note.title,
+        { mode },
       )
     : buildReliableSymbolicSummary(
         intelligence?.core,
@@ -116,9 +125,12 @@ export async function generateSummary(
   let tokensUsed = 0;
 
   const needsFallback =
-    result.status === "partial" ||
-    result.confidence < 0.85 ||
-    (result.profile?.coverage.missingFields.length ?? 0) > 1;
+    mode === "comprehensive" &&
+    (
+      result.status === "partial" ||
+      result.confidence < 0.85 ||
+      (result.profile?.coverage.missingFields.length ?? 0) > 1
+    );
 
   if (needsFallback && result.profile?.status !== "rejected") {
     try {
@@ -169,6 +181,7 @@ export async function generateSummary(
 
   return {
     summary: result.summary,
+    mode,
     keyPoints: result.keyPoints,
     importantConcepts: result.importantConcepts,
     cached: false,

@@ -18,6 +18,7 @@ export interface ParsedSummarySection {
 
 export interface ParsedSummary {
   version: "legacy" | "v2";
+  mode: SummaryMode;
   title: string | null;
   prose: string;
   keyPoints: string[];
@@ -27,7 +28,8 @@ export interface ParsedSummary {
 
 const KEY_POINTS_MARKER = "\n\n**Key Points:**\n";
 const CONCEPTS_MARKER = "\n\n**Important Concepts:** ";
-const V2_MARKER_RE = /<!--\s*intelligence-engine:v2(?:\.\d+)?\s*-->/i;
+const V2_MARKER_RE =
+  /<!--\s*intelligence-engine:v2(?:\.\d+)?(?:;\s*mode:(concise|comprehensive|exam))?\s*-->/i;
 const PAGE_ARTIFACT_RE =
   /^(?:(?:[-–—]{1,2}\s*)?(?:page\s*)?\d+(?:\s+(?:of|\/)\s+\d+)(?:\s*[-–—]{1,2})?)$/i;
 
@@ -74,6 +76,7 @@ function parseLegacySummary(flattened: string): ParsedSummary {
 
   return {
     version: "legacy",
+    mode: "comprehensive",
     title: null,
     prose,
     keyPoints,
@@ -83,6 +86,10 @@ function parseLegacySummary(flattened: string): ParsedSummary {
 }
 
 function parseStructuredSummary(markdown: string): ParsedSummary {
+  const markerMode = markdown.match(V2_MARKER_RE)?.[1];
+  const mode: SummaryMode = SUMMARY_MODES.includes(markerMode as SummaryMode)
+    ? markerMode as SummaryMode
+    : "comprehensive";
   const lines = markdown
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/\\([#*_`-])/g, "$1")
@@ -170,6 +177,7 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
 
   return {
     version: "v2",
+    mode,
     title,
     prose: [
       ...preamble,
@@ -246,3 +254,7 @@ function unique(values: string[]): string[] {
     return true;
   });
 }
+import {
+  SUMMARY_MODES,
+  type SummaryMode,
+} from "@/types/summary";

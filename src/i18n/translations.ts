@@ -199,6 +199,16 @@ const en = {
   "summary.overview": "Overview",
   "summary.keyPoints": "Key points",
   "summary.concepts": "Important concepts",
+  "summary.mode.label": "Study mode",
+  "summary.mode.concise": "Concise",
+  "summary.mode.comprehensive": "Comprehensive",
+  "summary.mode.exam": "Exam revision",
+  "summary.mode.conciseDescription":
+    "A shorter overview with essential concepts and section highlights.",
+  "summary.mode.comprehensiveDescription":
+    "Complete document coverage with detailed, source-grounded section notes.",
+  "summary.mode.examDescription":
+    "Prioritises definitions, rules, results, warnings, and likely review points.",
 
   "quiz.loading": "Loading quiz…",
   "quiz.generateDescription":
@@ -884,6 +894,16 @@ const my: Record<TranslationKey, string> = {
   "summary.overview": "ခြုံငုံသုံးသပ်ချက်",
   "summary.keyPoints": "အဓိကအချက်များ",
   "summary.concepts": "အရေးကြီးသော သဘောတရားများ",
+  "summary.mode.label": "လေ့လာမှုပုံစံ",
+  "summary.mode.concise": "အကျဉ်း",
+  "summary.mode.comprehensive": "အသေးစိတ်",
+  "summary.mode.exam": "စာမေးပွဲ ပြန်လေ့လာမှု",
+  "summary.mode.conciseDescription":
+    "အဓိကသဘောတရားများနှင့် ကဏ္ဍအနှစ်ချုပ်များပါသော အကျဉ်းချုံးပုံစံ။",
+  "summary.mode.comprehensiveDescription":
+    "မူရင်းအထောက်အထားနှင့်တကွ စာတမ်းတစ်ခုလုံးကို အသေးစိတ် ဖော်ပြသောပုံစံ။",
+  "summary.mode.examDescription":
+    "အဓိပ္ပာယ်ဖွင့်ဆိုချက်၊ စည်းမျဉ်း၊ ရလဒ်၊ သတိပေးချက်နှင့် ပြန်လေ့လာရန် အချက်များကို ဦးစားပေးသည်။",
 
   "quiz.loading": "မေးခွန်းများ ဖွင့်နေသည်…",
   "quiz.generateDescription":

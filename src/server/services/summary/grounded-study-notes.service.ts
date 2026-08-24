@@ -5,8 +5,18 @@ import type {
 } from "@/server/intelligence/grounding";
 import type { ReliableDocumentProfile } from "@/server/intelligence/reliability/types";
 import { NOTE_RULES } from "@/server/entities/note.entity";
+import type { SummaryMode } from "@/types/summary";
 
-export const STUDY_NOTES_VERSION_MARKER = "<!-- intelligence-engine:v2.3 -->";
+export const STUDY_NOTES_VERSION = "v2.4" as const;
+
+export function getStudyNotesVersionMarker(
+  mode: SummaryMode = "comprehensive",
+): string {
+  return `<!-- intelligence-engine:${STUDY_NOTES_VERSION};mode:${mode} -->`;
+}
+
+export const STUDY_NOTES_VERSION_MARKER =
+  getStudyNotesVersionMarker("comprehensive");
 
 export interface GroundedStudyNotesResult {
   summary: string;
@@ -22,29 +32,104 @@ interface BuildMarkdownOptions {
   compactSections: boolean;
 }
 
+interface StudyNotesModeProfile {
+  overviewLimit: number;
+  keyPointLimit: number;
+  takeawayLimit: number;
+  conceptLimit: number;
+  keyTermLimit: number;
+  numberLimit: number;
+  warningLimit: number;
+  sectionLimit: number;
+  factsPerSection: number;
+}
+
+const MODE_PROFILES: Record<SummaryMode, StudyNotesModeProfile> = {
+  concise: {
+    overviewLimit: 2,
+    keyPointLimit: 5,
+    takeawayLimit: 3,
+    conceptLimit: 8,
+    keyTermLimit: 6,
+    numberLimit: 5,
+    warningLimit: 4,
+    sectionLimit: 8,
+    factsPerSection: 2,
+  },
+  comprehensive: {
+    overviewLimit: 3,
+    keyPointLimit: 8,
+    takeawayLimit: 5,
+    conceptLimit: 16,
+    keyTermLimit: 16,
+    numberLimit: 12,
+    warningLimit: 10,
+    sectionLimit: Number.POSITIVE_INFINITY,
+    factsPerSection: 24,
+  },
+  exam: {
+    overviewLimit: 2,
+    keyPointLimit: 10,
+    takeawayLimit: 5,
+    conceptLimit: 12,
+    keyTermLimit: 12,
+    numberLimit: 10,
+    warningLimit: 8,
+    sectionLimit: 12,
+    factsPerSection: 4,
+  },
+};
+
 export function buildGroundedStudyNotes(
   grounding: GroundedKnowledge,
   profile: ReliableDocumentProfile | null,
   fallbackTitle: string,
+  options: { mode?: SummaryMode } = {},
 ): GroundedStudyNotesResult {
+  const mode = options.mode ?? "comprehensive";
+  const modeProfile = MODE_PROFILES[mode];
   const supportedFacts = grounding.facts.filter(
     (fact) => fact.verificationStatus === "supported",
   );
   const uniqueSupportedFacts = uniqueFacts(supportedFacts);
   const factsById = new Map(supportedFacts.map((fact) => [fact.id, fact]));
-  const visibleSections = grounding.sections.filter(
+  const allVisibleSections = grounding.sections.filter(
     (section) => ["covered", "no_extractable_knowledge"].includes(section.status),
   );
+  const visibleSections = selectModeSections(
+    allVisibleSections,
+    factsById,
+    mode,
+    modeProfile.sectionLimit,
+  );
 
-  const overviewFacts = selectFacts(
+  const overviewFacts = selectDiverseFacts(
     uniqueSupportedFacts.filter(isNarrativeFact),
     ["objective", "claim", "relationship", "definition"],
-    3,
+    modeProfile.overviewLimit,
   );
+  const keyPointPredicate = mode === "exam"
+    ? isExamFocusFact
+    : isKeyPointFact;
+  const keyPointPriority: AtomicFact["type"][] = mode === "exam"
+    ? [
+        "definition",
+        "objective",
+        "rule",
+        "condition",
+        "formula",
+        "number",
+        "result",
+        "relationship",
+        "warning",
+        "common_mistake",
+        "claim",
+      ]
+    : ["rule", "condition", "result", "relationship", "claim", "number"];
   const keyPointFacts = selectDiverseFacts(
-    uniqueSupportedFacts.filter(isKeyPointFact),
-    ["rule", "condition", "result", "relationship", "claim", "number"],
-    8,
+    uniqueSupportedFacts.filter(keyPointPredicate),
+    keyPointPriority,
+    modeProfile.keyPointLimit,
   );
   const reservedTakeawayKeys = new Set(
     [...overviewFacts, ...keyPointFacts].map((fact) => normalise(fact.content)),
@@ -55,24 +140,24 @@ export function buildGroundedStudyNotes(
         !reservedTakeawayKeys.has(normalise(fact.content)) &&
         isTakeawayFact(fact),
     ),
-    5,
+    modeProfile.takeawayLimit,
   );
   const numberFacts = selectFacts(
     uniqueSupportedFacts.filter((fact) =>
       ["number", "result", "formula"].includes(fact.type),
     ),
     ["result", "formula", "number"],
-    12,
+    modeProfile.numberLimit,
   );
   const warningFacts = selectFacts(
     uniqueSupportedFacts.filter((fact) =>
       ["warning", "common_mistake", "limitation"].includes(fact.type),
     ),
     ["limitation", "warning", "common_mistake"],
-    10,
+    modeProfile.warningLimit,
   );
   const importantConcepts = grounding.concepts
-    .slice(0, 16)
+    .slice(0, modeProfile.conceptLimit)
     .map((concept) => concept.name);
   const title = cleanHeading(profile?.title.value ?? fallbackTitle);
 
@@ -84,7 +169,7 @@ export function buildGroundedStudyNotes(
 
     return [
       `# ${title}`,
-      STUDY_NOTES_VERSION_MARKER,
+      getStudyNotesVersionMarker(mode),
       "## Overview",
       renderOverview(overviewFacts, title),
       keyPointFacts.length > 0 ? "## Key Points" : "",
@@ -93,6 +178,7 @@ export function buildGroundedStudyNotes(
       importantConcepts.map((concept) => `- ${concept}`).join("\n"),
       grounding.keyTerms.length > 0 ? "## Key Terms" : "",
       grounding.keyTerms
+        .slice(0, modeProfile.keyTermLimit)
         .map((term) =>
           `- **${term.term}:** ${term.definition}${pageLabel(term.evidence[0]?.pageNumber)}`,
         )
@@ -111,9 +197,15 @@ export function buildGroundedStudyNotes(
       .trim();
   };
 
-  let summary = render({ factsPerSection: 24, compactSections: false });
+  let summary = render({
+    factsPerSection: modeProfile.factsPerSection,
+    compactSections: false,
+  });
 
-  for (const factsPerSection of [16, 12, 8, 5, 3, 2, 1]) {
+  const reductionSteps = [16, 12, 8, 5, 3, 2, 1].filter(
+    (value) => value < modeProfile.factsPerSection,
+  );
+  for (const factsPerSection of reductionSteps) {
     if (summary.length <= NOTE_RULES.SUMMARY_MAX) break;
     summary = render({ factsPerSection, compactSections: false });
   }
@@ -170,7 +262,22 @@ function renderOverview(facts: AtomicFact[], title: string): string {
     return `These notes organise the verified knowledge extracted from ${title}.`;
   }
 
-  return facts.map((fact) => stripTrailingListPunctuation(fact.content)).join(" ");
+  return facts
+    .map((fact) => formatOverviewFact(fact.content))
+    .join(" ");
+}
+
+function formatOverviewFact(value: string): string {
+  const content = value.trim();
+  const subjectlessVerb = content.match(
+    /^(confirms?|allows?|ensures?|builds?|prevents?|explains?|shows?|demonstrates?)\b/i,
+  );
+
+  if (subjectlessVerb) {
+    return stripTrailingListPunctuation(`It ${lowercaseFirst(content)}`);
+  }
+
+  return stripTrailingListPunctuation(content);
 }
 
 function renderFactList(
@@ -335,6 +442,37 @@ function selectTakeawayFacts(
   );
 }
 
+function selectModeSections(
+  sections: SectionCoverage[],
+  factsById: Map<string, AtomicFact>,
+  mode: SummaryMode,
+  limit: number,
+): SectionCoverage[] {
+  if (!Number.isFinite(limit) || sections.length <= limit) return sections;
+
+  const candidates = mode === "exam"
+    ? sections.filter((section) =>
+        section.factIds.some((id) => {
+          const fact = factsById.get(id);
+          return fact ? isExamFocusFact(fact) : false;
+        }),
+      )
+    : sections;
+  const source = candidates.length > 0 ? candidates : sections;
+
+  if (source.length <= limit) return source;
+  if (limit <= 1) return [source[0]];
+
+  const selectedIndexes = new Set<number>();
+  for (let index = 0; index < limit; index += 1) {
+    selectedIndexes.add(
+      Math.round((index * (source.length - 1)) / (limit - 1)),
+    );
+  }
+
+  return source.filter((_, index) => selectedIndexes.has(index));
+}
+
 function uniqueFacts(facts: AtomicFact[]): AtomicFact[] {
   const seen = new Set<string>();
   return facts.filter((fact) => {
@@ -366,6 +504,34 @@ function isKeyPointFact(fact: AtomicFact): boolean {
 
   return isNarrativeFact(fact) ||
     ["result", "rule", "condition", "relationship"].includes(fact.type);
+}
+
+function isExamFocusFact(fact: AtomicFact): boolean {
+  const value = fact.content.trim();
+
+  if (
+    value.length < 18 ||
+    value.endsWith(":") ||
+    /^(?:project name|team members|course:|date|system purpose|problem summary|stakeholders|system scope)$/i.test(
+      value,
+    )
+  ) {
+    return false;
+  }
+
+  return [
+    "definition",
+    "objective",
+    "rule",
+    "condition",
+    "formula",
+    "number",
+    "result",
+    "relationship",
+    "warning",
+    "common_mistake",
+    "limitation",
+  ].includes(fact.type) || isNarrativeFact(fact);
 }
 
 function isTakeawayFact(fact: AtomicFact): boolean {

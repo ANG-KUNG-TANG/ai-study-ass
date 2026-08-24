@@ -145,7 +145,7 @@ describe("Intelligence Engine V2 grounding", () => {
   });
 
   it("marks regenerated grounding with the current pipeline version", () => {
-    expect(result.grounding.pipelineVersion).toBe("intelligence-v2.3");
+    expect(result.grounding.pipelineVersion).toBe("intelligence-v2.4");
   });
 
   it("preserves bullet boundaries instead of creating cross-bullet phrases", () => {
@@ -186,7 +186,9 @@ describe("Intelligence Engine V2 grounding", () => {
   });
 
   it("builds complete grounded notes with distinct points and takeaways", () => {
-    expect(notes.summary).toContain("<!-- intelligence-engine:v2.3 -->");
+    expect(notes.summary).toContain(
+      "<!-- intelligence-engine:v2.4;mode:comprehensive -->",
+    );
     expect(notes.summary).toContain("## Section Notes");
     expect(notes.summary).toContain("Principles of Effective Stakeholder Presentation");
     expect(notes.summary).toContain("Common Mistakes Students Make");
@@ -352,6 +354,33 @@ describe("Intelligence Engine V2 grounding", () => {
     const takeaways = sectionBullets(actionableNotes.summary, "Key Takeaways");
 
     expect(takeaways).toContain("Avoid overloading slides with text.");
+  });
+
+  it("builds distinct concise and exam-revision modes", () => {
+    const concise = buildGroundedStudyNotes(
+      result.grounding,
+      result.reliabilityProfile,
+      "Lecture Note",
+      { mode: "concise" },
+    );
+    const exam = buildGroundedStudyNotes(
+      result.grounding,
+      result.reliabilityProfile,
+      "Lecture Note",
+      { mode: "exam" },
+    );
+
+    expect(concise.summary).toContain(
+      "<!-- intelligence-engine:v2.4;mode:concise -->",
+    );
+    expect(exam.summary).toContain(
+      "<!-- intelligence-engine:v2.4;mode:exam -->",
+    );
+    expect(concise.summary.length).toBeLessThan(notes.summary.length);
+    expect(sectionBullets(concise.summary, "Key Points")).toHaveLength(5);
+    expect(sectionBullets(exam.summary, "Key Points").length).toBeLessThanOrEqual(10);
+    expect(exam.importantConcepts.length).toBeLessThanOrEqual(12);
+    expect(exam.summary).toMatch(/Warnings and Common Mistakes/);
   });
 
   it("builds each learning-path section from its own grounded facts", () => {

@@ -1,6 +1,6 @@
 // src/app/api/summary/route.ts
 //
-// POST /api/summary  { noteId: string, force?: boolean }
+// POST /api/summary  { noteId: string, force?: boolean, mode?: SummaryMode }
 //
 // Thin per DDD — no logic here, just wiring the controller through auth.
 // Dropped the outer withErrorHandler: withAuth already calls handleError()

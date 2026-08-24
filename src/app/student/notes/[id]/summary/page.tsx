@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useNoteContext } from "@/context/NoteContext";
 import { useSummary } from "@/hooks/useSummary";
@@ -13,27 +13,52 @@ import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Card } from "@/components/ui/Card";
 import { useLanguage } from "@/context/LanguageContext";
+import type { TranslationKey } from "@/i18n/translations";
+import {
+  SUMMARY_MODES,
+  type SummaryMode,
+} from "@/types/summary";
+
+const MODE_LABEL_KEYS: Record<SummaryMode, TranslationKey> = {
+  concise: "summary.mode.concise",
+  comprehensive: "summary.mode.comprehensive",
+  exam: "summary.mode.exam",
+};
+
+const MODE_DESCRIPTION_KEYS: Record<SummaryMode, TranslationKey> = {
+  concise: "summary.mode.conciseDescription",
+  comprehensive: "summary.mode.comprehensiveDescription",
+  exam: "summary.mode.examDescription",
+};
 
 export default function SummaryPage() {
   const { t } = useLanguage();
   const { note, setNote } = useNoteContext();
   const { isGenerating, error, generate } = useSummary(note?.id ?? "");
   const attempted = useRef(false);
+  const [pendingMode, setPendingMode] = useState<SummaryMode | null>(null);
+  const parsed = note?.summary ? parseSummary(note.summary) : null;
+  const activeMode = parsed?.mode ?? "comprehensive";
+  const selectedMode = pendingMode ?? activeMode;
 
-  const handleGenerate = useCallback(async (force: boolean) => {
+  const handleGenerate = useCallback(async (
+    force: boolean,
+    mode: SummaryMode,
+  ) => {
     if (!note) return;
-    const result = await generate(force);
+    setPendingMode(mode);
+    const result = await generate(force, mode);
     if (result) setNote({ ...note, summary: result.summary });
+    setPendingMode(null);
   }, [generate, note, setNote]);
 
   useEffect(() => {
     if (!note || note.summary || isGenerating || attempted.current) return;
     attempted.current = true;
-    void handleGenerate(false);
+    void handleGenerate(false, "comprehensive");
   }, [handleGenerate, isGenerating, note]);
 
   if (!note) return null;
-  const parsed = note.summary ? parseSummary(note.summary) : null;
 
   return (
     <div className="space-y-5">
@@ -53,7 +78,10 @@ export default function SummaryPage() {
               : t("summary.retryDescription")}
           </p>
           {!isGenerating && (
-            <Button className="mt-4" onClick={() => void handleGenerate(false)}>
+            <Button
+              className="mt-4"
+              onClick={() => void handleGenerate(false, "comprehensive")}
+            >
               {t("summary.generate")}
             </Button>
           )}
@@ -74,13 +102,52 @@ export default function SummaryPage() {
             <button
               type="button"
               aria-label={t("summary.regenerate")}
-              onClick={() => void handleGenerate(true)}
+              onClick={() => void handleGenerate(true, activeMode)}
               disabled={isGenerating}
               className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
             >
               {isGenerating ? t("summary.regenerating") : t("summary.regenerate")}
             </button>
           </div>
+
+          <section className="mb-6 rounded-xl border border-line bg-paper p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+              {t("summary.mode.label")}
+            </p>
+            <div
+              role="group"
+              aria-label={t("summary.mode.label")}
+              className="mt-2 inline-flex flex-wrap gap-1 rounded-lg bg-line-soft p-1"
+            >
+              {SUMMARY_MODES.map((mode) => {
+                const selected = selectedMode === mode;
+
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={selected}
+                    disabled={isGenerating}
+                    onClick={() => {
+                      if (mode !== activeMode) {
+                        void handleGenerate(true, mode);
+                      }
+                    }}
+                    className={`rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-50 ${
+                      selected
+                        ? "bg-white text-ink shadow-sm"
+                        : "text-ink-soft hover:text-ink"
+                    }`}
+                  >
+                    {t(MODE_LABEL_KEYS[mode])}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[12px] leading-5 text-ink-soft">
+              {t(MODE_DESCRIPTION_KEYS[selectedMode])}
+            </p>
+          </section>
 
           <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.overview")}</h4>
           <p className="whitespace-pre-wrap text-[13px] leading-7 text-ink-soft">{parsed.prose}</p>
