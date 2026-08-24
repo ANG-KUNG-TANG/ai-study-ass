@@ -1,5 +1,6 @@
 import { Note } from "../models/Note";
 import { NoteEntity } from "../entities/note.entity";
+import type { SourceDocumentPage } from "../entities/note.entity";
 import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from "../utils/constants";
 import { logger } from "../utils/logger";
 import { NotFoundError } from "../utils/errors";
@@ -39,6 +40,8 @@ function toEntity(doc: {
   fileType: "pdf" | "docx";
   fileSize: number;
   content: string;
+  sourcePageCount?: number;
+  sourcePages?: SourceDocumentPage[];
   summary?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -51,6 +54,8 @@ function toEntity(doc: {
     fileType: doc.fileType,
     fileSize: doc.fileSize,
     content: doc.content,
+    sourcePageCount: doc.sourcePageCount,
+    sourcePages: doc.sourcePages,
     summary: doc.summary ?? null,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
@@ -178,6 +183,8 @@ export async function create(entity: NoteEntity): Promise<NoteEntity> {
     fileType: data.fileType,
     fileSize: data.fileSize,
     content: data.content,
+    sourcePageCount: entity.sourcePageCount,
+    sourcePages: entity.sourcePages,
     summary: data.summary,
   });
 
@@ -215,6 +222,54 @@ export async function updateSummary(
   logger.info("Note study notes updated", {
     noteId: id,
     summaryLength: summary.length,
+  });
+
+  return toEntity(doc);
+}
+
+export async function updateContent(
+  id: string,
+  content: string,
+  source?: {
+    pageCount?: number;
+    pages?: SourceDocumentPage[];
+  },
+): Promise<NoteEntity> {
+  const cleaned = content.trim();
+
+  if (!cleaned) {
+    throw new Error("Cannot update a note with empty document content");
+  }
+
+  const sourceFields = source
+    ? {
+        sourcePageCount: source.pageCount,
+        sourcePages: source.pages,
+      }
+    : {};
+
+  const doc = await Note.findByIdAndUpdate(
+    id,
+    {
+      $set: {
+        content: cleaned,
+        ...sourceFields,
+        updatedAt: new Date(),
+      },
+    },
+    {
+      returnDocument: "after",
+      runValidators: true,
+    },
+  )
+    .lean()
+    .exec();
+
+  if (!doc) throw new NotFoundError("Note");
+
+  logger.info("Note document content updated", {
+    noteId: id,
+    contentLength: cleaned.length,
   });
 
   return toEntity(doc);

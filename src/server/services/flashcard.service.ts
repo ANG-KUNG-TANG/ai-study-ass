@@ -23,12 +23,26 @@ import type {
   GenerationMetadata,
   GenerationSource,
 } from "@/server/types/generation";
+import {
+  buildFlashcardsFromGrounding,
+  buildGroundedPromptSource,
+} from "@/server/services/grounded-artifacts.service";
+import { z } from "zod";
+import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
 
 interface FlashcardPair {
   front: string;
   back: string;
   difficulty: FlashcardDifficulty;
 }
+
+const flashcardResponseSchema = z.object({
+  flashcards: z.array(z.object({
+    front: z.string().min(1),
+    back: z.string().min(1),
+    difficulty: z.enum(["easy", "medium", "hard"]),
+  }).strict()),
+}).strict();
 
 export interface FlashcardGenerationResult {
   flashcards: ReturnType<FlashcardEntity["toPublic"]>[];
@@ -123,6 +137,8 @@ async function generateCardsViaAI(
   title: string,
   content: string,
   count: number,
+  userId: string,
+  noteId: string,
 ): Promise<{
   cards: FlashcardPair[];
   tokensUsed: number;
@@ -167,6 +183,8 @@ ${documentBlock}
     maxTokens: 1_800,
     jsonMode: true,
     usageLabel: "flashcards",
+    userId,
+    noteId,
   });
 
   const cleaned = result.text
@@ -174,24 +192,9 @@ ${documentBlock}
     .replace(/^```json\s*/i, "")
     .replace(/```\s*$/, "");
 
-  const parsed = JSON.parse(cleaned) as {
-    flashcards?: unknown;
-  };
-
-  if (!Array.isArray(parsed.flashcards)) {
-    throw new Error('AI flashcard response is missing "flashcards".');
-  }
-
-  const cards = parsed.flashcards
-    .map((value) => value as Partial<FlashcardPair>)
-    .filter(
-      (card): card is FlashcardPair =>
-        typeof card.front === "string" &&
-        typeof card.back === "string" &&
-        ["easy", "medium", "hard"].includes(
-          String(card.difficulty),
-        ),
-    );
+  const cards = flashcardResponseSchema.parse(
+    JSON.parse(cleaned),
+  ).flashcards;
 
   return {
     cards,
@@ -236,18 +239,28 @@ export async function generateFlashcardsWithMetadata(
   const intelligence = await intelligenceService
     .getOrRunPipeline(noteId)
     .catch(() => null);
+  const grounding = isIntelligenceV2Enabled()
+    ? intelligence?.grounding ?? null
+    : null;
 
   const coreCards =
     intelligence?.core
       ? buildCardsFromCore(intelligence.core, count)
       : [];
 
-  const sourceCards = buildFlashcardsFromSource(
-    note.content,
-    count,
-  );
+  const groundedCards = grounding
+    ? buildFlashcardsFromGrounding(grounding, count)
+    : [];
+
+  const sourceCards = grounding
+    ? []
+    : buildFlashcardsFromSource(
+        note.content,
+        count,
+      );
 
   let pairs = deduplicateCards([
+    ...groundedCards,
     ...coreCards,
     ...sourceCards,
   ]).slice(0, count);
@@ -263,8 +276,12 @@ export async function generateFlashcardsWithMetadata(
     try {
       const ai = await generateCardsViaAI(
         note.title,
-        note.content,
+        grounding
+          ? buildGroundedPromptSource(grounding, 8_000)
+          : note.content,
         missingCount,
+        userId,
+        noteId,
       );
 
       pairs = deduplicateCards([

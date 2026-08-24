@@ -63,18 +63,62 @@ export interface AdminAIProviderUsage {
   status:
     | "operational"
     | "configured"
-    | "not_configured";
+    | "not_configured"
+    | "degraded"
+    | "quota_exhausted";
   requestsToday: number;
+  successesToday: number;
+  failuresToday: number;
+  quotaExceededToday: number;
   tokensToday: number;
   averageLatencyMs: number;
   spendToday: number;
+  lastRequestAt: string | null;
+}
+
+export interface AdminAIUsageSummary {
+  requestsToday: number;
+  successesToday: number;
   failuresToday: number;
+  quotaExceededToday: number;
+  tokensToday: number;
+  averageLatencyMs: number;
+  successRate: number;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+}
+
+export interface AdminAIUsageActivity {
+  id: string;
+  userId: string | null;
+  noteId: string | null;
+  provider: "openai" | "gemini";
+  model: string;
+  usageLabel: string;
+  success: boolean;
+  tokensUsed: number;
+  latencyMs: number;
+  statusCode: number | null;
+  quotaExceeded: boolean;
+  createdAt: string;
+}
+
+export interface AdminAIModelUsage {
+  provider: "openai" | "gemini";
+  model: string;
+  requests: number;
+  successes: number;
+  failures: number;
+  tokens: number;
+  averageLatencyMs: number;
 }
 
 export interface AdminAIUsage {
+  summary: AdminAIUsageSummary;
   providers: AdminAIProviderUsage[];
   monthlySpend: number;
   requestsLastSevenDays: Array<{
+    date: string;
     label: string;
     value: number;
   }>;
@@ -82,5 +126,7 @@ export interface AdminAIUsage {
     route: string;
     count: number;
   }>;
+  models: AdminAIModelUsage[];
+  recentActivity: AdminAIUsageActivity[];
   warning?: string;
 }

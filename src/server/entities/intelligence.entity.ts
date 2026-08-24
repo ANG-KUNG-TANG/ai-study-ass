@@ -1,5 +1,6 @@
 import { ValidationError } from "@/server/utils/errors";
 import type { KnowledgeCore, KnowledgeGraph, PrologFact, ResolvedConcept, GapDetectionResult } from "@/server/intelligence/types";
+import type { GroundedKnowledge } from "@/server/intelligence/grounding";
 
 export const INTELLIGENCE_RULES = {
   symbolicOnlyThreshold: 0.85,
@@ -13,6 +14,7 @@ export interface IntelligenceResultProps {
   noteId: string;
   stage: IntelligenceStage;
   core: KnowledgeCore | null;
+  grounding: GroundedKnowledge | null;
   ontology: ResolvedConcept[];
   graph: KnowledgeGraph | null;
   facts: PrologFact[];
@@ -33,6 +35,7 @@ export class IntelligenceResultEntity {
   readonly #noteId: string;
   readonly #stage: IntelligenceStage;
   readonly #core: KnowledgeCore | null;
+  readonly #grounding: GroundedKnowledge | null;
   readonly #ontology: ResolvedConcept[];
   readonly #graph: KnowledgeGraph | null;
   readonly #facts: PrologFact[];
@@ -46,6 +49,7 @@ export class IntelligenceResultEntity {
     this.#noteId = props.noteId;
     this.#stage = props.stage;
     this.#core = props.core;
+    this.#grounding = props.grounding;
     this.#ontology = props.ontology;
     this.#graph = props.graph;
     this.#facts = props.facts;
@@ -59,6 +63,7 @@ export class IntelligenceResultEntity {
   get noteId(): string { return this.#noteId; }
   get stage(): IntelligenceStage { return this.#stage; }
   get core(): KnowledgeCore | null { return this.#core; }
+  get grounding(): GroundedKnowledge | null { return this.#grounding; }
   get ontology(): ResolvedConcept[] { return this.#ontology; }
   get graph(): KnowledgeGraph | null { return this.#graph; }
   get facts(): PrologFact[] { return this.#facts; }
@@ -72,6 +77,7 @@ export class IntelligenceResultEntity {
     noteId: string;
     stage: IntelligenceStage;
     core: KnowledgeCore;
+    grounding: GroundedKnowledge;
     ontology: ResolvedConcept[];
     graph: KnowledgeGraph;
     facts: PrologFact[];
@@ -85,7 +91,7 @@ export class IntelligenceResultEntity {
 
   static createFailed(noteId: string, failedStage: IntelligenceStage, reason?: string): IntelligenceResultEntity {
     return new IntelligenceResultEntity({
-      noteId, stage: failedStage, core: null, ontology: [], graph: null, facts: [],
+      noteId, stage: failedStage, core: null, grounding: null, ontology: [], graph: null, facts: [],
       confidence: null, failedStage, failedReason: reason ?? null, processedAt: new Date(), gaps: null,
     });
   }
@@ -112,7 +118,7 @@ export class IntelligenceResultEntity {
 
   toPublic(): IntelligenceResultProps {
     return {
-      noteId: this.#noteId, stage: this.#stage, core: this.#core, ontology: this.#ontology,
+      noteId: this.#noteId, stage: this.#stage, core: this.#core, grounding: this.#grounding, ontology: this.#ontology,
       graph: this.#graph, facts: this.#facts, confidence: this.#confidence,
       failedStage: this.#failedStage, failedReason: this.#failedReason, processedAt: this.#processedAt,
       gaps: this.#gaps,

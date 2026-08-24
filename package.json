@@ -18,7 +18,8 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f app",
     "docker:prod": "docker compose -f compose.prod.yaml up --build -d",
-    "worker": "tsx src/server/workers/study-generation.worker.ts"
+    "worker": "tsx src/server/workers/study-generation.worker.ts",
+    "worker:pdf": "tsx src/server/workers/pdf-ingestion.worker.ts"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",
@@ -27,6 +28,7 @@
     "bcryptjs": "^3.0.3",
     "bullmq": "^6.0.9",
     "date-fns": "^4.4.0",
+    "google-auth-library": "^10.7.0",
     "ioredis": "^6.0.0",
     "jose": "^6.2.3",
     "jsonwebtoken": "^9.0.3",
@@ -34,7 +36,6 @@
     "mammoth": "^1.12.0",
     "mongoose": "^9.7.2",
     "next": "^16.3.0",
-    "nodemailer": "^9.0.3",
     "pdf-parse": "^2.4.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",

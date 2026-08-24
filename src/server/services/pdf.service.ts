@@ -131,10 +131,55 @@ function validateDocxArchiveLimits(buffer: Buffer): void {
   }
 }
 
+export interface ParsedPDFPage {
+  pageNumber: number;
+  rawText: string;
+}
+
 interface ParsedPDF {
   text: string;
   pageCount: number;
+  pages: ParsedPDFPage[];
   charCount: number;
+}
+
+function limitExtractedPages(
+  pages: ParsedPDFPage[],
+): { text: string; pages: ParsedPDFPage[] } {
+  const boundedPages: ParsedPDFPage[] = [];
+  let remaining = MAX_CONTENT_LENGTH;
+
+  for (const page of pages) {
+    const separatorLength = boundedPages.length > 0 ? 2 : 0;
+
+    if (remaining <= separatorLength) break;
+
+    const cleaned = cleanText(page.rawText);
+
+    if (!cleaned) continue;
+
+    const boundedText = cleaned.slice(0, remaining - separatorLength);
+
+    boundedPages.push({
+      pageNumber: page.pageNumber,
+      rawText: boundedText,
+    });
+
+    remaining -= separatorLength + boundedText.length;
+
+    if (boundedText.length < cleaned.length) {
+      logger.warn("PDF content truncated", {
+        limit: MAX_CONTENT_LENGTH,
+        lastPreservedPage: page.pageNumber,
+      });
+      break;
+    }
+  }
+
+  return {
+    pages: boundedPages,
+    text: boundedPages.map((page) => page.rawText).join("\n\n"),
+  };
 }
 
 export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
@@ -181,7 +226,11 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
 
   let result: {
     text: string;
-    total?: number;
+    total: number;
+    pages: Array<{
+      num: number;
+      text: string;
+    }>;
   };
 
   try {
@@ -227,7 +276,20 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     }
   }
 
-  const rawText = result.text ?? "";
+  const rawPages =
+    result.pages.length > 0
+      ? result.pages.map((page, index) => ({
+          pageNumber: page.num || index + 1,
+          rawText: page.text ?? "",
+        }))
+      : [
+          {
+            pageNumber: 1,
+            rawText: result.text ?? "",
+          },
+        ];
+  const bounded = limitExtractedPages(rawPages);
+  const rawText = bounded.text;
 
   if (!rawText.trim()) {
     throw new FileError(
@@ -235,13 +297,11 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
     );
   }
 
-  const cleaned = cleanText(rawText);
-  const text = limitExtractedText(cleaned, "PDF");
-
   return {
-    text,
-    pageCount: result.total ?? 0,
-    charCount: text.length,
+    text: rawText,
+    pageCount: result.total,
+    pages: bounded.pages,
+    charCount: rawText.length,
   };
 }
 

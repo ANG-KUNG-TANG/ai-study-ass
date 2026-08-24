@@ -25,6 +25,7 @@ const PUBLIC_API_ROUTES = [
   "/api/auth/forgot-password",
   "/api/auth/reset-password",
   "/api/auth/resend-verification",
+  "/api/auth/google",
   "/api/health",
   '/api/telegram/webhook', // Telegram bot webhook
 ];

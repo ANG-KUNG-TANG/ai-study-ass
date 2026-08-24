@@ -17,6 +17,7 @@ import { DeleteNoteDialog } from "@/components/notes/DeleteNoteDialog";
 import { Button } from "@/components/ui/Button";
 import { useNotes } from "@/hooks/useNotes";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { deleteNote } from "@/services/note.service";
 
 interface DeleteTarget {
@@ -26,6 +27,7 @@ interface DeleteTarget {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -68,7 +70,7 @@ export default function DashboardPage() {
       refetch();
     } catch (cause) {
       setDeleteError(
-        cause instanceof Error ? cause.message : "Failed to delete paper",
+        cause instanceof Error ? cause.message : t("dashboard.deleteFailed"),
       );
     } finally {
       setIsDeleting(false);
@@ -78,18 +80,20 @@ export default function DashboardPage() {
   return (
     <>
       <Topbar
-        title={`Welcome back${user?.name ? `, ${user.name}` : ""}`}
+        title={t("dashboard.welcome", {
+          name: user?.name ? `, ${user.name}` : "",
+        })}
         search={{
           value: search,
           onChange: setSearch,
-          placeholder: "Search notes…",
+          placeholder: t("dashboard.search"),
         }}
       />
 
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
           value={meta?.total ?? "—"}
-          label="Notes uploaded"
+          label={t("dashboard.notesUploaded")}
           icon={Upload}
           tone="violet"
           delta="+12%"
@@ -97,7 +101,7 @@ export default function DashboardPage() {
         />
         <StatCard
           value="—"
-          label="Quizzes completed"
+          label={t("dashboard.quizzesCompleted")}
           icon={CheckCircle}
           tone="coral"
           delta="+8%"
@@ -105,7 +109,7 @@ export default function DashboardPage() {
         />
         <StatCard
           value="—"
-          label="Average quiz score"
+          label={t("dashboard.averageScore")}
           icon={TrendingUp}
           tone="sage"
           delta="+21%"
@@ -113,7 +117,7 @@ export default function DashboardPage() {
         />
         <StatCard
           value="—"
-          label="Cards reviewed"
+          label={t("dashboard.cardsReviewed")}
           icon={Repeat}
           tone="slate"
           delta="−3%"
@@ -128,7 +132,7 @@ export default function DashboardPage() {
           <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.1em] text-yellow">
-                Continue studying
+                {t("dashboard.continueStudying")}
               </div>
 
               <h3 className="font-serif text-[18px] font-semibold">
@@ -137,8 +141,8 @@ export default function DashboardPage() {
 
               <p className="mt-1 text-[13px] text-ink-invert-soft">
                 {mostRecentNote.summary
-                  ? "You finished the summary. Quiz and flashcards are ready."
-                  : "We're processing your note – come back soon."}
+                  ? t("dashboard.ready")
+                  : t("dashboard.processing")}
               </p>
             </div>
 
@@ -147,7 +151,7 @@ export default function DashboardPage() {
                 variant="yellow"
                 className="group bg-yellow text-ink hover:brightness-95"
               >
-                Continue
+                {t("dashboard.continue")}
                 <ArrowRight
                   className="ml-1 transition group-hover:translate-x-1"
                   size={16}
@@ -161,14 +165,14 @@ export default function DashboardPage() {
 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-serif text-[17px] font-semibold text-ink">
-          Recent notes
+          {t("dashboard.recentNotes")}
         </h2>
 
         <Link
           href="/student/notes"
           className="text-[13px] font-medium text-ink-soft hover:text-ink"
         >
-          View all
+          {t("dashboard.viewAll")}
         </Link>
       </div>
 
@@ -199,11 +203,11 @@ export default function DashboardPage() {
           </div>
 
           <h3 className="font-serif text-lg font-semibold text-ink">
-            No notes yet
+            {t("dashboard.noNotes")}
           </h3>
 
           <p className="mt-1 text-sm text-ink-soft">
-            Upload your first PDF or DOCX to start learning.
+            {t("dashboard.noNotesDescription")}
           </p>
         </div>
       )}

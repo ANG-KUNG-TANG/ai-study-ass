@@ -25,7 +25,17 @@ export interface ProcessedFile {
   fileSize: number;
   content: string; // extracted text
   pageCount?: number; // PDF only
+  pages?: Array<{
+    pageNumber: number;
+    rawText: string;
+  }>;
   charCount: number;
+}
+
+export interface PreparedUpload {
+  fileName: string;
+  fileType: FileType;
+  fileSize: number;
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -150,6 +160,19 @@ function sanitizeFileName(name: string): string {
     .slice(0, 255); // enforce max length
 }
 
+/** Validate an upload without doing CPU-intensive document extraction. */
+export function prepareUpload(file: UploadedFile): PreparedUpload {
+  validateFile(file);
+
+  const extension = path.extname(file.originalName).toLowerCase();
+
+  return {
+    fileName: sanitizeFileName(file.originalName),
+    fileType: extension === ".pdf" ? "pdf" : "docx",
+    fileSize: file.size,
+  };
+}
+
 // ─── Process ──────────────────────────────────────────────────────────────────
 // Validates the file, routes to the correct parser, returns extracted content.
 
@@ -175,6 +198,7 @@ export async function processUpload(
       fileSize: file.size,
       content: parsed.text,
       pageCount: parsed.pageCount,
+      pages: parsed.pages,
       charCount: parsed.charCount,
     };
   }

@@ -5,6 +5,7 @@ import { Ban, CheckCircle2, Trash2 } from "lucide-react";
 import { Chip } from "@/components/ui/Chip";
 import * as adminService from "@/services/admin.service";
 import type { User, UserRole } from "@/types/user";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface UserTableProps {
   users: User[];
@@ -15,6 +16,7 @@ export function UserTable({
   users,
   onChanged,
 }: UserTableProps) {
+  const { locale, t } = useLanguage();
   const [
     busyId,
     setBusyId,
@@ -34,7 +36,7 @@ export function UserTable({
       if (user.isActive) {
         const approved =
           window.confirm(
-            `Ban ${user.name}? They will be signed out immediately.`,
+            t("admin.users.banConfirm", { name: user.name }),
           );
 
         if (!approved) {
@@ -55,7 +57,7 @@ export function UserTable({
       window.alert(
         error instanceof Error
           ? error.message
-          : "Action failed",
+          : t("admin.users.actionFailed"),
       );
     } finally {
       setBusyId(null);
@@ -81,7 +83,7 @@ export function UserTable({
       window.alert(
         error instanceof Error
           ? error.message
-          : "Action failed",
+          : t("admin.users.actionFailed"),
       );
     } finally {
       setBusyId(null);
@@ -93,7 +95,10 @@ export function UserTable({
   ) {
     const approved =
       window.confirm(
-        `Permanently delete ${user.name} (${user.email})? This cannot be undone.`,
+        t("admin.users.deleteConfirm", {
+          name: user.name,
+          email: user.email,
+        }),
       );
 
     if (!approved) {
@@ -114,7 +119,7 @@ export function UserTable({
       window.alert(
         error instanceof Error
           ? error.message
-          : "Action failed",
+          : t("admin.users.actionFailed"),
       );
     } finally {
       setBusyId(null);
@@ -127,27 +132,27 @@ export function UserTable({
         <thead>
           <tr className="border-b border-line text-[11px] uppercase tracking-wide text-ink-faint">
             <th className="px-4 py-3 font-medium">
-              Name
+              {t("admin.users.column.name")}
             </th>
 
             <th className="px-4 py-3 font-medium">
-              Email
+              {t("admin.users.column.email")}
             </th>
 
             <th className="px-4 py-3 font-medium">
-              Role
+              {t("admin.users.column.role")}
             </th>
 
             <th className="px-4 py-3 font-medium">
-              Status
+              {t("admin.users.column.status")}
             </th>
 
             <th className="px-4 py-3 font-medium">
-              Joined
+              {t("admin.users.column.joined")}
             </th>
 
             <th className="px-4 py-3 text-right font-medium">
-              Actions
+              {t("admin.users.column.actions")}
             </th>
           </tr>
         </thead>
@@ -196,14 +201,18 @@ export function UserTable({
                   <Chip
                     className=""
                     tone={
-                      user.isActive
-                        ? "sage"
-                        : "coral"
+                      !user.isActive
+                        ? "coral"
+                        : user.emailVerified
+                          ? "sage"
+                          : "yellow"
                     }
                   >
-                    {user.isActive
-                      ? "Active"
-                      : "Banned"}
+                    {!user.isActive
+                      ? t("admin.users.banned")
+                      : user.emailVerified
+                        ? t("admin.users.active")
+                        : t("admin.users.pendingVerification")}
                   </Chip>
                 </td>
 
@@ -211,7 +220,7 @@ export function UserTable({
                   {new Date(
                     user.createdAt,
                   ).toLocaleDateString(
-                    "en-US",
+                    locale,
                     {
                       month:
                         "short",
@@ -257,8 +266,8 @@ export function UserTable({
                       )}
 
                       {user.isActive
-                        ? "Ban"
-                        : "Unban"}
+                        ? t("admin.users.ban")
+                        : t("admin.users.unban")}
                     </button>
 
                     <button
@@ -279,7 +288,7 @@ export function UserTable({
                         strokeWidth={1.8}
                       />
 
-                      Delete
+                      {t("common.delete")}
                     </button>
                   </div>
                 </td>
@@ -293,7 +302,7 @@ export function UserTable({
                 colSpan={6}
                 className="px-4 py-10 text-center text-ink-faint"
               >
-                No users found.
+                {t("admin.users.empty")}
               </td>
             </tr>
           )}

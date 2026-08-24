@@ -11,7 +11,7 @@ import { UnauthorizedError } from "@/server/utils/errors";
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
-} from "@/server/utils/mailer";
+} from "@/server/services/email.service";
 import {
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
@@ -111,6 +111,18 @@ export async function logout(
   });
 
   return clearRefreshTokenCookie(noContentResponse());
+}
+
+export async function logoutAll(
+  _req: NextRequest,
+  _context: RouteContext,
+  auth: AuthContext,
+): Promise<NextResponse> {
+  await authService.logoutAll(auth.userId);
+
+  return clearRefreshTokenCookie(
+    successResponse({ message: "All sessions have been signed out" }),
+  );
 }
 
 export async function refresh(req: NextRequest): Promise<NextResponse> {

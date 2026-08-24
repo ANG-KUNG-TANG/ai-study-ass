@@ -27,18 +27,22 @@ import type {
   GenerationMetadata,
   GenerationSource,
 } from "@/server/types/generation";
+import {
+  buildGroundedPromptSource,
+  buildQuestionsFromGrounding,
+} from "@/server/services/grounded-artifacts.service";
+import { z } from "zod";
+import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
 
-interface RawQuizJSON {
-  questions?: unknown;
-}
-
-interface RawQuestionJSON {
-  question?: unknown;
-  questionType?: unknown;
-  options?: unknown;
-  answer?: unknown;
-  explanation?: unknown;
-}
+const quizResponseSchema = z.object({
+  questions: z.array(z.object({
+    question: z.string().min(1),
+    questionType: z.enum(QUESTION_TYPES),
+    options: z.array(z.string()),
+    answer: z.string().min(1),
+    explanation: z.string().optional(),
+  }).strict()),
+}).strict();
 
 function parseQuizResponse(rawText: string): QuizQuestionInput[] {
   const cleaned = rawText
@@ -46,49 +50,14 @@ function parseQuizResponse(rawText: string): QuizQuestionInput[] {
     .replace(/^```json\s*/i, "")
     .replace(/```\s*$/, "");
 
-  const parsed = JSON.parse(cleaned) as RawQuizJSON;
-
-  if (!Array.isArray(parsed.questions)) {
-    throw new Error('AI quiz response is missing a "questions" array.');
-  }
-
-  return parsed.questions.map((raw, index): QuizQuestionInput => {
-    const question = raw as RawQuestionJSON;
-
-    if (typeof question.question !== "string") {
-      throw new Error(`questions[${index}].question must be a string.`);
-    }
-
-    if (
-      typeof question.questionType !== "string" ||
-      !QUESTION_TYPES.includes(question.questionType as never)
-    ) {
-      throw new Error(`questions[${index}].questionType is invalid.`);
-    }
-
-    if (
-      !Array.isArray(question.options) ||
-      !question.options.every((option) => typeof option === "string")
-    ) {
-      throw new Error(`questions[${index}].options must be a string array.`);
-    }
-
-    if (typeof question.answer !== "string") {
-      throw new Error(`questions[${index}].answer must be a string.`);
-    }
-
-    return {
+  return quizResponseSchema.parse(JSON.parse(cleaned)).questions.map(
+    (question): QuizQuestionInput => ({
+      ...question,
       question: question.question.trim(),
-      questionType:
-        question.questionType as QuizQuestionInput["questionType"],
-      options: question.options,
       answer: question.answer.trim(),
-      explanation:
-        typeof question.explanation === "string"
-          ? question.explanation.trim()
-          : undefined,
-    };
-  });
+      explanation: question.explanation?.trim(),
+    }),
+  );
 }
 
 function pickDistractors(
@@ -282,6 +251,9 @@ export async function generateQuizWithMetadata(
   const intelligence = await intelligenceService
     .getOrRunPipeline(noteId)
     .catch(() => null);
+  const grounding = isIntelligenceV2Enabled()
+    ? intelligence?.grounding ?? null
+    : null;
 
   const coreQuestions =
     intelligence?.core
@@ -293,13 +265,24 @@ export async function generateQuizWithMetadata(
         )
       : [];
 
-  const sourceQuestions = buildQuestionsFromSource(
-    note.content,
-    count,
-    types,
-  );
+  const groundedQuestions = grounding
+    ? buildQuestionsFromGrounding(
+        grounding,
+        count,
+        types,
+      )
+    : [];
+
+  const sourceQuestions = grounding
+    ? []
+    : buildQuestionsFromSource(
+        note.content,
+        count,
+        types,
+      );
 
   let questions = deduplicateQuestions([
+    ...groundedQuestions,
     ...coreQuestions,
     ...sourceQuestions,
   ]).slice(0, count);
@@ -313,7 +296,10 @@ export async function generateQuizWithMetadata(
 
   if (missingCount > 0) {
     try {
-      const { systemPrompt, prompt } = buildQuizPrompt(note.content, {
+      const sourceText = grounding
+        ? buildGroundedPromptSource(grounding)
+        : note.content;
+      const { systemPrompt, prompt } = buildQuizPrompt(sourceText, {
         ...options,
         questionCount: missingCount,
       });
@@ -325,6 +311,8 @@ export async function generateQuizWithMetadata(
         temperature: 0.35,
         maxTokens: 2_000,
         usageLabel: "quiz",
+        userId,
+        noteId,
       });
 
       const aiQuestions = parseQuizResponse(aiResult.text);

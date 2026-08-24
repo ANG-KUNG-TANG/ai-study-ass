@@ -8,7 +8,7 @@ echo "===== SECURITY / RECOVERY CHECK ====="
 
 docker compose ps >/dev/null || fail "Docker Compose unavailable"
 
-for service in mongo redis worker app; do
+for service in mongo redis worker pdf-worker app; do
   id="$(docker compose ps -q "$service")"
   [ -n "$id" ] || fail "$service container missing"
   [ "$(docker inspect -f '{{.State.Status}}' "$id")" = "running" ] \
@@ -38,6 +38,12 @@ aof_status="$(docker compose exec -T redis redis-cli INFO persistence | awk -F: 
 [ "$aof_status" = "ok" ] || fail "Redis AOF status=$aof_status"
 pass "Redis AOF healthy"
 
+for heartbeat in study-generation pdf-ingestion; do
+  value="$(docker compose exec -T redis redis-cli GET "health:worker:$heartbeat" | tr -d '\r')"
+  [ -n "$value" ] || fail "$heartbeat worker heartbeat missing"
+  pass "$heartbeat worker heartbeat"
+done
+
 curl -fsS http://127.0.0.1:3000/api/health | grep -q '"success":true' \
   || fail "public health failed"
 pass "public liveness endpoint"
@@ -52,8 +58,12 @@ if [ -n "${ADMIN_TOKEN:-}" ]; then
   admin_health="$(curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:3000/api/admin/health)"
   echo "$admin_health" | grep -q '"connected":true' \
     || fail "admin health reports MongoDB unavailable"
-  echo "$admin_health" | grep -q '"reachable":true' \
+  echo "$admin_health" | grep -q '"redis":{"connected":true' \
     || fail "admin health reports Redis unavailable"
+  echo "$admin_health" | grep -q '"studyGeneration":{"online":true' \
+    || fail "admin health reports generation worker offline"
+  echo "$admin_health" | grep -q '"pdfIngestion":{"online":true' \
+    || fail "admin health reports PDF worker offline"
   pass "authenticated dependency health"
 
   security_report="$(curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" 'http://127.0.0.1:3000/api/admin/security?window=15')"

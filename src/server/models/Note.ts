@@ -10,6 +10,12 @@ export interface INote extends Document<string> {
   fileSize: number;
   /** Original text extracted from the uploaded document. */
   content: string;
+  /** Private page-preserving extraction data used for exact provenance. */
+  sourcePageCount?: number;
+  sourcePages?: Array<{
+    pageNumber: number;
+    rawText: string;
+  }>;
   /** AI-generated, paraphrased study notes. */
   summary: string | null;
   createdAt: Date;
@@ -46,6 +52,30 @@ const noteSchema = new Schema<INote>(
       type: String,
       required: true,
       maxlength: NOTE_RULES.CONTENT_MAX,
+    },
+    sourcePageCount: {
+      type: Number,
+      min: 1,
+    },
+    sourcePages: {
+      type: [
+        new Schema(
+          {
+            pageNumber: {
+              type: Number,
+              required: true,
+              min: 1,
+            },
+            rawText: {
+              type: String,
+              required: true,
+              maxlength: NOTE_RULES.CONTENT_MAX,
+            },
+          },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
     },
     summary: {
       type: String,

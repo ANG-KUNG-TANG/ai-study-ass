@@ -101,6 +101,19 @@ function findHeadingCandidates(text: string): HeadingCandidate[] {
 
     if (!trimmed || trimmed.length > HEADING_MAX_LENGTH) continue;
 
+    const slide = trimmed.match(/^slide\s+(\d+)\s*(?:[-–—:]\s*)?(.+)$/i);
+    if (slide && looksLikeHeadingText(slide[2])) {
+      candidates.push({
+        line,
+        heading: `Slide ${slide[1]} - ${slide[2].trim()}`,
+        number: slide[1],
+        level: 1,
+        startOffset: lineStart,
+        lineEndOffset: lineEnd + 1,
+      });
+      continue;
+    }
+
     const numbered = trimmed.match(/^(\d+(?:\.\d+)*)[.)]?\s+(.+)$/);
     if (numbered && looksLikeHeadingText(numbered[2])) {
       const level = numbered[1].split(".").length;
@@ -126,7 +139,10 @@ function findHeadingCandidates(text: string): HeadingCandidate[] {
     }
   }
 
-  return removeFalsePositiveHeadings(candidates, text);
+  return removeNumberedListCandidates(
+    removeFalsePositiveHeadings(candidates, text),
+    text,
+  );
 }
 
 function looksLikeHeadingText(value: string): boolean {
@@ -148,10 +164,58 @@ function isUppercaseHeading(value: string): boolean {
 }
 
 function isTitleCaseHeading(value: string): boolean {
+  if (/^[\u2022\u25AA\u25E6\u2023\u2043*+-]/u.test(value)) return false;
   const words = value.split(/\s+/);
   if (words.length < 1 || words.length > 10) return false;
   const titleWords = words.filter((word) => /^[A-Z][A-Za-z0-9&/-]*$/.test(word));
   return titleWords.length / words.length >= 0.75 && !/[.!?]$/.test(value);
+}
+
+function removeNumberedListCandidates(
+  candidates: HeadingCandidate[],
+  text: string,
+): HeadingCandidate[] {
+  const listIndexes = new Set<number>();
+  let run: number[] = [];
+
+  const flush = (): void => {
+    if (run.length >= 3) {
+      for (const index of run) listIndexes.add(index);
+    }
+    run = [];
+  };
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
+    const numeric = candidate.number?.match(/^\d+$/)
+      ? Number(candidate.number)
+      : null;
+
+    if (numeric === null || candidate.heading.toLowerCase().startsWith("slide ")) {
+      flush();
+      continue;
+    }
+
+    if (run.length === 0) {
+      run = [index];
+      continue;
+    }
+
+    const previousIndex = run.at(-1)!;
+    const previous = candidates[previousIndex];
+    const previousNumber = Number(previous.number);
+    const gap = text.slice(previous.lineEndOffset, candidate.startOffset).trim();
+
+    if (numeric === previousNumber + 1 && gap.length === 0) {
+      run.push(index);
+    } else {
+      flush();
+      run = [index];
+    }
+  }
+
+  flush();
+  return candidates.filter((_, index) => !listIndexes.has(index));
 }
 
 function removeFalsePositiveHeadings(
@@ -195,12 +259,15 @@ function estimatePages(
   endOffset: number,
 ): { pageStart?: number; pageEnd?: number; pageEstimate: boolean } {
   if (doc.sourcePages.length > 1) {
-    const startPage = doc.sourcePages.find(
-      (page) => startOffset >= page.startOffset && startOffset <= page.endOffset,
+    const exclusiveEnd = Math.max(startOffset + 1, endOffset);
+    const overlappingPages = doc.sourcePages.filter(
+      (page) =>
+        page.startOffset < exclusiveEnd &&
+        page.endOffset >= startOffset,
     );
-    const endPage = [...doc.sourcePages]
-      .reverse()
-      .find((page) => endOffset >= page.startOffset && endOffset <= page.endOffset);
+    const startPage = overlappingPages[0];
+    const endPage = overlappingPages.at(-1);
+
     return {
       pageStart: startPage?.pageNumber,
       pageEnd: endPage?.pageNumber ?? startPage?.pageNumber,
@@ -208,9 +275,13 @@ function estimatePages(
     };
   }
 
-  const pageCount = doc.pageCount ?? 1;
+  if (doc.pageCount === undefined) {
+    return { pageEstimate: false };
+  }
+
+  const pageCount = doc.pageCount;
   if (pageCount <= 1 || doc.displayText.length === 0) {
-    return { pageStart: 1, pageEnd: 1, pageEstimate: pageCount > 1 };
+    return { pageStart: 1, pageEnd: 1, pageEstimate: false };
   }
 
   const ratioStart = startOffset / doc.displayText.length;

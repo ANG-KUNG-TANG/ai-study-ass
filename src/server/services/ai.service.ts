@@ -12,6 +12,8 @@ import {
 import { AIError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import { appendUntrustedContentRules } from "@/server/utils/prompt-security";
+import { recordAIUsage } from "@/server/services/ai-usage.service";
+import { assertUserAIQuota } from "@/server/services/ai-quota.service";
 
 // ─── Public contract ──────────────────────────────────────────────────────────
 
@@ -22,8 +24,15 @@ export interface AIGenerateOptions {
   temperature?: number;
   jsonMode?: boolean;
 
-  /** Logical feature label shown in the admin AI-usage dashboard. */
+  /** Logical feature label shown in the AI-usage dashboards. */
   usageLabel?: string;
+
+  /** Ownership context used for per-user telemetry and quota enforcement. */
+  userId?: string;
+  noteId?: string;
+
+  /** Reserved for trusted administrative probes. */
+  skipUserQuota?: boolean;
 }
 
 export interface AIGenerateResult {
@@ -31,44 +40,6 @@ export interface AIGenerateResult {
   tokensUsed: number;
   provider: AIProvider;
   model: string;
-}
-
-export interface AIUsageEvent {
-  provider: AIProvider;
-  model: string;
-  usageLabel: string;
-  success: boolean;
-  tokensUsed: number;
-  latencyMs: number;
-  createdAt: Date;
-}
-
-// ─── Process-local telemetry ─────────────────────────────────────────────────
-// Stores operational metadata only. Prompts, responses, document text, API
-// keys and user identifiers are deliberately excluded.
-
-interface AIUsageGlobal {
-  __recallAIUsageEvents?: AIUsageEvent[];
-}
-
-const usageGlobal = globalThis as typeof globalThis & AIUsageGlobal;
-const AI_USAGE_LIMIT = 5_000;
-const usageEvents = usageGlobal.__recallAIUsageEvents ?? [];
-usageGlobal.__recallAIUsageEvents = usageEvents;
-
-function recordAIUsageEvent(event: AIUsageEvent): void {
-  usageEvents.push(event);
-
-  if (usageEvents.length > AI_USAGE_LIMIT) {
-    usageEvents.splice(0, usageEvents.length - AI_USAGE_LIMIT);
-  }
-}
-
-export function getAIUsageEvents(): AIUsageEvent[] {
-  return usageEvents.map((event) => ({
-    ...event,
-    createdAt: new Date(event.createdAt),
-  }));
 }
 
 // ─── Retry / timeout policy ──────────────────────────────────────────────────
@@ -101,6 +72,7 @@ interface AdapterError extends Error {
   retryAfterMs?: number;
   retryable?: boolean;
   publicMessage?: string;
+  quotaExceeded?: boolean;
 }
 
 function asAdapterError(error: unknown): AdapterError {
@@ -182,6 +154,32 @@ function parseGeminiQuotaInfo(responseText: string): GeminiQuotaInfo {
     };
   } catch {
     return { dailyQuotaExceeded: false };
+  }
+}
+
+function isOpenAIQuotaExceeded(responseText: string): boolean {
+  try {
+    const parsed = JSON.parse(responseText) as {
+      error?: {
+        code?: string | null;
+        type?: string | null;
+        message?: string | null;
+      };
+    };
+    const code = parsed.error?.code ?? "";
+    const type = parsed.error?.type ?? "";
+    const message = parsed.error?.message ?? "";
+
+    return (
+      code === "insufficient_quota" ||
+      type === "insufficient_quota" ||
+      /insufficient[_ ]quota/i.test(`${code} ${type}`) ||
+      /exceeded (?:your|the) current quota|billing|credits? exhausted/i.test(
+        message,
+      )
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -267,17 +265,28 @@ async function callOpenAI(
   });
 
   if (!response.ok) {
+    const details = await response.text().catch(() => "");
     logProviderFailure("openai", model, response.status);
 
     const error: AdapterError = new Error(
       `OpenAI returned ${response.status}`,
     );
     error.status = response.status;
-    error.retryable = isRetryableStatus(response.status);
-    error.retryAfterMs = parseRetryAfterHeader(
-      response.headers.get("retry-after"),
-    );
-    error.publicMessage = publicProviderError("OpenAI", response.status);
+    error.quotaExceeded =
+      response.status === 429 && isOpenAIQuotaExceeded(details);
+
+    if (error.quotaExceeded) {
+      error.retryable = false;
+      error.publicMessage =
+        "The OpenAI account quota has been exhausted. " +
+        "Saved and symbolic study features remain available.";
+    } else {
+      error.retryable = isRetryableStatus(response.status);
+      error.retryAfterMs = parseRetryAfterHeader(
+        response.headers.get("retry-after"),
+      );
+      error.publicMessage = publicProviderError("OpenAI", response.status);
+    }
     throw error;
   }
 
@@ -370,6 +379,7 @@ async function callGemini(
       `Gemini returned ${response.status}`,
     );
     error.status = response.status;
+    error.quotaExceeded = quotaInfo.dailyQuotaExceeded;
 
     if (quotaInfo.dailyQuotaExceeded) {
       error.retryable = false;
@@ -453,6 +463,10 @@ export async function generate(
   const startedAt = Date.now();
   const usageLabel = options.usageLabel?.trim() || "generation";
 
+  if (options.userId && options.skipUserQuota !== true) {
+    await assertUserAIQuota(options.userId);
+  }
+
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(
@@ -463,14 +477,17 @@ export async function generate(
     try {
       const result = await adapter(options, controller.signal);
 
-      recordAIUsageEvent({
+      await recordAIUsage({
+        userId: options.userId ?? null,
+        noteId: options.noteId ?? null,
         provider: result.provider,
         model: result.model,
         usageLabel,
         success: true,
         tokensUsed: result.tokensUsed,
         latencyMs: Date.now() - startedAt,
-        createdAt: new Date(),
+        statusCode: 200,
+        quotaExceeded: false,
       });
 
       return result;
@@ -487,14 +504,17 @@ export async function generate(
       const isLastAttempt = attempt === maxAttempts - 1;
 
       if (!retryable || isLastAttempt) {
-        recordAIUsageEvent({
+        await recordAIUsage({
+          userId: options.userId ?? null,
+          noteId: options.noteId ?? null,
           provider,
           model: configuredModel(provider),
           usageLabel,
           success: false,
           tokensUsed: 0,
           latencyMs: Date.now() - startedAt,
-          createdAt: new Date(),
+          statusCode: typeof status === "number" ? status : null,
+          quotaExceeded: error.quotaExceeded === true,
         });
 
         if (isAbort) {
@@ -528,6 +548,10 @@ export async function generate(
 /** Adapter matching the intelligence engine's `(prompt) => result` contract. */
 export async function generateForIntelligence(
   prompt: string,
+  context: {
+    userId?: string;
+    noteId?: string;
+  } = {},
 ): Promise<AIGenerateResult> {
   return generate({
     prompt,
@@ -543,5 +567,7 @@ export async function generateForIntelligence(
     temperature: 0.1,
     jsonMode: true,
     usageLabel: "intelligence",
+    userId: context.userId,
+    noteId: context.noteId,
   });
 }

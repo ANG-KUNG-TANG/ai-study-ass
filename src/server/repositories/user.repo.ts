@@ -27,6 +27,7 @@ export interface SensitiveFieldOptions {
   withPassword?: boolean;
   withRefreshTokenId?: boolean;
   withVerificationToken?: boolean;
+  withGoogleSubject?: boolean;
 }
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────
@@ -39,8 +40,17 @@ function toEntity(doc: any): UserEntity {
     name: doc.name,
     email: doc.email,
     passwordHash: doc.passwordHash ?? "",
+    googleSubject: doc.googleSubject ?? null,
+    passwordConfigured:
+      typeof doc.passwordConfigured === "boolean"
+        ? doc.passwordConfigured
+        : !doc.googleSubject,
     role: doc.role,
     isActive: doc.isActive,
+    emailVerified:
+      typeof doc.emailVerified === "boolean"
+        ? doc.emailVerified
+        : doc.isActive || !doc.emailVerificationToken,
     emailVerificationToken: doc.emailVerificationToken ?? null,
     emailVerificationExpires: doc.emailVerificationExpires ?? null,
     passwordResetToken: doc.passwordResetToken ?? null,
@@ -58,6 +68,7 @@ function buildSelect(options: SensitiveFieldOptions = {}): string {
   if (options.withPassword) extras.push("+passwordHash");
   if (options.withRefreshTokenId) extras.push("+refreshTokenId");
   if (options.withVerificationToken) extras.push("+emailVerificationToken +emailVerificationExpires");
+  if (options.withGoogleSubject) extras.push("+googleSubject");
   return extras.join(" ");
 }
 
@@ -96,6 +107,18 @@ export async function findByVerificationToken(
 ): Promise<UserEntity | null> {
   const doc = await User.findOne({ emailVerificationToken: tokenHash })
     .select("+emailVerificationToken +emailVerificationExpires")
+    .lean()
+    .exec();
+
+  if (!doc) return null;
+  return toEntity(doc);
+}
+
+export async function findByGoogleSubject(
+  googleSubject: string,
+): Promise<UserEntity | null> {
+  const doc = await User.findOne({ googleSubject })
+    .select("+googleSubject")
     .lean()
     .exec();
 
@@ -173,8 +196,11 @@ export async function create(entity: UserEntity): Promise<UserEntity> {
     name: data.name,
     email: data.email,
     passwordHash: data.passwordHash,   // already hashed by auth.service
+    googleSubject: data.googleSubject,
+    passwordConfigured: data.passwordConfigured,
     role: data.role,
     isActive: data.isActive,
+    emailVerified: data.emailVerified,
     emailVerificationToken: data.emailVerificationToken,
     emailVerificationExpires: data.emailVerificationExpires,
     refreshTokenId: data.refreshTokenId,
@@ -189,6 +215,7 @@ export async function create(entity: UserEntity): Promise<UserEntity> {
 export async function activate(id: UserId): Promise<void> {
   await User.findByIdAndUpdate(id, {
     isActive: true,
+    emailVerified: true,
     emailVerificationToken: null,
     emailVerificationExpires: null,
     updatedAt: new Date(),
@@ -207,11 +234,19 @@ export async function consumeVerificationToken(
     {
       emailVerificationToken: tokenHash,
       emailVerificationExpires: { $gt: now },
-      isActive: false,
+      $or: [
+        // Current account model: enabled but awaiting verification.
+        { emailVerified: false, isActive: true },
+        // Legacy model: unverified accounts were stored as inactive. Requiring
+        // the matching token prevents an administrator-banned verified account
+        // from being reactivated by this compatibility path.
+        { emailVerified: { $exists: false }, isActive: false },
+      ],
     },
     {
       $set: {
         isActive: true,
+        emailVerified: true,
         emailVerificationToken: null,
         emailVerificationExpires: null,
         updatedAt: now,
@@ -227,6 +262,20 @@ export async function consumeVerificationToken(
   const entity = toEntity(doc);
   logger.info("Verification token consumed", { userId: entity.id });
   return entity;
+}
+
+export async function setGoogleSubject(
+  id: UserId,
+  googleSubject: string,
+): Promise<void> {
+  await User.findByIdAndUpdate(id, {
+    googleSubject,
+    // This path links Google to an account that already had a user-created
+    // password; preserve that capability explicitly for account settings.
+    passwordConfigured: true,
+    updatedAt: new Date(),
+  });
+  logger.info("Google account linked", { userId: id });
 }
 
 export async function updateRefreshTokenId(
@@ -276,6 +325,7 @@ export async function updatePassword(
 ): Promise<void> {
   await User.findByIdAndUpdate(id, {
     passwordHash,
+    passwordConfigured: true,
     refreshTokenId: null,   // invalidate all sessions
     updatedAt: new Date(),
   });
@@ -311,7 +361,10 @@ export async function updateProfile(
   const doc = await User.findByIdAndUpdate(
     id,
     { ...data, updatedAt: new Date() },
-    { returnDocument: "after" }             // return updated doc
+    {
+      returnDocument: "after",
+      runValidators: true,
+    }
   )
     .lean()
     .exec();
@@ -388,6 +441,7 @@ export async function consumePasswordResetToken(
     {
       $set: {
         passwordHash,
+        passwordConfigured: true,
         passwordResetToken: null,
         passwordResetExpires: null,
         refreshTokenId: null,

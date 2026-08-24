@@ -5,6 +5,7 @@ import {
   Network,
   MessageSquare,
 } from "lucide-react";
+import type { TranslationKey } from "@/i18n/translations";
 
 export function noteTabItems(
   noteId: string,
@@ -18,40 +19,40 @@ export function noteTabItems(
     {
       href:
         `/student/notes/${encodedNoteId}/summary`,
-      label:
-        "Summary",
+      labelKey:
+        "nav.summary" as TranslationKey,
       icon:
         AlignLeft,
     },
     {
       href:
         `/student/notes/${encodedNoteId}/quiz`,
-      label:
-        "Quiz",
+      labelKey:
+        "nav.quiz" as TranslationKey,
       icon:
         HelpCircle,
     },
     {
       href:
         `/student/notes/${encodedNoteId}/flashcards`,
-      label:
-        "Flashcards",
+      labelKey:
+        "nav.flashcards" as TranslationKey,
       icon:
         Copy,
     },
     {
       href:
         `/student/notes/${encodedNoteId}/chat`,
-      label:
-        "Chat",
+      labelKey:
+        "nav.chat" as TranslationKey,
       icon:
         MessageSquare,
     },
     {
       href:
         `/student/notes/${encodedNoteId}/knowledge`,
-      label:
-        "Knowledge",
+      labelKey:
+        "note.tab.knowledge" as TranslationKey,
       icon:
         Network,
     },

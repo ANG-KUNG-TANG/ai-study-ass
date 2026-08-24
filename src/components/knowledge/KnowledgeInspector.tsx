@@ -24,6 +24,7 @@ import {
   relationExplanation,
   relationLabel,
 } from "./knowledge-graph.utils";
+import { useLanguage } from "@/context/LanguageContext";
 
 type InspectorTab =
   | "understand"
@@ -65,6 +66,7 @@ export function KnowledgeInspector({
   onClose,
   compact = false,
 }: KnowledgeInspectorProps) {
+  const { t } = useLanguage();
   const [tab, setTab] =
     useState<InspectorTab>("understand");
   const [showTechnical, setShowTechnical] =
@@ -118,16 +120,16 @@ export function KnowledgeInspector({
   }> = [
     {
       id: "understand",
-      label: "Understand",
+      label: t("knowledge.inspector.understand"),
     },
     {
       id: "connections",
-      label: "Why connected",
+      label: t("knowledge.inspector.connections"),
       count: meaningfulConnections.length,
     },
     {
       id: "evidence",
-      label: "Source",
+      label: t("knowledge.inspector.source"),
       count: evidence.length,
     },
   ];
@@ -163,8 +165,8 @@ export function KnowledgeInspector({
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#EEF7F0] px-2 py-1 text-[10px] font-medium text-[#4C7A5A]">
               <ShieldCheck size={11} />
               {provenance === "ai_grounded"
-                ? "AI-assisted · source validated"
-                : "Grounded in this document"}
+                ? t("knowledge.inspector.aiGrounded")
+                : t("knowledge.inspector.documentGrounded")}
             </div>
           </div>
 
@@ -173,7 +175,7 @@ export function KnowledgeInspector({
               type="button"
               onClick={onClose}
               className="rounded-lg p-1.5 text-[#726B5C] hover:bg-[#F4EFE4]"
-              aria-label="Close inspector"
+              aria-label={t("knowledge.inspector.close")}
             >
               <X size={17} />
             </button>
@@ -206,7 +208,7 @@ export function KnowledgeInspector({
           <div className="space-y-5">
             <section>
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#726B5C]">
-                What does it mean?
+                {t("knowledge.inspector.meaning")}
               </h3>
 
               <p className="mt-2 text-[13px] leading-6 text-[#38342C]">
@@ -217,7 +219,7 @@ export function KnowledgeInspector({
             {meaningfulConnections.length > 0 && (
               <section>
                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#726B5C]">
-                  How it fits
+                  {t("knowledge.inspector.fits")}
                 </h3>
 
                 <div className="mt-2 space-y-2">
@@ -267,7 +269,7 @@ export function KnowledgeInspector({
               node.type !== "section" && (
                 <section>
                   <div className="flex items-center justify-between text-[11px] font-medium text-[#514B40]">
-                    <span>Source confidence</span>
+                    <span>{t("knowledge.sourceConfidence")}</span>
                     <span>
                       {Math.round(confidence * 100)}%
                     </span>
@@ -299,7 +301,7 @@ export function KnowledgeInspector({
               >
                 <span className="flex items-center gap-2 text-[12px] font-medium text-[#255FD6]">
                   <BookOpen size={15} />
-                  Show source evidence
+                  {t("knowledge.inspector.showEvidence")}
                 </span>
 
                 <span className="text-[12px] text-[#5F6F91]">
@@ -316,7 +318,7 @@ export function KnowledgeInspector({
                 }
                 className="flex w-full items-center justify-between rounded-xl border border-[#E6DDC8] px-3 py-2.5 text-[11.5px] font-medium text-[#726B5C] hover:bg-[#FAF6EC]"
               >
-                Technical details
+                {t("knowledge.inspector.technical")}
                 <ChevronDown
                   size={14}
                   className={
@@ -331,7 +333,7 @@ export function KnowledgeInspector({
                 <dl className="mt-2 divide-y divide-[#EFE8D6] rounded-xl border border-[#EFE8D6] px-3">
                   <div className="grid grid-cols-[100px_1fr] gap-3 py-2.5 text-[11.5px]">
                     <dt className="text-[#726B5C]">
-                      Type
+                      {t("knowledge.inspector.type")}
                     </dt>
                     <dd className="font-medium text-[#38342C]">
                       {readableType(node.type)}
@@ -363,8 +365,7 @@ export function KnowledgeInspector({
           <div className="space-y-3">
             {meaningfulConnections.length === 0 ? (
               <p className="text-[13px] text-[#726B5C]">
-                No direct source-grounded relationship
-                was found for this item.
+                {t("knowledge.inspector.noRelationship")}
               </p>
             ) : (
               meaningfulConnections.map(
@@ -434,10 +435,12 @@ function EvidenceList({
 }: {
   evidence: EvidenceItem[];
 }) {
+  const { t } = useLanguage();
+
   if (evidence.length === 0) {
     return (
       <p className="text-[13px] text-[#726B5C]">
-        No source evidence is attached to this node.
+        {t("knowledge.inspector.noSource")}
       </p>
     );
   }
@@ -453,8 +456,8 @@ function EvidenceList({
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#726B5C]">
               <BookOpen size={12} />
               {item.pageNumber
-                ? `Page ${item.pageNumber}`
-                : "Document evidence"}
+                ? t("knowledge.page", { page: item.pageNumber })
+                : t("knowledge.documentEvidence")}
             </span>
 
             {item.sectionTitle && (

@@ -1,9 +1,15 @@
+"use client";
+
+import { useLanguage } from "@/context/LanguageContext";
+
 interface StreakBoxProps {
   days: number;
   message: string;
 }
 
 export function StreakBox({ days, message }: StreakBoxProps) {
+  const { t } = useLanguage();
+
   return (
     <div className="rounded-xl border border-yellow-line bg-yellow-soft px-3.5 py-3.5">
       <div className="mb-1 flex items-center gap-1.5">
@@ -13,7 +19,9 @@ export function StreakBox({ days, message }: StreakBoxProps) {
             fill="#E85D46"
           />
         </svg>
-        <strong className="text-[13px]">{days}-day streak</strong>
+        <strong className="text-[13px]">
+          {t("sidebar.streakTitle", { days })}
+        </strong>
       </div>
       <p className="text-[11.5px] leading-snug text-ink-soft">{message}</p>
     </div>

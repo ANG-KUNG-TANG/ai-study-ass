@@ -40,6 +40,13 @@ export interface CreateNoteInput {
   fileType: NoteFileType;
   fileSize: number;
   content: string;
+  sourcePageCount?: number;
+  sourcePages?: SourceDocumentPage[];
+}
+
+export interface SourceDocumentPage {
+  pageNumber: number;
+  rawText: string;
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -114,6 +121,8 @@ export class NoteEntity {
   #fileType: NoteFileType;
   #fileSize: number;
   #content: string;
+  #sourcePageCount?: number;
+  #sourcePages?: SourceDocumentPage[];
   #summary: string | null;
   #createdAt: Date;
   #updatedAt: Date;
@@ -126,6 +135,8 @@ export class NoteEntity {
     fileType: NoteFileType;
     fileSize: number;
     content: string;
+    sourcePageCount?: number;
+    sourcePages?: SourceDocumentPage[];
     summary: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -137,6 +148,8 @@ export class NoteEntity {
     this.#fileType = data.fileType;
     this.#fileSize = data.fileSize;
     this.#content = data.content;
+    this.#sourcePageCount = data.sourcePageCount;
+    this.#sourcePages = data.sourcePages?.map((page) => ({ ...page }));
     this.#summary = data.summary;
     this.#createdAt = data.createdAt;
     this.#updatedAt = data.updatedAt;
@@ -166,6 +179,8 @@ export class NoteEntity {
     fileType: NoteFileType;
     fileSize: number;
     content: string;
+    sourcePageCount?: number;
+    sourcePages?: SourceDocumentPage[];
     summary?: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -178,6 +193,8 @@ export class NoteEntity {
       fileType: data.fileType,
       fileSize: data.fileSize,
       content: data.content,
+      sourcePageCount: data.sourcePageCount,
+      sourcePages: data.sourcePages,
       summary: data.summary ?? null,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
@@ -211,6 +228,14 @@ export class NoteEntity {
 
   get content(): string {
     return this.#content;
+  }
+
+  get sourcePageCount(): number | undefined {
+    return this.#sourcePageCount;
+  }
+
+  get sourcePages(): SourceDocumentPage[] | undefined {
+    return this.#sourcePages?.map((page) => ({ ...page }));
   }
 
   get summary(): string | null {

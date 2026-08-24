@@ -26,9 +26,14 @@ import {
 import {
   buildChatPrompt,
 } from "@/server/services/chat/chat.prompt";
+import {
+  answerFromGrounding,
+  buildGroundedPromptSource,
+} from "@/server/services/grounded-artifacts.service";
 import type {
   GenerationMetadata,
 } from "@/server/types/generation";
+import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
 
 async function requireOwnedNote(
   noteId: string,
@@ -54,6 +59,8 @@ interface ChatAnswer {
 }
 
 async function answerQuestion(
+  noteId: string,
+  userId: string,
   noteTitle: string,
   noteContent: string,
   intelligence:
@@ -69,12 +76,19 @@ async function answerQuestion(
   }>,
   question: string,
 ): Promise<ChatAnswer> {
-  const symbolic =
-    buildSymbolicChatAnswer(
-      intelligence?.core,
-      noteContent,
-      question,
-    );
+  const grounding = isIntelligenceV2Enabled()
+    ? intelligence?.grounding ?? null
+    : null;
+  const symbolic = grounding
+    ? answerFromGrounding(
+        grounding,
+        question,
+      )
+    : buildSymbolicChatAnswer(
+        intelligence?.core,
+        noteContent,
+        question,
+      );
 
   // High-confidence structured facts or document retrieval answer the
   // question without consuming provider quota.
@@ -99,7 +113,9 @@ async function answerQuestion(
       prompt,
     } = buildChatPrompt({
       noteTitle,
-      noteContent,
+      noteContent: grounding
+        ? buildGroundedPromptSource(grounding, 8_000)
+        : noteContent,
       intelligence,
       history,
       question,
@@ -117,6 +133,8 @@ async function answerQuestion(
           900,
         usageLabel:
           "chat",
+        userId,
+        noteId,
       });
 
     return {
@@ -174,6 +192,12 @@ export async function prepareChatKnowledge(
     Boolean(
       intelligence?.core,
     );
+  const grounding = isIntelligenceV2Enabled()
+    ? intelligence?.grounding ?? null
+    : null;
+  const hasGrounding = Boolean(
+    grounding?.facts.length,
+  );
 
   const confidence =
     intelligence?.confidence ??
@@ -190,20 +214,23 @@ export async function prepareChatKnowledge(
     aiFallbackUsed:
       false,
     status:
+      hasGrounding ||
       hasCore ||
       note.content.length >= 500
         ? "ready"
         : "partial",
     itemCount:
       (
+        grounding
+          ?.facts.length ??
         intelligence?.core
-          ?.keyPoints.length ??
-        0
+          ?.keyPoints.length ?? 0
       ) +
       (
+        grounding
+          ?.concepts.length ??
         intelligence?.core
-          ?.entities.length ??
-        0
+          ?.entities.length ?? 0
       ),
     tokensUsed:
       0,
@@ -242,6 +269,8 @@ export async function askQuestion(
 
   const answer =
     await answerQuestion(
+      noteId,
+      userId,
       note.title,
       note.content,
       intelligence,

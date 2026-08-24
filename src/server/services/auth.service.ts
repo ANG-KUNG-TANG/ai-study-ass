@@ -14,8 +14,10 @@ import { UserEntity } from "@/server/entities/user.entity";
 import { USER_RULES } from "@/server/entities/user.entity";
 import {
   UnauthorizedError,
+  EmailNotVerifiedError,
   NotFoundError,
   BadRequestError,
+  ConflictError,
 } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type {
@@ -23,6 +25,7 @@ import type {
   LoginInput,
   ChangePasswordInput,
 } from "@/server/validators/auth.validators";
+import type { GoogleIdentity } from "@/server/services/google-oauth.service";
 import { env } from "../config/env";
 import { logActivity } from "@/server/services/auditLog.service";
 import {
@@ -47,6 +50,21 @@ function isDuplicateKeyError(error: unknown): boolean {
       "code" in error &&
       (error as { code?: unknown }).code === 11000,
   );
+}
+
+async function issueSession(user: UserEntity): Promise<AuthResult> {
+  await clearUserRevocation(user.id);
+
+  const tokens = signTokenPair({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    jti: randomUUID(),
+  });
+
+  await userRepo.updateRefreshTokenId(user.id, tokens.refreshTokenId);
+
+  return { user: user.toPublic(), tokens };
 }
 
 // ─── Register ─────────────────────────────────────────────────────────────────
@@ -146,11 +164,20 @@ export async function resendVerification(
   email: string,
   sendVerificationEmail: (email: string, token: string) => Promise<void>
 ): Promise<{ message: string }> {
-  const user = await userRepo.findByEmail(email);
+  const user = await userRepo.findByEmail(email, {
+    withVerificationToken: true,
+  });
   const genericMessage = "If that email is registered and unverified, a new link has been sent";
 
   if (!user) return { message: genericMessage };
-  if (user.isActive) return { message: genericMessage };
+  if (user.emailVerified) return { message: genericMessage };
+
+  // A disabled account with no pending legacy verification token is an
+  // administrator-disabled account, not an unverified registration. Never
+  // issue a token that could be used to undo the administrator's decision.
+  if (!user.isActive && !user.emailVerificationToken) {
+    return { message: genericMessage };
+  }
 
   const newToken = generateActionToken();
   const newTokenHash = hashActionToken(newToken);
@@ -176,7 +203,10 @@ export async function resendVerification(
 
 export async function login(input: LoginInput): Promise<AuthResult> {
   // Need passwordHash to compare — explicit opt-in
-  const user = await userRepo.findByEmail(input.email, { withPassword: true });
+  const user = await userRepo.findByEmail(input.email, {
+    withPassword: true,
+    withVerificationToken: true,
+  });
 
   // Same public error for wrong email OR wrong password — prevents user enumeration.
   if (!user) {
@@ -187,20 +217,6 @@ export async function login(input: LoginInput): Promise<AuthResult> {
       metadata: { reason: "invalid_credentials" },
     });
     throw new UnauthorizedError("Invalid email or password");
-  }
-
-  // Domain rule: must be verified before login.
-  const { allowed, reason } = user.canLogin();
-  if (!allowed) {
-    await logActivity({
-      actorId: user.id,
-      actorEmail: user.email,
-      action: "auth.login_failed",
-      targetType: "user",
-      targetId: user.id,
-      metadata: { reason: "account_not_allowed" },
-    });
-    throw new UnauthorizedError(reason);
   }
 
   const passwordMatch = await bcrypt.compare(input.password, user.passwordHash);
@@ -216,17 +232,138 @@ export async function login(input: LoginInput): Promise<AuthResult> {
     throw new UnauthorizedError("Invalid email or password");
   }
 
-  // Clear any all-user revocation (e.g. after password change) before issuing new tokens
-  await clearUserRevocation(user.id);
+  // Only reveal verification state after the password has been proved. This
+  // avoids turning the login endpoint into an account-status oracle.
+  const { allowed, reason } = user.canLogin();
+  if (!allowed) {
+    await logActivity({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "auth.login_failed",
+      targetType: "user",
+      targetId: user.id,
+      metadata: {
+        reason:
+          user.isActive && !user.emailVerified
+            ? "email_not_verified"
+            : "account_disabled",
+      },
+    });
 
-  const tokens = signTokenPair({ userId: user.id, email: user.email, role: user.role, jti: randomUUID() });
+    if (user.isActive && !user.emailVerified) {
+      throw new EmailNotVerifiedError();
+    }
 
-  // Store refresh token ID for rotation tracking
-  await userRepo.updateRefreshTokenId(user.id, tokens.refreshTokenId);
+    throw new UnauthorizedError(reason);
+  }
+
+  const result = await issueSession(user);
 
   logger.info("User logged in", { userId: user.id });
 
-  return { user: user.toPublic(), tokens };
+  return result;
+}
+
+// ─── Google OAuth login and registration ──────────────────────────────────────
+
+function googleControlsEmail(identity: GoogleIdentity): boolean {
+  return identity.email.endsWith("@gmail.com") || Boolean(identity.hostedDomain);
+}
+
+export async function loginWithGoogle(
+  identity: GoogleIdentity,
+): Promise<AuthResult> {
+  let user = await userRepo.findByGoogleSubject(identity.subject);
+  let isNewUser = false;
+
+  if (!user) {
+    const existingUser = await userRepo.findByEmail(identity.email, {
+      withGoogleSubject: true,
+      withVerificationToken: true,
+    });
+
+    if (existingUser) {
+      // Never let a provider-linking path override an administrative ban.
+      // Legacy unverified accounts must consume their verification token
+      // first, which migrates them into the separated account-state model.
+      if (!existingUser.isActive) {
+        throw new UnauthorizedError("Account disabled");
+      }
+
+      if (
+        existingUser.googleSubject &&
+        existingUser.googleSubject !== identity.subject
+      ) {
+        throw new ConflictError(
+          "This email is already linked to another Google account",
+        );
+      }
+
+      // Google is authoritative for @gmail.com addresses and for verified
+      // Google Workspace domains reported through the hosted-domain claim.
+      // Automatic linking is blocked for other domains so a provider account
+      // cannot silently take over an existing password account.
+      if (!googleControlsEmail(identity)) {
+        throw new ConflictError(
+          "This email already uses password sign-in",
+        );
+      }
+
+      if (!existingUser.googleSubject) {
+        await userRepo.setGoogleSubject(existingUser.id, identity.subject);
+      }
+      if (!existingUser.emailVerified) {
+        await userRepo.activate(existingUser.id);
+      }
+
+      user = await userRepo.findById(existingUser.id, {
+        withGoogleSubject: true,
+      });
+      if (!user) {
+        throw new UnauthorizedError("Google sign-in could not be completed");
+      }
+    } else {
+      // Password login remains impossible until the user intentionally sets a
+      // password through the existing password-reset flow.
+      const unusablePassword = `${randomUUID()}${randomUUID()}Aa1!`;
+      const passwordHash = await bcrypt.hash(
+        unusablePassword,
+        env.BCRYPT_ROUNDS,
+      );
+
+      const entity = UserEntity.createGoogle({
+        id: randomUUID(),
+        name: identity.name,
+        email: identity.email,
+        passwordHash,
+        googleSubject: identity.subject,
+      });
+
+      user = await userRepo.create(entity);
+      isNewUser = true;
+
+      void logActivity({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "auth.register",
+        targetType: "user",
+        targetId: user.id,
+        metadata: { provider: "google" },
+      });
+    }
+  }
+
+  const { allowed, reason } = user.canLogin();
+  if (!allowed) throw new UnauthorizedError(reason);
+
+  const result = await issueSession(user);
+
+  logger.info(
+    isNewUser ? "User registered with Google" : "User logged in with Google",
+    { userId: user.id },
+  );
+
+  return result;
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
@@ -257,7 +394,7 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
 
   // A banned/inactive account or an explicit revoke-all decision must not be
   // able to rotate its refresh token into a new credential pair.
-  if (!user.isActive || allRevoked) {
+  if (!user.isActive || !user.emailVerified || allRevoked) {
     if (user.refreshTokenId !== null) {
       await userRepo.updateRefreshTokenId(payload.userId, null);
     }
@@ -327,7 +464,7 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
 // ─── Get current user ─────────────────────────────────────────────────────────
 
 export async function getMe(userId: string): Promise<ReturnType<UserEntity["toPublic"]>> {
-  const user = await userRepo.findById(userId);
+  const user = await userRepo.findById(userId, { withGoogleSubject: true });
   if (!user) throw new NotFoundError("User");
   return user.toPublic();
 }
@@ -363,6 +500,28 @@ export async function changePassword(
   });
 }
 
+// ─── Sign out all sessions ────────────────────────────────────────────────────
+
+export async function logoutAll(userId: string): Promise<void> {
+  const user = await userRepo.findById(userId);
+  if (!user) throw new NotFoundError("User");
+
+  await Promise.all([
+    userRepo.updateRefreshTokenId(userId, null),
+    revokeAllUserTokens(userId),
+  ]);
+
+  logger.info("All user sessions revoked", { userId });
+
+  await logActivity({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "auth.sessions_revoked",
+    targetType: "user",
+    targetId: user.id,
+  });
+}
+
 // ─── Forgot password — request reset link ────────────────────────────────────
 
 export async function forgotPassword(
@@ -373,7 +532,9 @@ export async function forgotPassword(
 
   const user = await userRepo.findByEmail(email);
   if (!user) return { message: genericMessage };
-  if (!user.isActive) return { message: genericMessage };
+  if (!user.isActive || !user.emailVerified) {
+    return { message: genericMessage };
+  }
 
   const resetToken = generateActionToken();
   const resetTokenHash = hashActionToken(resetToken);

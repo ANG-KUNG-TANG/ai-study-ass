@@ -16,6 +16,8 @@ import type {
   PipelineStage,
 } from "@/server/types/Knowledge";
 import type { IntelligenceResult } from "@/server/intelligence/types";
+import type { GroundedKnowledge } from "@/server/intelligence/grounding";
+import { buildGroundedKnowledgeGraph } from "@/server/services/grounded-knowledge-graph.service";
 
 export type KnowledgeStatus = "not_generated" | "ready" | "partial" | "failed";
 
@@ -118,6 +120,21 @@ function normalizeOntology(value: unknown): OntologyMatchRef[] {
   return matches;
 }
 
+function normalizeGrounding(value: unknown): GroundedKnowledge | null {
+  const raw = asRecord(value);
+
+  if (
+    !Array.isArray(raw.sections) ||
+    !Array.isArray(raw.facts) ||
+    !Array.isArray(raw.concepts) ||
+    !raw.quality
+  ) {
+    return null;
+  }
+
+  return value as GroundedKnowledge;
+}
+
 function emptyKnowledge(noteId: string): KnowledgeView {
   const now = new Date();
 
@@ -190,7 +207,12 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
 
     ontologyMatches: normalizeOntology(raw.ontology ?? raw.ontologyMatches),
 
-    graph: normalizeGraph(raw.graph),
+    graph: (() => {
+      const grounding = normalizeGrounding(raw.grounding);
+      return grounding
+        ? buildGroundedKnowledgeGraph(grounding)
+        : normalizeGraph(raw.graph);
+    })(),
 
     prologFacts: Array.isArray(raw.facts)
       ? (raw.facts as NonNullable<KnowledgeProps["prologFacts"]>)

@@ -6,9 +6,11 @@ import { useNoteContext } from "@/context/NoteContext";
 import { useChat } from "@/hooks/useChat";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function ChatPage() {
   const { note } = useNoteContext();
+  const { t } = useLanguage();
   const noteId = note?.id ?? "";
 
   const {
@@ -45,10 +47,10 @@ export default function ChatPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Document chat
+            {t("chat.document")}
           </p>
           <h2 className="mt-1 font-serif text-[20px] font-semibold">
-            Ask about {note.title}
+            {t("chat.askAbout", { title: note.title })}
           </h2>
         </div>
 
@@ -60,7 +62,7 @@ export default function ChatPage() {
             className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-coral disabled:opacity-50"
           >
             <Trash2 size={14} />
-            {isClearing ? "Clearing" : "Clear chat"}
+            {isClearing ? t("chat.clearing") : t("chat.clear")}
           </button>
         )}
       </div>
@@ -69,18 +71,17 @@ export default function ChatPage() {
         <div className="flex-1 space-y-5 overflow-y-auto pr-1">
           {isLoading && (
             <p className="text-[13px] text-ink-soft">
-              Loading conversation…
+              {t("chat.loading")}
             </p>
           )}
 
           {!isLoading && messages.length === 0 && (
             <div className="flex min-h-[340px] flex-col items-center justify-center text-center">
               <h3 className="font-serif text-[18px] font-semibold">
-                Start a conversation
+                {t("chat.start")}
               </h3>
               <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-soft">
-                Ask for explanations, examples, comparisons, definitions, or
-                revision questions based on this document.
+                {t("chat.startDescription")}
               </p>
             </div>
           )}
@@ -102,7 +103,7 @@ export default function ChatPage() {
 
           {isSending && (
             <div className="max-w-[88%] rounded-2xl rounded-bl-sm bg-[#F5F0E6] px-4 py-3 text-[13px] text-ink-soft">
-              Thinking…
+              {t("chat.thinking")}
             </div>
           )}
 
@@ -126,7 +127,7 @@ export default function ChatPage() {
                 event.currentTarget.form?.requestSubmit();
               }
             }}
-            placeholder="Ask a question about this document…"
+            placeholder={t("chat.placeholder")}
             rows={2}
             className="min-h-[46px] flex-1 resize-none rounded-xl border border-[#E6DDC8] bg-white px-3 py-2.5 text-[13px] leading-relaxed outline-none focus:border-[#8C82C8]"
           />
@@ -134,7 +135,7 @@ export default function ChatPage() {
           <Button
             type="submit"
             disabled={isSending || !question.trim()}
-            aria-label="Send question"
+            aria-label={t("chat.send")}
           >
             <Send size={15} />
           </Button>

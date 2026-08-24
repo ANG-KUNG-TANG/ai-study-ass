@@ -6,17 +6,25 @@ import * as flashcardRepo from "@/server/repositories/flashcard.repo";
 import * as chatRepo from "@/server/repositories/chat.repo";
 import * as intelligenceRepo from "@/server/repositories/intelligence.repo";
 import * as generationRepo from "@/server/repositories/study-generation.repo";
+import * as aiUsageRepo from "@/server/repositories/ai-usage.repo";
 import { UserEntity } from "@/server/entities/user.entity";
 import { revokeAllUserTokens } from "@/server/utils/jwt";
 import { NotFoundError, ForbiddenError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 
+export type AccountProfile = ReturnType<UserEntity["toPublic"]> & {
+  googleConnected: boolean;
+};
+
 export async function getProfile(
   userId: string,
-): Promise<ReturnType<UserEntity["toPublic"]>> {
-  const user = await userRepo.findById(userId);
+): Promise<AccountProfile> {
+  const user = await userRepo.findById(userId, { withGoogleSubject: true });
   if (!user) throw new NotFoundError("User");
-  return user.toPublic();
+  return {
+    ...user.toPublic(),
+    googleConnected: Boolean(user.googleSubject),
+  };
 }
 
 export async function updateProfile(
@@ -66,6 +74,7 @@ export async function deleteAccount(
     quizRepo.deleteByUserId(userId),
     flashcardRepo.deleteByUserId(userId),
     chatRepo.deleteByUserId(userId),
+    aiUsageRepo.deleteByUserId(userId),
     noteRepo.deleteByUserId(userId),
     revokeAllUserTokens(userId),
   ]);

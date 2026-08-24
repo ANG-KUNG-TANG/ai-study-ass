@@ -11,6 +11,8 @@ import {
   FileText,
   LogOut,
   Menu,
+  Settings,
+  UserRound,
   X,
 } from "lucide-react";
 import {
@@ -26,11 +28,48 @@ import {
   StreakBox,
 } from "@/components/notes/StreakBox";
 import {
+  LanguageSwitcher,
+} from "@/components/i18n/LanguageSwitcher";
+import {
   useAuth,
 } from "@/context/AuthContext";
 import {
   useSidebar,
 } from "@/context/SidebarContext";
+import {
+  useLanguage,
+} from "@/context/LanguageContext";
+import type {
+  TranslationKey,
+} from "@/i18n/translations";
+
+const NAVIGATION_KEYS: Record<string, TranslationKey> = {
+  Dashboard: "nav.dashboard",
+  Notes: "nav.notes",
+  Summary: "nav.summary",
+  Quiz: "nav.quiz",
+  Flashcards: "nav.flashcards",
+  Chat: "nav.chat",
+  Overview: "nav.overview",
+  Users: "nav.users",
+  Content: "nav.content",
+  "AI Usage": "nav.aiUsage",
+  Health: "nav.health",
+  "Original text": "nav.originalText",
+};
+
+const STUDENT_ACCOUNT_ITEMS = [
+  {
+    href: "/student/profile",
+    labelKey: "nav.profile" as const,
+    icon: UserRound,
+  },
+  {
+    href: "/student/settings",
+    labelKey: "nav.settings" as const,
+    icon: Settings,
+  },
+];
 
 interface SidebarProps {
   variant: "student" | "admin";
@@ -43,6 +82,7 @@ export function Sidebar({
   const router = useRouter();
 
   const { logout } = useAuth();
+  const { t } = useLanguage();
 
   const {
     isCollapsed,
@@ -114,7 +154,7 @@ export function Sidebar({
   async function handleLogout() {
     await logout();
 
-    router.replace("/login");
+    router.replace("/auth/login");
     router.refresh();
   }
 
@@ -159,7 +199,7 @@ export function Sidebar({
 
             {!collapsed && (
               <span className="truncate font-serif text-[17px] font-semibold">
-                Recall
+                {t("common.brand")}
               </span>
             )}
           </div>
@@ -170,7 +210,7 @@ export function Sidebar({
               setIsMobileOpen(false)
             }
             className="rounded-md p-1 text-ink-soft hover:bg-line-soft md:hidden"
-            aria-label="Close menu"
+            aria-label={t("sidebar.closeMenu")}
           >
             <X
               size={18}
@@ -186,6 +226,12 @@ export function Sidebar({
               const isActive =
                 activeHref ===
                 item.href;
+              const labelKey =
+                NAVIGATION_KEYS[item.label];
+              const localizedLabel =
+                labelKey
+                  ? t(labelKey)
+                  : item.label;
 
               return (
                 <Link
@@ -198,7 +244,7 @@ export function Sidebar({
                   }
                   title={
                     collapsed
-                      ? item.label
+                      ? localizedLabel
                       : undefined
                   }
                   className={[
@@ -221,7 +267,7 @@ export function Sidebar({
 
                   {!collapsed && (
                     <span className="truncate">
-                      {item.label}
+                      {localizedLabel}
                     </span>
                   )}
                 </Link>
@@ -236,13 +282,64 @@ export function Sidebar({
             <div className="mt-4 shrink-0">
               <StreakBox
                 days={6}
-                message="Review 2 more flashcard decks today to keep it going."
+                message={t("sidebar.streak")}
               />
             </div>
           )}
 
-        {/* Logout */}
+        <div
+          className={[
+            "mt-4 flex shrink-0",
+            collapsed ? "justify-center" : "justify-start",
+          ].join(" ")}
+        >
+          <LanguageSwitcher compact={collapsed} />
+        </div>
+
+        {/* Account navigation */}
         <div className="mt-4 shrink-0 border-t border-line pt-3">
+          {variant === "student" && !collapsed && (
+            <p className="mb-1.5 px-3 font-mono text-[9.5px] uppercase tracking-[0.12em] text-ink-faint">
+              {t("sidebar.account")}
+            </p>
+          )}
+
+          {variant === "student" && (
+            <div className="mb-1 flex flex-col gap-[3px]">
+              {STUDENT_ACCOUNT_ITEMS.map((item) => {
+                const isActive =
+                  pathname === item.href || pathname?.startsWith(`${item.href}/`);
+                const label = t(item.labelKey);
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    title={collapsed ? label : undefined}
+                    className={[
+                      "flex w-full items-center rounded-[9px] py-2.5",
+                      "text-[13.5px] font-medium transition-colors",
+                      collapsed ? "justify-center px-2" : "gap-[11px] px-3",
+                      isActive
+                        ? "bg-ink text-paper-raised"
+                        : "text-ink-soft hover:bg-line-soft hover:text-ink",
+                    ].join(" ")}
+                  >
+                    <item.icon
+                      size={17}
+                      strokeWidth={1.6}
+                      className="shrink-0"
+                      aria-hidden="true"
+                    />
+
+                    {!collapsed && <span>{label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() =>
@@ -250,7 +347,7 @@ export function Sidebar({
             }
             title={
               collapsed
-                ? "Log out"
+                ? t("sidebar.logout")
                 : undefined
             }
             className={[
@@ -270,7 +367,7 @@ export function Sidebar({
             />
 
             {!collapsed && (
-              <span>Log out</span>
+              <span>{t("sidebar.logout")}</span>
             )}
           </button>
         </div>
@@ -283,7 +380,7 @@ export function Sidebar({
       {/* Mobile top bar */}
       <div className="flex items-center justify-between border-b border-line bg-paper-raised px-4 py-3 md:hidden">
         <span className="font-serif text-[16px] font-semibold">
-          Recall
+          {t("common.brand")}
         </span>
 
         <button
@@ -292,7 +389,7 @@ export function Sidebar({
             setIsMobileOpen(true)
           }
           className="rounded-md p-1.5 text-ink-soft hover:bg-line-soft"
-          aria-label="Open menu"
+          aria-label={t("sidebar.openMenu")}
           aria-expanded={isMobileOpen}
         >
           <Menu
@@ -311,7 +408,7 @@ export function Sidebar({
             onClick={() =>
               setIsMobileOpen(false)
             }
-            aria-label="Close menu"
+            aria-label={t("sidebar.closeMenu")}
           />
 
           <aside className="absolute inset-y-0 left-0 z-10 w-[260px] bg-paper-raised px-4 py-6 shadow-xl">
@@ -347,8 +444,8 @@ export function Sidebar({
           ].join(" ")}
           aria-label={
             isCollapsed
-              ? "Expand sidebar"
-              : "Collapse sidebar"
+              ? t("sidebar.expand")
+              : t("sidebar.collapse")
           }
         >
           {isCollapsed ? (

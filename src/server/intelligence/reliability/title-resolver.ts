@@ -136,9 +136,14 @@ function firstHeadingCandidates(doc: SectionedDocument): string[] {
 
   const compact = fragments
     .filter(Boolean)
+    .filter((line) => !/^(?:preamble|document)$/i.test(line))
     .filter((line, index, all) => all.indexOf(line) === index)
     .slice(0, 10);
   const candidates: string[] = [];
+
+  // Prefer a complete first title line. Wrapped fragments are considered only
+  // if the individual candidates are too short or generic.
+  candidates.push(...compact.filter((line) => line.length >= 8));
 
   // PDF title wrapping is frequently misclassified as several adjacent
   // "other" headings. Recombine the first fragments before considering them
@@ -150,7 +155,6 @@ function firstHeadingCandidates(doc: SectionedDocument): string[] {
     }
   }
 
-  candidates.push(...compact.filter((line) => line.length >= 8));
   return candidates;
 }
 

@@ -31,6 +31,7 @@ export interface GraphEdgeData {
   to: string;
   type: string;
   weight: number;
+  evidenceIds?: string[];
 }
 
 export interface GraphData {

@@ -152,6 +152,8 @@ export async function generateStudyMaterials(
       fileName: note.fileName,
       fileType: note.fileType,
       fileSize: note.fileSize,
+      pageCount: note.sourcePageCount,
+      pages: note.sourcePages,
     });
 
   const intelligence =

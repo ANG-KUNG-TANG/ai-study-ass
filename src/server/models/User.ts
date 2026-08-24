@@ -9,8 +9,11 @@ export interface IUser extends Document {
   name: string;
   email: string;
   passwordHash: string;
+  googleSubject: string | null;
+  passwordConfigured?: boolean;
   role: UserRole;
   isActive: boolean;
+  emailVerified?: boolean;
   emailVerificationToken: string | null;
   emailVerificationExpires: Date | null;  // was "emailVerifictionExpires" (typo)
   passwordResetToken: string | null;
@@ -48,6 +51,15 @@ const userSchema = new Schema<IUser>(
       required: [true, "Password is required"],
       select: false,
     },
+    googleSubject: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    passwordConfigured: {
+      type: Boolean,
+      required: false,
+    },
     role: {
       type: String,
       enum: ["user", "admin"] satisfies UserRole[],
@@ -55,7 +67,11 @@ const userSchema = new Schema<IUser>(
     },
     isActive: {
       type: Boolean,
-      default: false,
+      default: true,
+    },
+    emailVerified: {
+      type: Boolean,
+      required: false,
     },
     emailVerificationToken: {
       type: String,
@@ -112,6 +128,8 @@ const toPublicJSON = (_doc: unknown, ret: any) => {
   // fields are not. Destructuring avoids that restriction entirely.
   const {
     passwordHash,
+    googleSubject,
+    passwordConfigured,
     emailVerificationToken,
     emailVerificationExpires,
     passwordResetToken,
@@ -120,7 +138,10 @@ const toPublicJSON = (_doc: unknown, ret: any) => {
     __v,
     ...publicRet
   } = ret;
-  return publicRet;
+  return {
+    ...publicRet,
+    passwordConfigured,
+  };
 };
 
 userSchema.set("toJSON", { transform: toPublicJSON });
@@ -132,6 +153,13 @@ userSchema.set("toObject", { transform: toPublicJSON }); // covers .toObject()/l
 // declaring it again here caused the duplicate schema index warning.
 userSchema.index({ emailVerificationToken: 1 }, { sparse: true }); // was "emailVerificaionToken" (typo) — index on wrong field
 userSchema.index({ passwordResetToken: 1 }, { sparse: true });
+userSchema.index(
+  { googleSubject: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { googleSubject: { $type: "string" } },
+  },
+);
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 

@@ -23,6 +23,7 @@ import {
   nodeColor,
   readableType,
 } from "./knowledge-graph.utils";
+import { useLanguage } from "@/context/LanguageContext";
 
 function renderNodeTypeIcon(type: string) {
   const iconProps = {
@@ -85,6 +86,7 @@ function KnowledgeNodeComponent({
   data,
   selected,
 }: NodeProps<KnowledgeFlowNode>) {
+  const { t } = useLanguage();
   const accent = nodeColor(data.nodeType);
   const confidence =
     typeof data.confidence === "number"
@@ -147,7 +149,7 @@ function KnowledgeNodeComponent({
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-[#726B5C]">
             <span>
               {data.nodeType === "section"
-                ? "Learning section"
+                ? t("knowledge.learningSection")
                 : readableType(data.nodeType)}
             </span>
 
@@ -165,8 +167,8 @@ function KnowledgeNodeComponent({
                 <span>
                   {data.connectionCount}{" "}
                   {data.connectionCount === 1
-                    ? "link"
-                    : "links"}
+                    ? t("knowledge.link")
+                    : t("knowledge.links")}
                 </span>
               </>
             )}

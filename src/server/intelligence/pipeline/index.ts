@@ -9,6 +9,7 @@ import {
   attachReliableProfile,
   buildReliableProfile,
 } from "../reliability/profile";
+import { buildGroundedKnowledge } from "../grounding";
 
 import type {
   DocumentProfile,
@@ -23,6 +24,7 @@ import type {
 import type {
   ReliableDocumentProfile,
 } from "../reliability/types";
+import type { GroundedKnowledge } from "../grounding";
 
 export interface PipelineResult {
   knowledge: KnowledgeCore;
@@ -31,6 +33,7 @@ export interface PipelineResult {
   profile: DocumentProfile;
   chunks: DocumentChunk[];
   reliabilityProfile: ReliableDocumentProfile;
+  grounding: GroundedKnowledge;
 }
 
 /**
@@ -82,6 +85,12 @@ export function runPipeline(
       reliabilityProfile,
     );
 
+  const grounding = buildGroundedKnowledge({
+    document,
+    nlp,
+    core: knowledge,
+  });
+
   return {
     knowledge,
     nlp,
@@ -89,6 +98,7 @@ export function runPipeline(
     profile,
     chunks,
     reliabilityProfile,
+    grounding,
   };
 }
 

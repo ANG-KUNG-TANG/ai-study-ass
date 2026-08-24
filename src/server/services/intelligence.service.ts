@@ -11,6 +11,8 @@ import { generateForIntelligence } from "@/server/services/ai.service";
 import * as progressService from "@/server/services/intelligence-progress.service";
 import type { IntelligenceProgressSnapshot } from "@/server/services/intelligence-progress.service";
 import { logger } from "@/server/utils/logger";
+import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
+import { GROUNDING_PIPELINE_VERSION } from "@/server/intelligence/grounding";
 
 export function toRawDocument(input: {
   content: string;
@@ -37,6 +39,7 @@ export async function runAndPersistPipeline(
   noteId: string,
   document: RawDocument,
 ): Promise<IntelligenceResultEntity | null> {
+  const noteForUsage = await noteRepo.findById(noteId);
   progressService.begin(noteId);
 
   try {
@@ -45,7 +48,13 @@ export async function runAndPersistPipeline(
         noteId,
         document,
         ...(withAI
-          ? { aiGenerate: generateForIntelligence }
+          ? {
+              aiGenerate: (prompt: string) =>
+                generateForIntelligence(prompt, {
+                  userId: noteForUsage?.userId,
+                  noteId,
+                }),
+            }
           : {}),
         onProgress: (event) => {
           progressService.record(noteId, event);
@@ -83,6 +92,7 @@ export async function runAndPersistPipeline(
       noteId: result.noteId,
       stage: result.stage as IntelligenceStage,
       core: result.core,
+      grounding: result.grounding,
       ontology: result.ontology,
       graph: result.graph,
       facts: result.prolog.facts,
@@ -134,7 +144,15 @@ export async function getOrRunPipeline(
   noteId: string,
 ): Promise<IntelligenceResultEntity> {
   const existing = await intelligenceRepo.findByNoteId(noteId);
-  if (existing?.isComplete()) return existing;
+  if (
+    existing?.isComplete() &&
+    (
+      !isIntelligenceV2Enabled() ||
+      existing.grounding?.pipelineVersion === GROUNDING_PIPELINE_VERSION
+    )
+  ) {
+    return existing;
+  }
 
   const note = await noteRepo.findByIdOrThrow(noteId);
   const document = toRawDocument({
@@ -142,6 +160,8 @@ export async function getOrRunPipeline(
     fileName: note.fileName,
     fileType: note.fileType,
     fileSize: note.fileSize,
+    pageCount: note.sourcePageCount,
+    pages: note.sourcePages,
   });
 
   const result = await runAndPersistPipeline(noteId, document);

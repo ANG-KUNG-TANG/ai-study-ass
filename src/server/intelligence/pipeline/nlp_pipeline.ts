@@ -6,6 +6,7 @@ import type {
   Token,
 } from "../types";
 import type { SectionedDocument } from "./types";
+import { splitTextUnits } from "./text-units";
 
 const STOP_WORDS = new Set([
   "a", "an", "the", "and", "or", "but", "if", "then", "than", "to", "of", "in", "on", "for",
@@ -90,7 +91,9 @@ export function runNLPPipeline(doc: SectionedDocument): NLPResult {
 
   for (const section of doc.sections) {
     if (section.semanticRole === "references") continue;
-    const rawSentences = splitSentences(section.analysisBody);
+    const rawSentences = splitTextUnits(section.analysisBody)
+      .map((unit) => unit.text)
+      .filter((text) => text.length >= 8);
 
     rawSentences.forEach((text, index) => {
       const tokens = tokeniseAndTag(text);
@@ -197,14 +200,6 @@ function addTerms(
       add(term, type);
     }
   }
-}
-
-function splitSentences(text: string): string[] {
-  return text
-    .replace(/\s+/g, " ")
-    .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
-    .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length >= 20);
 }
 
 function extractKeyPhrases(sentences: NLPSentence[]): string[] {

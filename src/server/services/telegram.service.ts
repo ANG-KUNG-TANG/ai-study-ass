@@ -11,8 +11,7 @@ import {
 } from "@/server/integrations/telegram/telegram.client";
 
 import { linkTelegramAccount } from "@/server/services/telegramLink.service";
-import { processUpload } from "@/server/services/upload.service";
-import { createNote } from "@/server/services/note.service";
+import { ingestDocument } from "@/server/services/document-ingestion.service";
 
 import * as telegramIntegrationRepo from "@/server/repositories/telegramIntegration.repo";
 import * as noteRepo from "@/server/repositories/note.repo";
@@ -673,43 +672,25 @@ async function handleDocument(
 
     await sendMessage(
       chatId,
-      ["✅ PDF validated!", "", "⏳ Extracting document content..."].join("\n"),
+      ["✅ PDF validated!", "", "⏳ Queuing background extraction..."].join("\n"),
     );
 
-    const processed = await processUpload({
+    const result = await ingestDocument(userId, {
       buffer: pdfBuffer,
       originalName: fileName,
       mimeType: document.mime_type ?? PDF_MIME_TYPE,
       size: pdfBuffer.length,
-    });
-
-    if (!processed.content.trim()) {
-      throw new Error("No readable text could be extracted from this PDF.");
-    }
-
-    await sendMessage(
-      chatId,
-      [
-        "📖 Document extracted successfully.",
-        "",
-        `Pages: ${processed.pageCount ?? "Unknown"}`,
-        `Characters: ${processed.charCount.toLocaleString()}`,
-        "",
-        "⏳ Creating your study note...",
-      ].join("\n"),
-    );
-
-    const note = await createNote(userId, processed, {
+    }, {
       telegramChatId: chatId,
     });
+    const note = result.note;
 
     logger.info("[telegram] note created from PDF", {
       noteId: note.id,
       userId,
       telegramUserId: sender.id,
       fileSize: pdfBuffer.length,
-      pageCount: processed.pageCount,
-      charCount: processed.charCount,
+      backgroundProcessing: result.backgroundProcessing,
     });
 
     await sendMessage(

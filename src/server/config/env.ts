@@ -33,6 +33,12 @@ const envSchema = z
     GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
     AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     AI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+    AI_USER_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(0),
+    AI_USER_DAILY_TOKEN_LIMIT: z.coerce.number().int().min(0).default(0),
+    INTELLIGENCE_V2_ENABLED: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
 
     TRUST_CLOUDFLARE_PROXY: z
       .enum(["true", "false"])
@@ -41,8 +47,24 @@ const envSchema = z
 
     COOKIE_DOMAIN: z.string().optional(),
 
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    GOOGLE_REDIRECT_URI: z.preprocess(
+      (value) =>
+        typeof value === "string" && value.trim() === "" ? undefined : value,
+      z.string().url().optional(),
+    ),
+
+    EMAIL_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     RESEND_API_KEY: z.string().optional(),
-    EMAIL_FROM: z.string().default("AI Study Assistant <onboarding@resend.dev>"),
+    EMAIL_FROM: z
+      .string()
+      .min(1, "EMAIL_FROM cannot be empty")
+      .default("AI Study Assistant <onboarding@resend.dev>"),
+    EMAIL_REPLY_TO: z.string().email().optional().or(z.literal("")),
     APP_URL: z.string().url().default("http://localhost:3000"),
   })
   .superRefine((data, ctx) => {
@@ -51,6 +73,32 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ["JWT_REFRESH_SECRET"],
         message: "JWT_REFRESH_SECRET must differ from JWT_ACCESS_SECRET",
+      });
+    }
+
+    if (data.EMAIL_ENABLED && !data.RESEND_API_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["RESEND_API_KEY"],
+        message: "RESEND_API_KEY is required when EMAIL_ENABLED is true",
+      });
+    }
+
+    const googleValues = [
+      data.GOOGLE_CLIENT_ID,
+      data.GOOGLE_CLIENT_SECRET,
+      data.GOOGLE_REDIRECT_URI,
+    ];
+    const googleConfigured = googleValues.filter(
+      (value) => Boolean(value?.trim()),
+    ).length;
+
+    if (googleConfigured > 0 && googleConfigured < googleValues.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["GOOGLE_CLIENT_ID"],
+        message:
+          "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI must be configured together",
       });
     }
   });

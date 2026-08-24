@@ -4,9 +4,8 @@ import { authLimiter } from "@/server/middleware/rate_limiter.middleware";
 import { createdResponse } from "@/server/utils/response";
 import {
   extractFileFromRequest,
-  processUpload,
 } from "@/server/services/upload.service";
-import { createNote } from "@/server/services/note.service";
+import { ingestDocument } from "@/server/services/document-ingestion.service";
 import type {
   AuthContext,
   RouteContext,
@@ -29,13 +28,8 @@ export async function uploadNoteController(
   const file =
     await extractFileFromRequest(req);
 
-  const processed =
-    await processUpload(file);
-
-  const note = await createNote(
-    auth.userId,
-    processed,
-  );
+  const result = await ingestDocument(auth.userId, file);
+  const note = result.note;
 
   await logActivity({
     actorId: auth.userId,
@@ -45,11 +39,20 @@ export async function uploadNoteController(
     targetId: note.id,
     metadata: {
       title: note.title,
+      backgroundProcessing: result.backgroundProcessing,
     },
   });
 
   return createdResponse(
-    note,
-    "Note created successfully",
+    {
+      ...note,
+      processing: {
+        background: result.backgroundProcessing,
+        stage: result.backgroundProcessing ? "pending" : "queued",
+      },
+    },
+    result.backgroundProcessing
+      ? "Note created. PDF extraction is continuing in the background."
+      : "Note created successfully",
   );
 }

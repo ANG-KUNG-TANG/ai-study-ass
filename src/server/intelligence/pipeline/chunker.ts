@@ -1,4 +1,5 @@
 import type { DocumentChunk, SectionedDocument } from "./types";
+import { splitTextUnits } from "./text-units";
 
 const DEFAULT_MAX_CHARS = 4600;
 const DEFAULT_OVERLAP_SENTENCES = 2;
@@ -19,7 +20,9 @@ export function buildDocumentChunks(
   for (const section of doc.sections) {
     if (section.semanticRole === "references" || !section.analysisBody.trim()) continue;
 
-    const sentences = splitSentences(section.analysisBody);
+    const sentences = splitTextUnits(section.analysisBody)
+      .map((unit) => unit.text)
+      .filter((text) => text.length >= 8);
     if (sentences.length === 0) continue;
 
     let cursor = 0;
@@ -59,12 +62,4 @@ export function buildDocumentChunks(
   }
 
   return chunks;
-}
-
-function splitSentences(text: string): string[] {
-  return text
-    .replace(/\s+/g, " ")
-    .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
-    .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length >= 20);
 }

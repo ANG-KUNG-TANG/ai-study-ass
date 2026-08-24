@@ -29,13 +29,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p public
 
-# Harmless build-time placeholders. Runtime values come from compose/.env.docker.
-ENV MONGODB_URI=mongodb://127.0.0.1:27017/ai_study_build
-ENV JWT_ACCESS_SECRET=docker-build-access-secret-placeholder-000000000000
-ENV JWT_REFRESH_SECRET=docker-build-refresh-secret-placeholder-0000000000
-ENV APP_URL=http://localhost:3000
-
-RUN npm run build
+# Harmless placeholders satisfy build-time validation. Real values are injected
+# only when the container starts and are never stored as Docker ARG/ENV secrets.
+RUN MONGODB_URI=mongodb://127.0.0.1:27017/ai_study_build \
+    JWT_ACCESS_SECRET=docker-build-access-secret-placeholder-000000000000 \
+    JWT_REFRESH_SECRET=docker-build-refresh-secret-placeholder-0000000000 \
+    APP_URL=http://localhost:3000 \
+    EMAIL_ENABLED=false \
+    npm run build
 
 FROM node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS worker
 WORKDIR /app
@@ -43,7 +44,9 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs
+    && useradd --system --uid 1001 --gid nodejs nextjs \
+    && mkdir -p /app/data/uploads \
+    && chown -R nextjs:nodejs /app/data
 
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
@@ -63,7 +66,9 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
 RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs
+    && useradd --system --uid 1001 --gid nodejs nextjs \
+    && mkdir -p /app/data/uploads \
+    && chown -R nextjs:nodejs /app/data
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

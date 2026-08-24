@@ -27,6 +27,11 @@ const INVALID_CONCEPTS = new Set([
   "conclusion",
   "results",
   "methodology",
+  "lecture note",
+  "student presentation template",
+  "key points",
+  "main concepts",
+  "key takeaways",
 ]);
 
 const DOMAIN_CONCEPTS: Record<string, string[]> = {
@@ -109,7 +114,7 @@ function canonicalConcept(value: string): string {
   return cleaned
     .split(/\s+/)
     .map((word) => {
-      if (/^(ai|ml|nlp|sql|api|tpr|fpr)$/i.test(word)) return word.toUpperCase();
+      if (/^(ai|ml|nlp|sql|api|tpr|fpr|ooad|srs|uml)$/i.test(word)) return word.toUpperCase();
       if (/^(and|of|in|for|to|with)$/i.test(word)) return word.toLowerCase();
       return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`;
     })
@@ -135,6 +140,9 @@ export function isValidConcept(term: string): boolean {
     !/^\d+(?:\.\d+)?%?$/.test(normalized) &&
     !/[.!?]/.test(normalized) &&
     !/^(year|page|table|figure)\s+\d+$/i.test(normalized) &&
+    !/^slide\s+\d+/i.test(normalized) &&
+    !/\b(?:insert|placeholder)\b/i.test(normalized) &&
+    !/\bdiagram\s+insert\s+diagram\b/i.test(normalized) &&
     /[a-z]/i.test(normalized)
   );
 }

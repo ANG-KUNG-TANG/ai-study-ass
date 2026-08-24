@@ -38,6 +38,19 @@ import {
 import {
   getHealth,
 } from "@/services/health.service";
+import {
+  useLanguage,
+} from "@/context/LanguageContext";
+import type {
+  Locale,
+  TranslationKey,
+  TranslationValues,
+} from "@/i18n/translations";
+
+type Translate = (
+  key: TranslationKey,
+  values?: TranslationValues,
+) => string;
 
 const ACTIVITY_LIMIT = 6;
 
@@ -174,6 +187,8 @@ function formatUptime(
 
 function timeAgo(
   value: string,
+  locale: Locale,
+  t: Translate,
 ): string {
   const date =
     new Date(value);
@@ -183,7 +198,7 @@ function timeAgo(
       date.getTime(),
     )
   ) {
-    return "Unknown time";
+    return t("admin.overview.unknownTime");
   }
 
   const seconds =
@@ -198,34 +213,12 @@ function timeAgo(
       ),
     );
 
-  if (seconds < 60) {
-    return "just now";
-  }
+  const relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
 
-  const minutes =
-    Math.floor(
-      seconds / 60,
-    );
-
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-
-  const hours =
-    Math.floor(
-      minutes / 60,
-    );
-
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-
-  const days =
-    Math.floor(
-      hours / 24,
-    );
-
-  return `${days}d ago`;
+  if (seconds < 60) return relative.format(0, "second");
+  if (seconds < 3_600) return relative.format(-Math.floor(seconds / 60), "minute");
+  if (seconds < 86_400) return relative.format(-Math.floor(seconds / 3_600), "hour");
+  return relative.format(-Math.floor(seconds / 86_400), "day");
 }
 
 function activityTone(
@@ -267,6 +260,7 @@ function activityTone(
 
 function activityText(
   item: ActivityItem,
+  systemLabel: string,
 ): string {
   if (
     typeof item.text ===
@@ -281,7 +275,7 @@ function activityText(
       .replace(/^admin\./, "")
       .replaceAll("_", " ");
 
-  return `${item.actorEmail ?? "System"} ${action}`;
+  return `${item.actorEmail ?? systemLabel} ${action}`;
 }
 
 function routeLabel(
@@ -311,6 +305,8 @@ function KpiCard({
     | "sage"
     | "slate";
 }) {
+  const { t } = useLanguage();
+
   const tones = {
     violet:
       "bg-violet-soft text-violet",
@@ -338,7 +334,7 @@ function KpiCard({
         </div>
 
         <span className="rounded-full bg-line-soft px-2 py-1 font-mono text-[9px] uppercase tracking-wide text-ink-faint">
-          live
+          {t("common.live")}
         </span>
       </div>
 
@@ -358,6 +354,10 @@ function KpiCard({
 }
 
 export default function AdminOverviewPage() {
+  const {
+    locale,
+    t,
+  } = useLanguage();
   const [
     dashboard,
     setDashboard,
@@ -463,7 +463,7 @@ export default function AdminOverviewPage() {
           "rejected"
         ) {
           nextErrors.push(
-            "Overview statistics are unavailable.",
+            t("admin.overview.overviewUnavailable"),
           );
         }
 
@@ -472,7 +472,7 @@ export default function AdminOverviewPage() {
           "rejected"
         ) {
           nextErrors.push(
-            "User account statistics are unavailable.",
+            t("admin.overview.usersUnavailable"),
           );
         }
 
@@ -481,7 +481,7 @@ export default function AdminOverviewPage() {
           "rejected"
         ) {
           nextErrors.push(
-            "AI usage telemetry is unavailable.",
+            t("admin.overview.aiUnavailable"),
           );
         }
 
@@ -490,7 +490,7 @@ export default function AdminOverviewPage() {
           "rejected"
         ) {
           nextErrors.push(
-            "System health information is unavailable.",
+            t("admin.overview.healthUnavailable"),
           );
         }
 
@@ -504,7 +504,7 @@ export default function AdminOverviewPage() {
 
         setIsLoading(false);
       },
-      [],
+      [t],
     );
 
   const loadActivity =
@@ -677,9 +677,14 @@ export default function AdminOverviewPage() {
           id:
             "inactive-users",
           title:
-            `${inactiveUsers} inactive account${inactiveUsers === 1 ? "" : "s"}`,
+            t(
+              inactiveUsers === 1
+                ? "admin.overview.inactiveAccountOne"
+                : "admin.overview.inactiveAccounts",
+              { count: inactiveUsers },
+            ),
           detail:
-            "Review suspended accounts and restore only verified users.",
+            t("admin.overview.inactiveDetail"),
           tone:
             "warning",
           href:
@@ -694,9 +699,14 @@ export default function AdminOverviewPage() {
           id:
             "ai-failures",
           title:
-            `${aiFailuresToday} AI failure${aiFailuresToday === 1 ? "" : "s"} today`,
+            t(
+              aiFailuresToday === 1
+                ? "admin.overview.aiFailureOne"
+                : "admin.overview.aiFailures",
+              { count: aiFailuresToday },
+            ),
           detail:
-            "Review provider availability, timeout, quota, and fallback behavior.",
+            t("admin.overview.aiFailureDetail"),
           tone:
             "danger",
           href:
@@ -713,9 +723,9 @@ export default function AdminOverviewPage() {
           id:
             "database",
           title:
-            "Database is not connected",
+            t("admin.overview.databaseDisconnected"),
           detail:
-            "Administrative and student operations may fail until MongoDB recovers.",
+            t("admin.overview.databaseDetail"),
           tone:
             "danger",
           href:
@@ -730,9 +740,11 @@ export default function AdminOverviewPage() {
           id:
             "memory",
           title:
-            `Memory usage is ${formatPercent(memoryPercent)}`,
+            t("admin.overview.memoryUsage", {
+              value: formatPercent(memoryPercent),
+            }),
           detail:
-            "Inspect long-running generation tasks and restart only after checking logs.",
+            t("admin.overview.memoryDetail"),
           tone:
             "warning",
           href:
@@ -748,7 +760,7 @@ export default function AdminOverviewPage() {
           id:
             "telemetry",
           title:
-            "AI telemetry is temporary",
+            t("admin.overview.telemetryTemporary"),
           detail:
             dashboard.ai.warning,
           tone:
@@ -765,6 +777,7 @@ export default function AdminOverviewPage() {
       dashboard.health,
       inactiveUsers,
       memoryPercent,
+      t,
     ]);
 
   const activities =
@@ -786,8 +799,8 @@ export default function AdminOverviewPage() {
   return (
     <>
       <Topbar
-        eyebrow="Administration"
-        title="Command center"
+        eyebrow={t("admin.overview.eyebrow")}
+        title={t("admin.overview.title")}
         actions={
           <button
             type="button"
@@ -810,20 +823,22 @@ export default function AdminOverviewPage() {
               }
             />
 
-            Refresh
+            {t("common.refresh")}
           </button>
         }
       />
 
       <div className="-mt-5 mb-5 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] text-ink-faint">
-          Operational view for accounts, content, AI workload, and system health.
+          {t("admin.overview.description")}
         </p>
 
         <p className="font-mono text-[10px] text-ink-faint">
           {updatedAt
-            ? `Updated ${updatedAt.toLocaleTimeString()}`
-            : "Loading live data…"}
+            ? t("admin.overview.updated", {
+                time: updatedAt.toLocaleTimeString(locale),
+              })
+            : t("admin.overview.loading")}
         </p>
       </div>
 
@@ -837,7 +852,7 @@ export default function AdminOverviewPage() {
 
             <div>
               <p className="text-[12px] font-medium text-ink">
-                Some dashboard services did not respond.
+                {t("admin.overview.partialError")}
               </p>
 
               <p className="mt-1 text-[11px] leading-5 text-ink-soft">
@@ -852,7 +867,7 @@ export default function AdminOverviewPage() {
 
       <section className="mb-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 2xl:grid-cols-4">
         <KpiCard
-          label="User accounts"
+          label={t("admin.overview.userAccounts")}
           value={
             isLoading
               ? "—"
@@ -863,15 +878,19 @@ export default function AdminOverviewPage() {
           }
           helper={
             dashboard.users
-              ? `${dashboard.users.active.toLocaleString()} active · ${dashboard.users.inactive.toLocaleString()} inactive · ${dashboard.users.admins.toLocaleString()} admin`
-              : "Account breakdown unavailable"
+              ? t("admin.overview.accountBreakdown", {
+                  active: dashboard.users.active.toLocaleString(locale),
+                  inactive: dashboard.users.inactive.toLocaleString(locale),
+                  admins: dashboard.users.admins.toLocaleString(locale),
+                })
+              : t("admin.overview.accountBreakdownUnavailable")
           }
           icon={Users}
           tone="violet"
         />
 
         <KpiCard
-          label="Content library"
+          label={t("admin.overview.contentLibrary")}
           value={
             isLoading
               ? "—"
@@ -882,15 +901,17 @@ export default function AdminOverviewPage() {
           }
           helper={
             notesPerActiveUser > 0
-              ? `${notesPerActiveUser.toFixed(1)} notes per active user`
-              : "Uploaded notes across all users"
+              ? t("admin.overview.notesPerUser", {
+                  count: notesPerActiveUser.toFixed(1),
+                })
+              : t("admin.overview.uploadedAcrossUsers")
           }
           icon={BookOpen}
           tone="coral"
         />
 
         <KpiCard
-          label="Quiz output"
+          label={t("admin.overview.quizOutput")}
           value={
             isLoading
               ? "—"
@@ -902,15 +923,17 @@ export default function AdminOverviewPage() {
           helper={
             dashboard.overview
               ?.totalNotes
-              ? `${formatPercent(noteConversion)} of notes have generated quizzes`
-              : "Generated study assessments"
+              ? t("admin.overview.quizConversion", {
+                  value: formatPercent(noteConversion),
+                })
+              : t("admin.overview.generatedAssessments")
           }
           icon={FileQuestion}
           tone="sage"
         />
 
         <KpiCard
-          label="AI requests today"
+          label={t("admin.overview.aiRequests")}
           value={
             isLoading
               ? "—"
@@ -920,8 +943,11 @@ export default function AdminOverviewPage() {
           }
           helper={
             activeProvider
-              ? `${activeProvider.provider} active · ${aiFailuresToday} failure${aiFailuresToday === 1 ? "" : "s"}`
-              : "No active provider telemetry"
+              ? t("admin.overview.providerActive", {
+                  provider: activeProvider.provider,
+                  failures: aiFailuresToday,
+                })
+              : t("admin.overview.noProviderTelemetry")
           }
           icon={Bot}
           tone="slate"
@@ -933,24 +959,25 @@ export default function AdminOverviewPage() {
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="font-serif text-[16px] font-semibold text-ink">
-                AI workload — last 7 days
+                {t("admin.overview.aiWorkload")}
               </h2>
 
               <p className="mt-1 text-[11px] text-ink-faint">
-                Real requests recorded by the current server process.
+                {t("admin.overview.aiWorkloadDescription")}
               </p>
             </div>
 
             <span className="font-mono text-[11px] text-ink-soft">
-              total{" "}
-              {requestTotal.toLocaleString()}
+              {t("admin.overview.total", {
+                count: requestTotal.toLocaleString(),
+              })}
             </span>
           </div>
 
           {requestSeries.length ===
           0 ? (
             <div className="flex h-[190px] items-center justify-center rounded-xl border border-dashed border-line text-[12px] text-ink-faint">
-              No AI request history is available yet.
+              {t("admin.overview.noHistory")}
             </div>
           ) : (
             <div className="flex h-[190px] items-end gap-2 sm:gap-3">
@@ -972,7 +999,12 @@ export default function AdminOverviewPage() {
                                 100,
                             )}%`,
                         }}
-                        title={`${item.value} request${item.value === 1 ? "" : "s"}`}
+                        title={t(
+                          item.value === 1
+                            ? "student.ai.requestCountOne"
+                            : "student.ai.requestCount",
+                          { count: item.value },
+                        )}
                       />
                     </div>
 
@@ -989,18 +1021,18 @@ export default function AdminOverviewPage() {
         <AdminPanel>
           <div className="mb-5">
             <h2 className="font-serif text-[16px] font-semibold text-ink">
-              Workload mix
+              {t("admin.overview.workloadMix")}
             </h2>
 
             <p className="mt-1 text-[11px] text-ink-faint">
-              The features currently consuming AI fallback.
+              {t("admin.overview.workloadMixDescription")}
             </p>
           </div>
 
           {routeUsage.length ===
           0 ? (
             <div className="flex h-[190px] items-center justify-center rounded-xl border border-dashed border-line text-center text-[12px] text-ink-faint">
-              Feature-level AI usage will appear after requests are recorded.
+              {t("admin.overview.noFeatureUsage")}
             </div>
           ) : (
             <div className="space-y-4">
@@ -1054,11 +1086,13 @@ export default function AdminOverviewPage() {
 
               <div>
                 <h2 className="font-serif text-[16px] font-semibold text-ink">
-                  Recent activity
+                  {t("admin.overview.recentActivity")}
                 </h2>
 
                 <p className="mt-0.5 text-[10.5px] text-ink-faint">
-                  {activity?.meta.total.toLocaleString() ?? 0} audit events
+                  {t("admin.overview.auditEvents", {
+                    count: activity?.meta.total.toLocaleString() ?? 0,
+                  })}
                 </p>
               </div>
             </div>
@@ -1067,7 +1101,7 @@ export default function AdminOverviewPage() {
               href="/admin/activity"
               className="text-[11px] font-medium text-ink-soft hover:text-ink"
             >
-              Open audit log
+              {t("admin.overview.openAudit")}
             </Link>
           </div>
 
@@ -1087,7 +1121,7 @@ export default function AdminOverviewPage() {
           ) : activities.length ===
             0 ? (
             <p className="py-10 text-center text-[12px] text-ink-faint">
-              No activity has been recorded.
+              {t("admin.overview.noActivity")}
             </p>
           ) : (
             <div className="divide-y divide-line-soft">
@@ -1110,12 +1144,15 @@ export default function AdminOverviewPage() {
                       <p className="text-[12.5px] leading-5 text-ink">
                         {activityText(
                           item,
+                          t("admin.health.system"),
                         )}
                       </p>
 
                       <p className="mt-0.5 font-mono text-[10px] text-ink-faint">
                         {timeAgo(
                           item.createdAt,
+                          locale,
+                          t,
                         )}
                       </p>
                     </div>
@@ -1147,20 +1184,14 @@ export default function AdminOverviewPage() {
               <ChevronLeft
                 size={13}
               />
-              Previous
+              {t("common.previous")}
             </button>
 
             <span className="font-mono text-[10px] text-ink-faint">
-              Page{" "}
-              {activity?.meta.page ??
-                activityPage}{" "}
-              of{" "}
-              {Math.max(
-                activity?.meta
-                  .totalPages ??
-                  1,
-                1,
-              )}
+              {t("notes.pageOf", {
+                page: activity?.meta.page ?? activityPage,
+                total: Math.max(activity?.meta.totalPages ?? 1, 1),
+              })}
             </span>
 
             <button
@@ -1178,7 +1209,7 @@ export default function AdminOverviewPage() {
               }
               className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] text-ink-soft hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Next
+              {t("common.next")}
               <ChevronRight
                 size={13}
               />
@@ -1201,11 +1232,11 @@ export default function AdminOverviewPage() {
 
               <div>
                 <h2 className="font-serif text-[16px] font-semibold text-ink">
-                  Needs attention
+                  {t("admin.overview.attention")}
                 </h2>
 
                 <p className="mt-0.5 text-[10.5px] text-ink-faint">
-                  Items that may require an administrator decision.
+                  {t("admin.overview.attentionDescription")}
                 </p>
               </div>
             </div>
@@ -1220,11 +1251,11 @@ export default function AdminOverviewPage() {
 
                 <div>
                   <p className="text-[12.5px] font-medium text-ink">
-                    No urgent actions
+                    {t("admin.overview.noUrgent")}
                   </p>
 
                   <p className="mt-1 text-[11px] leading-4 text-ink-soft">
-                    Accounts, database, AI providers, and memory are within the available checks.
+                    {t("admin.overview.noUrgentDescription")}
                   </p>
                 </div>
               </div>
@@ -1278,11 +1309,11 @@ export default function AdminOverviewPage() {
 
               <div>
                 <h2 className="font-serif text-[16px] font-semibold text-ink">
-                  System readiness
+                  {t("admin.overview.readiness")}
                 </h2>
 
                 <p className="mt-0.5 text-[10.5px] text-ink-faint">
-                  Fast operational checks without consuming AI quota.
+                  {t("admin.overview.readinessDescription")}
                 </p>
               </div>
             </div>
@@ -1335,7 +1366,7 @@ export default function AdminOverviewPage() {
                     {dashboard.health
                       ?.ai
                       .provider ??
-                      "AI provider"}
+                      t("admin.health.aiProvider")}
                   </span>
                 </div>
 
@@ -1349,7 +1380,7 @@ export default function AdminOverviewPage() {
 
               <div className="flex items-center justify-between rounded-xl border border-line-soft px-3 py-2.5">
                 <span className="text-[12px] text-ink">
-                  Uptime
+                  {t("admin.health.uptime")}
                 </span>
 
                 <span className="font-mono text-[10.5px] text-ink-soft">
@@ -1362,7 +1393,7 @@ export default function AdminOverviewPage() {
 
               <div className="flex items-center justify-between rounded-xl border border-line-soft px-3 py-2.5">
                 <span className="text-[12px] text-ink">
-                  Heap memory
+                  {t("admin.overview.heapMemory")}
                 </span>
 
                 <span className="font-mono text-[10.5px] text-ink-soft">

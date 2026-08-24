@@ -2,12 +2,14 @@
 import { use } from "react";
 import { NoteProvider, useNoteContext } from "@/context/NoteContext";
 import { NoteTabs } from "@/components/notes/NoteTabs";
+import { useLanguage } from "@/context/LanguageContext";
 
 function NoteLayoutInner({ noteId, children }: { noteId: string; children: React.ReactNode }) {
   const { note, isLoading, error } = useNoteContext();
+  const { t } = useLanguage();
 
-  if (isLoading) return <p className="text-[13px] text-ink-soft">Loading note…</p>;
-  if (error || !note) return <p className="text-[13px] text-coral">{error ?? "Note not found"}</p>;
+  if (isLoading) return <p className="text-[13px] text-ink-soft">{t("note.loading")}</p>;
+  if (error || !note) return <p className="text-[13px] text-coral">{error ?? t("note.notFound")}</p>;
 
   return (
     <>
