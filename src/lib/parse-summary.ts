@@ -1,13 +1,18 @@
+export interface ParsedSummaryListItem {
+  text: string;
+  children: string[];
+}
+
 export interface ParsedSummarySubsection {
   heading: string;
   paragraphs: string[];
-  items: string[];
+  items: ParsedSummaryListItem[];
 }
 
 export interface ParsedSummarySection {
   heading: string;
   paragraphs: string[];
-  items: string[];
+  items: ParsedSummaryListItem[];
   subsections: ParsedSummarySubsection[];
 }
 
@@ -89,7 +94,8 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
   let currentSubsection: ParsedSummarySubsection | null = null;
 
   for (const rawLine of lines) {
-    const line = rawLine.trim();
+    const expandedLine = rawLine.replace(/\t/g, "  ");
+    const line = expandedLine.trim();
 
     if (!line || isArtifact(line)) continue;
 
@@ -123,21 +129,33 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
       continue;
     }
 
-    const bulletMatch = line.match(/^[-*]\s+(.+)$/);
-    const content = cleanDisplayText(bulletMatch?.[1] ?? line);
+    const bulletMatch = expandedLine.match(/^(\s*)[-*]\s+(.+)$/);
+    const content = cleanDisplayText(bulletMatch?.[2] ?? line);
 
     if (!content || isArtifact(content)) continue;
 
     if (!currentSection) {
       preamble.push(content);
     } else if (currentSubsection) {
-      (bulletMatch ? currentSubsection.items : currentSubsection.paragraphs).push(
-        content,
-      );
+      if (bulletMatch) {
+        addListItem(
+          currentSubsection.items,
+          content,
+          bulletMatch[1].length,
+        );
+      } else {
+        currentSubsection.paragraphs.push(content);
+      }
     } else {
-      (bulletMatch ? currentSection.items : currentSection.paragraphs).push(
-        content,
-      );
+      if (bulletMatch) {
+        addListItem(
+          currentSection.items,
+          content,
+          bulletMatch[1].length,
+        );
+      } else {
+        currentSection.paragraphs.push(content);
+      }
     }
   }
 
@@ -153,13 +171,34 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
   return {
     version: "v2",
     title,
-    prose: [...preamble, ...(overview?.paragraphs ?? []), ...(overview?.items ?? [])]
+    prose: [
+      ...preamble,
+      ...(overview?.paragraphs ?? []),
+      ...flattenListItems(overview?.items ?? []),
+    ]
       .join("\n\n")
       .trim(),
-    keyPoints: unique(keyPoints?.items ?? []),
-    importantConcepts: unique(concepts?.items ?? []),
+    keyPoints: unique(flattenListItems(keyPoints?.items ?? [])),
+    importantConcepts: unique(flattenListItems(concepts?.items ?? [])),
     sections: sections.filter((section) => !reserved.has(section)),
   };
+}
+
+function addListItem(
+  items: ParsedSummaryListItem[],
+  text: string,
+  indentation: number,
+): void {
+  if (indentation > 0 && items.length > 0) {
+    items[items.length - 1].children.push(text);
+    return;
+  }
+
+  items.push({ text, children: [] });
+}
+
+function flattenListItems(items: ParsedSummaryListItem[]): string[] {
+  return items.flatMap((item) => [item.text, ...item.children]);
 }
 
 function findSection(

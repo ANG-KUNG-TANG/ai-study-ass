@@ -4,7 +4,7 @@ describe("parseSummary", () => {
   it("parses all V2 sections without exposing metadata or markdown syntax", () => {
     const parsed = parseSummary(`# Lecture Note
 
-<!-- intelligence-engine:v2 -->
+<!-- intelligence-engine:v2.3 -->
 
 ## Overview
 
@@ -26,8 +26,9 @@ The goal is to communicate understanding.
 ## Section Notes
 
 ### Slide 10 — Validation Checklist (p. 6)
-- Are all actors correct?
-- Are all use cases complete?
+- Ask stakeholders to confirm:
+  - Are all actors correct?
+  - Are all use cases complete?
 - 1 of 6 --
 
 ## Key Takeaways
@@ -48,12 +49,20 @@ The goal is to communicate understanding.
       "Key Takeaways",
     ]);
     expect(parsed.sections[0].items).toEqual([
-      "SRS: Software Requirements Specification (p. 2)",
+      {
+        text: "SRS: Software Requirements Specification (p. 2)",
+        children: [],
+      },
     ]);
     expect(parsed.sections[1].subsections[0]).toEqual({
       heading: "Slide 10 — Validation Checklist (p. 6)",
       paragraphs: [],
-      items: ["Are all actors correct?", "Are all use cases complete?"],
+      items: [
+        {
+          text: "Ask stakeholders to confirm:",
+          children: ["Are all actors correct?", "Are all use cases complete?"],
+        },
+      ],
     });
     expect(JSON.stringify(parsed)).not.toMatch(
       /intelligence-engine|svg|1 of 6|\*\*/i,

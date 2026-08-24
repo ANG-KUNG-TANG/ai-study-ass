@@ -6,7 +6,7 @@ import type {
 import type { ReliableDocumentProfile } from "@/server/intelligence/reliability/types";
 import { NOTE_RULES } from "@/server/entities/note.entity";
 
-export const STUDY_NOTES_VERSION_MARKER = "<!-- intelligence-engine:v2.2 -->";
+export const STUDY_NOTES_VERSION_MARKER = "<!-- intelligence-engine:v2.3 -->";
 
 export interface GroundedStudyNotesResult {
   summary: string;
@@ -39,33 +39,23 @@ export function buildGroundedStudyNotes(
   const overviewFacts = selectFacts(
     uniqueSupportedFacts.filter(isNarrativeFact),
     ["objective", "claim", "relationship", "definition"],
-    4,
+    3,
   );
-  const keyPointFacts = selectFacts(
+  const keyPointFacts = selectDiverseFacts(
     uniqueSupportedFacts.filter(isKeyPointFact),
     ["rule", "condition", "result", "relationship", "claim", "number"],
-    10,
+    8,
   );
-  const keyPointKeys = new Set(
-    keyPointFacts.map((fact) => normalise(fact.content)),
+  const reservedTakeawayKeys = new Set(
+    [...overviewFacts, ...keyPointFacts].map((fact) => normalise(fact.content)),
   );
-  const takeawayFacts = selectDiverseFacts(
+  const takeawayFacts = selectTakeawayFacts(
     uniqueSupportedFacts.filter(
       (fact) =>
-        !keyPointKeys.has(normalise(fact.content)) &&
+        !reservedTakeawayKeys.has(normalise(fact.content)) &&
         isTakeawayFact(fact),
     ),
-    [
-      "limitation",
-      "warning",
-      "common_mistake",
-      "objective",
-      "condition",
-      "relationship",
-      "procedure_step",
-      "claim",
-    ],
-    6,
+    5,
   );
   const numberFacts = selectFacts(
     uniqueSupportedFacts.filter((fact) =>
@@ -114,7 +104,7 @@ export function buildGroundedStudyNotes(
       sectionNotes ? "## Section Notes" : "",
       sectionNotes,
       takeawayFacts.length > 0 ? "## Key Takeaways" : "",
-      renderFactList(takeawayFacts),
+      renderTakeawayList(takeawayFacts),
     ]
       .filter(Boolean)
       .join("\n\n")
@@ -168,7 +158,7 @@ function renderSection(
   const heading = `### ${cleanHeading(section.heading)}${pageRange}`;
 
   if (!options.compactSections) {
-    return `${heading}\n${renderFactList(facts, false)}`;
+    return `${heading}\n${renderSectionFactList(facts)}`;
   }
 
   const compactFact = shorten(facts[0].content, 190);
@@ -192,6 +182,67 @@ function renderFactList(
       `- ${fact.content}${includePage ? pageLabel(fact.evidence[0]?.pageNumber) : ""}`,
     )
     .join("\n");
+}
+
+function renderSectionFactList(facts: AtomicFact[]): string {
+  let hasOpenParent = false;
+
+  return facts
+    .map((fact) => {
+      const content = fact.content.trim();
+
+      if (content.endsWith(":")) {
+        hasOpenParent = true;
+        return `- ${content}`;
+      }
+
+      if (hasOpenParent && isListLikeChild(content)) {
+        return `  - ${content}`;
+      }
+
+      hasOpenParent = false;
+      return `- ${content}`;
+    })
+    .join("\n");
+}
+
+function isListLikeChild(value: string): boolean {
+  return value.endsWith("?") ||
+    (!/[.!]$/.test(value) && value.length <= 140);
+}
+
+function renderTakeawayList(facts: AtomicFact[]): string {
+  return facts
+    .map((fact) =>
+      `- ${formatTakeaway(fact)}${pageLabel(fact.evidence[0]?.pageNumber)}`,
+    )
+    .join("\n");
+}
+
+function formatTakeaway(fact: AtomicFact): string {
+  const content = fact.content.trim().replace(/[.!]+$/, "");
+
+  if (fact.type !== "common_mistake") {
+    return stripTrailingListPunctuation(content);
+  }
+
+  if (/^forgetting\s+to\s+/i.test(content)) {
+    return `Remember to ${lowercaseFirst(content.replace(/^forgetting\s+to\s+/i, ""))}.`;
+  }
+
+  if (/^ignoring\s+/i.test(content)) {
+    return `Do not ignore ${lowercaseFirst(content.replace(/^ignoring\s+/i, ""))}.`;
+  }
+
+  if (/^not\s+/i.test(content)) {
+    return `${uppercaseFirst(content.replace(/^not\s+/i, ""))}.`;
+  }
+
+  if (/^(?:overloading|using|presenting)\b/i.test(content)) {
+    return `Avoid ${lowercaseFirst(content)}.`;
+  }
+
+  return `Avoid this common mistake: ${lowercaseFirst(content)}.`;
 }
 
 function selectFacts(
@@ -246,6 +297,42 @@ function selectDiverseFacts(
   }
 
   return selected;
+}
+
+function selectTakeawayFacts(
+  facts: AtomicFact[],
+  limit: number,
+): AtomicFact[] {
+  const ranked = selectDiverseFacts(
+    facts,
+    [
+      "objective",
+      "relationship",
+      "procedure_step",
+      "condition",
+      "common_mistake",
+      "warning",
+      "limitation",
+      "claim",
+    ],
+    facts.length,
+  );
+  const isCaution = (fact: AtomicFact): boolean =>
+    ["warning", "common_mistake", "limitation"].includes(fact.type);
+  const caution = ranked.find(isCaution);
+  const selected = caution ? [caution] : [];
+
+  for (const fact of ranked) {
+    if (isCaution(fact)) continue;
+
+    selected.push(fact);
+    if (selected.length >= limit) break;
+  }
+
+  const order = new Map(ranked.map((fact, index) => [fact.id, index]));
+  return selected.sort(
+    (left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0),
+  );
 }
 
 function uniqueFacts(facts: AtomicFact[]): AtomicFact[] {
@@ -326,6 +413,18 @@ function cleanHeading(value: string): string {
 function stripTrailingListPunctuation(value: string): string {
   const trimmed = value.trim();
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+function lowercaseFirst(value: string): string {
+  return value.length > 0
+    ? `${value[0].toLocaleLowerCase()}${value.slice(1)}`
+    : value;
+}
+
+function uppercaseFirst(value: string): string {
+  return value.length > 0
+    ? `${value[0].toLocaleUpperCase()}${value.slice(1)}`
+    : value;
 }
 
 function formatPageRange(start?: number, end?: number): string {

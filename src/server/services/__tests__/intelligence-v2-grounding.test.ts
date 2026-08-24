@@ -145,7 +145,7 @@ describe("Intelligence Engine V2 grounding", () => {
   });
 
   it("marks regenerated grounding with the current pipeline version", () => {
-    expect(result.grounding.pipelineVersion).toBe("intelligence-v2.2");
+    expect(result.grounding.pipelineVersion).toBe("intelligence-v2.3");
   });
 
   it("preserves bullet boundaries instead of creating cross-bullet phrases", () => {
@@ -186,7 +186,7 @@ describe("Intelligence Engine V2 grounding", () => {
   });
 
   it("builds complete grounded notes with distinct points and takeaways", () => {
-    expect(notes.summary).toContain("<!-- intelligence-engine:v2.2 -->");
+    expect(notes.summary).toContain("<!-- intelligence-engine:v2.3 -->");
     expect(notes.summary).toContain("## Section Notes");
     expect(notes.summary).toContain("Principles of Effective Stakeholder Presentation");
     expect(notes.summary).toContain("Common Mistakes Students Make");
@@ -215,6 +215,9 @@ describe("Intelligence Engine V2 grounding", () => {
         "Are all actors correct?",
         "Are all use cases complete?",
       ]),
+    );
+    expect(notes.summary).toMatch(
+      /- Ask stakeholders to confirm:\n  - Are all actors correct\?/,
     );
   });
 
@@ -321,6 +324,36 @@ describe("Intelligence Engine V2 grounding", () => {
     expect(takeaways).not.toEqual(expect.arrayContaining(labels));
   });
 
+  it("turns a common-mistake fragment into an actionable takeaway", () => {
+    const sourceSectionId = result.grounding.sections[0].sectionId;
+    const actionableNotes = buildGroundedStudyNotes(
+      {
+        ...result.grounding,
+        facts: [
+          {
+            id: "common-mistake-overloading",
+            type: "common_mistake",
+            content: "Overloading slides with text",
+            verbatimRequired: false,
+            sourceSectionId,
+            evidence: [],
+            evidenceType: "stated",
+            verificationStatus: "supported",
+            confidence: 1,
+            importanceScore: 1,
+            numericTokens: [],
+          },
+          ...result.grounding.facts,
+        ],
+      },
+      result.reliabilityProfile,
+      "Lecture Note",
+    );
+    const takeaways = sectionBullets(actionableNotes.summary, "Key Takeaways");
+
+    expect(takeaways).toContain("Avoid overloading slides with text.");
+  });
+
   it("builds each learning-path section from its own grounded facts", () => {
     const graph = buildGroundedKnowledgeGraph(result.grounding);
     const commonMistakes = graph.nodes.find(
@@ -405,7 +438,12 @@ function sectionBullets(markdown: string, heading: string): string[] {
   return (match?.[1] ?? "")
     .split("\n")
     .filter((line) => line.startsWith("- "))
-    .map((line) => line.replace(/\s+_\(p\.\s+\d+\)_$/, "").trim());
+    .map((line) =>
+      line
+        .replace(/^-\s+/, "")
+        .replace(/\s+_\(p\.\s+\d+\)_$/, "")
+        .trim(),
+    );
 }
 
 function subsectionBullets(markdown: string, heading: string): string[] {

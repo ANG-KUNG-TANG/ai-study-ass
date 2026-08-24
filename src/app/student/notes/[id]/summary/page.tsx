@@ -5,7 +5,10 @@ import { RefreshCw } from "lucide-react";
 import { useNoteContext } from "@/context/NoteContext";
 import { useSummary } from "@/hooks/useSummary";
 import { parseSummary } from "@/lib/parse-summary";
-import type { ParsedSummarySection } from "@/lib/parse-summary";
+import type {
+  ParsedSummaryListItem,
+  ParsedSummarySection,
+} from "@/lib/parse-summary";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Card } from "@/components/ui/Card";
@@ -75,11 +78,6 @@ export default function SummaryPage() {
               disabled={isGenerating}
               className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
             >
-              <RefreshCw
-                aria-hidden="true"
-                size={14}
-                className={isGenerating ? "animate-spin" : ""}
-              />
               {isGenerating ? t("summary.regenerating") : t("summary.regenerate")}
             </button>
           </div>
@@ -90,24 +88,29 @@ export default function SummaryPage() {
           {parsed.keyPoints.length > 0 && (
             <section className="mt-6">
               <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.keyPoints")}</h4>
-              <ul className="space-y-2">
+              <ol className="list-decimal space-y-2 pl-5 marker:text-ink-faint">
                 {parsed.keyPoints.map((point, index) => (
-                  <li key={`${point}-${index}`} className="flex gap-3 text-[13px] leading-relaxed text-ink-soft">
-                    <span>{index + 1}.</span><span>{point}</span>
+                  <li
+                    key={`${point}-${index}`}
+                    className="pl-1 text-[13px] leading-relaxed text-ink-soft"
+                  >
+                    {point}
                   </li>
                 ))}
-              </ul>
+              </ol>
             </section>
           )}
 
           {parsed.importantConcepts.length > 0 && (
             <section className="mt-6">
               <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.concepts")}</h4>
-              <div className="flex flex-wrap gap-1.5">
+              <ul className="flex flex-wrap gap-1.5">
                 {parsed.importantConcepts.map((concept) => (
-                  <Chip key={concept} tone="violet">{concept}</Chip>
+                  <li key={concept}>
+                    <Chip tone="violet">{concept}</Chip>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </section>
           )}
 
@@ -147,16 +150,7 @@ function SummarySection({
       ))}
 
       {section.items.length > 0 && (
-        <ul className="mt-3 space-y-2 pl-5 text-[13px] leading-6 text-ink-soft">
-          {section.items.map((item, index) => (
-            <li
-              key={`${item}-${index}`}
-              className="list-disc pl-1 marker:text-ink-faint"
-            >
-              {item}
-            </li>
-          ))}
-        </ul>
+        <SummaryList items={section.items} className="mt-3 text-[13px]" />
       )}
 
       {section.subsections.length > 0 && (
@@ -180,21 +174,48 @@ function SummarySection({
               ))}
 
               {subsection.items.length > 0 && (
-                <ul className="mt-2 space-y-1.5 pl-5 text-[12.5px] leading-6 text-ink-soft">
-                  {subsection.items.map((item, itemIndex) => (
-                    <li
-                      key={`${item}-${itemIndex}`}
-                      className="list-disc pl-1 marker:text-ink-faint"
-                    >
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+                <SummaryList
+                  items={subsection.items}
+                  className="mt-2 text-[12.5px]"
+                />
               )}
             </article>
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+function SummaryList({
+  items,
+  className,
+}: {
+  items: ParsedSummaryListItem[];
+  className: string;
+}) {
+  return (
+    <ul className={`${className} space-y-1.5 pl-5 leading-6 text-ink-soft`}>
+      {items.map((item, index) => (
+        <li
+          key={`${item.text}-${index}`}
+          className="list-disc pl-1 marker:text-ink-faint"
+        >
+          {item.text}
+          {item.children.length > 0 && (
+            <ul className="mt-1 space-y-1 pl-5">
+              {item.children.map((child, childIndex) => (
+                <li
+                  key={`${child}-${childIndex}`}
+                  className="list-[circle] pl-1 marker:text-ink-faint"
+                >
+                  {child}
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
