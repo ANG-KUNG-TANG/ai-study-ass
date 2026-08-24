@@ -40,6 +40,8 @@ import {
   getReliableProfile,
 } from "./reliability/profile";
 import { createPendingStageProgress } from "./stage-catalog";
+import { buildGroundedKnowledge } from "./grounding";
+import type { GroundedKnowledge } from "./grounding";
 
 const DEFAULT_AI_FALLBACK_THRESHOLD = 0.85;
 
@@ -92,6 +94,7 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
   let chunks: DocumentChunk[];
   let nlp: NLPResult;
   let core: KnowledgeCore;
+  let grounding: GroundedKnowledge;
 
   try {
     const cleaned = await tracker.run("cleaning", () => cleanDocument(document), (value) => ({
@@ -149,6 +152,19 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
         core,
         reliabilityProfile,
       );
+
+    grounding = await tracker.run(
+      "knowledge_grounding",
+      () => buildGroundedKnowledge({ document: sectioned, nlp, core }),
+      (value) => ({
+        facts: value.facts.length,
+        qualifiedTerms: value.keyTerms.length,
+        coveredSections: value.sections.filter((section) => section.status === "covered").length,
+        sectionCoverage: Number(value.quality.sectionCoverageRatio.toFixed(3)),
+        quality: Number(value.quality.score.toFixed(3)),
+      }),
+      { allowPartial: true },
+    );
   } catch (error) {
     throw new PipelineError("extraction", noteId, error);
   }
@@ -166,11 +182,14 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
   symbolic = {
     ...symbolic,
     confidenceBreakdown:
-      calibrateConfidenceBreakdown(
-        symbolic.confidenceBreakdown,
-        getReliableProfile(
-          core,
+      calibrateGroundingBreakdown(
+        calibrateConfidenceBreakdown(
+          symbolic.confidenceBreakdown,
+          getReliableProfile(
+            core,
+          ),
         ),
+        grounding,
       ),
   };
 
@@ -221,6 +240,8 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
           }),
         );
 
+      grounding = buildGroundedKnowledge({ document: sectioned, nlp, core });
+
       ontology = resolveCoreOntology(core);
       symbolic = await rerunSymbolicStages(noteId, core, sectioned, nlp, ontology);
 
@@ -228,11 +249,14 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
       symbolic = {
         ...symbolic,
         confidenceBreakdown:
-          calibrateConfidenceBreakdown(
-            symbolic.confidenceBreakdown,
-            getReliableProfile(
-              core,
+          calibrateGroundingBreakdown(
+            calibrateConfidenceBreakdown(
+              symbolic.confidenceBreakdown,
+              getReliableProfile(
+                core,
+              ),
             ),
+            grounding,
           ),
       };
     }
@@ -253,6 +277,7 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
     stage: "complete",
     nlp,
     core,
+    grounding,
     ontology,
     graph: symbolic.graph,
     prolog: { engine: symbolic.prologEngine, facts: symbolic.facts },
@@ -506,6 +531,35 @@ function extractWarnings(value: unknown): string[] {
   if (!value || typeof value !== "object") return [];
   const warnings = (value as { warnings?: unknown }).warnings;
   return Array.isArray(warnings) ? warnings.filter((item): item is string => typeof item === "string") : [];
+}
+
+function calibrateGroundingBreakdown(
+  breakdown: ConfidenceBreakdown,
+  grounding: GroundedKnowledge,
+): ConfidenceBreakdown {
+  const sectionCoverage = Math.min(
+    breakdown.sectionCoverage,
+    grounding.quality.sectionCoverageRatio,
+  );
+  const numericValidation = Math.min(
+    breakdown.numericValidation,
+    grounding.quality.numericExactnessRatio,
+  );
+  let overall = Math.max(
+    0,
+    Math.min(1, breakdown.overall * 0.72 + grounding.quality.score * 0.28),
+  );
+
+  if (!grounding.quality.passed) overall = Math.min(overall, 0.84);
+
+  return {
+    ...breakdown,
+    sectionCoverage,
+    numericValidation,
+    coverage: Math.min(breakdown.coverage, sectionCoverage),
+    overall,
+    overallOutOf10: overall * 10,
+  };
 }
 
 export function buildFailedResult(

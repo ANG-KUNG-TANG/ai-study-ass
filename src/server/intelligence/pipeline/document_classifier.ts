@@ -22,6 +22,10 @@ export function classifyDocument(doc: SectionedDocument): DocumentProfile {
 
   const lectureSignals = [
     /\blearning objectives?\b/.test(text),
+    /\blecture\s+notes?\b/.test(text),
+    /\bstudent\s+presentation\s+template\b/.test(text),
+    (text.match(/\bslide\s+\d+\b/g)?.length ?? 0) >= 2,
+    /\bstudents?\s+must\s+understand\b/.test(text),
     headings.some((heading) => /lecture|lesson|week\s+\d+/.test(heading)),
     /\bexercise|quiz|review questions?\b/.test(text),
   ].filter(Boolean).length;

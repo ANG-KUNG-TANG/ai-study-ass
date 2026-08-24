@@ -20,6 +20,7 @@ declare namespace NodeJS {
     OPENAI_API_KEY?: string;
     GEMINI_API_KEY?: string;
     AI_PROVIDER?: "openai" | "gemini";
+    INTELLIGENCE_V2_ENABLED?: string;
 
     CORS_ORIGIN?: string;
     COOKIE_SECRET: string;

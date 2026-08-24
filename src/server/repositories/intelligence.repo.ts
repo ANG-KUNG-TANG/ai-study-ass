@@ -2,12 +2,18 @@ import { PaperIntelligence } from "@/server/models/Intelligence";
 import { IntelligenceResultEntity } from "@/server/entities/intelligence.entity";
 import { logger } from "@/server/utils/logger";
 import { NotFoundError } from "@/server/utils/errors";
+import * as groundedKnowledgeRepo from "@/server/repositories/grounded-knowledge.repo";
+import type { GroundedKnowledge } from "@/server/intelligence/grounding";
 
-function toEntity(doc: any): IntelligenceResultEntity {
+function toEntity(
+  doc: any,
+  grounding: GroundedKnowledge | null,
+): IntelligenceResultEntity {
   return IntelligenceResultEntity.fromPersistence({
     noteId: doc.noteId,
     stage: doc.stage,
     core: doc.core ?? null,
+    grounding,
     ontology: doc.ontology ?? [],
     graph: doc.graph ?? null,
     facts: doc.facts ?? [],
@@ -72,9 +78,12 @@ export async function upsertFailed(entity: IntelligenceResultEntity): Promise<vo
 }
 
 export async function findByNoteId(noteId: string): Promise<IntelligenceResultEntity | null> {
-  const doc = await PaperIntelligence.findOne({ noteId }).lean().exec();
+  const [doc, grounding] = await Promise.all([
+    PaperIntelligence.findOne({ noteId }).lean().exec(),
+    groundedKnowledgeRepo.findByNoteId(noteId),
+  ]);
   if (!doc) return null;
-  return toEntity(doc);
+  return toEntity(doc, grounding);
 }
 
 export async function findByNoteIdOrThrow(noteId: string): Promise<IntelligenceResultEntity> {
@@ -102,6 +111,9 @@ export async function findStagesByNoteIds(
 }
 
 export async function deleteByNoteId(noteId: string): Promise<void> {
-  await PaperIntelligence.deleteOne({ noteId });
+  await Promise.all([
+    PaperIntelligence.deleteOne({ noteId }),
+    groundedKnowledgeRepo.deleteByNoteId(noteId),
+  ]);
   logger.info("Intelligence result deleted", { noteId });
 }

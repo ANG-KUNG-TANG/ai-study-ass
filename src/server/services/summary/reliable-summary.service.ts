@@ -17,6 +17,7 @@ import type {
 } from "@/server/intelligence/reliability/types";
 
 const MAX_SUMMARY_CHARS = 24_000;
+export const LEGACY_STUDY_NOTES_VERSION_MARKER = "<!-- intelligence-engine:reliable-v1 -->";
 
 export interface ReliableSymbolicSummary {
   summary: string;
@@ -133,6 +134,7 @@ function buildCaseStudySummary(
 
   const sections = [
     `# ${profile.title.value}`,
+    LEGACY_STUDY_NOTES_VERSION_MARKER,
     generatedTitleNotice(profile),
     "## Overview",
     caseOverview(profile),
@@ -250,6 +252,7 @@ function buildGeneralSummary(
 
   const sections = [
     `# ${title}`,
+    LEGACY_STUDY_NOTES_VERSION_MARKER,
     profile ? generatedTitleNotice(profile) : "",
     "## Overview",
     overview,
@@ -388,6 +391,7 @@ export function mergeAIDraft(
 
 export function isReliableCachedSummary(summary: string): boolean {
   const trimmed = summary.trim();
+  if (!trimmed.includes(LEGACY_STUDY_NOTES_VERSION_MARKER)) return false;
   if (trimmed.length < 350) return false;
   if (corruptedCharacterRatio(trimmed) > 0.035 || greekCharacterRatio(trimmed) > 0.12) return false;
   if (/Case Study Series\s+Case Study Series/i.test(trimmed)) return false;

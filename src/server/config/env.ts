@@ -35,6 +35,10 @@ const envSchema = z
     AI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
     AI_USER_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(0),
     AI_USER_DAILY_TOKEN_LIMIT: z.coerce.number().int().min(0).default(0),
+    INTELLIGENCE_V2_ENABLED: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
 
     TRUST_CLOUDFLARE_PROXY: z
       .enum(["true", "false"])

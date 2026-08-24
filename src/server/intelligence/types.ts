@@ -1,6 +1,8 @@
 // src/server/intelligence/types.ts
 // Canonical contracts for the evidence-grounded intelligence engine.
 
+import type { GroundedKnowledge } from "./grounding/types";
+
 // ─── Ontology ────────────────────────────────────────────────────────────────
 
 export type OntologyDomain =
@@ -410,6 +412,7 @@ export type IntelligenceStageId =
   | "nlp"
   | "claim_extraction"
   | "claim_validation"
+  | "knowledge_grounding"
   | "ontology_resolution"
   | "graph_construction"
   | "symbolic_reasoning"
@@ -478,6 +481,7 @@ export interface IntelligenceResult {
   stage: PipelineStage;
   nlp: NLPResult;
   core: KnowledgeCore;
+  grounding: GroundedKnowledge;
   ontology: ResolvedConcept[];
   graph: KnowledgeGraph;
   prolog: {

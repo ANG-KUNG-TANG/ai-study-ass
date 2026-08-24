@@ -9,12 +9,20 @@ import {
   validateAIDraft,
   type AIStudyNotesDraft,
 } from "@/server/services/summary/reliable-summary.service";
+import {
+  buildGroundedStudyNotes,
+  STUDY_NOTES_VERSION_MARKER,
+} from "@/server/services/summary/grounded-study-notes.service";
+import { buildGroundedPromptSource } from "@/server/services/grounded-artifacts.service";
+import { getReliableProfile } from "@/server/intelligence/reliability/profile";
 import { NotFoundError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type {
   GenerationMetadata,
   GenerationSource,
 } from "@/server/types/generation";
+import { z } from "zod";
+import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
 
 export interface SummaryResult extends GenerationMetadata {
   summary: string;
@@ -25,50 +33,23 @@ export interface SummaryResult extends GenerationMetadata {
   warnings?: string[];
 }
 
-interface RawAIDraft {
-  overview?: unknown;
-  keyPoints?: unknown;
-  importantConcepts?: unknown;
-  keyTerms?: unknown;
-  unresolvedAssumptions?: unknown;
-}
-
-function parseStringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
+const aiStudyNotesDraftSchema = z.object({
+  overview: z.string().min(1),
+  keyPoints: z.array(z.string()).default([]),
+  importantConcepts: z.array(z.string()).default([]),
+  keyTerms: z.array(z.object({
+    term: z.string().min(1),
+    definition: z.string().min(1),
+  })).default([]),
+  unresolvedAssumptions: z.array(z.string()).default([]),
+}).strict();
 
 function parseAIDraft(rawText: string): AIStudyNotesDraft {
   const cleaned = rawText
     .trim()
     .replace(/^```json\s*/i, "")
     .replace(/```\s*$/, "");
-  const parsed = JSON.parse(cleaned) as RawAIDraft;
-
-  if (typeof parsed.overview !== "string") {
-    throw new Error('AI summary response is missing "overview".');
-  }
-
-  const keyTerms = Array.isArray(parsed.keyTerms)
-    ? parsed.keyTerms
-        .map((item) => {
-          if (!item || typeof item !== "object") return null;
-          const object = item as Record<string, unknown>;
-          return typeof object.term === "string" && typeof object.definition === "string"
-            ? { term: object.term, definition: object.definition }
-            : null;
-        })
-        .filter((item): item is { term: string; definition: string } => item !== null)
-    : [];
-
-  return {
-    overview: parsed.overview,
-    keyPoints: parseStringArray(parsed.keyPoints),
-    importantConcepts: parseStringArray(parsed.importantConcepts),
-    keyTerms,
-    unresolvedAssumptions: parseStringArray(parsed.unresolvedAssumptions),
-  };
+  return aiStudyNotesDraftSchema.parse(JSON.parse(cleaned));
 }
 
 export async function generateSummary(
@@ -76,6 +57,7 @@ export async function generateSummary(
   options: { force?: boolean } = {},
 ): Promise<SummaryResult> {
   const note = await noteRepo.findById(noteId);
+  const v2Enabled = isIntelligenceV2Enabled();
 
   if (!note) {
     throw new NotFoundError(`Note ${noteId} not found`);
@@ -84,7 +66,11 @@ export async function generateSummary(
   if (
     !options.force &&
     note.summary?.trim() &&
-    isReliableCachedSummary(note.summary)
+    (
+      v2Enabled
+        ? note.summary.includes(STUDY_NOTES_VERSION_MARKER)
+        : isReliableCachedSummary(note.summary)
+    )
   ) {
     return {
       summary: note.summary,
@@ -109,12 +95,21 @@ export async function generateSummary(
       });
       return null;
     });
+  const grounding = v2Enabled
+    ? intelligence?.grounding ?? null
+    : null;
 
-  let result = buildReliableSymbolicSummary(
-    intelligence?.core,
-    note.content,
-    note.title,
-  );
+  let result = grounding
+    ? buildGroundedStudyNotes(
+        grounding,
+        getReliableProfile(intelligence?.core),
+        note.title,
+      )
+    : buildReliableSymbolicSummary(
+        intelligence?.core,
+        note.content,
+        note.title,
+      );
 
   let source: GenerationSource = "symbolic";
   let aiFallbackUsed = false;
@@ -128,7 +123,9 @@ export async function generateSummary(
   if (needsFallback && result.profile?.status !== "rejected") {
     try {
       const prompt = buildSummaryPrompt({
-        content: result.profile?.cleanedText ?? note.content,
+        content: grounding
+          ? buildGroundedPromptSource(grounding)
+          : result.profile?.cleanedText ?? note.content,
         profile: result.profile,
         symbolicDraft: result.summary,
       });
@@ -145,7 +142,9 @@ export async function generateSummary(
       const parsed = parseAIDraft(aiResult.text);
       const validated = validateAIDraft(
         parsed,
-        result.profile?.cleanedText ?? note.content,
+        grounding
+          ? buildGroundedPromptSource(grounding)
+          : result.profile?.cleanedText ?? note.content,
       );
 
       if (validated) {
@@ -179,7 +178,12 @@ export async function generateSummary(
     status: result.status,
     tokensUsed,
     itemCount: 1,
-    qualityScoreOutOf10: result.profile?.qualityScoreOutOf10,
-    warnings: result.profile?.warnings,
+    qualityScoreOutOf10:
+      grounding?.quality.scoreOutOf10 ??
+      result.profile?.qualityScoreOutOf10,
+    warnings: [
+      ...(result.profile?.warnings ?? []),
+      ...(grounding?.quality.warnings ?? []),
+    ],
   };
 }
