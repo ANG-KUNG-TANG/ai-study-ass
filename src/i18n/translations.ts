@@ -129,6 +129,7 @@ const en = {
   "sidebar.expand": "Expand sidebar",
   "sidebar.collapse": "Collapse sidebar",
   "sidebar.logout": "Log out",
+  "sidebar.account": "Account",
   "sidebar.streakTitle": "{days}-day streak",
   "sidebar.streak": "Review 2 more flashcard decks today to keep it going.",
 
@@ -896,6 +897,7 @@ const my: Record<TranslationKey, string> = {
   "sidebar.expand": "ဘေးဘားဖြန့်ရန်",
   "sidebar.collapse": "ဘေးဘားချုံ့ရန်",
   "sidebar.logout": "ထွက်ရန်",
+  "sidebar.account": "အကောင့်",
   "sidebar.streakTitle": "{days} ရက်ဆက်တိုက်",
   "sidebar.streak": "ယနေ့ လေ့လာရေးကတ် ၂ စုံ ထပ်မံလေ့လာပြီး ဆက်တိုက်မှတ်တမ်းကို ထိန်းပါ။",
 

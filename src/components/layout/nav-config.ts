@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, AlignLeft, HelpCircle, Copy, MessageSquare, Users, Sparkles, Activity, History, UserRound, Settings } from "lucide-react";
+import { LayoutDashboard, FileText, AlignLeft, HelpCircle, Copy, MessageSquare, Users, Sparkles, Activity, History } from "lucide-react";
 
 export const studentNavItems = [
   { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -8,8 +8,6 @@ export const studentNavItems = [
   { href: "/student/quiz", label: "Quiz", icon: HelpCircle },
   { href: "/student/flashcards", label: "Flashcards", icon: Copy },
   { href: "/student/chat", label: "Chat", icon: MessageSquare },
-  { href: "/student/profile", label: "Profile", icon: UserRound },
-  { href: "/student/settings", label: "Settings", icon: Settings },
 ];
 
 export const adminNavItems = [

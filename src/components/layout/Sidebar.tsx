@@ -11,6 +11,8 @@ import {
   FileText,
   LogOut,
   Menu,
+  Settings,
+  UserRound,
   X,
 } from "lucide-react";
 import {
@@ -54,9 +56,20 @@ const NAVIGATION_KEYS: Record<string, TranslationKey> = {
   "AI Usage": "nav.aiUsage",
   Health: "nav.health",
   "Original text": "nav.originalText",
-  Profile: "nav.profile",
-  Settings: "nav.settings",
 };
+
+const STUDENT_ACCOUNT_ITEMS = [
+  {
+    href: "/student/profile",
+    labelKey: "nav.profile" as const,
+    icon: UserRound,
+  },
+  {
+    href: "/student/settings",
+    labelKey: "nav.settings" as const,
+    icon: Settings,
+  },
+];
 
 interface SidebarProps {
   variant: "student" | "admin";
@@ -283,8 +296,50 @@ export function Sidebar({
           <LanguageSwitcher compact={collapsed} />
         </div>
 
-        {/* Logout */}
+        {/* Account navigation */}
         <div className="mt-4 shrink-0 border-t border-line pt-3">
+          {variant === "student" && !collapsed && (
+            <p className="mb-1.5 px-3 font-mono text-[9.5px] uppercase tracking-[0.12em] text-ink-faint">
+              {t("sidebar.account")}
+            </p>
+          )}
+
+          {variant === "student" && (
+            <div className="mb-1 flex flex-col gap-[3px]">
+              {STUDENT_ACCOUNT_ITEMS.map((item) => {
+                const isActive =
+                  pathname === item.href || pathname?.startsWith(`${item.href}/`);
+                const label = t(item.labelKey);
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    title={collapsed ? label : undefined}
+                    className={[
+                      "flex w-full items-center rounded-[9px] py-2.5",
+                      "text-[13.5px] font-medium transition-colors",
+                      collapsed ? "justify-center px-2" : "gap-[11px] px-3",
+                      isActive
+                        ? "bg-ink text-paper-raised"
+                        : "text-ink-soft hover:bg-line-soft hover:text-ink",
+                    ].join(" ")}
+                  >
+                    <item.icon
+                      size={17}
+                      strokeWidth={1.6}
+                      className="shrink-0"
+                      aria-hidden="true"
+                    />
+
+                    {!collapsed && <span>{label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() =>
