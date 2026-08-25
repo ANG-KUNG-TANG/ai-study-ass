@@ -3,16 +3,12 @@
 import Link from "next/link";
 import {
   usePathname,
-  useRouter,
 } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  LogOut,
   Menu,
-  Settings,
-  UserRound,
   X,
 } from "lucide-react";
 import {
@@ -28,12 +24,6 @@ import {
   StreakBox,
 } from "@/components/notes/StreakBox";
 import {
-  LanguageSwitcher,
-} from "@/components/i18n/LanguageSwitcher";
-import {
-  useAuth,
-} from "@/context/AuthContext";
-import {
   useSidebar,
 } from "@/context/SidebarContext";
 import {
@@ -42,6 +32,9 @@ import {
 import type {
   TranslationKey,
 } from "@/i18n/translations";
+import {
+  SidebarAccountMenu,
+} from "@/components/layout/SidebarAccountMenu";
 
 const NAVIGATION_KEYS: Record<string, TranslationKey> = {
   Dashboard: "nav.dashboard",
@@ -58,19 +51,6 @@ const NAVIGATION_KEYS: Record<string, TranslationKey> = {
   "Original text": "nav.originalText",
 };
 
-const STUDENT_ACCOUNT_ITEMS = [
-  {
-    href: "/student/profile",
-    labelKey: "nav.profile" as const,
-    icon: UserRound,
-  },
-  {
-    href: "/student/settings",
-    labelKey: "nav.settings" as const,
-    icon: Settings,
-  },
-];
-
 interface SidebarProps {
   variant: "student" | "admin";
 }
@@ -79,9 +59,6 @@ export function Sidebar({
   variant,
 }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  const { logout } = useAuth();
   const { t } = useLanguage();
 
   const {
@@ -150,13 +127,6 @@ export function Sidebar({
   useEffect(() => {
     setIsMobileOpen(false);
   }, [pathname]);
-
-  async function handleLogout() {
-    await logout();
-
-    router.replace("/auth/login");
-    router.refresh();
-  }
 
   function navContent(
     collapsed: boolean,
@@ -287,89 +257,13 @@ export function Sidebar({
             </div>
           )}
 
-        <div
-          className={[
-            "mt-4 flex shrink-0",
-            collapsed ? "justify-center" : "justify-start",
-          ].join(" ")}
-        >
-          <LanguageSwitcher compact={collapsed} />
-        </div>
-
-        {/* Account navigation */}
+        {/* Account menu */}
         <div className="mt-4 shrink-0 border-t border-line pt-3">
-          {variant === "student" && !collapsed && (
-            <p className="mb-1.5 px-3 font-mono text-[9.5px] uppercase tracking-[0.12em] text-ink-faint">
-              {t("sidebar.account")}
-            </p>
-          )}
-
-          {variant === "student" && (
-            <div className="mb-1 flex flex-col gap-[3px]">
-              {STUDENT_ACCOUNT_ITEMS.map((item) => {
-                const isActive =
-                  pathname === item.href || pathname?.startsWith(`${item.href}/`);
-                const label = t(item.labelKey);
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    title={collapsed ? label : undefined}
-                    className={[
-                      "flex w-full items-center rounded-[9px] py-2.5",
-                      "text-[13.5px] font-medium transition-colors",
-                      collapsed ? "justify-center px-2" : "gap-[11px] px-3",
-                      isActive
-                        ? "bg-ink text-paper-raised"
-                        : "text-ink-soft hover:bg-line-soft hover:text-ink",
-                    ].join(" ")}
-                  >
-                    <item.icon
-                      size={17}
-                      strokeWidth={1.6}
-                      className="shrink-0"
-                      aria-hidden="true"
-                    />
-
-                    {!collapsed && <span>{label}</span>}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() =>
-              void handleLogout()
-            }
-            title={
-              collapsed
-                ? t("sidebar.logout")
-                : undefined
-            }
-            className={[
-              "flex w-full items-center rounded-[9px] py-2.5",
-              "text-[13.5px] font-medium text-ink-soft",
-              "transition-colors hover:bg-coral-soft hover:text-coral",
-              collapsed
-                ? "justify-center px-2"
-                : "gap-[11px] px-3",
-            ].join(" ")}
-          >
-            <LogOut
-              size={17}
-              strokeWidth={1.6}
-              className="shrink-0"
-              aria-hidden="true"
-            />
-
-            {!collapsed && (
-              <span>{t("sidebar.logout")}</span>
-            )}
-          </button>
+          <SidebarAccountMenu
+            variant={variant}
+            collapsed={collapsed}
+            onExpand={toggle}
+          />
         </div>
       </div>
     );
