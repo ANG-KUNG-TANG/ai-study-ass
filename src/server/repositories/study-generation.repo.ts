@@ -72,12 +72,10 @@ export async function initialise(
           features: freshFeatures(),
           startedAt: now,
           completedAt: null,
-          updatedAt: now,
         },
         $setOnInsert: {
           _id: noteId,
           noteId,
-          createdAt: now,
         },
       }
     : {
@@ -89,8 +87,6 @@ export async function initialise(
           features: freshFeatures(),
           startedAt: now,
           completedAt: null,
-          createdAt: now,
-          updatedAt: now,
         },
       };
 
@@ -124,7 +120,6 @@ export async function updateStage(
       $set: {
         stage,
         completedAt,
-        updatedAt: new Date(),
       },
     },
   ).exec();
@@ -141,7 +136,6 @@ export async function updateFeature(
 
   const set: Record<string, unknown> = {
     [`features.${feature}.updatedAt`]: new Date(),
-    updatedAt: new Date(),
   };
 
   for (const [key, value] of Object.entries(update)) {
