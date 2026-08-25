@@ -103,15 +103,14 @@ export function detectSecuritySignals(
       });
     }
 
-    if (
-      event.action === "admin.role_changed" ||
-      event.action === "admin.user_deleted" ||
-      event.action === "admin.user_banned" ||
-      event.action === "admin.user_unbanned"
-    ) {
+    if (event.action.startsWith("admin.")) {
       const highRisk =
         event.action === "admin.role_changed" ||
-        event.action === "admin.user_deleted";
+        event.action === "admin.user_deleted" ||
+        event.action === "admin.settings_changed" ||
+        event.action === "admin.retention_executed" ||
+        event.action === "admin.content_quarantined" ||
+        event.action === "admin.content_restored";
 
       signals.push({
         type: "sensitive_admin_action",

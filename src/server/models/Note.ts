@@ -1,5 +1,9 @@
 import mongoose, { Schema, type Document, type Model } from "mongoose";
-import { NOTE_RULES, type FileType } from "@/server/entities/note.entity";
+import {
+  NOTE_RULES,
+  type FileType,
+  type NoteAdminStatus,
+} from "@/server/entities/note.entity";
 
 export interface INote extends Document<string> {
   _id: string;
@@ -18,6 +22,10 @@ export interface INote extends Document<string> {
   }>;
   /** AI-generated, paraphrased study notes. */
   summary: string | null;
+  adminStatus: NoteAdminStatus;
+  quarantineReason: string | null;
+  quarantinedAt: Date | null;
+  quarantinedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -82,11 +90,22 @@ const noteSchema = new Schema<INote>(
       default: null,
       maxlength: NOTE_RULES.SUMMARY_MAX,
     },
+    adminStatus: {
+      type: String,
+      enum: ["active", "quarantined"] satisfies NoteAdminStatus[],
+      default: "active",
+      required: true,
+      index: true,
+    },
+    quarantineReason: { type: String, default: null, maxlength: 500 },
+    quarantinedAt: { type: Date, default: null },
+    quarantinedBy: { type: String, default: null },
   },
   { timestamps: true },
 );
 
 noteSchema.index({ userId: 1, createdAt: -1 });
+noteSchema.index({ adminStatus: 1, createdAt: -1 });
 
 export const Note: Model<INote> =
   mongoose.models.Note ?? mongoose.model<INote>("Note", noteSchema);

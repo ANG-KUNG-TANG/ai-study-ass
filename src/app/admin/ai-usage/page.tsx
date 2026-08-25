@@ -15,7 +15,10 @@ import {
 
 import { Topbar } from "@/components/layout/Topbar";
 import { AdminPanel } from "@/components/admin/AdminPanel";
-import { getAdminAIUsage } from "@/services/admin.service";
+import {
+  getAdminAIUsage,
+  testAdminAIProvider,
+} from "@/services/admin.service";
 import type {
   AdminAIUsage,
   AdminAIUsageActivity,
@@ -86,6 +89,10 @@ function ActivityRow({
       </td>
 
       <td className="px-3 py-3 font-mono">
+        ${item.estimatedCostUsd.toFixed(6)}
+      </td>
+
+      <td className="px-3 py-3 font-mono">
         {formatLatency(item.latencyMs)}
       </td>
 
@@ -144,6 +151,31 @@ export default function AdminAIUsagePage() {
     void load();
   }, [load]);
 
+  async function testProvider(): Promise<void> {
+    const reason = window.prompt(
+      "Reason for testing the active AI provider:",
+    )?.trim();
+
+    if (!reason) return;
+
+    setIsRefreshing(true);
+
+    try {
+      const result = await testAdminAIProvider(reason);
+      window.alert(
+        `${result.provider} / ${result.model}: ${result.response}`,
+      );
+      await load();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Provider test failed.",
+      );
+      setIsRefreshing(false);
+    }
+  }
+
   return (
     <>
       <Topbar
@@ -156,18 +188,29 @@ export default function AdminAIUsagePage() {
           {t("admin.ai.description")}
         </p>
 
-        <button
-          type="button"
-          disabled={isRefreshing}
-          onClick={refresh}
-          className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] text-ink-soft disabled:opacity-50"
-        >
-          <RefreshCw
-            size={14}
-            className={isRefreshing ? "animate-spin" : ""}
-          />
-          {t("common.refresh")}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={isRefreshing}
+            onClick={() => void testProvider()}
+            className="rounded-lg border border-line px-3 py-2 text-[12px] text-ink-soft disabled:opacity-50"
+          >
+            Test active provider
+          </button>
+
+          <button
+            type="button"
+            disabled={isRefreshing}
+            onClick={refresh}
+            className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] text-ink-soft disabled:opacity-50"
+          >
+            <RefreshCw
+              size={14}
+              className={isRefreshing ? "animate-spin" : ""}
+            />
+            {t("common.refresh")}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -192,7 +235,7 @@ export default function AdminAIUsagePage() {
             </div>
           )}
 
-          <section className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <section className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-7">
             {[
               [t("admin.ai.requestsToday"), formatNumber(data.summary.requestsToday, locale)],
               [t("admin.ai.successRate"), `${data.summary.successRate.toFixed(1)}%`],
@@ -200,6 +243,7 @@ export default function AdminAIUsagePage() {
               [t("admin.ai.tokens"), formatNumber(data.summary.tokensToday, locale)],
               [t("admin.ai.averageLatency"), formatLatency(data.summary.averageLatencyMs)],
               [t("admin.ai.quotaErrors"), formatNumber(data.summary.quotaExceededToday, locale)],
+              ["Monthly cost", `$${data.monthlySpend.toFixed(2)}`],
             ].map(([label, value]) => (
               <AdminPanel key={label}>
                 <p className="text-[11px] text-ink-faint">
@@ -240,6 +284,7 @@ export default function AdminAIUsagePage() {
                     [t("admin.ai.quotaExceeded"), formatNumber(provider.quotaExceededToday, locale)],
                     [t("admin.ai.tokensToday"), formatNumber(provider.tokensToday, locale)],
                     [t("admin.ai.averageLatency"), formatLatency(provider.averageLatencyMs)],
+                    ["Estimated spend", `$${provider.spendToday.toFixed(4)}`],
                   ].map(([label, value]) => (
                     <div
                       key={label}
@@ -399,6 +444,7 @@ export default function AdminAIUsagePage() {
                       <th className="px-3 py-2 font-medium">{t("admin.ai.result")}</th>
                       <th className="px-3 py-2 font-medium">{t("admin.ai.usage")}</th>
                       <th className="px-3 py-2 font-medium">{t("admin.ai.tokens")}</th>
+                      <th className="px-3 py-2 font-medium">Cost</th>
                       <th className="px-3 py-2 font-medium">{t("admin.ai.latency")}</th>
                       <th className="px-3 py-2 font-medium">HTTP</th>
                       <th className="px-3 py-2 font-medium">{t("admin.ai.quota")}</th>
@@ -417,7 +463,7 @@ export default function AdminAIUsagePage() {
                     {data.recentActivity.length === 0 && (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={8}
                           className="border-t border-line px-3 py-8 text-center text-ink-faint"
                         >
                           {t("admin.ai.noEvents")}
@@ -439,7 +485,7 @@ export default function AdminAIUsagePage() {
             </span>
             <span className="inline-flex items-center gap-1">
               <AlertTriangle size={11} />
-              {t("admin.ai.costDisabled")}
+              Cost estimates use the pricing saved in Admin Settings.
             </span>
           </div>
         </>

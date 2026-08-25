@@ -6,7 +6,8 @@ import {
   useEffect,
   useState,
 } from "react";
-import { Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Eye, Trash2 } from "lucide-react";
 
 import { Topbar } from "@/components/layout/Topbar";
 import {
@@ -76,6 +77,9 @@ export default function AdminContentPage() {
     setItems,
   ] = useState<AdminContentItem[]>([]);
 
+  const [statusFilter, setStatusFilter] =
+    useState<"" | "active" | "quarantined">("");
+
   const [
     isLoading,
     setIsLoading,
@@ -98,6 +102,7 @@ export default function AdminContentPage() {
               search.trim() ||
               undefined,
             limit: 30,
+            adminStatus: statusFilter || undefined,
           });
 
         setItems(
@@ -117,7 +122,7 @@ export default function AdminContentPage() {
         setIsLoading(false);
       }
     },
-    [search, t],
+    [search, statusFilter, t],
   );
 
   useEffect(() => {
@@ -149,9 +154,15 @@ export default function AdminContentPage() {
       return;
     }
 
+    const reason = window.prompt(
+      "Reason for permanently deleting this content:",
+    );
+    if (!reason?.trim()) return;
+
     try {
       await deleteAdminContent(
         id,
+        reason.trim(),
       );
 
       await load();
@@ -181,6 +192,25 @@ export default function AdminContentPage() {
             t("admin.content.search"),
         }}
       />
+
+      <div className="mb-4 flex justify-end">
+        <label className="flex items-center gap-2 text-[12px] text-ink-soft">
+          Moderation status
+          <select
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(
+                event.target.value as "" | "active" | "quarantined",
+              )
+            }
+            className="rounded-lg border border-line bg-transparent px-3 py-2"
+          >
+            <option value="">All content</option>
+            <option value="active">Active</option>
+            <option value="quarantined">Quarantined</option>
+          </select>
+        </label>
+      </div>
 
       {isLoading && (
         <p className="text-[13px] text-ink-soft">
@@ -215,6 +245,10 @@ export default function AdminContentPage() {
                   </th>
 
                   <th className="px-4 py-3 font-medium">
+                    Status
+                  </th>
+
+                  <th className="px-4 py-3 font-medium">
                     {t("admin.content.column.created")}
                   </th>
 
@@ -232,8 +266,12 @@ export default function AdminContentPage() {
                       className="border-b border-line-soft last:border-0"
                     >
                       <td className="max-w-[300px] truncate px-4 py-3 font-medium">
-                        {item.title ||
-                          t("admin.content.untitled")}
+                        <Link
+                          href={`/admin/content/${item.id}`}
+                          className="hover:text-violet hover:underline"
+                        >
+                          {item.title || t("admin.content.untitled")}
+                        </Link>
                       </td>
 
                       <td className="px-4 py-3 text-ink-soft">
@@ -247,12 +285,34 @@ export default function AdminContentPage() {
                       </td>
 
                       <td className="px-4 py-3 text-ink-soft">
+                        <span
+                          className={
+                            item.adminStatus === "quarantined"
+                              ? "text-coral"
+                              : "text-sage"
+                          }
+                        >
+                          {item.adminStatus === "quarantined"
+                            ? "Quarantined"
+                            : item.status}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3 text-ink-soft">
                         {formatDate(
                           item.createdAt,
                         )}
                       </td>
 
                       <td className="px-4 py-3 text-right">
+                        <Link
+                          href={`/admin/content/${item.id}`}
+                          className="mr-1 inline-flex rounded-md p-1 text-violet hover:bg-violet-soft"
+                          aria-label={`View ${item.title}`}
+                        >
+                          <Eye size={14} strokeWidth={1.8} />
+                        </Link>
+
                         <button
                           type="button"
                           onClick={() =>
@@ -278,7 +338,7 @@ export default function AdminContentPage() {
                   0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-4 py-8 text-center text-ink-faint"
                     >
                       {t("admin.content.empty")}

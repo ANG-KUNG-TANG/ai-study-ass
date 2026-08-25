@@ -11,6 +11,7 @@ import type {
   RouteContext,
 } from "@/server/middleware/auth.middleware";
 import { logActivity } from "@/server/services/auditLog.service";
+import { assertUploadsEnabled } from "@/server/services/operational-settings.service";
 
 // POST /api/upload
 export async function uploadNoteController(
@@ -25,10 +26,18 @@ export async function uploadNoteController(
 
   await connectDb();
 
-  const file =
-    await extractFileFromRequest(req);
+  const settings = await assertUploadsEnabled();
+  const file = await extractFileFromRequest(req, {
+    maxUploadSizeBytes: settings.maxUploadSizeBytes,
+    allowedFileTypes: settings.allowedFileTypes,
+  });
 
-  const result = await ingestDocument(auth.userId, file);
+  const result = await ingestDocument(auth.userId, file, {
+    uploadPolicy: {
+      maxUploadSizeBytes: settings.maxUploadSizeBytes,
+      allowedFileTypes: settings.allowedFileTypes,
+    },
+  });
   const note = result.note;
 
   await logActivity({

@@ -1,5 +1,6 @@
 import type {
   ProcessedFile,
+  UploadValidationPolicy,
   UploadedFile,
 } from "@/server/services/upload.service";
 import {
@@ -19,12 +20,17 @@ import { enqueuePdfIngestion } from "@/server/queues/pdf-ingestion.queue";
 import * as generationRepo from "@/server/repositories/study-generation.repo";
 import * as noteRepo from "@/server/repositories/note.repo";
 import { logger } from "@/server/utils/logger";
+import { assertUploadsEnabled } from "@/server/services/operational-settings.service";
 
 const PROCESSING_PLACEHOLDER = "PDF extraction is running in the background.";
 
 export interface DocumentIngestionResult {
   note: PublicNote;
   backgroundProcessing: boolean;
+}
+
+export interface DocumentIngestionOptions extends CreateNoteOptions {
+  uploadPolicy?: UploadValidationPolicy;
 }
 
 async function rollback(
@@ -47,12 +53,13 @@ async function rollback(
 export async function ingestDocument(
   userId: string,
   file: UploadedFile,
-  options: CreateNoteOptions = {},
+  options: DocumentIngestionOptions = {},
 ): Promise<DocumentIngestionResult> {
-  const prepared = prepareUpload(file);
+  const settings = options.uploadPolicy ?? await assertUploadsEnabled();
+  const prepared = prepareUpload(file, settings);
 
   if (prepared.fileType !== "pdf") {
-    const processed = await processUpload(file);
+    const processed = await processUpload(file, settings);
     const note = await createNote(userId, processed, options);
 
     return {

@@ -236,15 +236,17 @@ export default function StudentAIUsagePage() {
                     : "rounded-full bg-coral-soft px-2.5 py-1 text-[10px] font-medium text-coral"
                 }
               >
-                {data.quota.enabled
-                  ? data.quota.allowed
-                    ? t("student.ai.available")
-                    : t("student.ai.limitReached")
-                  : t("student.ai.unlimited")}
+                {!data.quota.providerAccessEnabled
+                  ? "Provider access disabled"
+                  : data.quota.enabled
+                    ? data.quota.allowed
+                      ? t("student.ai.available")
+                      : t("student.ai.limitReached")
+                    : t("student.ai.unlimited")}
               </span>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
               {[
                 {
                   label:
@@ -267,6 +269,14 @@ export default function StudentAIUsagePage() {
                     locale,
                     t,
                   ),
+                },
+                {
+                  label: "Estimated cost today",
+                  main: `$${data.quota.estimatedCostUsd.toFixed(4)}`,
+                  detail:
+                    data.quota.source === "user_override"
+                      ? "Your administrator configured a custom AI policy."
+                      : "Using the system AI policy.",
                 },
               ].map(
                 (item) => (
@@ -297,7 +307,7 @@ export default function StudentAIUsagePage() {
             </p>
           </section>
 
-          <section className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <section className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-7">
             {[
               [
                 t("admin.ai.requestsToday"),
@@ -324,6 +334,10 @@ export default function StudentAIUsagePage() {
                 formatLatency(
                   data.summary.averageLatencyMs,
                 ),
+              ],
+              [
+                "Estimated cost",
+                `$${data.summary.estimatedCostToday.toFixed(4)}`,
               ],
             ].map(
               ([label, value]) => (
@@ -525,6 +539,7 @@ export default function StudentAIUsagePage() {
                     <th className="px-3 py-2 font-medium">{t("student.ai.feature")}</th>
                     <th className="px-3 py-2 font-medium">{t("admin.ai.provider")}</th>
                     <th className="px-3 py-2 font-medium">{t("admin.ai.tokens")}</th>
+                    <th className="px-3 py-2 font-medium">Cost</th>
                     <th className="px-3 py-2 font-medium">{t("admin.ai.latency")}</th>
                     <th className="px-3 py-2 font-medium">{t("admin.ai.time")}</th>
                   </tr>
@@ -569,6 +584,10 @@ export default function StudentAIUsagePage() {
                         </td>
 
                         <td className="px-3 py-3 font-mono text-ink-soft">
+                          ${item.estimatedCostUsd.toFixed(6)}
+                        </td>
+
+                        <td className="px-3 py-3 font-mono text-ink-soft">
                           <span className="inline-flex items-center gap-1">
                             <Clock3 size={11} />
                             {formatLatency(item.latencyMs)}
@@ -585,7 +604,7 @@ export default function StudentAIUsagePage() {
                   {data.recentActivity.length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="border-t border-line-soft px-3 py-8 text-center text-ink-faint"
                       >
                         {t("student.ai.noActivity")}

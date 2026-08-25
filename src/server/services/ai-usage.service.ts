@@ -25,6 +25,9 @@ export interface RecordAIUsageInput {
   success: boolean;
 
   tokensUsed: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  estimatedCostUsd?: number;
   latencyMs: number;
 
   statusCode?: number | null;
@@ -54,6 +57,9 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
       success: input.success,
 
       tokensUsed: input.tokensUsed,
+      inputTokens: input.inputTokens ?? 0,
+      outputTokens: input.outputTokens ?? 0,
+      estimatedCostUsd: input.estimatedCostUsd ?? 0,
 
       latencyMs: input.latencyMs,
 
@@ -89,12 +95,21 @@ export async function getUserUsageSince(
   return events.map((event) => event.toPublic());
 }
 
+export async function getNoteAIUsage(
+  noteId: string,
+  limit: number = 50,
+): Promise<AIUsageProps[]> {
+  const events = await aiUsageRepo.findByNoteId(noteId, limit);
+  return events.map((event) => event.toPublic());
+}
+
 export interface StudentAIUsageSummary {
   summary: {
     requestsToday: number;
     successesToday: number;
     failuresToday: number;
     tokensToday: number;
+    estimatedCostToday: number;
     averageLatencyMs: number;
     successRate: number;
     quotaExceededToday: number;
@@ -102,10 +117,13 @@ export interface StudentAIUsageSummary {
 
   quota: {
     enabled: boolean;
+    providerAccessEnabled: boolean;
+    source: "system_default" | "user_override";
     requestLimit: number | null;
     tokenLimit: number | null;
     requestsUsed: number;
     tokensUsed: number;
+    estimatedCostUsd: number;
     requestsRemaining: number | null;
     tokensRemaining: number | null;
     requestLimitReached: boolean;
@@ -412,6 +430,12 @@ export async function getUserAIUsageSummary(
           0,
         ),
 
+      estimatedCostToday:
+        todayEvents.reduce(
+          (sum, event) => sum + event.estimatedCostUsd,
+          0,
+        ),
+
       averageLatencyMs:
         averageUsageNumber(
           todayEvents.map(
@@ -441,6 +465,12 @@ export async function getUserAIUsageSummary(
       enabled:
         quota.enabled,
 
+      providerAccessEnabled:
+        quota.providerAccessEnabled,
+
+      source:
+        quota.source,
+
       requestLimit:
         quota.requestLimit,
 
@@ -452,6 +482,12 @@ export async function getUserAIUsageSummary(
 
       tokensUsed:
         quota.tokensUsed,
+
+      estimatedCostUsd:
+        todayEvents.reduce(
+          (sum, event) => sum + event.estimatedCostUsd,
+          0,
+        ),
 
       requestsRemaining:
         quota.requestsRemaining,
@@ -510,6 +546,8 @@ export async function getUserAIUsageSummary(
               event.success,
             tokensUsed:
               event.tokensUsed,
+            estimatedCostUsd:
+              event.estimatedCostUsd,
             latencyMs:
               event.latencyMs,
             statusCode:

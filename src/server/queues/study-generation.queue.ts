@@ -23,6 +23,16 @@ export interface StudyGenerationJobResult {
   stage: string;
 }
 
+export interface StudyGenerationQueueJob {
+  jobId: string;
+  state: string;
+  attemptsMade: number;
+  failedReason: string | null;
+  queuedAt: Date;
+  processedAt: Date | null;
+  finishedAt: Date | null;
+}
+
 type StudyGenerationQueue = Queue<
   StudyGenerationJobData,
   StudyGenerationJobResult
@@ -163,4 +173,43 @@ export async function enqueueStudyGeneration(
   });
 
   return String(job.id);
+}
+
+export async function getStudyGenerationJob(
+  noteId: string,
+): Promise<StudyGenerationQueueJob | null> {
+  const job = await getStudyGenerationQueue().getJob(`study-${noteId}`);
+  if (!job) return null;
+  return {
+    jobId: String(job.id),
+    state: await job.getState(),
+    attemptsMade: job.attemptsMade,
+    failedReason: job.failedReason || null,
+    queuedAt: new Date(job.timestamp),
+    processedAt: job.processedOn ? new Date(job.processedOn) : null,
+    finishedAt: job.finishedOn ? new Date(job.finishedOn) : null,
+  };
+}
+
+export async function cancelStudyGeneration(
+  noteId: string,
+): Promise<{ jobId: string; previousState: string }> {
+  const job = await getStudyGenerationQueue().getJob(`study-${noteId}`);
+  if (!job) throw new ConflictError("No study-generation job exists for this content");
+  const state = await job.getState();
+  if (!["waiting", "delayed", "prioritized", "waiting-children"].includes(state)) {
+    throw new ConflictError(
+      state === "active"
+        ? "An active job cannot be cancelled safely; wait for it to finish"
+        : `A job in state \"${state}\" cannot be cancelled`,
+    );
+  }
+  await job.remove();
+  logger.info("[queue] study generation job cancelled", {
+    queue: STUDY_GENERATION_QUEUE_NAME,
+    jobId: job.id,
+    noteId,
+    previousState: state,
+  });
+  return { jobId: String(job.id), previousState: state };
 }

@@ -25,6 +25,9 @@ export interface AIUsageProps {
   success: boolean;
 
   tokensUsed: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
   latencyMs: number;
 
   statusCode: number | null;
@@ -52,8 +55,14 @@ export class AIUsageEntity {
   }
 
   static create(
-    input: Omit<AIUsageProps, "createdAt"> & {
+    input: Omit<
+      AIUsageProps,
+      "createdAt" | "inputTokens" | "outputTokens" | "estimatedCostUsd"
+    > & {
       createdAt?: Date;
+      inputTokens?: number;
+      outputTokens?: number;
+      estimatedCostUsd?: number;
     },
   ): AIUsageEntity {
     if (!input.id.trim()) {
@@ -79,6 +88,14 @@ export class AIUsageEntity {
       input.tokensUsed,
     );
 
+    const inputTokens = input.inputTokens ?? 0;
+    const outputTokens = input.outputTokens ?? 0;
+    const estimatedCostUsd = input.estimatedCostUsd ?? 0;
+
+    validateNonNegative("inputTokens", inputTokens);
+    validateNonNegative("outputTokens", outputTokens);
+    validateNonNegative("estimatedCostUsd", estimatedCostUsd);
+
     validateNonNegative(
       "latencyMs",
       input.latencyMs,
@@ -99,6 +116,9 @@ export class AIUsageEntity {
 
     return new AIUsageEntity({
       ...input,
+      inputTokens,
+      outputTokens,
+      estimatedCostUsd,
       userId: input.userId?.trim() || null,
       noteId: input.noteId?.trim() || null,
       model: input.model.trim(),

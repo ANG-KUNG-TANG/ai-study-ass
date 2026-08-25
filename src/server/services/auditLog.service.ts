@@ -2,8 +2,11 @@
 
 import * as auditLogRepo from "@/server/repositories/auditLog.repo";
 import type {
+  AuditActorRole,
   AuditAction,
+  AuditCategory,
   AuditLogEntity,
+  AuditStatus,
 } from "@/server/entities/auditLog.entity";
 import {
   buildPaginationMeta,
@@ -14,26 +17,40 @@ import { logger } from "@/server/utils/logger";
 export interface LogActivityInput {
   actorId?: string | null;
   actorEmail?: string | null;
+  actorRole?: AuditActorRole;
   action: AuditAction;
+  category?: AuditCategory;
+  status?: AuditStatus;
   targetType?: string;
   targetId?: string;
   metadata?: Record<
     string,
     unknown
   >;
+  reason?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  requestId?: string;
 }
 
 export interface AdminActivityItem {
   id: string;
   actorId: string | null;
   actorEmail: string | null;
+  actorRole: AuditActorRole;
   action: AuditAction;
+  category: AuditCategory;
+  status: AuditStatus;
   targetType?: string;
   targetId?: string;
   metadata?: Record<
     string,
     unknown
   >;
+  reason?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  requestId?: string;
   text: string;
   createdAt: Date;
 }
@@ -53,19 +70,54 @@ function toActivityItem(
       entry.actorId,
     actorEmail:
       entry.actorEmail,
+    actorRole:
+      entry.actorRole,
     action:
       entry.action,
+    category:
+      entry.category,
+    status:
+      entry.status,
     targetType:
       entry.targetType,
     targetId:
       entry.targetId,
     metadata:
       entry.metadata,
+    reason:
+      entry.reason,
+    ipAddress:
+      entry.ipAddress,
+    userAgent:
+      entry.userAgent,
+    requestId:
+      entry.requestId,
     text:
       entry.describe(),
     createdAt:
       entry.createdAt,
   };
+}
+
+const REDACTED_KEYS = /password|token|secret|authorization|cookie|api[-_]?key/i;
+
+function sanitizeMetadata(value: unknown, depth: number = 0): unknown {
+  if (depth > 5) return "[truncated]";
+  if (Array.isArray(value)) {
+    return value.slice(0, 100).map((entry) => sanitizeMetadata(entry, depth + 1));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+        key,
+        REDACTED_KEYS.test(key) ? "[redacted]" : sanitizeMetadata(entry, depth + 1),
+      ]),
+    );
+  }
+  if (typeof value === "string" && value.length > 2_000) {
+    return `${value.slice(0, 2_000)}…`;
+  }
+  return value;
 }
 
 /**
@@ -82,14 +134,24 @@ export async function logActivity(
       actorEmail:
         input.actorEmail ??
         null,
+      actorRole:
+        input.actorRole,
       action:
         input.action,
+      category:
+        input.category,
+      status:
+        input.status,
       targetType:
         input.targetType,
       targetId:
         input.targetId,
       metadata:
-        input.metadata,
+        sanitizeMetadata(input.metadata) as Record<string, unknown> | undefined,
+      reason: input.reason,
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+      requestId: input.requestId,
     });
   } catch (error) {
     logger.error("Failed to write audit log", {
@@ -99,14 +161,30 @@ export async function logActivity(
   }
 }
 
+export interface ActivityQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  action?: AuditAction;
+  category?: AuditCategory;
+  status?: AuditStatus;
+  targetType?: string;
+  actorId?: string;
+  from?: Date;
+  to?: Date;
+}
+
 export async function listActivity(
-  page: number = 1,
-  limit: number = 20,
+  queryOrPage: ActivityQuery | number = {},
+  legacyLimit: number = 20,
 ): Promise<ActivityPage> {
+  const query = typeof queryOrPage === "number"
+    ? { page: queryOrPage, limit: legacyLimit }
+    : queryOrPage;
   const safePage =
     Math.max(
       1,
-      Math.floor(page),
+      Math.floor(query.page ?? 1),
     );
 
   const safeLimit =
@@ -114,14 +192,13 @@ export async function listActivity(
       100,
       Math.max(
         1,
-        Math.floor(limit),
+        Math.floor(query.limit ?? 20),
       ),
     );
 
   const result =
     await auditLogRepo.findPage(
-      safePage,
-      safeLimit,
+      { ...query, page: safePage, limit: safeLimit },
     );
 
   return {
@@ -137,6 +214,31 @@ export async function listActivity(
         safeLimit,
       ),
   };
+}
+
+function csvCell(value: unknown): string {
+  const text = value === undefined || value === null
+    ? ""
+    : typeof value === "string"
+      ? value
+      : JSON.stringify(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+export async function exportActivityCsv(
+  query: Omit<ActivityQuery, "page" | "limit">,
+): Promise<string> {
+  const entries = await auditLogRepo.findForExport(query);
+  const header = [
+    "timestamp", "actorEmail", "actorRole", "action", "category", "status",
+    "targetType", "targetId", "reason", "ipAddress", "requestId", "metadata",
+  ];
+  const rows = entries.map((entry) => [
+    entry.createdAt.toISOString(), entry.actorEmail, entry.actorRole, entry.action,
+    entry.category, entry.status, entry.targetType, entry.targetId, entry.reason,
+    entry.ipAddress, entry.requestId, entry.metadata,
+  ].map(csvCell).join(","));
+  return [header.map(csvCell).join(","), ...rows].join("\n");
 }
 
 export async function getRecentActivity(

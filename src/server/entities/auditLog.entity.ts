@@ -1,6 +1,6 @@
 // server/entities/auditLog.entity.ts
 // Immutable record of something that happened in the system — powers the
-// admin "Recent activity" feed. Write-once, read-only: no update/delete.
+// admin activity feed. Entries are write-once and only removed by retention.
 
 export const AUDIT_ACTIONS = [
   "auth.login",
@@ -24,19 +24,78 @@ export const AUDIT_ACTIONS = [
   "admin.user_banned",
   "admin.user_unbanned",
   "admin.user_deleted",
+  "admin.sessions_revoked",
+  "admin.content_retried",
+  "admin.content_cancelled",
+  "admin.content_quarantined",
+  "admin.content_restored",
+  "admin.ai_policy_changed",
+  "admin.settings_changed",
+  "admin.retention_executed",
+  "admin.provider_tested",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const AUDIT_CATEGORIES = [
+  "authentication",
+  "user",
+  "content",
+  "ai",
+  "security",
+  "settings",
+  "system",
+] as const;
+
+export type AuditCategory = (typeof AUDIT_CATEGORIES)[number];
+export type AuditStatus = "success" | "failure";
+export type AuditActorRole = "user" | "admin" | "system";
+
+export function categoryForAuditAction(action: AuditAction): AuditCategory {
+  if (action.startsWith("auth.")) return "authentication";
+  if (action === "rate_limit.hit") return "security";
+  if (action.startsWith("admin.settings") || action.startsWith("admin.retention")) {
+    return "settings";
+  }
+  if (action.startsWith("admin.ai") || action.startsWith("admin.provider")) {
+    return "ai";
+  }
+  if (
+    action.startsWith("note.") ||
+    action.startsWith("quiz.") ||
+    action.startsWith("flashcards.") ||
+    action.startsWith("summary.") ||
+    action.startsWith("admin.content")
+  ) {
+    return "content";
+  }
+  if (
+    action.startsWith("user.") ||
+    action.startsWith("admin.user") ||
+    action === "admin.role_changed" ||
+    action === "admin.sessions_revoked"
+  ) {
+    return "user";
+  }
+  return "system";
+}
 
 export interface AuditLogProps {
   id: string;
   actorId: string | null;     // null for unauthenticated/system events
   actorEmail: string | null;  // denormalized snapshot — stays readable even
                                // if the actor's account is later deleted
+  actorRole?: AuditActorRole;
   action: AuditAction;
+  category?: AuditCategory;
+  status?: AuditStatus;
   targetType?: string;        // e.g. "note", "user", "quiz"
   targetId?: string;
   metadata?: Record<string, unknown>;
+  reason?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  requestId?: string;
   createdAt: Date;
 }
 
@@ -45,10 +104,17 @@ export class AuditLogEntity {
     public readonly id: string,
     public readonly actorId: string | null,
     public readonly actorEmail: string | null,
+    public readonly actorRole: AuditActorRole,
     public readonly action: AuditAction,
+    public readonly category: AuditCategory,
+    public readonly status: AuditStatus,
     public readonly targetType: string | undefined,
     public readonly targetId: string | undefined,
     public readonly metadata: Record<string, unknown> | undefined,
+    public readonly reason: string | undefined,
+    public readonly ipAddress: string | undefined,
+    public readonly userAgent: string | undefined,
+    public readonly requestId: string | undefined,
     public readonly createdAt: Date
   ) {}
 
@@ -57,10 +123,17 @@ export class AuditLogEntity {
       props.id,
       props.actorId,
       props.actorEmail,
+      props.actorRole ?? (props.actorId ? "user" : "system"),
       props.action,
+      props.category ?? categoryForAuditAction(props.action),
+      props.status ?? "success",
       props.targetType,
       props.targetId,
       props.metadata,
+      props.reason,
+      props.ipAddress,
+      props.userAgent,
+      props.requestId,
       props.createdAt
     );
   }
@@ -111,6 +184,15 @@ export class AuditLogEntity {
         const target = this.metadata?.targetEmail ?? this.targetId ?? "a user";
         return `${who} deleted ${target}`;
       }
+      case "admin.sessions_revoked": return `${who} revoked a user's sessions`;
+      case "admin.content_retried": return `${who} retried content processing`;
+      case "admin.content_cancelled": return `${who} cancelled content processing`;
+      case "admin.content_quarantined": return `${who} quarantined uploaded content`;
+      case "admin.content_restored": return `${who} restored quarantined content`;
+      case "admin.ai_policy_changed": return `${who} changed a user's AI policy`;
+      case "admin.settings_changed": return `${who} changed operational settings`;
+      case "admin.retention_executed": return `${who} executed the retention policy`;
+      case "admin.provider_tested": return `${who} tested the AI provider`;
       default: return `${who} performed ${this.action}`;
     }
   }

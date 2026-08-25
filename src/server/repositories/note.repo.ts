@@ -1,6 +1,9 @@
 import { Note } from "../models/Note";
 import { NoteEntity } from "../entities/note.entity";
-import type { SourceDocumentPage } from "../entities/note.entity";
+import type {
+  NoteAdminStatus,
+  SourceDocumentPage,
+} from "../entities/note.entity";
 import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from "../utils/constants";
 import { logger } from "../utils/logger";
 import { NotFoundError } from "../utils/errors";
@@ -29,6 +32,7 @@ export interface AdminNoteQueryOptions {
   fileType?: "pdf" | "docx";
   sortBy?: "createdAt" | "updatedAt" | "title";
   sortOrder?: "asc" | "desc";
+  adminStatus?: NoteAdminStatus;
 }
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────
@@ -43,6 +47,10 @@ function toEntity(doc: {
   sourcePageCount?: number;
   sourcePages?: SourceDocumentPage[];
   summary?: string | null;
+  adminStatus?: NoteAdminStatus;
+  quarantineReason?: string | null;
+  quarantinedAt?: Date | null;
+  quarantinedBy?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): NoteEntity {
@@ -57,6 +65,10 @@ function toEntity(doc: {
     sourcePageCount: doc.sourcePageCount,
     sourcePages: doc.sourcePages,
     summary: doc.summary ?? null,
+    adminStatus: doc.adminStatus ?? "active",
+    quarantineReason: doc.quarantineReason ?? null,
+    quarantinedAt: doc.quarantinedAt ?? null,
+    quarantinedBy: doc.quarantinedBy ?? null,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   });
@@ -78,7 +90,13 @@ export async function findByIdAndUserId(
   id: string,
   userId: string,
 ): Promise<NoteEntity | null> {
-  const doc = await Note.findOne({ _id: id, userId }).lean().exec();
+  const doc = await Note.findOne({
+    _id: id,
+    userId,
+    adminStatus: { $ne: "quarantined" },
+  })
+    .lean()
+    .exec();
   return doc ? toEntity(doc) : null;
 }
 
@@ -97,7 +115,10 @@ export async function findManyByUser(
   const sortOrder = options.sortOrder === "asc" ? 1 : -1;
   const sortBy = options.sortBy ?? "createdAt";
 
-  const filter: Record<string, unknown> = { userId };
+  const filter: Record<string, unknown> = {
+    userId,
+    adminStatus: { $ne: "quarantined" },
+  };
 
   if (options.fileType) filter.fileType = options.fileType;
 
@@ -136,6 +157,7 @@ export async function findManyAdmin(
   const filter: Record<string, unknown> = {};
 
   if (options.fileType) filter.fileType = options.fileType;
+  if (options.adminStatus) filter.adminStatus = options.adminStatus;
 
   if (options.search?.trim()) {
     const regex = new RegExp(options.search.trim(), "i");
@@ -186,6 +208,10 @@ export async function create(entity: NoteEntity): Promise<NoteEntity> {
     sourcePageCount: entity.sourcePageCount,
     sourcePages: entity.sourcePages,
     summary: data.summary,
+    adminStatus: data.adminStatus,
+    quarantineReason: data.quarantineReason,
+    quarantinedAt: data.quarantinedAt,
+    quarantinedBy: data.quarantinedBy,
   });
 
   logger.info("Note created", {
@@ -277,6 +303,53 @@ export async function updateContent(
 
 export async function count(): Promise<number> {
   return Note.countDocuments();
+}
+
+export async function findIdsBefore(
+  before: Date,
+  limit: number = 5_000,
+): Promise<string[]> {
+  const docs = await Note.find(
+    { createdAt: { $lt: before } },
+    { _id: 1 },
+  )
+    .sort({ createdAt: 1 })
+    .limit(Math.min(10_000, Math.max(1, Math.floor(limit))))
+    .lean()
+    .exec();
+
+  return docs.map((doc: { _id: unknown }) => String(doc._id));
+}
+
+export async function countBefore(before: Date): Promise<number> {
+  return Note.countDocuments({ createdAt: { $lt: before } }).exec();
+}
+
+export async function setAdminStatus(
+  id: string,
+  status: NoteAdminStatus,
+  adminId: string,
+  reason?: string,
+): Promise<NoteEntity> {
+  const quarantined = status === "quarantined";
+  const doc = await Note.findByIdAndUpdate(
+    id,
+    {
+      $set: {
+        adminStatus: status,
+        quarantineReason: quarantined ? reason?.trim() ?? null : null,
+        quarantinedAt: quarantined ? new Date() : null,
+        quarantinedBy: quarantined ? adminId : null,
+        updatedAt: new Date(),
+      },
+    },
+    { returnDocument: "after", runValidators: true },
+  )
+    .lean()
+    .exec();
+
+  if (!doc) throw new NotFoundError("Note");
+  return toEntity(doc);
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
