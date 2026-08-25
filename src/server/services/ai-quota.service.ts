@@ -3,6 +3,7 @@ import {
 } from "@/server/config/ai_config";
 
 import * as aiUsageRepo from "@/server/repositories/ai-usage.repo";
+import * as userAIPolicyRepo from "@/server/repositories/user-ai-policy.repo";
 
 export type AIUserQuotaKind =
   | "requests"
@@ -10,6 +11,8 @@ export type AIUserQuotaKind =
 
 export interface UserAIQuotaSnapshot {
   enabled: boolean;
+  providerAccessEnabled: boolean;
+  source: "system_default" | "user_override";
 
   requestLimit: number | null;
   tokenLimit: number | null;
@@ -70,6 +73,17 @@ export class AIUserQuotaError extends Error {
   }
 }
 
+export class AIUserAccessDisabledError extends Error {
+  readonly code = "AI_USER_ACCESS_DISABLED";
+
+  constructor() {
+    super(
+      "AI provider access has been disabled for this account. Symbolic study features remain available.",
+    );
+    this.name = "AIUserAccessDisabledError";
+  }
+}
+
 function beginningOfUtcDay(
   date: Date,
 ): Date {
@@ -125,12 +139,18 @@ export async function getUserAIQuotaSnapshot(
   now = new Date(),
 ): Promise<UserAIQuotaSnapshot> {
   const requestLimit =
-    AI_CONFIG
-      .userDailyRequestLimit;
+    AI_CONFIG.userDailyRequestLimit;
 
-  const tokenLimit =
-    AI_CONFIG
-      .userDailyTokenLimit;
+  const tokenLimit = AI_CONFIG.userDailyTokenLimit;
+
+  const policy = await userAIPolicyRepo.findByUserId(userId);
+  const effectiveRequestLimit = policy
+    ? policy.toPublic().dailyRequestLimit ?? requestLimit
+    : requestLimit;
+  const effectiveTokenLimit = policy
+    ? policy.toPublic().dailyTokenLimit ?? tokenLimit
+    : tokenLimit;
+  const providerAccessEnabled = policy?.toPublic().enabled ?? true;
 
   const since =
     beginningOfUtcDay(now);
@@ -143,28 +163,31 @@ export async function getUserAIQuotaSnapshot(
       );
 
   const requestLimitReached =
-    requestLimit > 0 &&
+    effectiveRequestLimit > 0 &&
     totals.requests >=
-      requestLimit;
+      effectiveRequestLimit;
 
   const tokenLimitReached =
-    tokenLimit > 0 &&
+    effectiveTokenLimit > 0 &&
     totals.tokens >=
-      tokenLimit;
+      effectiveTokenLimit;
 
   return {
     enabled:
-      requestLimit > 0 ||
-      tokenLimit > 0,
+      effectiveRequestLimit > 0 ||
+      effectiveTokenLimit > 0,
+
+    providerAccessEnabled,
+    source: policy ? "user_override" : "system_default",
 
     requestLimit:
-      requestLimit > 0
-        ? requestLimit
+      effectiveRequestLimit > 0
+        ? effectiveRequestLimit
         : null,
 
     tokenLimit:
-      tokenLimit > 0
-        ? tokenLimit
+      effectiveTokenLimit > 0
+        ? effectiveTokenLimit
         : null,
 
     requestsUsed:
@@ -175,13 +198,13 @@ export async function getUserAIQuotaSnapshot(
 
     requestsRemaining:
       remaining(
-        requestLimit,
+        effectiveRequestLimit,
         totals.requests,
       ),
 
     tokensRemaining:
       remaining(
-        tokenLimit,
+        effectiveTokenLimit,
         totals.tokens,
       ),
 
@@ -190,6 +213,7 @@ export async function getUserAIQuotaSnapshot(
     tokenLimitReached,
 
     allowed:
+      providerAccessEnabled &&
       !requestLimitReached &&
       !tokenLimitReached,
 
@@ -207,16 +231,18 @@ export async function getUserAIQuotaSnapshot(
 export async function assertUserAIQuota(
   userId: string,
 ): Promise<void> {
-  if (
-    !isUserAIQuotaEnabled()
-  ) {
-    return;
-  }
-
   const snapshot =
     await getUserAIQuotaSnapshot(
       userId,
     );
+
+  if (!snapshot.providerAccessEnabled) {
+    throw new AIUserAccessDisabledError();
+  }
+
+  if (!snapshot.enabled && !isUserAIQuotaEnabled()) {
+    return;
+  }
 
   if (
     snapshot.requestLimitReached &&

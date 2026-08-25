@@ -9,6 +9,7 @@ import { parsePDF, parseDOCX } from "@/server/services/pdf.service";
 import { logger } from "@/server/utils/logger";
 import type { FileType } from "@/server/entities/note.entity";
 import path from "path";
+import type { AdminFileType } from "@/server/entities/operational-settings.entity";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,16 @@ export interface PreparedUpload {
   fileType: FileType;
   fileSize: number;
 }
+
+export interface UploadValidationPolicy {
+  maxUploadSizeBytes: number;
+  allowedFileTypes: AdminFileType[];
+}
+
+const DEFAULT_UPLOAD_POLICY: UploadValidationPolicy = {
+  maxUploadSizeBytes: MAX_FILE_SIZE_BYTES,
+  allowedFileTypes: ["pdf", "docx"],
+};
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -121,10 +132,18 @@ function validateFileSignature(
   }
 }
 
-function validateFile(file: UploadedFile): void {
-  if (file.size > MAX_FILE_SIZE_BYTES) {
+function validateFile(
+  file: UploadedFile,
+  policy: UploadValidationPolicy = DEFAULT_UPLOAD_POLICY,
+): void {
+  const maxUploadSizeBytes = Math.min(
+    MAX_FILE_SIZE_BYTES,
+    Math.max(1_024, policy.maxUploadSizeBytes),
+  );
+
+  if (file.size > maxUploadSizeBytes) {
     throw new PayloadTooLargeError(
-      `File size ${(file.size / 1024 / 1024).toFixed(1)}MB exceeds the ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB limit`,
+      `File size ${(file.size / 1024 / 1024).toFixed(1)}MB exceeds the ${(maxUploadSizeBytes / 1024 / 1024).toFixed(1)}MB limit`,
     );
   }
 
@@ -139,6 +158,7 @@ function validateFile(file: UploadedFile): void {
   }
 
   const ext = path.extname(file.originalName).toLowerCase();
+  const fileType = ext === ".pdf" ? "pdf" : ext === ".docx" ? "docx" : null;
 
   if (
     !ALLOWED_EXTENSIONS.includes(
@@ -147,6 +167,12 @@ function validateFile(file: UploadedFile): void {
   ) {
     throw new FileError(
       `File extension "${ext}" is not supported. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`,
+    );
+  }
+
+  if (!fileType || !policy.allowedFileTypes.includes(fileType)) {
+    throw new FileError(
+      `File type "${fileType ?? ext}" is disabled. Allowed: ${policy.allowedFileTypes.join(", ").toUpperCase()}`,
     );
   }
 
@@ -161,8 +187,11 @@ function sanitizeFileName(name: string): string {
 }
 
 /** Validate an upload without doing CPU-intensive document extraction. */
-export function prepareUpload(file: UploadedFile): PreparedUpload {
-  validateFile(file);
+export function prepareUpload(
+  file: UploadedFile,
+  policy: UploadValidationPolicy = DEFAULT_UPLOAD_POLICY,
+): PreparedUpload {
+  validateFile(file, policy);
 
   const extension = path.extname(file.originalName).toLowerCase();
 
@@ -178,8 +207,9 @@ export function prepareUpload(file: UploadedFile): PreparedUpload {
 
 export async function processUpload(
   file: UploadedFile,
+  policy: UploadValidationPolicy = DEFAULT_UPLOAD_POLICY,
 ): Promise<ProcessedFile> {
-  validateFile(file);
+  validateFile(file, policy);
 
   const fileName = sanitizeFileName(file.originalName);
   const ext = path.extname(file.originalName).toLowerCase();
@@ -222,13 +252,20 @@ export async function processUpload(
 // Extracts the uploaded file from a Next.js Request.
 // Next.js App Router doesn't have built-in multipart parsing — uses FormData API.
 
-function uploadSizeMessage(bytes: number): string {
-  return `Upload exceeds the ${(MAX_FILE_SIZE_BYTES / 1024 / 1024).toFixed(
+function uploadSizeMessage(bytes: number, maxBytes: number): string {
+  return `Upload exceeds the ${(maxBytes / 1024 / 1024).toFixed(
     0,
   )}MB file limit (${(bytes / 1024 / 1024).toFixed(1)}MB received)`;
 }
 
-async function readRequestBodyWithLimit(req: Request): Promise<Buffer> {
+async function readRequestBodyWithLimit(
+  req: Request,
+  maxFileBytes: number,
+): Promise<Buffer> {
+  const requestLimit = Math.min(
+    MAX_UPLOAD_REQUEST_SIZE_BYTES,
+    maxFileBytes + 1 * 1024 * 1024,
+  );
   const declaredLength = req.headers.get("content-length");
 
   if (declaredLength) {
@@ -236,9 +273,11 @@ async function readRequestBodyWithLimit(req: Request): Promise<Buffer> {
 
     if (
       Number.isFinite(parsedLength) &&
-      parsedLength > MAX_UPLOAD_REQUEST_SIZE_BYTES
+      parsedLength > requestLimit
     ) {
-      throw new PayloadTooLargeError(uploadSizeMessage(parsedLength));
+      throw new PayloadTooLargeError(
+        uploadSizeMessage(parsedLength, maxFileBytes),
+      );
     }
   }
 
@@ -259,9 +298,11 @@ async function readRequestBodyWithLimit(req: Request): Promise<Buffer> {
 
       totalBytes += value.byteLength;
 
-      if (totalBytes > MAX_UPLOAD_REQUEST_SIZE_BYTES) {
+      if (totalBytes > requestLimit) {
         await reader.cancel();
-        throw new PayloadTooLargeError(uploadSizeMessage(totalBytes));
+        throw new PayloadTooLargeError(
+          uploadSizeMessage(totalBytes, maxFileBytes),
+        );
       }
 
       chunks.push(Buffer.from(value));
@@ -275,6 +316,7 @@ async function readRequestBodyWithLimit(req: Request): Promise<Buffer> {
 
 export async function extractFileFromRequest(
   req: Request,
+  policy: UploadValidationPolicy = DEFAULT_UPLOAD_POLICY,
 ): Promise<UploadedFile> {
   const contentType = req.headers.get("content-type") ?? "";
 
@@ -282,7 +324,11 @@ export async function extractFileFromRequest(
     throw new FileError("Request must be multipart/form-data");
   }
 
-  const boundedBody = await readRequestBodyWithLimit(req);
+  const maxFileBytes = Math.min(
+    MAX_FILE_SIZE_BYTES,
+    Math.max(1_024, policy.maxUploadSizeBytes),
+  );
+  const boundedBody = await readRequestBodyWithLimit(req, maxFileBytes);
 
   let formData: FormData;
 
@@ -310,16 +356,19 @@ export async function extractFileFromRequest(
     throw new FileError("Uploaded file is empty");
   }
 
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    throw new PayloadTooLargeError(uploadSizeMessage(file.size));
+  if (file.size > maxFileBytes) {
+    throw new PayloadTooLargeError(uploadSizeMessage(file.size, maxFileBytes));
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  return {
+  const uploadedFile = {
     buffer,
     originalName: file.name,
     mimeType: file.type,
     size: file.size,
   };
+
+  validateFile(uploadedFile, policy);
+  return uploadedFile;
 }

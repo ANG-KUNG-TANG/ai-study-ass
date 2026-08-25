@@ -12,6 +12,7 @@ export const NOTE_RULES = {
 } as const;
 
 export type NoteFileType = "pdf" | "docx";
+export type NoteAdminStatus = "active" | "quarantined";
 /** Alias — keeps upload.service.ts import compatible. */
 export type FileType = NoteFileType;
 
@@ -27,6 +28,10 @@ export interface NotePublic {
   content: string;
   /** AI-generated, paraphrased study notes. */
   summary: string | null;
+  adminStatus: NoteAdminStatus;
+  quarantineReason: string | null;
+  quarantinedAt: Date | null;
+  quarantinedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -124,6 +129,10 @@ export class NoteEntity {
   #sourcePageCount?: number;
   #sourcePages?: SourceDocumentPage[];
   #summary: string | null;
+  #adminStatus: NoteAdminStatus;
+  #quarantineReason: string | null;
+  #quarantinedAt: Date | null;
+  #quarantinedBy: string | null;
   #createdAt: Date;
   #updatedAt: Date;
 
@@ -138,6 +147,10 @@ export class NoteEntity {
     sourcePageCount?: number;
     sourcePages?: SourceDocumentPage[];
     summary: string | null;
+    adminStatus: NoteAdminStatus;
+    quarantineReason: string | null;
+    quarantinedAt: Date | null;
+    quarantinedBy: string | null;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -151,6 +164,10 @@ export class NoteEntity {
     this.#sourcePageCount = data.sourcePageCount;
     this.#sourcePages = data.sourcePages?.map((page) => ({ ...page }));
     this.#summary = data.summary;
+    this.#adminStatus = data.adminStatus;
+    this.#quarantineReason = data.quarantineReason;
+    this.#quarantinedAt = data.quarantinedAt;
+    this.#quarantinedBy = data.quarantinedBy;
     this.#createdAt = data.createdAt;
     this.#updatedAt = data.updatedAt;
   }
@@ -166,6 +183,10 @@ export class NoteEntity {
     return new NoteEntity({
       ...input,
       summary: null,
+      adminStatus: "active",
+      quarantineReason: null,
+      quarantinedAt: null,
+      quarantinedBy: null,
       createdAt: now,
       updatedAt: now,
     });
@@ -182,6 +203,10 @@ export class NoteEntity {
     sourcePageCount?: number;
     sourcePages?: SourceDocumentPage[];
     summary?: string | null;
+    adminStatus?: NoteAdminStatus;
+    quarantineReason?: string | null;
+    quarantinedAt?: Date | null;
+    quarantinedBy?: string | null;
     createdAt: Date;
     updatedAt: Date;
   }): NoteEntity {
@@ -196,6 +221,10 @@ export class NoteEntity {
       sourcePageCount: data.sourcePageCount,
       sourcePages: data.sourcePages,
       summary: data.summary ?? null,
+      adminStatus: data.adminStatus ?? "active",
+      quarantineReason: data.quarantineReason ?? null,
+      quarantinedAt: data.quarantinedAt ?? null,
+      quarantinedBy: data.quarantinedBy ?? null,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });
@@ -242,6 +271,22 @@ export class NoteEntity {
     return this.#summary;
   }
 
+  get adminStatus(): NoteAdminStatus {
+    return this.#adminStatus;
+  }
+
+  get quarantineReason(): string | null {
+    return this.#quarantineReason;
+  }
+
+  get quarantinedAt(): Date | null {
+    return this.#quarantinedAt;
+  }
+
+  get quarantinedBy(): string | null {
+    return this.#quarantinedBy;
+  }
+
   get createdAt(): Date {
     return this.#createdAt;
   }
@@ -271,6 +316,10 @@ export class NoteEntity {
       fileSize: this.#fileSize,
       content: this.#content,
       summary: this.#summary,
+      adminStatus: this.#adminStatus,
+      quarantineReason: this.#quarantineReason,
+      quarantinedAt: this.#quarantinedAt,
+      quarantinedBy: this.#quarantinedBy,
       createdAt: this.#createdAt,
       updatedAt: this.#updatedAt,
     };

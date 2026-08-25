@@ -571,6 +571,11 @@ export default function AdminOverviewPage() {
       [dashboard.ai],
     );
 
+  const aiSpendThisMonth =
+    dashboard.ai?.monthlySpend ??
+    dashboard.overview?.aiSpendThisMonth ??
+    0;
+
   const activeProvider =
     dashboard.ai?.providers.find(
       (provider) =>
@@ -943,10 +948,10 @@ export default function AdminOverviewPage() {
           }
           helper={
             activeProvider
-              ? t("admin.overview.providerActive", {
+              ? `${t("admin.overview.providerActive", {
                   provider: activeProvider.provider,
                   failures: aiFailuresToday,
-                })
+                })} · Monthly cost $${aiSpendThisMonth.toFixed(2)}`
               : t("admin.overview.noProviderTelemetry")
           }
           icon={Bot}

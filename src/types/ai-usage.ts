@@ -3,6 +3,7 @@ export interface StudentAIUsageSummary {
   successesToday: number;
   failuresToday: number;
   tokensToday: number;
+  estimatedCostToday: number;
   averageLatencyMs: number;
   successRate: number;
   quotaExceededToday: number;
@@ -10,12 +11,15 @@ export interface StudentAIUsageSummary {
 
 export interface StudentAIQuota {
   enabled: boolean;
+  providerAccessEnabled: boolean;
+  source: "system_default" | "user_override";
 
   requestLimit: number | null;
   tokenLimit: number | null;
 
   requestsUsed: number;
   tokensUsed: number;
+  estimatedCostUsd: number;
 
   requestsRemaining: number | null;
   tokensRemaining: number | null;
@@ -60,6 +64,7 @@ export interface StudentAIUsageActivity {
   usageLabel: string;
   success: boolean;
   tokensUsed: number;
+  estimatedCostUsd: number;
   latencyMs: number;
   statusCode: number | null;
   quotaExceeded: boolean;

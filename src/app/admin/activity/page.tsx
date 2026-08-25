@@ -3,6 +3,7 @@
 import {
   ChevronLeft,
   ChevronRight,
+  Download,
   History,
   RefreshCw,
 } from "lucide-react";
@@ -14,7 +15,10 @@ import {
 
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { Topbar } from "@/components/layout/Topbar";
-import { getAdminActivity } from "@/services/admin.service";
+import {
+  exportAdminActivity,
+  getAdminActivity,
+} from "@/services/admin.service";
 import type { AdminActivityItem } from "@/types/admin";
 import type { PaginationMeta } from "@/types/pagination";
 import { useLanguage } from "@/context/LanguageContext";
@@ -102,6 +106,11 @@ export default function AdminActivityPage() {
     useState(true);
   const [error, setError] =
     useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [status, setStatus] =
+    useState<"" | "success" | "failure">("");
+  const [from, setFrom] = useState("");
 
   const load = useCallback(async (requestedPage: number) => {
     setIsLoading(true);
@@ -111,6 +120,12 @@ export default function AdminActivityPage() {
       const result = await getAdminActivity({
         page: requestedPage,
         limit: PAGE_SIZE,
+        search: search.trim() || undefined,
+        category: category || undefined,
+        status: status || undefined,
+        from: from
+          ? new Date(`${from}T00:00:00`).toISOString()
+          : undefined,
       });
 
       setActivity(result);
@@ -123,7 +138,28 @@ export default function AdminActivityPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [category, from, search, status, t]);
+
+  const filters = {
+    search: search.trim() || undefined,
+    category: category || undefined,
+    status: status || undefined,
+    from: from
+      ? new Date(`${from}T00:00:00`).toISOString()
+      : undefined,
+  };
+
+  async function handleExport(): Promise<void> {
+    try {
+      await exportAdminActivity(filters);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Audit export failed.",
+      );
+    }
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -154,18 +190,79 @@ export default function AdminActivityPage() {
           )}
         </div>
 
-        <button
-          type="button"
-          disabled={isLoading}
-          onClick={() => void load(page)}
-          className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] text-ink-soft hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-50"
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => void handleExport()}
+            className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] text-ink-soft hover:bg-line-soft disabled:opacity-50"
+          >
+            <Download size={14} />
+            Export CSV
+          </button>
+
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => void load(page)}
+            className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] text-ink-soft hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw
+              size={14}
+              className={isLoading ? "animate-spin" : ""}
+            />
+            {t("common.refresh")}
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-4 grid gap-2 rounded-xl border border-line bg-paper-raised p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <input
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Actor, target, reason, or request ID"
+          className="rounded-lg border border-line bg-transparent px-3 py-2 text-[12px]"
+        />
+
+        <select
+          value={category}
+          onChange={(event) => {
+            setCategory(event.target.value);
+            setPage(1);
+          }}
+          className="rounded-lg border border-line bg-transparent px-3 py-2 text-[12px]"
         >
-          <RefreshCw
-            size={14}
-            className={isLoading ? "animate-spin" : ""}
-          />
-          {t("common.refresh")}
-        </button>
+          <option value="">All categories</option>
+          {["authentication", "user", "content", "ai", "security", "settings", "system"].map(
+            (value) => <option key={value} value={value}>{value}</option>,
+          )}
+        </select>
+
+        <select
+          value={status}
+          onChange={(event) => {
+            setStatus(event.target.value as typeof status);
+            setPage(1);
+          }}
+          className="rounded-lg border border-line bg-transparent px-3 py-2 text-[12px]"
+        >
+          <option value="">All statuses</option>
+          <option value="success">Success</option>
+          <option value="failure">Failure</option>
+        </select>
+
+        <input
+          type="date"
+          value={from}
+          onChange={(event) => {
+            setFrom(event.target.value);
+            setPage(1);
+          }}
+          className="rounded-lg border border-line bg-transparent px-3 py-2 text-[12px]"
+        />
       </div>
 
       {error && (
@@ -186,13 +283,14 @@ export default function AdminActivityPage() {
           </div>
         ) : activity?.data.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-[12px]">
+            <table className="w-full min-w-[1100px] text-left text-[12px]">
               <thead>
                 <tr className="border-b border-line text-[10px] uppercase tracking-wide text-ink-faint">
                   <th className="px-5 py-3 font-medium">{t("admin.activity.event")}</th>
                   <th className="px-4 py-3 font-medium">{t("admin.activity.actor")}</th>
                   <th className="px-4 py-3 font-medium">{t("admin.activity.target")}</th>
                   <th className="px-4 py-3 font-medium">{t("admin.activity.action")}</th>
+                  <th className="px-4 py-3 font-medium">Context</th>
                   <th className="px-5 py-3 text-right font-medium">{t("admin.activity.time")}</th>
                 </tr>
               </thead>
@@ -229,6 +327,16 @@ export default function AdminActivityPage() {
                       <span className="rounded-full bg-line-soft px-2.5 py-1 font-mono text-[9.5px] text-ink-soft">
                         {formatAction(item.action)}
                       </span>
+                    </td>
+
+                    <td className="max-w-[260px] px-4 py-3.5 text-[10px] text-ink-faint">
+                      <p>{item.category} · {item.status}</p>
+                      {item.reason && (
+                        <p className="mt-1 truncate">Reason: {item.reason}</p>
+                      )}
+                      {item.ipAddress && (
+                        <p className="mt-1 font-mono">IP: {item.ipAddress}</p>
+                      )}
                     </td>
 
                     <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-[10px] text-ink-faint">

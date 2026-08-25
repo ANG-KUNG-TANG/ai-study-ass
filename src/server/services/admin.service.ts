@@ -20,7 +20,8 @@ import * as intelligenceService from "@/server/services/intelligence.service";
 import * as generationService from "@/server/services/study-material-generation.service";
 import * as intelligenceRepo from "@/server/repositories/intelligence.repo";
 import * as flashcardRepo from "@/server/repositories/flashcard.repo";
-import type { NoteQueryOptions } from "@/server/repositories/note.repo";
+import type { AdminNoteQueryOptions } from "@/server/repositories/note.repo";
+import * as generationRepo from "@/server/repositories/study-generation.repo";
 import mongoose from "mongoose";
 import {
   getInfrastructureHealth,
@@ -35,6 +36,26 @@ import {
 import { AI_CONFIG, type AIProvider } from "@/server/config/ai_config";
 import { getUsageSince } from "@/server/services/ai-usage.service";
 import { generate } from "@/server/services/ai.service";
+import { getNoteAIUsage } from "@/server/services/ai-usage.service";
+import * as userAIPolicyRepo from "@/server/repositories/user-ai-policy.repo";
+import {
+  UserAIPolicyEntity,
+  type UserAIPolicyUpdate,
+} from "@/server/entities/user-ai-policy.entity";
+import {
+  getUserAIQuotaSnapshot,
+} from "@/server/services/ai-quota.service";
+import {
+  enqueueStudyGeneration,
+  cancelStudyGeneration,
+  getStudyGenerationJob,
+} from "@/server/queues/study-generation.queue";
+import {
+  getOperationalSettings,
+  updateOperationalSettings,
+} from "@/server/services/operational-settings.service";
+import type { OperationalSettingsUpdate } from "@/server/entities/operational-settings.entity";
+import * as auditLogRepo from "@/server/repositories/auditLog.repo";
 // ─── Purpose ──────────────────────────────────────────────────────────────────
 // Admin-only operations. Every function here must be called from routes
 // protected by withAuth + withRole("admin") middleware.
@@ -49,6 +70,7 @@ export interface AdminNoteView {
   fileSize: number;
   ownerEmail: string;
   status: "Indexed" | "Processing" | "Unknown";
+  adminStatus: "active" | "quarantined";
   createdAt: Date;
 }
 
@@ -76,8 +98,48 @@ export async function getUserById(
   return user.toPublic();
 }
 
+export async function getUserAIAdminPolicy(userId: string): Promise<{
+  stored: ReturnType<UserAIPolicyEntity["toPublic"]> | null;
+  effective: Awaited<ReturnType<typeof getUserAIQuotaSnapshot>>;
+}> {
+  const user = await userRepo.findById(userId);
+  if (!user) throw new NotFoundError("User");
+  const [stored, effective] = await Promise.all([
+    userAIPolicyRepo.findByUserId(userId),
+    getUserAIQuotaSnapshot(userId),
+  ]);
+  return { stored: stored?.toPublic() ?? null, effective };
+}
+
+export async function updateUserAIAdminPolicy(
+  adminId: string,
+  userId: string,
+  update: UserAIPolicyUpdate,
+): Promise<ReturnType<UserAIPolicyEntity["toPublic"]>> {
+  const user = await userRepo.findById(userId);
+  if (!user) throw new NotFoundError("User");
+  const saved = await userAIPolicyRepo.save(
+    UserAIPolicyEntity.create({ userId, updatedBy: adminId, ...update }),
+  );
+  logger.info("Admin updated user AI policy", { adminId, userId });
+  return saved.toPublic();
+}
+
+export async function revokeUserSessions(
+  adminId: string,
+  userId: string,
+): Promise<void> {
+  if (adminId === userId) {
+    throw new ForbiddenError("Use account security settings to revoke your own sessions");
+  }
+  const user = await userRepo.findById(userId);
+  if (!user) throw new NotFoundError("User");
+  await revokeAllUserTokens(userId);
+  logger.info("Admin revoked user sessions", { adminId, userId });
+}
+
 export async function listContent(
-  options: NoteQueryOptions,
+  options: AdminNoteQueryOptions,
 ): Promise<{ data: AdminNoteView[]; meta: PaginationMeta }> {
   const result = await noteRepo.findManyAdmin(options);
 
@@ -102,6 +164,7 @@ export async function listContent(
       fileSize: note.fileSize,
       ownerEmail: ownerMap.get(note.userId) ?? "Unknown",
       status,
+      adminStatus: note.adminStatus,
       createdAt: note.createdAt,
     };
   });
@@ -139,6 +202,92 @@ export async function deleteContent(
     title: note.title,
     ownerId: note.userId,
   };
+}
+
+export async function getContentById(noteId: string): Promise<{
+  note: ReturnType<Awaited<ReturnType<typeof noteRepo.findByIdOrThrow>>["toPublic"]> & {
+    sourcePageCount: number | null;
+  };
+  owner: { id: string; email: string } | null;
+  generation: Awaited<ReturnType<typeof generationRepo.findByNoteId>>;
+  intelligence: { stage: string; failedStage: string | null } | null;
+  queue: Awaited<ReturnType<typeof getStudyGenerationJob>> | { state: "unavailable" };
+  aiUsage: Awaited<ReturnType<typeof getNoteAIUsage>>;
+  extractedTextPreview: string;
+}> {
+  const note = await noteRepo.findByIdOrThrow(noteId);
+  const [owner, generation, intelligence, aiUsage, queue] = await Promise.all([
+    userRepo.findById(note.userId),
+    generationRepo.findByNoteId(noteId),
+    intelligenceRepo.findByNoteId(noteId),
+    getNoteAIUsage(noteId, 50),
+    getStudyGenerationJob(noteId).catch(() => ({ state: "unavailable" as const })),
+  ]);
+  const intelligencePublic = intelligence?.toPublic();
+  return {
+    note: {
+      ...note.toPublic(),
+      sourcePageCount: note.sourcePageCount ?? null,
+    },
+    owner: owner ? { id: owner.id, email: owner.email } : null,
+    generation,
+    intelligence: intelligencePublic
+      ? { stage: intelligencePublic.stage, failedStage: intelligencePublic.failedStage }
+      : null,
+    queue,
+    aiUsage,
+    extractedTextPreview: note.content.slice(0, 8_000),
+  };
+}
+
+export async function retryContent(
+  adminId: string,
+  noteId: string,
+): Promise<{ jobId: string }> {
+  const note = await noteRepo.findByIdOrThrow(noteId);
+  if (note.adminStatus === "quarantined") {
+    throw new ForbiddenError("Restore quarantined content before retrying it");
+  }
+  const jobId = await enqueueStudyGeneration({
+    noteId,
+    userId: note.userId,
+    force: true,
+  });
+  logger.info("Admin retried content generation", { adminId, noteId, jobId });
+  return { jobId };
+}
+
+export async function cancelContentProcessing(
+  adminId: string,
+  noteId: string,
+): Promise<{ jobId: string; previousState: string }> {
+  await noteRepo.findByIdOrThrow(noteId);
+  const result = await cancelStudyGeneration(noteId);
+  logger.info("Admin cancelled content generation", { adminId, noteId, ...result });
+  return result;
+}
+
+export async function quarantineContent(
+  adminId: string,
+  noteId: string,
+  reason: string,
+): Promise<ReturnType<Awaited<ReturnType<typeof noteRepo.setAdminStatus>>["toPublic"]>> {
+  const note = await noteRepo.findByIdOrThrow(noteId);
+  if (note.adminStatus === "quarantined") {
+    throw new BadRequestError("Content is already quarantined");
+  }
+  return (await noteRepo.setAdminStatus(noteId, "quarantined", adminId, reason)).toPublic();
+}
+
+export async function restoreContent(
+  adminId: string,
+  noteId: string,
+): Promise<ReturnType<Awaited<ReturnType<typeof noteRepo.setAdminStatus>>["toPublic"]>> {
+  const note = await noteRepo.findByIdOrThrow(noteId);
+  if (note.adminStatus !== "quarantined") {
+    throw new BadRequestError("Content is not quarantined");
+  }
+  return (await noteRepo.setAdminStatus(noteId, "active", adminId)).toPublic();
 }
 
 // ─── Update role ──────────────────────────────────────────────────────────────
@@ -228,7 +377,10 @@ export async function deleteUser(
   }
 
   await revokeAllUserTokens(targetUserId);
-  await userRepo.deleteById(targetUserId);
+  await Promise.all([
+    userRepo.deleteById(targetUserId),
+    userAIPolicyRepo.deleteByUserId(targetUserId),
+  ]);
 
   logger.info("Admin deleted user", { adminId, targetUserId });
 }
@@ -260,11 +412,6 @@ export async function getUserStats(): Promise<{
 // unfiltered (not scoped to any user) — mirrors getUserStats()'s use of
 // userRepo.count() with no filter for the "total" figure.
 //
-// NOT included here: AI spend, requests-by-day chart, activity feed. Those
-// need either a request/event log or cost-per-token tracking that doesn't
-// exist in the schema yet — they stay as frontend mock data until that
-// instrumentation is built.
-
 export async function getOverviewStats(): Promise<{
   totalUsers: number;
   totalNotes: number;
@@ -272,12 +419,15 @@ export async function getOverviewStats(): Promise<{
   totalFlashcards: number;
   aiSpendThisMonth: number;
 }> {
-  const [totalUsers, totalNotes, totalQuizzes, totalFlashcards] =
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const [totalUsers, totalNotes, totalQuizzes, totalFlashcards, monthEvents] =
     await Promise.all([
       userRepo.count(),
       noteRepo.count(),
       quizRepo.count(),
       flashcardRepo.count(),
+      getUsageSince(monthStart),
     ]);
 
   return {
@@ -285,7 +435,10 @@ export async function getOverviewStats(): Promise<{
     totalNotes,
     totalQuizzes,
     totalFlashcards,
-    aiSpendThisMonth: 0,
+    aiSpendThisMonth: monthEvents.reduce(
+      (sum, event) => sum + event.estimatedCostUsd,
+      0,
+    ),
   };
 }
 
@@ -320,6 +473,9 @@ export interface AdminAIUsageActivity {
   usageLabel: string;
   success: boolean;
   tokensUsed: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
   latencyMs: number;
   statusCode: number | null;
   quotaExceeded: boolean;
@@ -519,7 +675,10 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
       averageLatencyMs: averageNumber(
         providerToday.map((event) => event.latencyMs),
       ),
-      spendToday: 0,
+      spendToday: providerToday.reduce(
+        (sum, event) => sum + event.estimatedCostUsd,
+        0,
+      ),
       lastRequestAt: latestIso(providerEvents.map((event) => event.createdAt)),
     };
   });
@@ -619,6 +778,9 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
       usageLabel: event.usageLabel,
       success: event.success,
       tokensUsed: event.tokensUsed,
+      inputTokens: event.inputTokens,
+      outputTokens: event.outputTokens,
+      estimatedCostUsd: event.estimatedCostUsd,
       latencyMs: event.latencyMs,
       statusCode: event.statusCode,
       quotaExceeded: event.quotaExceeded,
@@ -628,7 +790,9 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
   return {
     summary,
     providers: providerUsage,
-    monthlySpend: 0,
+    monthlySpend: events
+      .filter((event) => event.createdAt >= monthStart)
+      .reduce((sum, event) => sum + event.estimatedCostUsd, 0),
     requestsLastSevenDays,
     requestsByRoute: Array.from(routeCounts.entries())
       .map(([route, count]) => ({
@@ -639,8 +803,7 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
     models,
     recentActivity,
     warning:
-      "Usage telemetry is stored durably in MongoDB. " +
-      "Spend remains $0 until provider pricing is explicitly configured.",
+      "Cost estimates use the provider pricing configured in Admin Settings; verify rates when providers change pricing.",
   };
 }
 
@@ -1003,4 +1166,56 @@ export async function testAIProvider(adminId: string): Promise<{
     tokensUsed: result.tokensUsed,
     response: result.text.trim(),
   };
+}
+
+export async function getSettings() {
+  return getOperationalSettings(true);
+}
+
+export async function updateSettings(
+  adminId: string,
+  update: OperationalSettingsUpdate,
+) {
+  return updateOperationalSettings(adminId, update);
+}
+
+function retentionCutoff(days: number, now = new Date()): Date {
+  return new Date(now.getTime() - days * 86_400_000);
+}
+
+export async function previewRetention(): Promise<{
+  auditLogs: number;
+  content: number;
+  auditCutoff: Date;
+  contentCutoff: Date | null;
+}> {
+  const settings = await getOperationalSettings();
+  const auditCutoff = retentionCutoff(settings.auditRetentionDays);
+  const contentCutoff = settings.contentRetentionDays > 0
+    ? retentionCutoff(settings.contentRetentionDays)
+    : null;
+  const [auditLogs, content] = await Promise.all([
+    auditLogRepo.countBefore(auditCutoff),
+    contentCutoff ? noteRepo.countBefore(contentCutoff) : Promise.resolve(0),
+  ]);
+  return { auditLogs, content, auditCutoff, contentCutoff };
+}
+
+export async function executeRetention(adminId: string): Promise<{
+  deletedAuditLogs: number;
+  deletedContent: number;
+}> {
+  const settings = await getOperationalSettings();
+  const auditCutoff = retentionCutoff(settings.auditRetentionDays);
+  const noteIds = settings.contentRetentionDays > 0
+    ? await noteRepo.findIdsBefore(retentionCutoff(settings.contentRetentionDays))
+    : [];
+
+  let deletedContent = 0;
+  for (const noteId of noteIds) {
+    await deleteContent(adminId, noteId);
+    deletedContent += 1;
+  }
+  const deletedAuditLogs = await auditLogRepo.deleteBefore(auditCutoff);
+  return { deletedAuditLogs, deletedContent };
 }

@@ -34,6 +34,15 @@ function toEntity(
     tokensUsed:
       doc.tokensUsed ?? 0,
 
+    inputTokens:
+      doc.inputTokens ?? 0,
+
+    outputTokens:
+      doc.outputTokens ?? 0,
+
+    estimatedCostUsd:
+      doc.estimatedCostUsd ?? 0,
+
     latencyMs:
       doc.latencyMs ?? 0,
 
@@ -68,6 +77,9 @@ export async function create(
       success: data.success,
 
       tokensUsed: data.tokensUsed,
+      inputTokens: data.inputTokens,
+      outputTokens: data.outputTokens,
+      estimatedCostUsd: data.estimatedCostUsd,
       latencyMs: data.latencyMs,
 
       statusCode: data.statusCode,
@@ -125,6 +137,19 @@ export async function deleteByUserId(
   await AIUsage.deleteMany({
     userId,
   }).exec();
+}
+
+export async function findByNoteId(
+  noteId: string,
+  limit: number = 50,
+): Promise<AIUsageEntity[]> {
+  const docs = await AIUsage.find({ noteId })
+    .sort({ createdAt: -1 })
+    .limit(Math.min(100, Math.max(1, Math.floor(limit))))
+    .lean<AIUsageRecord[]>()
+    .exec();
+
+  return docs.map(toEntity);
 }
 
 export interface AIUsageTotals {

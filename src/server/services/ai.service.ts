@@ -14,6 +14,10 @@ import { logger } from "@/server/utils/logger";
 import { appendUntrustedContentRules } from "@/server/utils/prompt-security";
 import { recordAIUsage } from "@/server/services/ai-usage.service";
 import { assertUserAIQuota } from "@/server/services/ai-quota.service";
+import {
+  assertAIGenerationEnabled,
+  estimateAICost,
+} from "@/server/services/operational-settings.service";
 
 // ─── Public contract ──────────────────────────────────────────────────────────
 
@@ -38,6 +42,9 @@ export interface AIGenerateOptions {
 export interface AIGenerateResult {
   text: string;
   tokensUsed: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  estimatedCostUsd?: number;
   provider: AIProvider;
   model: string;
 }
@@ -292,11 +299,17 @@ async function callOpenAI(
 
   const data = (await response.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
-    usage?: { total_tokens?: number };
+    usage?: {
+      total_tokens?: number;
+      prompt_tokens?: number;
+      completion_tokens?: number;
+    };
   };
 
   const text = data.choices?.[0]?.message?.content ?? "";
   const tokensUsed = data.usage?.total_tokens ?? 0;
+  const inputTokens = data.usage?.prompt_tokens ?? 0;
+  const outputTokens = data.usage?.completion_tokens ?? 0;
 
   if (!text.trim()) {
     const error: AdapterError = new Error("OpenAI returned an empty response");
@@ -309,6 +322,8 @@ async function callOpenAI(
   return {
     text: text.trim(),
     tokensUsed,
+    inputTokens,
+    outputTokens,
     provider: "openai",
     model,
   };
@@ -417,6 +432,8 @@ async function callGemini(
   const tokensUsed =
     (data.usageMetadata?.promptTokenCount ?? 0) +
     (data.usageMetadata?.candidatesTokenCount ?? 0);
+  const inputTokens = data.usageMetadata?.promptTokenCount ?? 0;
+  const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
 
   if (!text.trim()) {
     const blockReason =
@@ -436,6 +453,8 @@ async function callGemini(
   return {
     text: text.trim(),
     tokensUsed,
+    inputTokens,
+    outputTokens,
     provider: "gemini",
     model,
   };
@@ -462,6 +481,7 @@ export async function generate(
   const maxAttempts = Math.max(1, AI_CONFIG.maxRetries + 1);
   const startedAt = Date.now();
   const usageLabel = options.usageLabel?.trim() || "generation";
+  const operationalSettings = await assertAIGenerationEnabled();
 
   if (options.userId && options.skipUserQuota !== true) {
     await assertUserAIQuota(options.userId);
@@ -476,6 +496,14 @@ export async function generate(
 
     try {
       const result = await adapter(options, controller.signal);
+      const inputTokens = result.inputTokens ?? 0;
+      const outputTokens = result.outputTokens ?? 0;
+      const estimatedCostUsd = estimateAICost(
+        operationalSettings,
+        result.provider,
+        inputTokens,
+        outputTokens,
+      );
 
       await recordAIUsage({
         userId: options.userId ?? null,
@@ -485,12 +513,20 @@ export async function generate(
         usageLabel,
         success: true,
         tokensUsed: result.tokensUsed,
+        inputTokens,
+        outputTokens,
+        estimatedCostUsd,
         latencyMs: Date.now() - startedAt,
         statusCode: 200,
         quotaExceeded: false,
       });
 
-      return result;
+      return {
+        ...result,
+        inputTokens,
+        outputTokens,
+        estimatedCostUsd,
+      };
     } catch (unknownError) {
       const error = asAdapterError(unknownError);
       const isAbort = error.name === "AbortError";

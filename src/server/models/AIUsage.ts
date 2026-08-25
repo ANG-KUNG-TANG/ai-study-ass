@@ -24,6 +24,9 @@ export interface AIUsagePersistence {
   success: boolean;
 
   tokensUsed: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
   latencyMs: number;
 
   statusCode: number | null;
@@ -81,6 +84,27 @@ const aiUsageSchema =
       },
 
       tokensUsed: {
+        type: Number,
+        required: true,
+        default: 0,
+        min: 0,
+      },
+
+      inputTokens: {
+        type: Number,
+        required: true,
+        default: 0,
+        min: 0,
+      },
+
+      outputTokens: {
+        type: Number,
+        required: true,
+        default: 0,
+        min: 0,
+      },
+
+      estimatedCostUsd: {
         type: Number,
         required: true,
         default: 0,

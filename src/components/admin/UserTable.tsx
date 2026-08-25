@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, CheckCircle2, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Ban, CheckCircle2, Eye, Trash2 } from "lucide-react";
 import { Chip } from "@/components/ui/Chip";
 import * as adminService from "@/services/admin.service";
 import type { User, UserRole } from "@/types/user";
@@ -43,13 +44,13 @@ export function UserTable({
           return;
         }
 
-        await adminService.banUser(
-          user.id,
-        );
+        const reason = window.prompt("Reason for banning this user:");
+        if (!reason?.trim()) return;
+        await adminService.banUser(user.id, reason.trim());
       } else {
-        await adminService.unbanUser(
-          user.id,
-        );
+        const reason = window.prompt("Reason for restoring this user:");
+        if (!reason?.trim()) return;
+        await adminService.unbanUser(user.id, reason.trim());
       }
 
       onChanged();
@@ -68,6 +69,11 @@ export function UserTable({
     user: User,
     role: UserRole,
   ) {
+    const reason = window.prompt(
+      `Reason for changing ${user.email} to ${role}:`,
+    );
+    if (!reason?.trim()) return;
+
     setBusyId(
       user.id,
     );
@@ -76,6 +82,7 @@ export function UserTable({
       await adminService.updateUserRole(
         user.id,
         role,
+        reason.trim(),
       );
 
       onChanged();
@@ -105,6 +112,11 @@ export function UserTable({
       return;
     }
 
+    const reason = window.prompt(
+      "Reason for permanently deleting this user:",
+    );
+    if (!reason?.trim()) return;
+
     setBusyId(
       user.id,
     );
@@ -112,6 +124,7 @@ export function UserTable({
     try {
       await adminService.deleteUser(
         user.id,
+        reason.trim(),
       );
 
       onChanged();
@@ -234,6 +247,14 @@ export function UserTable({
 
                 <td className="px-4 py-3 text-right">
                   <div className="inline-flex items-center gap-1">
+                    <Link
+                      href={`/admin/users/${user.id}`}
+                      className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-medium text-violet hover:bg-violet-soft"
+                    >
+                      <Eye size={13} strokeWidth={1.8} />
+                      Details
+                    </Link>
+
                     <button
                       type="button"
                       onClick={() =>

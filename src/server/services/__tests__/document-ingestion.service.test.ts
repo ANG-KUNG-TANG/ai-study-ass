@@ -4,6 +4,7 @@ jest.mock("@/server/services/document-storage.service");
 jest.mock("@/server/queues/pdf-ingestion.queue");
 jest.mock("@/server/repositories/study-generation.repo");
 jest.mock("@/server/repositories/note.repo");
+jest.mock("@/server/services/operational-settings.service");
 
 import { enqueuePdfIngestion } from "@/server/queues/pdf-ingestion.queue";
 import * as generationRepo from "@/server/repositories/study-generation.repo";
@@ -19,6 +20,7 @@ import {
   processUpload,
   type UploadedFile,
 } from "@/server/services/upload.service";
+import { assertUploadsEnabled } from "@/server/services/operational-settings.service";
 
 const pdf: UploadedFile = {
   buffer: Buffer.from("%PDF-test"),
@@ -36,6 +38,10 @@ const note = {
   fileSize: 9,
   content: "PDF extraction is running in the background.",
   summary: null,
+  adminStatus: "active" as const,
+  quarantineReason: null,
+  quarantinedAt: null,
+  quarantinedBy: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -52,6 +58,10 @@ describe("document-ingestion.service", () => {
     jest.mocked(saveTemporaryUpload).mockResolvedValue("note-1-upload.pdf");
     jest.mocked(generationRepo.initialise).mockResolvedValue({} as never);
     jest.mocked(enqueuePdfIngestion).mockResolvedValue("pdf-ingest-note-1");
+    jest.mocked(assertUploadsEnabled).mockResolvedValue({
+      maxUploadSizeBytes: 10 * 1024 * 1024,
+      allowedFileTypes: ["pdf", "docx"],
+    } as never);
   });
 
   it("queues PDF extraction without parsing inside the HTTP request", async () => {
