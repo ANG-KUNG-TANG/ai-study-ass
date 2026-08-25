@@ -61,4 +61,12 @@ describe("language translations", () => {
       translate("en", "verify.resendCooldown", { seconds: 12 }),
     ).toBe("Try again in 12s");
   });
+
+  it("translates the account menu and application information page", () => {
+    expect(translate("en", "sidebar.aboutTitle")).toBe("About this app");
+    expect(translate("my", "sidebar.aboutTitle")).toBe("အက်ပ်အကြောင်း");
+    expect(translate("en", "about.version", { version: "0.1.0" })).toBe(
+      "Version 0.1.0",
+    );
+  });
 });
