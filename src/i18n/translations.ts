@@ -130,6 +130,9 @@ const en = {
   "sidebar.collapse": "Collapse sidebar",
   "sidebar.logout": "Log out",
   "sidebar.account": "Account",
+  "sidebar.aboutTitle": "About this app",
+  "sidebar.aboutDescription":
+    "Upload study documents to create grounded summaries, quizzes, flashcards, knowledge maps, and document-aware AI chat.",
   "sidebar.streakTitle": "{days}-day streak",
   "sidebar.streak": "Review 2 more flashcard decks today to keep it going.",
 
@@ -898,6 +901,9 @@ const my: Record<TranslationKey, string> = {
   "sidebar.collapse": "ဘေးဘားချုံ့ရန်",
   "sidebar.logout": "ထွက်ရန်",
   "sidebar.account": "အကောင့်",
+  "sidebar.aboutTitle": "အက်ပ်အကြောင်း",
+  "sidebar.aboutDescription":
+    "လေ့လာရေးစာရွက်စာတမ်းများကို တင်ပြီး မူရင်းအကြောင်းအရာအပေါ် အခြေခံသော အနှစ်ချုပ်များ၊ မေးခွန်းများ၊ လေ့လာရေးကတ်များ၊ အသိပညာမြေပုံများနှင့် AI စကားပြောခန်းတို့ကို ဖန်တီးနိုင်ပါသည်။",
   "sidebar.streakTitle": "{days} ရက်ဆက်တိုက်",
   "sidebar.streak": "ယနေ့ လေ့လာရေးကတ် ၂ စုံ ထပ်မံလေ့လာပြီး ဆက်တိုက်မှတ်တမ်းကို ထိန်းပါ။",
 

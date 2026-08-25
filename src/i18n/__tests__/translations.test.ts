@@ -61,4 +61,9 @@ describe("language translations", () => {
       translate("en", "verify.resendCooldown", { seconds: 12 }),
     ).toBe("Try again in 12s");
   });
+
+  it("translates the collapsible application information panel", () => {
+    expect(translate("en", "sidebar.aboutTitle")).toBe("About this app");
+    expect(translate("my", "sidebar.aboutTitle")).toBe("အက်ပ်အကြောင်း");
+  });
 });

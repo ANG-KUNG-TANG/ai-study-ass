@@ -6,9 +6,11 @@ import {
   useRouter,
 } from "next/navigation";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   FileText,
+  Info,
   LogOut,
   Menu,
   Settings,
@@ -94,6 +96,11 @@ export function Sidebar({
     setIsMobileOpen,
   ] = useState(false);
 
+  const [
+    isAboutOpen,
+    setIsAboutOpen,
+  ] = useState(false);
+
   const noteMatch =
     variant === "student"
       ? pathname?.match(
@@ -156,6 +163,16 @@ export function Sidebar({
 
     router.replace("/auth/login");
     router.refresh();
+  }
+
+  function handleAboutToggle(collapsed: boolean) {
+    if (collapsed) {
+      toggle();
+      setIsAboutOpen(true);
+      return;
+    }
+
+    setIsAboutOpen((current) => !current);
   }
 
   function navContent(
@@ -339,6 +356,60 @@ export function Sidebar({
               })}
             </div>
           )}
+
+          <div className="mb-1">
+            <button
+              type="button"
+              onClick={() => handleAboutToggle(collapsed)}
+              title={collapsed ? t("sidebar.aboutTitle") : undefined}
+              aria-expanded={!collapsed && isAboutOpen}
+              className={[
+                "flex w-full items-center rounded-[9px] py-2.5",
+                "text-[13.5px] font-medium text-ink-soft",
+                "transition-colors hover:bg-line-soft hover:text-ink",
+                collapsed
+                  ? "justify-center px-2"
+                  : "gap-[11px] px-3",
+              ].join(" ")}
+            >
+              <Info
+                size={17}
+                strokeWidth={1.6}
+                className="shrink-0"
+                aria-hidden="true"
+              />
+
+              {!collapsed && (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-left">
+                    {t("sidebar.aboutTitle")}
+                  </span>
+
+                  <ChevronDown
+                    size={15}
+                    strokeWidth={1.7}
+                    className={[
+                      "shrink-0 transition-transform duration-200",
+                      isAboutOpen ? "rotate-180" : "",
+                    ].join(" ")}
+                    aria-hidden="true"
+                  />
+                </>
+              )}
+            </button>
+
+            {!collapsed && isAboutOpen && (
+              <div
+                role="region"
+                aria-label={t("sidebar.aboutTitle")}
+                className="mx-2 mb-2 rounded-[9px] border border-line bg-paper px-3 py-2.5"
+              >
+                <p className="text-[11.5px] leading-[1.55] text-ink-soft">
+                  {t("sidebar.aboutDescription")}
+                </p>
+              </div>
+            )}
+          </div>
 
           <button
             type="button"
