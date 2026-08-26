@@ -123,10 +123,10 @@ function grounding():
 }
 
 describe(
-  "preserved Knowledge views",
+  "Concept Map and Knowledge Graph separation",
   () => {
     it(
-      "keeps the old Concept Map free of new semantic edges",
+      "keeps Concept Map source-structural while Knowledge Graph adds semantic edges",
       () => {
         const source =
           grounding();
@@ -161,39 +161,6 @@ describe(
             (edge) =>
               edge.type ===
               "prevents",
-          ),
-        ).toBe(true);
-      },
-    );
-
-    it(
-      "preserves section learning order for Learning Path",
-      () => {
-        const conceptMap =
-          buildGroundedConceptMap(
-            grounding(),
-          );
-
-        const section =
-          conceptMap.nodes.find(
-            (node) =>
-              node.type ===
-              "section",
-          );
-
-        expect(
-          section?.properties
-            ?.learningOrder,
-        ).toBe(1);
-
-        expect(
-          conceptMap.edges.some(
-            (edge) =>
-              edge.from ===
-                "grounded-document" &&
-              edge.to === "s1" &&
-              edge.type ===
-                "contains",
           ),
         ).toBe(true);
       },

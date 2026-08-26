@@ -151,16 +151,6 @@ export default function KnowledgePage() {
     ],
   );
 
-  const knowledgeGraphNodes = useMemo(
-    () => knowledge?.graph?.nodes ?? [],
-    [knowledge?.graph?.nodes],
-  );
-
-  const knowledgeGraphEdges = useMemo(
-    () => knowledge?.graph?.edges ?? [],
-    [knowledge?.graph?.edges],
-  );
-
   const conceptNodes = useMemo(
     () =>
       allNodes.filter(
@@ -203,30 +193,6 @@ export default function KnowledgePage() {
     [allEdges],
   );
 
-  const knowledgeGraphNodeTypes = useMemo(
-    () =>
-      [
-        ...new Set(
-          knowledgeGraphNodes
-            .map((node) => node.type)
-            .filter(Boolean),
-        ),
-      ].sort(),
-    [knowledgeGraphNodes],
-  );
-
-  const knowledgeGraphRelationTypes = useMemo(
-    () =>
-      [
-        ...new Set(
-          knowledgeGraphEdges
-            .map((edge) => edge.type)
-            .filter(Boolean),
-        ),
-      ].sort(),
-    [knowledgeGraphEdges],
-  );
-
   const filteredGraph = useMemo(
     () =>
       filterGraph({
@@ -247,26 +213,6 @@ export default function KnowledgePage() {
     ],
   );
 
-  const filteredKnowledgeGraph = useMemo(
-    () =>
-      filterGraph({
-        nodes: knowledgeGraphNodes,
-        edges: knowledgeGraphEdges,
-        search,
-        nodeType,
-        relationType,
-        minimumConfidence,
-      }),
-    [
-      knowledgeGraphEdges,
-      knowledgeGraphNodes,
-      minimumConfidence,
-      nodeType,
-      relationType,
-      search,
-    ],
-  );
-
   const evidence = useMemo(
     () => collectEvidence(allNodes),
     [allNodes],
@@ -274,11 +220,6 @@ export default function KnowledgePage() {
 
   const selectedNode =
     allNodes.find(
-      (node) => node.id === selectedNodeId,
-    ) ?? null;
-
-  const selectedKnowledgeGraphNode =
-    knowledgeGraphNodes.find(
       (node) => node.id === selectedNodeId,
     ) ?? null;
 
@@ -305,13 +246,6 @@ export default function KnowledgePage() {
   function openConcept(nodeId: string) {
     setSelectedNodeId(nodeId);
     setActiveTab("concept-map");
-  }
-
-  function openKnowledgeGraphNode(
-    nodeId: string,
-  ) {
-    setSelectedNodeId(nodeId);
-    setActiveTab("graph");
   }
 
   if (!note) {
@@ -440,21 +374,6 @@ export default function KnowledgePage() {
                 />
 
                 <TabButton
-                  active={activeTab === "graph"}
-                  label={t("knowledge.knowledgeGraph")}
-                  count={
-                    knowledgeGraphNodes.filter(
-                      (node) =>
-                        node.type !== "paper" &&
-                        node.type !== "section",
-                    ).length
-                  }
-                  onClick={() =>
-                    setActiveTab("graph")
-                  }
-                />
-
-                <TabButton
                   active={activeTab === "concepts"}
                   label={t("knowledge.concepts")}
                   count={conceptNodes.length}
@@ -498,7 +417,7 @@ export default function KnowledgePage() {
             {activeTab === "tree" && (
               <KnowledgeTree
                 tree={knowledge.tree}
-                onOpen={openKnowledgeGraphNode}
+                onOpen={openConcept}
               />
             )}
 
@@ -580,84 +499,6 @@ export default function KnowledgePage() {
               </>
             )}
 
-
-            {activeTab === "graph" && (
-              <>
-                <GraphFilters
-                  search={search}
-                  nodeType={nodeType}
-                  relationType={relationType}
-                  minimumConfidence={
-                    minimumConfidence
-                  }
-                  nodeTypes={knowledgeGraphNodeTypes}
-                  relationTypes={knowledgeGraphRelationTypes}
-                  onSearch={setSearch}
-                  onNodeType={setNodeType}
-                  onRelationType={
-                    setRelationType
-                  }
-                  onMinimumConfidence={
-                    setMinimumConfidence
-                  }
-                />
-
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-                  <KnowledgeGraphCanvas
-                    nodes={
-                      filteredKnowledgeGraph.nodes
-                    }
-                    edges={
-                      filteredKnowledgeGraph.edges
-                    }
-                    selectedNodeId={
-                      selectedNodeId
-                    }
-                    onSelectNode={
-                      setSelectedNodeId
-                    }
-                  />
-
-                  <div className="hidden xl:block">
-                    {selectedKnowledgeGraphNode ? (
-                      <KnowledgeInspector
-                        node={selectedKnowledgeGraphNode}
-                        nodes={knowledgeGraphNodes}
-                        edges={knowledgeGraphEdges}
-                        onClose={() =>
-                          setSelectedNodeId(
-                            null,
-                          )
-                        }
-                      />
-                    ) : (
-                      <InspectorPlaceholder />
-                    )}
-                  </div>
-                </div>
-
-                {selectedKnowledgeGraphNode && (
-                  <div className="fixed inset-x-3 bottom-3 z-50 xl:hidden">
-                    <KnowledgeInspector
-                      node={selectedKnowledgeGraphNode}
-                      nodes={knowledgeGraphNodes}
-                      edges={knowledgeGraphEdges}
-                      onClose={() =>
-                        setSelectedNodeId(null)
-                      }
-                      compact
-                    />
-                  </div>
-                )}
-
-                <GraphLegend
-                  nodeTypes={knowledgeGraphNodeTypes}
-                  relationTypes={
-                    knowledgeGraphRelationTypes
-                  }
-                />
-              </>
-            )}
 
             {activeTab === "concepts" && (
               <ConceptGrid
