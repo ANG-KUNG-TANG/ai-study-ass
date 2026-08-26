@@ -10,7 +10,6 @@ export type KnowledgeTab =
   | "learn"
   | "tree"
   | "concept-map"
-  | "graph"
   | "concepts"
   | "evidence";
 
