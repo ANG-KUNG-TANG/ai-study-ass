@@ -137,7 +137,7 @@ export function KnowledgeInspector({
   return (
     <aside
       className={[
-        "overflow-hidden rounded-2xl border border-[#E6DDC8] bg-white shadow-sm",
+        "overflow-hidden rounded-[10px] border border-line bg-paper-raised",
         compact
           ? "max-h-[72vh]"
           : "sticky top-5 max-h-[calc(100vh-40px)]",
@@ -147,7 +147,7 @@ export function KnowledgeInspector({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="max-w-[245px] break-words font-serif text-[18px] font-semibold leading-6 text-[#221F1A]">
+              <h2 className="max-w-[245px] break-words font-serif text-[18px] font-semibold leading-6 text-ink">
                 {node.label}
               </h2>
 
@@ -162,7 +162,7 @@ export function KnowledgeInspector({
               </span>
             </div>
 
-            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#EEF7F0] px-2 py-1 text-[10px] font-medium text-[#4C7A5A]">
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sage-soft px-2 py-1 text-[10px] font-medium text-sage">
               <ShieldCheck size={11} />
               {provenance === "ai_grounded"
                 ? t("knowledge.inspector.aiGrounded")
@@ -174,7 +174,7 @@ export function KnowledgeInspector({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-[#726B5C] hover:bg-[#F4EFE4]"
+              className="rounded-lg p-1.5 text-ink-soft hover:bg-line-soft"
               aria-label={t("knowledge.inspector.close")}
             >
               <X size={17} />
@@ -191,8 +191,8 @@ export function KnowledgeInspector({
               className={[
                 "whitespace-nowrap border-b-2 pb-3 text-[11.5px] font-medium transition",
                 tab === item.id
-                  ? "border-[#4D7DF3] text-[#255FD6]"
-                  : "border-transparent text-[#726B5C] hover:text-[#221F1A]",
+                  ? "border-violet text-violet"
+                  : "border-transparent text-ink-soft hover:text-ink",
               ].join(" ")}
             >
               {item.label}
@@ -207,18 +207,18 @@ export function KnowledgeInspector({
         {tab === "understand" && (
           <div className="space-y-5">
             <section>
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#726B5C]">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
                 {t("knowledge.inspector.meaning")}
               </h3>
 
-              <p className="mt-2 text-[13px] leading-6 text-[#38342C]">
+              <p className="mt-2 text-[13px] leading-6 text-ink">
                 {getNodeDescription(node)}
               </p>
             </section>
 
             {meaningfulConnections.length > 0 && (
               <section>
-                <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#726B5C]">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
                   {t("knowledge.inspector.fits")}
                 </h3>
 
@@ -242,9 +242,9 @@ export function KnowledgeInspector({
                             onClick={() =>
                               setTab("connections")
                             }
-                            className="w-full rounded-xl border border-[#EFE8D6] bg-[#FFFCF6] px-3 py-2.5 text-left"
+                            className="w-full rounded-[8px] border border-[#EFE8D6] bg-paper px-3 py-2.5 text-left"
                           >
-                            <p className="text-[11.5px] leading-5 text-[#514B40]">
+                            <p className="text-[11.5px] leading-5 text-ink-soft">
                               {direction === "outgoing"
                                 ? relationExplanation(
                                     edge,
@@ -268,14 +268,14 @@ export function KnowledgeInspector({
             {typeof confidence === "number" &&
               node.type !== "section" && (
                 <section>
-                  <div className="flex items-center justify-between text-[11px] font-medium text-[#514B40]">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-ink-soft">
                     <span>{t("knowledge.sourceConfidence")}</span>
                     <span>
                       {Math.round(confidence * 100)}%
                     </span>
                   </div>
 
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#EFE8D6]">
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-line-soft">
                     <div
                       className="h-full rounded-full"
                       style={{
@@ -297,14 +297,14 @@ export function KnowledgeInspector({
               <button
                 type="button"
                 onClick={() => setTab("evidence")}
-                className="flex w-full items-center justify-between rounded-xl border border-[#D7E4FF] bg-[#F4F8FF] px-4 py-3 text-left hover:bg-[#EEF4FF]"
+                className="flex w-full items-center justify-between rounded-[8px] border border-violet/25 bg-violet-soft/45 px-4 py-3 text-left hover:bg-violet-soft"
               >
-                <span className="flex items-center gap-2 text-[12px] font-medium text-[#255FD6]">
+                <span className="flex items-center gap-2 text-[12px] font-medium text-violet">
                   <BookOpen size={15} />
                   {t("knowledge.inspector.showEvidence")}
                 </span>
 
-                <span className="text-[12px] text-[#5F6F91]">
+                <span className="text-[12px] text-slate">
                   {evidence.length}
                 </span>
               </button>
@@ -316,7 +316,7 @@ export function KnowledgeInspector({
                 onClick={() =>
                   setShowTechnical((current) => !current)
                 }
-                className="flex w-full items-center justify-between rounded-xl border border-[#E6DDC8] px-3 py-2.5 text-[11.5px] font-medium text-[#726B5C] hover:bg-[#FAF6EC]"
+                className="flex w-full items-center justify-between rounded-[8px] border border-line px-3 py-2.5 text-[11.5px] font-medium text-ink-soft hover:bg-[#FAF6EC]"
               >
                 {t("knowledge.inspector.technical")}
                 <ChevronDown
@@ -330,12 +330,12 @@ export function KnowledgeInspector({
               </button>
 
               {showTechnical && (
-                <dl className="mt-2 divide-y divide-[#EFE8D6] rounded-xl border border-[#EFE8D6] px-3">
+                <dl className="mt-2 divide-y divide-[#EFE8D6] rounded-[8px] border border-[#EFE8D6] px-3">
                   <div className="grid grid-cols-[100px_1fr] gap-3 py-2.5 text-[11.5px]">
-                    <dt className="text-[#726B5C]">
+                    <dt className="text-ink-soft">
                       {t("knowledge.inspector.type")}
                     </dt>
-                    <dd className="font-medium text-[#38342C]">
+                    <dd className="font-medium text-ink">
                       {readableType(node.type)}
                     </dd>
                   </div>
@@ -346,10 +346,10 @@ export function KnowledgeInspector({
                         key={key}
                         className="grid grid-cols-[100px_1fr] gap-3 py-2.5 text-[11.5px]"
                       >
-                        <dt className="break-words text-[#726B5C]">
+                        <dt className="break-words text-ink-soft">
                           {readableType(key)}
                         </dt>
-                        <dd className="break-words font-medium text-[#38342C]">
+                        <dd className="break-words font-medium text-ink">
                           {formatProperty(value)}
                         </dd>
                       </div>
@@ -364,7 +364,7 @@ export function KnowledgeInspector({
         {tab === "connections" && (
           <div className="space-y-3">
             {meaningfulConnections.length === 0 ? (
-              <p className="text-[13px] text-[#726B5C]">
+              <p className="text-[13px] text-ink-soft">
                 {t("knowledge.inspector.noRelationship")}
               </p>
             ) : (
@@ -392,24 +392,24 @@ export function KnowledgeInspector({
                   return (
                     <div
                       key={`${edge.from}-${edge.type}-${edge.to}`}
-                      className="rounded-xl border border-[#E6DDC8] p-3.5"
+                      className="rounded-[8px] border border-line p-3.5"
                     >
                       <div className="flex items-start gap-3">
                         <GitBranch
                           size={15}
-                          className="mt-0.5 shrink-0 text-[#8B7DD6]"
+                          className="mt-0.5 shrink-0 text-violet"
                         />
 
                         <div>
-                          <p className="text-[12.5px] font-semibold text-[#38342C]">
+                          <p className="text-[12.5px] font-semibold text-ink">
                             {connectedNode.label}
                           </p>
 
-                          <p className="mt-1 text-[11.5px] leading-5 text-[#726B5C]">
+                          <p className="mt-1 text-[11.5px] leading-5 text-ink-soft">
                             {explanation}
                           </p>
 
-                          <span className="mt-2 inline-block rounded-full bg-[#F4EFE4] px-2 py-1 text-[10px] text-[#726B5C]">
+                          <span className="mt-2 inline-block rounded-full bg-line-soft px-2 py-1 text-[10px] text-ink-soft">
                             {relationLabel(edge.type)}
                           </span>
                         </div>
@@ -439,7 +439,7 @@ function EvidenceList({
 
   if (evidence.length === 0) {
     return (
-      <p className="text-[13px] text-[#726B5C]">
+      <p className="text-[13px] text-ink-soft">
         {t("knowledge.inspector.noSource")}
       </p>
     );
@@ -450,10 +450,10 @@ function EvidenceList({
       {evidence.map((item) => (
         <article
           key={item.id}
-          className="rounded-xl border border-[#E6DDC8] bg-[#FFFCF6] p-4"
+          className="rounded-[8px] border border-line bg-paper p-4"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#726B5C]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-paper-raised px-2 py-1 text-[10px] font-medium text-ink-soft">
               <BookOpen size={12} />
               {item.pageNumber
                 ? t("knowledge.page", { page: item.pageNumber })
@@ -461,13 +461,13 @@ function EvidenceList({
             </span>
 
             {item.sectionTitle && (
-              <span className="text-[10px] text-[#9B927F]">
+              <span className="text-[10px] text-ink-faint">
                 {item.sectionTitle}
               </span>
             )}
           </div>
 
-          <blockquote className="mt-3 border-l-2 border-[#FFCE3E] pl-3 text-[12.5px] leading-5 text-[#514B40]">
+          <blockquote className="mt-3 border-l-2 border-yellow pl-3 text-[12.5px] leading-5 text-ink-soft">
             “{item.text}”
           </blockquote>
         </article>

@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 
+import { AuthPageMark } from "@/components/auth/AuthPageMark";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/context/LanguageContext";
@@ -23,7 +24,7 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <p className="text-[13px] text-[#E85D46]">
+      <p className="text-[13px] text-coral">
         {t("reset.missingToken")}
       </p>
     );
@@ -55,12 +56,13 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="rounded-2xl border border-[#E6DDC8] bg-white p-8 shadow-sm">
-      <div className="mb-6">
-        <h1 className="font-serif text-2xl font-semibold text-[#221F1A]">
+    <div className="py-1">
+      <div className="mb-7">
+        <AuthPageMark />
+        <h1 className="text-[38px] font-bold leading-[0.98] tracking-[-0.055em] text-ink sm:text-[44px]">
           {t("reset.title")}
         </h1>
-        <p className="mt-1 text-sm text-[#726B5C]">
+        <p className="mt-3 text-[13px] leading-6 text-ink-soft">
           {t("reset.subtitle")}
         </p>
       </div>
@@ -73,12 +75,13 @@ function ResetPasswordForm() {
             placeholder="••••••••"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            className="h-[50px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
             required
           />
           <button
             type="button"
             onClick={() => setShowPassword((current) => !current)}
-            className="absolute right-3 top-[34px] text-[#B3A98F] hover:text-[#726B5C]"
+            className="absolute right-3 top-[34px] text-ink-faint hover:text-ink-soft"
             aria-label={
               showPassword
                 ? t("common.hidePassword")
@@ -89,10 +92,7 @@ function ResetPasswordForm() {
           </button>
         </div>
 
-        <p className="-mt-2 text-[11px] text-[#726B5C]">
-          Use at least 8 characters with uppercase, lowercase, a number, and a
-          special character.
-        </p>
+        <p className="-mt-2 text-[11px] text-ink-soft">{t("register.passwordHelp")}</p>
 
         <Input
           label={t("reset.confirmPassword")}
@@ -100,15 +100,16 @@ function ResetPasswordForm() {
           placeholder="••••••••"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
+          className="h-[50px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
           required
         />
 
-        {error && <p className="text-[13px] text-[#E85D46]">{error}</p>}
+        {error && <p className="text-[13px] text-coral">{error}</p>}
 
         <Button
           type="submit"
           variant="yellow"
-          className="w-full"
+          className="h-[50px] w-full rounded-full text-[13px] font-bold"
           disabled={isLoading}
         >
           {isLoading ? t("reset.submitting") : t("reset.submit")}
@@ -125,7 +126,7 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <p className="text-[13px] text-[#726B5C]">
+        <p className="text-[13px] text-ink-soft">
           {t("common.loading")}
         </p>
       }

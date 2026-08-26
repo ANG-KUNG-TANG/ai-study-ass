@@ -185,6 +185,7 @@ export default function AdminContentPage() {
       <Topbar
         eyebrow={t("admin.eyebrow")}
         title={t("admin.content.title")}
+        description="Review ownership, processing state, failures, and moderation decisions."
         search={{
           value: search,
           onChange: setSearch,
@@ -228,7 +229,7 @@ export default function AdminContentPage() {
 
       {!isLoading &&
         !error && (
-          <div className="overflow-x-auto rounded-card border border-line bg-paper-raised">
+          <div className="overflow-x-auto border-y border-line bg-transparent">
             <table className="w-full min-w-[720px] text-left text-[13px]">
               <thead>
                 <tr className="border-b border-line text-[11px] uppercase tracking-wide text-ink-faint">

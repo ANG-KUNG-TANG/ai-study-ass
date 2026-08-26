@@ -48,6 +48,8 @@ const NAVIGATION_KEYS: Record<string, TranslationKey> = {
   Content: "nav.content",
   "AI Usage": "nav.aiUsage",
   Health: "nav.health",
+  Feedback: "nav.feedback",
+  Settings: "nav.settings",
   "Original text": "nav.originalText",
 };
 
@@ -136,14 +138,14 @@ export function Sidebar({
         {/* Brand */}
         <div
           className={[
-            "mb-6 flex shrink-0 items-center px-2",
+            "mb-5 flex shrink-0 items-center border-b border-line px-2 pb-5",
             collapsed
               ? "justify-center"
               : "justify-between",
           ].join(" ")}
         >
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="relative flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-ink">
+            <div className="relative flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md bg-ink">
               <span className="absolute bottom-[7px] left-[9px] h-[2px] w-3 rounded-full bg-yellow" />
 
               <svg
@@ -168,7 +170,7 @@ export function Sidebar({
             </div>
 
             {!collapsed && (
-              <span className="truncate font-serif text-[17px] font-semibold">
+              <span className="truncate font-serif text-[16px] font-semibold tracking-[-0.01em]">
                 {t("common.brand")}
               </span>
             )}
@@ -191,6 +193,11 @@ export function Sidebar({
 
         {/* Navigation */}
         <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {!collapsed && (
+            <div className="mb-2 px-3 font-mono text-[9.5px] font-medium uppercase tracking-[0.12em] text-ink-faint">
+              {variant === "admin" ? "Manage" : "Study"}
+            </div>
+          )}
           <div className="flex flex-col gap-[3px]">
             {navItems.map((item) => {
               const isActive =
@@ -218,14 +225,14 @@ export function Sidebar({
                       : undefined
                   }
                   className={[
-                    "flex w-full items-center rounded-[9px] py-2.5",
+                    "flex w-full items-center rounded-r-[8px] border-l-2 py-2.5",
                     "text-[13.5px] font-medium transition-colors",
                     collapsed
                       ? "justify-center px-2"
                       : "gap-[11px] px-3",
                     isActive
-                      ? "bg-ink text-paper-raised"
-                      : "text-ink-soft hover:bg-line-soft hover:text-ink",
+                      ? "border-coral bg-line-soft text-ink"
+                      : "border-transparent text-ink-soft hover:bg-line-soft hover:text-ink",
                   ].join(" ")}
                 >
                   <item.icon
@@ -272,10 +279,16 @@ export function Sidebar({
   return (
     <>
       {/* Mobile top bar */}
-      <div className="flex items-center justify-between border-b border-line bg-paper-raised px-4 py-3 md:hidden">
-        <span className="font-serif text-[16px] font-semibold">
-          {t("common.brand")}
-        </span>
+      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-paper-raised/95 px-4 py-3 backdrop-blur md:hidden">
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex h-7 w-7 items-center justify-center rounded-md bg-ink text-paper">
+            <FileText size={14} strokeWidth={1.7} />
+            <span className="absolute bottom-1.5 left-2 h-0.5 w-3 bg-yellow" />
+          </div>
+          <span className="font-serif text-[16px] font-semibold">
+            {t("common.brand")}
+          </span>
+        </div>
 
         <button
           type="button"
@@ -315,12 +328,12 @@ export function Sidebar({
       <aside
         className={[
           "relative hidden h-dvh shrink-0 flex-col",
-          "border-r border-line bg-paper-raised py-6",
+          "border-r border-line bg-paper-raised py-5",
           "transition-[width,padding] duration-300 ease-out",
           "md:flex",
           isCollapsed
             ? "w-[72px] px-2"
-            : "w-[230px] px-4",
+            : "w-[224px] px-4",
         ].join(" ")}
       >
         {navContent(isCollapsed)}

@@ -233,7 +233,7 @@ export default function KnowledgePage() {
 
   if (!note) {
     return (
-      <p className="text-[13px] text-[#726B5C]">
+      <p className="text-[13px] text-ink-soft">
         {t("note.loading")}
       </p>
     );
@@ -243,19 +243,19 @@ export default function KnowledgePage() {
     <div className="pb-8">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-5">
         <div>
-          <div className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-[#E85D46]">
+          <div className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-coral">
             {t("knowledge.eyebrow")}
           </div>
 
-          <h1 className="font-serif text-[28px] font-semibold text-[#221F1A]">
+          <h1 className="font-serif text-[28px] font-semibold text-ink">
             {t("knowledge.title")}
           </h1>
 
-          <p className="mt-2 max-w-[680px] text-[13px] leading-5 text-[#726B5C]">
+          <p className="mt-2 max-w-[680px] text-[13px] leading-5 text-ink-soft">
             {t("knowledge.description", { title: note.title })}
           </p>
 
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#CFE3D3] bg-[#F2F8F3] px-3 py-1.5 text-[10.5px] font-medium text-[#4C7A5A]">
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-sage/30 bg-sage-soft/50 px-3 py-1.5 text-[10.5px] font-medium text-sage">
             <ShieldCheck size={13} />
             {t("knowledge.grounded")}
           </div>
@@ -289,11 +289,11 @@ export default function KnowledgePage() {
       {isLoading && <LoadingState />}
 
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
-          <p className="text-[13px] font-medium text-[#E85D46]">
+        <div className="rounded-[10px] border border-red-200 bg-red-50 p-5">
+          <p className="text-[13px] font-medium text-coral">
             {t("knowledge.loadFailed")}
           </p>
-          <p className="mt-2 text-[12px] text-[#726B5C]">
+          <p className="mt-2 text-[12px] text-ink-soft">
             {error || t("knowledge.loadFailed")}
           </p>
         </div>
@@ -328,7 +328,7 @@ export default function KnowledgePage() {
         knowledge.status !== "failed" && (
           <>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="inline-flex flex-wrap rounded-xl border border-[#E6DDC8] bg-white p-1">
+              <div className="inline-flex flex-wrap rounded-[8px] border border-line bg-paper-raised p-1">
                 <TabButton
                   active={activeTab === "learn"}
                   label={t("knowledge.learningPath")}
@@ -601,11 +601,11 @@ function GraphFilters({
   const { t } = useLanguage();
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6DDC8] bg-white p-3">
-      <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-[#E6DDC8] bg-[#FFFCF6] px-3 py-2.5">
+    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[10px] border border-line bg-paper-raised p-3">
+      <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-[8px] border border-line bg-paper px-3 py-2.5">
         <Search
           size={15}
-          className="shrink-0 text-[#9B927F]"
+          className="shrink-0 text-ink-faint"
         />
 
         <input
@@ -615,7 +615,7 @@ function GraphFilters({
             onSearch(event.target.value)
           }
           placeholder={t("knowledge.search")}
-          className="w-full bg-transparent text-[12.5px] text-[#38342C] outline-none placeholder:text-[#B3A98F]"
+          className="w-full bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-faint"
         />
       </div>
 
@@ -705,14 +705,14 @@ function FilterSelect({
         onChange={(event) =>
           onChange(event.target.value)
         }
-        className="h-[42px] min-w-[155px] appearance-none rounded-xl border border-[#E6DDC8] bg-[#FFFCF6] py-2 pl-3 pr-9 text-[12px] font-medium text-[#514B40] outline-none focus:border-[#4D7DF3]"
+        className="h-[42px] min-w-[155px] appearance-none rounded-[8px] border border-line bg-paper py-2 pl-3 pr-9 text-[12px] font-medium text-ink-soft outline-none focus:border-violet"
       >
         {children}
       </select>
 
       <SlidersHorizontal
         size={13}
-        className="pointer-events-none absolute right-3 top-3.5 text-[#9B927F]"
+        className="pointer-events-none absolute right-3 top-3.5 text-ink-faint"
       />
     </label>
   );
@@ -728,18 +728,18 @@ function MetricCard({
   label: string;
 }) {
   return (
-    <div className="min-w-[105px] rounded-2xl border border-[#E6DDC8] bg-white px-3 py-2.5 shadow-sm">
+    <div className="min-w-[105px] rounded-[10px] border border-line bg-paper-raised px-3 py-2.5">
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#4D7DF3]">
+        <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-violet-soft text-violet">
           <Icon size={15} />
         </div>
 
         <div>
-          <p className="text-[16px] font-semibold leading-5 text-[#221F1A]">
+          <p className="text-[16px] font-semibold leading-5 text-ink">
             {value}
           </p>
 
-          <p className="text-[9.5px] text-[#726B5C]">
+          <p className="text-[9.5px] text-ink-soft">
             {label}
           </p>
         </div>
@@ -766,8 +766,8 @@ function TabButton({
       className={[
         "rounded-lg px-3.5 py-2 text-[12px] font-medium transition",
         active
-          ? "bg-[#EEF4FF] text-[#255FD6]"
-          : "text-[#726B5C] hover:bg-[#F4EFE4]",
+          ? "bg-violet-soft text-violet"
+          : "text-ink-soft hover:bg-line-soft",
       ].join(" ")}
     >
       {label}{" "}
@@ -784,7 +784,7 @@ function StatusPill({
   label: string;
 }) {
   return (
-    <span className="rounded-full border border-[#E6DDC8] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">
+    <span className="rounded-full border border-line bg-paper-raised px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
       {readableType(label)}
     </span>
   );
@@ -820,7 +820,7 @@ function ConceptGrid({
         return (
           <Card
             key={node.id}
-            className="group cursor-pointer transition hover:-translate-y-1 hover:shadow-lg"
+            className="group cursor-pointer transition"
             onClick={() =>
               onOpen(node.id)
             }
@@ -838,22 +838,22 @@ function ConceptGrid({
 
               <ChevronRight
                 size={16}
-                className="text-[#B3A98F] transition group-hover:translate-x-0.5 group-hover:text-[#4D7DF3]"
+                className="text-ink-faint transition group-hover:translate-x-0.5 group-hover:text-violet"
               />
             </div>
 
-            <h3 className="mt-3 font-serif text-[16px] font-semibold leading-6 text-[#221F1A]">
+            <h3 className="mt-3 font-serif text-[16px] font-semibold leading-6 text-ink">
               {node.label}
             </h3>
 
-            <p className="mt-2 max-h-[66px] overflow-hidden text-[12.5px] leading-[22px] text-[#726B5C]">
+            <p className="mt-2 max-h-[66px] overflow-hidden text-[12.5px] leading-[22px] text-ink-soft">
               {getNodeDescription(node)}
             </p>
 
             {typeof confidence ===
               "number" && (
               <div className="mt-4">
-                <div className="flex justify-between text-[10px] text-[#726B5C]">
+                <div className="flex justify-between text-[10px] text-ink-soft">
                   <span>
                     {t("knowledge.sourceConfidence")}
                   </span>
@@ -865,7 +865,7 @@ function ConceptGrid({
                   </span>
                 </div>
 
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#EFE8D6]">
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line-soft">
                   <div
                     className="h-full rounded-full"
                     style={{
@@ -908,30 +908,30 @@ function EvidenceGrid({
       {evidence.map((item) => (
         <article
           key={item.id}
-          className="rounded-2xl border border-[#E6DDC8] bg-white p-5"
+          className="rounded-[10px] border border-line bg-paper-raised p-5"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F4EFE4] px-2.5 py-1 text-[10px] font-medium text-[#726B5C]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-line-soft px-2.5 py-1 text-[10px] font-medium text-ink-soft">
               <BookOpen size={12} />
               {item.pageNumber
                 ? t("knowledge.page", { page: item.pageNumber })
                 : t("knowledge.sourceEvidence")}
             </span>
 
-            <span className="rounded-full bg-[#EEF4FF] px-2 py-1 text-[10px] font-medium text-[#255FD6]">
+            <span className="rounded-full bg-violet-soft px-2 py-1 text-[10px] font-medium text-violet">
               {readableType(
                 item.nodeType,
               )}
             </span>
           </div>
 
-          <blockquote className="mt-4 border-l-2 border-[#FFCE3E] pl-4 text-[13px] leading-6 text-[#514B40]">
+          <blockquote className="mt-4 border-l-2 border-yellow pl-4 text-[13px] leading-6 text-ink-soft">
             “{item.text}”
           </blockquote>
 
-          <p className="mt-4 text-[11px] font-medium text-[#726B5C]">
+          <p className="mt-4 text-[11px] font-medium text-ink-soft">
             {t("knowledge.supports")} {" "}
-            <span className="text-[#38342C]">
+            <span className="text-ink">
               {item.nodeLabel}
             </span>
           </p>
@@ -951,16 +951,16 @@ function GraphLegend({
   const { t } = useLanguage();
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#E6DDC8] bg-white p-4">
+    <div className="mt-4 rounded-[10px] border border-line bg-paper-raised p-4">
       <div className="flex flex-wrap gap-x-5 gap-y-3">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
           {t("knowledge.types")}
         </span>
 
         {nodeTypes.map((type) => (
           <span
             key={type}
-            className="inline-flex items-center gap-1.5 text-[10.5px] text-[#514B40]"
+            className="inline-flex items-center gap-1.5 text-[10.5px] text-ink-soft"
           >
             <span
               className="h-2.5 w-2.5 rounded-full"
@@ -976,7 +976,7 @@ function GraphLegend({
 
       {relationTypes.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-3 border-t border-[#EFE8D6] pt-3">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-[#726B5C]">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
             {t("knowledge.relationships")}
           </span>
 
@@ -985,7 +985,7 @@ function GraphLegend({
             .map((type) => (
               <span
                 key={type}
-                className="text-[10.5px] text-[#514B40]"
+                className="text-[10.5px] text-ink-soft"
               >
                 {relationLabel(type)}
               </span>
@@ -1000,18 +1000,18 @@ function InspectorPlaceholder() {
   const { t } = useLanguage();
 
   return (
-    <div className="sticky top-5 flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-[#E6DDC8] bg-white p-8 text-center">
+    <div className="sticky top-5 flex min-h-[420px] items-center justify-center rounded-[10px] border border-dashed border-line bg-paper-raised p-8 text-center">
       <div>
         <GitBranch
           size={28}
-          className="mx-auto text-[#B3A98F]"
+          className="mx-auto text-ink-faint"
         />
 
-        <p className="mt-3 text-[13px] font-medium text-[#38342C]">
+        <p className="mt-3 text-[13px] font-medium text-ink">
           {t("knowledge.selectItem")}
         </p>
 
-        <p className="mt-2 text-[12px] leading-5 text-[#726B5C]">
+        <p className="mt-2 text-[12px] leading-5 text-ink-soft">
           {t("knowledge.selectDescription")}
         </p>
       </div>
@@ -1022,8 +1022,8 @@ function InspectorPlaceholder() {
 function LoadingState() {
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="h-[640px] animate-pulse rounded-2xl border border-[#E6DDC8] bg-white/70" />
-      <div className="hidden h-[520px] animate-pulse rounded-2xl border border-[#E6DDC8] bg-white/70 xl:block" />
+      <div className="h-[640px] animate-pulse rounded-[10px] border border-line bg-paper-raised/70" />
+      <div className="hidden h-[520px] animate-pulse rounded-[10px] border border-line bg-paper-raised/70 xl:block" />
     </div>
   );
 }
@@ -1040,24 +1040,24 @@ function EmptyState({
   return (
     <div
       className={[
-        "rounded-2xl border border-dashed bg-white p-10 text-center",
+        "rounded-[10px] border border-dashed bg-paper-raised p-10 text-center",
         danger
           ? "border-red-200"
-          : "border-[#E6DDC8]",
+          : "border-line",
       ].join(" ")}
     >
       <p
         className={[
           "text-[13px] font-semibold",
           danger
-            ? "text-[#E85D46]"
-            : "text-[#38342C]",
+            ? "text-coral"
+            : "text-ink",
         ].join(" ")}
       >
         {title}
       </p>
 
-      <p className="mx-auto mt-2 max-w-[520px] text-[12px] leading-5 text-[#726B5C]">
+      <p className="mx-auto mt-2 max-w-[520px] text-[12px] leading-5 text-ink-soft">
         {description}
       </p>
     </div>

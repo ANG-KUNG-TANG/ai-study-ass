@@ -1,23 +1,23 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  Upload,
   CheckCircle,
-  TrendingUp,
-  Repeat,
   FilePlus,
+  Repeat,
+  TrendingUp,
+  Upload,
 } from "lucide-react";
+import { useState } from "react";
+
 import { Topbar } from "@/components/layout/Topbar";
-import { StatCard } from "@/components/ui/StatCard";
-import { NoteCard } from "@/components/notes/NoteCard";
 import { DeleteNoteDialog } from "@/components/notes/DeleteNoteDialog";
-import { Button } from "@/components/ui/Button";
-import { useNotes } from "@/hooks/useNotes";
+import { NoteCard } from "@/components/notes/NoteCard";
+import { StatCard } from "@/components/ui/StatCard";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useNotes } from "@/hooks/useNotes";
 import { deleteNote } from "@/services/note.service";
 
 interface DeleteTarget {
@@ -44,12 +44,8 @@ export default function DashboardPage() {
   function requestDelete(noteId: string): void {
     const note = notes.find((item) => item.id === noteId);
     if (!note) return;
-
     setDeleteError(null);
-    setDeleteTarget({
-      id: note.id,
-      title: note.title,
-    });
+    setDeleteTarget({ id: note.id, title: note.title });
   }
 
   function closeDeleteDialog(): void {
@@ -60,7 +56,6 @@ export default function DashboardPage() {
 
   async function confirmDelete(): Promise<void> {
     if (!deleteTarget || isDeleting) return;
-
     setIsDeleting(true);
     setDeleteError(null);
 
@@ -80,17 +75,61 @@ export default function DashboardPage() {
   return (
     <>
       <Topbar
+        eyebrow={t("dashboard.eyebrow")}
         title={t("dashboard.welcome", {
           name: user?.name ? `, ${user.name}` : "",
         })}
+        description={t("dashboard.description")}
         search={{
           value: search,
           onChange: setSearch,
           placeholder: t("dashboard.search"),
         }}
+        actions={(
+          <Link
+            href="/student/notes"
+            className="inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-ink px-4 text-[13px] font-semibold text-paper-raised transition hover:opacity-90"
+          >
+            <Upload size={15} strokeWidth={1.8} aria-hidden="true" />
+            {t("notes.title")}
+          </Link>
+        )}
       />
 
-      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+      {mostRecentNote ? (
+        <section className="mb-7 border-l-[3px] border-yellow bg-ink px-5 py-5 text-paper-raised sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div className="min-w-0">
+              <div className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.11em] text-yellow">
+                {t("dashboard.continueStudying")}
+              </div>
+              <h2 className="truncate font-serif text-[20px] font-semibold">
+                {mostRecentNote.title}
+              </h2>
+              <p className="mt-1 text-[12.5px] text-ink-invert-soft">
+                {mostRecentNote.summary
+                  ? t("dashboard.ready")
+                  : t("dashboard.processing")}
+              </p>
+            </div>
+
+            <Link
+              href={`/student/notes/${mostRecentNote.id}`}
+              className="group inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-yellow px-4 text-[13px] font-semibold text-ink transition hover:brightness-95"
+            >
+              {t("dashboard.continue")}
+              <ArrowRight
+                className="transition-transform group-hover:translate-x-0.5"
+                size={16}
+                strokeWidth={1.8}
+                aria-hidden="true"
+              />
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="mb-7 grid grid-cols-2 border-l border-t border-line sm:grid-cols-4 sm:border-b">
         <StatCard
           value={meta?.total ?? "—"}
           label={t("dashboard.notesUploaded")}
@@ -123,110 +162,77 @@ export default function DashboardPage() {
           delta="−3%"
           deltaType="down"
         />
-      </div>
+      </section>
 
-      {mostRecentNote && (
-        <div className="relative mb-8 overflow-hidden rounded-card bg-ink p-6 text-paper-raised shadow-sm transition hover:shadow-md">
-          <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-yellow/10 blur-2xl" />
-
-          <div className="relative flex flex-wrap items-center justify-between gap-4">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <section className="min-w-0">
+          <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <div className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.1em] text-yellow">
-                {t("dashboard.continueStudying")}
-              </div>
-
-              <h3 className="font-serif text-[18px] font-semibold">
-                {mostRecentNote.title}
-              </h3>
-
-              <p className="mt-1 text-[13px] text-ink-invert-soft">
-                {mostRecentNote.summary
-                  ? t("dashboard.ready")
-                  : t("dashboard.processing")}
-              </p>
+              <span className="editorial-kicker">{t("dashboard.libraryKicker")}</span>
+              <h2 className="mt-1 font-serif text-[19px] font-semibold text-ink">
+                {t("dashboard.recentNotes")}
+              </h2>
             </div>
-
-            <Link href={`/student/notes/${mostRecentNote.id}`}>
-              <Button
-                variant="yellow"
-                className="group bg-yellow text-ink hover:brightness-95"
-              >
-                {t("dashboard.continue")}
-                <ArrowRight
-                  className="ml-1 transition group-hover:translate-x-1"
-                  size={16}
-                  strokeWidth={1.8}
-                />
-              </Button>
+            <Link
+              href="/student/notes"
+              className="text-[12.5px] font-medium text-ink-soft hover:text-ink"
+            >
+              {t("dashboard.viewAll")}
             </Link>
           </div>
-        </div>
-      )}
 
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-serif text-[17px] font-semibold text-ink">
-          {t("dashboard.recentNotes")}
-        </h2>
-
-        <Link
-          href="/student/notes"
-          className="text-[13px] font-medium text-ink-soft hover:text-ink"
-        >
-          {t("dashboard.viewAll")}
-        </Link>
-      </div>
-
-      {isLoading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="animate-pulse rounded-card border border-line bg-paper-raised p-4"
-            >
-              <div className="flex items-start justify-between">
-                <div className="h-9 w-9 rounded-lg bg-line-soft" />
-                <div className="h-3 w-16 rounded bg-line-soft" />
-              </div>
-              <div className="mt-3 h-5 w-3/4 rounded bg-line-soft" />
-              <div className="mt-2 h-4 w-1/2 rounded bg-line-soft" />
+          {isLoading && (
+            <div className="border-y border-line">
+              {[...Array(3)].map((_, index) => (
+                <div key={index} className="animate-pulse border-b border-line-soft px-2 py-5 last:border-b-0">
+                  <div className="h-4 w-1/2 rounded bg-line-soft" />
+                  <div className="mt-2 h-3 w-3/4 rounded bg-line-soft" />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {error && <p className="text-[13px] text-coral">{error}</p>}
+          {error && <p className="editorial-callout border-coral text-coral">{error}</p>}
 
-      {!isLoading && !error && notes.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-card border-2 border-dashed border-line bg-paper-raised p-12 text-center">
-          <div className="mb-4 text-ink-faint">
-            <FilePlus size={48} strokeWidth={1.5} />
-          </div>
+          {!isLoading && !error && notes.length === 0 && (
+            <div className="border-y border-dashed border-line px-6 py-12 text-center">
+              <FilePlus className="mx-auto text-ink-faint" size={34} strokeWidth={1.5} />
+              <h3 className="mt-3 font-serif text-[17px] font-semibold text-ink">
+                {t("dashboard.noNotes")}
+              </h3>
+              <p className="mt-1 text-[13px] text-ink-soft">
+                {t("dashboard.noNotesDescription")}
+              </p>
+            </div>
+          )}
 
-          <h3 className="font-serif text-lg font-semibold text-ink">
-            {t("dashboard.noNotes")}
-          </h3>
+          {!isLoading && !error && notes.length > 0 && (
+            <div className="border-y border-line">
+              {notes.map((note) => (
+                <NoteCard
+                  key={note.id}
+                  note={{ ...note, summary: note.summary ?? undefined }}
+                  onDelete={requestDelete}
+                  isDeleting={isDeleting && deleteTarget?.id === note.id}
+                />
+              ))}
+            </div>
+          )}
+        </section>
 
-          <p className="mt-1 text-sm text-ink-soft">
-            {t("dashboard.noNotesDescription")}
+        <aside className="min-w-0 border-t border-line pt-4">
+          <span className="editorial-kicker">{t("dashboard.rhythmKicker")}</span>
+          <h2 className="mt-1 font-serif text-[18px] font-semibold text-ink">{t("dashboard.rhythmTitle")}</h2>
+          <ol className="mt-4 border-y border-line">
+            <li className="border-b border-line-soft py-3 text-[12.5px] text-ink-soft"><strong className="mr-2 text-ink">01</strong> {t("dashboard.rhythmRead")}</li>
+            <li className="border-b border-line-soft py-3 text-[12.5px] text-ink-soft"><strong className="mr-2 text-ink">02</strong> {t("dashboard.rhythmReview")}</li>
+            <li className="py-3 text-[12.5px] text-ink-soft"><strong className="mr-2 text-ink">03</strong> {t("dashboard.rhythmPractise")}</li>
+          </ol>
+          <p className="mt-4 text-[12px] leading-5 text-ink-faint">
+            {t("dashboard.floatingNote")}
           </p>
-        </div>
-      )}
-
-      {!isLoading && !error && notes.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {notes.map((note) => (
-            <NoteCard
-              key={note.id}
-              note={{
-                ...note,
-                summary: note.summary ?? undefined,
-              }}
-              onDelete={requestDelete}
-              isDeleting={isDeleting && deleteTarget?.id === note.id}
-            />
-          ))}
-        </div>
-      )}
+        </aside>
+      </div>
 
       <DeleteNoteDialog
         open={deleteTarget !== null}

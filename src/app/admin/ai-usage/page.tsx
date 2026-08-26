@@ -181,12 +181,11 @@ export default function AdminAIUsagePage() {
       <Topbar
         eyebrow={t("admin.system")}
         title={t("admin.ai.observabilityTitle")}
+        description={t("admin.ai.description")}
       />
 
       <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="text-[12px] text-ink-faint">
-          {t("admin.ai.description")}
-        </p>
+        <span />
 
         <div className="flex gap-2">
           <button

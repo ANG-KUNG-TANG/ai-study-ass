@@ -68,20 +68,20 @@ function LoginContent() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 text-center">
+      <div className="mb-7 text-left">
         <AuthPageMark />
 
-        <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
+        <h1 className="text-[38px] font-bold leading-[0.98] tracking-[-0.055em] text-ink sm:text-[44px]">
           {t("login.title")}
         </h1>
-        <p className="mt-1.5 text-[14px] text-ink-soft">
+        <p className="mt-3 text-[14px] leading-6 text-ink-soft">
           {t("login.subtitle")}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-[18px]">
         <div className="space-y-2">
-          <label htmlFor="email" className="block text-[13px] font-medium text-ink">
+          <label htmlFor="email" className="block text-[12px] font-semibold text-ink-soft">
             {t("common.email")}
           </label>
           <input
@@ -92,12 +92,12 @@ function LoginContent() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="h-[46px] w-full rounded-[13px] border border-line bg-paper-raised/45 px-4 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+            className="h-[50px] w-full rounded-[10px] border border-line bg-paper-raised px-4 text-[13px] text-ink outline-none transition-all placeholder:text-ink-faint focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
           />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="block text-[13px] font-medium text-ink">
+          <label htmlFor="password" className="block text-[12px] font-semibold text-ink-soft">
             {t("common.password")}
           </label>
           <div className="relative">
@@ -109,7 +109,7 @@ function LoginContent() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
-              className="h-[46px] w-full rounded-[13px] border border-line bg-paper-raised/45 px-4 pr-12 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+              className="h-[50px] w-full rounded-[10px] border border-line bg-paper-raised px-4 pr-12 text-[13px] text-ink outline-none transition-all placeholder:text-ink-faint focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
             />
             <button
               type="button"
@@ -127,7 +127,7 @@ function LoginContent() {
         </div>
 
         {displayedError && (
-          <div className="rounded-xl bg-coral-soft px-4 py-3 text-[13px] text-coral">
+          <div className="rounded-[8px] bg-coral-soft px-4 py-3 text-[13px] text-coral">
             <p>{displayedError}</p>
             {needsVerification && (
               <Link
@@ -159,7 +159,7 @@ function LoginContent() {
         <Button
           type="submit"
           variant="yellow"
-          className="h-[46px] w-full rounded-[13px] text-[13px] font-semibold shadow-[0_6px_16px_rgba(255,206,62,0.16)]"
+          className="h-[50px] w-full rounded-full text-[13px] font-bold"
           disabled={isLoading}
         >
           {isLoading ? t("login.submitting") : t("login.submit")}

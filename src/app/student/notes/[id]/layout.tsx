@@ -13,10 +13,18 @@ function NoteLayoutInner({ noteId, children }: { noteId: string; children: React
 
   return (
     <>
-      <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.1em] text-coral">
-        {note.fileType.toUpperCase()}
-      </div>
-      <h1 className="mb-5 font-serif text-[24px] font-semibold">{note.title}</h1>
+      <header className="mb-5 border-b border-line pb-5">
+        <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.1em] text-coral">
+          {t("document.eyebrow", { type: note.fileType.toUpperCase() })}
+        </div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-serif text-[25px] font-semibold tracking-[-0.015em] text-ink">{note.title}</h1>
+            <p className="mt-1 text-[12px] text-ink-soft">{t("document.description")}</p>
+          </div>
+          <span className="rounded-full border border-line bg-sage-soft px-2.5 py-1 text-[10px] font-semibold text-sage">{t("document.sourceReady")}</span>
+        </div>
+      </header>
       <NoteTabs noteId={noteId} />
       {children}
     </>

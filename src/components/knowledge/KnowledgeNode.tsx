@@ -58,27 +58,27 @@ function renderNodeTypeIcon(type: string) {
 function backgroundForType(type: string): string {
   switch (type) {
     case "paper":
-      return "#EDF3FF";
+      return "#DEE9F2";
     case "section":
-      return "#FFF8E8";
+      return "#FFF1C2";
     case "concept":
-      return "#F2EDFF";
+      return "#E7E4F5";
     case "method":
-      return "#FFF5DF";
+      return "#FFF1C2";
     case "tool":
-      return "#EAF5FC";
+      return "#DEE9F2";
     case "dataset":
-      return "#FFF0F7";
+      return "#FBE1DB";
     case "result":
-      return "#EAF8F0";
+      return "#DCEBDF";
     case "metric":
-      return "#F0EDFF";
+      return "#E7E4F5";
     case "sample":
-      return "#E9F8F7";
+      return "#DCEBDF";
     case "claim":
-      return "#FFF0EB";
+      return "#FBE1DB";
     default:
-      return "#F6F3EC";
+      return "#FAF6EC";
   }
 }
 
@@ -96,10 +96,8 @@ function KnowledgeNodeComponent({
   return (
     <div
       className={[
-        "relative w-[228px] rounded-2xl border bg-white px-4 py-3 shadow-sm transition duration-150",
-        selected
-          ? "scale-[1.025] shadow-lg"
-          : "hover:-translate-y-0.5 hover:shadow-md",
+        "relative w-[228px] rounded-[10px] border bg-paper-raised px-4 py-3 transition duration-150",
+        selected ? "ring-2 ring-yellow" : "",
         data.dimmed ? "opacity-25" : "opacity-100",
       ].join(" ")}
       style={{
@@ -109,9 +107,6 @@ function KnowledgeNodeComponent({
         background: backgroundForType(
           data.nodeType,
         ),
-        boxShadow: selected
-          ? `0 0 0 3px ${accent}1F, 0 12px 30px rgba(34,31,26,0.12)`
-          : undefined,
       }}
     >
       <Handle
@@ -132,7 +127,7 @@ function KnowledgeNodeComponent({
 
       <div className="flex items-start gap-3">
         <div
-          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm"
+          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-paper-raised"
           style={{ color: accent }}
         >
           {renderNodeTypeIcon(data.nodeType)}
@@ -140,13 +135,13 @@ function KnowledgeNodeComponent({
 
         <div className="min-w-0 flex-1">
           <p
-            className="max-h-10 overflow-hidden text-[12.5px] font-semibold leading-5 text-[#221F1A]"
+            className="max-h-10 overflow-hidden text-[12.5px] font-semibold leading-5 text-ink"
             title={data.label}
           >
             {data.label}
           </p>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-[#726B5C]">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-ink-soft">
             <span>
               {data.nodeType === "section"
                 ? t("knowledge.learningSection")

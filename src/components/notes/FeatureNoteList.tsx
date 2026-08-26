@@ -244,11 +244,11 @@ function FeatureCard({
     );
 
   return (
-    <article className="group flex min-h-[220px] flex-col rounded-card border border-line bg-paper-raised p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-ink/15 hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
+    <article className="group editorial-row flex min-w-0 flex-col gap-3 px-2 py-4 transition-colors hover:bg-paper-raised sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         <div
           className={[
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-md",
             config.iconClassName,
           ].join(" ")}
         >
@@ -259,65 +259,33 @@ function FeatureCard({
           />
         </div>
 
-        <span className="rounded-full bg-line-soft px-2 py-1 font-mono text-[9.5px] uppercase tracking-wide text-ink-faint">
-          {note.fileType}
-        </span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="truncate font-serif text-[16px] font-semibold leading-snug text-ink">
+              {note.title}
+            </h2>
+            <span className="rounded-full bg-line-soft px-2 py-1 font-mono text-[9.5px] uppercase tracking-wide text-ink-faint">
+              {note.fileType}
+            </span>
+          </div>
+          <p className="mt-1 line-clamp-1 text-[12px] leading-5 text-ink-soft">
+            {summaryPreview(note, t)}
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-ink-faint">
+            <span>{formatDate(note.createdAt, locale, t)}</span>
+            <span aria-hidden="true">·</span>
+            <span>{formatFileSize(note.fileSize, t)}</span>
+          </div>
+        </div>
       </div>
 
-      <h2 className="mt-4 line-clamp-2 font-serif text-[16px] font-semibold leading-snug text-ink">
-        {note.title}
-      </h2>
-
-      <p className="mt-2 line-clamp-3 text-[12px] leading-5 text-ink-soft">
-        {summaryPreview(
-          note,
-          t,
-        )}
-      </p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-ink-faint">
-        <span>
-          {formatDate(
-            note.createdAt,
-            locale,
-            t,
-          )}
-        </span>
-
-        <span aria-hidden="true">
-          ·
-        </span>
-
-        <span>
-          {formatFileSize(
-            note.fileSize,
-            t,
-          )}
-        </span>
-      </div>
-
-      <div className="mt-auto pt-5">
-        <Link
-          href={featureHref(
-            note.id,
-            feature,
-          )}
-          className="flex w-full items-center justify-between rounded-xl border border-line bg-paper px-3 py-2.5 text-[12.5px] font-medium text-ink transition hover:border-ink/20 hover:bg-line-soft"
-        >
-          <span>
-            {summaryReady
-              ? t("feature.viewSummary")
-              : t(config.actionLabelKey)}
-          </span>
-
-          <ArrowRight
-            size={15}
-            strokeWidth={1.8}
-            className="transition-transform group-hover:translate-x-0.5"
-            aria-hidden="true"
-          />
-        </Link>
-      </div>
+      <Link
+        href={featureHref(note.id, feature)}
+        className="flex shrink-0 items-center justify-between gap-3 rounded-[8px] border border-line bg-paper px-3 py-2.5 text-[12.5px] font-medium text-ink transition hover:bg-line-soft"
+      >
+        <span>{summaryReady ? t("feature.viewSummary") : t(config.actionLabelKey)}</span>
+        <ArrowRight size={15} strokeWidth={1.8} className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+      </Link>
     </article>
   );
 }
@@ -434,7 +402,7 @@ export function FeatureNoteList({
             disabled={
               isLoading
             }
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-paper-raised px-3 text-[12px] font-medium text-ink-soft transition hover:bg-line-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-10 items-center gap-2 rounded-[8px] border border-line bg-paper-raised px-3 text-[12px] font-medium text-ink-soft transition hover:bg-line-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw
               size={14}
@@ -485,20 +453,17 @@ export function FeatureNoteList({
       )}
 
       {isLoading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="border-y border-line">
           {Array.from({
             length: 6,
           }).map(
             (_, index) => (
               <div
                 key={index}
-                className="min-h-[220px] animate-pulse rounded-card border border-line bg-paper-raised p-4"
+                className="animate-pulse border-b border-line-soft px-3 py-5 last:border-b-0"
               >
-                <div className="h-9 w-9 rounded-xl bg-line-soft" />
-                <div className="mt-4 h-5 w-3/4 rounded bg-line-soft" />
-                <div className="mt-3 h-3 w-full rounded bg-line-soft" />
+                <div className="h-5 w-2/3 rounded bg-line-soft" />
                 <div className="mt-2 h-3 w-5/6 rounded bg-line-soft" />
-                <div className="mt-8 h-10 w-full rounded-xl bg-line-soft" />
               </div>
             ),
           )}
@@ -509,10 +474,10 @@ export function FeatureNoteList({
         !error &&
         safeNotes.length ===
           0 && (
-          <div className="flex min-h-[320px] flex-col items-center justify-center rounded-card border-2 border-dashed border-line bg-paper-raised px-6 py-12 text-center">
+          <div className="flex min-h-[320px] flex-col items-center justify-center border-y border-dashed border-line px-6 py-12 text-center">
             <div
               className={[
-                "flex h-12 w-12 items-center justify-center rounded-2xl",
+                "flex h-12 w-12 items-center justify-center rounded-[10px]",
                 config.iconClassName,
               ].join(" ")}
             >
@@ -554,7 +519,7 @@ export function FeatureNoteList({
         safeNotes.length >
           0 && (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="border-y border-line">
               {safeNotes.map(
                 (note) => (
                   <FeatureCard

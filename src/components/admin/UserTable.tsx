@@ -140,7 +140,7 @@ export function UserTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-card border border-line bg-paper-raised">
+    <div className="overflow-x-auto border-y border-line bg-transparent">
       <table className="w-full min-w-[760px] text-left text-[13px]">
         <thead>
           <tr className="border-b border-line text-[11px] uppercase tracking-wide text-ink-faint">

@@ -58,7 +58,7 @@ export default function FlashcardPage() {
 
   if (flashcards.length === 0) {
     return (
-      <Card className="flex min-h-[260px] flex-col items-center justify-center text-center">
+      <Card className="flex min-h-[260px] flex-col items-center justify-center rounded-none border-x-0 text-center">
         <h2 className="font-serif text-[18px] font-semibold">
           {t("flashcards.unavailable")}
         </h2>
@@ -115,7 +115,7 @@ export default function FlashcardPage() {
         onClick={() => setRevealed((current) => !current)}
         className="block w-full text-left"
       >
-        <Card className="flex min-h-[320px] flex-col items-center justify-center text-center transition hover:shadow-lg">
+        <Card className="flex min-h-[320px] flex-col items-center justify-center border-t-[4px] border-t-yellow text-center transition-colors hover:bg-yellow-soft/20">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
             {revealed ? t("flashcards.answer") : t("flashcards.question")}
           </p>

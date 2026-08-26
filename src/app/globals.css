@@ -4,7 +4,64 @@
 @config "../../tailwind.config.ts";
 
 body {
-  background:
-    radial-gradient(circle, theme('colors.line-soft') 1px, transparent 1px) 0 0 / 22px 22px,
-    theme('colors.paper');
+  min-height: 100vh;
+  background: theme('colors.paper');
+  color: theme('colors.ink');
+  font-family: var(--font-sans), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: theme('colors.yellow.soft');
+  color: theme('colors.ink');
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  outline-color: theme('colors.yellow');
+}
+
+@layer components {
+  .editorial-rule {
+    @apply border-t border-line;
+  }
+
+  .editorial-section {
+    @apply border-t border-line py-5 first:border-t-0 first:pt-0;
+  }
+
+  .editorial-kicker {
+    @apply font-mono text-[10.5px] font-medium uppercase tracking-[0.11em] text-coral;
+  }
+
+  .editorial-help {
+    @apply text-[12.5px] leading-5 text-ink-soft;
+  }
+
+  .editorial-callout {
+    @apply border-l-[3px] border-yellow bg-yellow-soft/55 px-4 py-3 text-[12.5px] leading-5 text-ink;
+  }
+
+  .editorial-table {
+    @apply overflow-hidden border-y border-line;
+  }
+
+  .editorial-row {
+    @apply border-b border-line-soft last:border-b-0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

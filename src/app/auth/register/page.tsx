@@ -65,7 +65,7 @@ export default function RegisterPage() {
             />
           </svg>
         </div>
-        <h1 className="mb-2 font-serif text-[28px] font-semibold tracking-[-0.02em]">
+        <h1 className="mb-2 text-[34px] font-bold tracking-[-0.045em]">
           {t("register.checkEmail")}
         </h1>
         <p className="mx-auto mb-5 max-w-[330px] text-[13px] leading-5 text-ink-soft">
@@ -76,7 +76,7 @@ export default function RegisterPage() {
         </p>
         <Link
           href={`/auth/verify-email?email=${encodeURIComponent(form.email)}`}
-          className="mb-4 inline-flex h-10 items-center justify-center rounded-[11px] bg-yellow px-4 text-[12.5px] font-semibold text-ink hover:brightness-95"
+          className="mb-4 inline-flex h-11 items-center justify-center rounded-full bg-yellow px-5 text-[12.5px] font-semibold text-ink hover:brightness-95"
         >
           {t("register.verificationHelp")}
         </Link>
@@ -93,12 +93,12 @@ export default function RegisterPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-5 text-center">
+      <div className="mb-6 text-left">
         <AuthPageMark />
-        <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
+        <h1 className="text-[36px] font-bold leading-[0.98] tracking-[-0.055em] text-ink sm:text-[42px]">
           {t("register.title")}
         </h1>
-        <p className="mt-1.5 text-[14px] text-ink-soft">
+        <p className="mt-3 text-[14px] leading-6 text-ink-soft">
           {t("register.subtitle")}
         </p>
       </div>
@@ -118,7 +118,7 @@ export default function RegisterPage() {
           label={t("common.name")}
           placeholder={t("register.namePlaceholder")}
           autoComplete="name"
-          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
+          className="h-[48px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
           value={form.name}
           onChange={(event) => setForm({ ...form, name: event.target.value })}
           required
@@ -128,7 +128,7 @@ export default function RegisterPage() {
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
-          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
+          className="h-[48px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
           value={form.email}
           onChange={(event) => setForm({ ...form, email: event.target.value })}
           required
@@ -138,7 +138,7 @@ export default function RegisterPage() {
           type="password"
           autoComplete="new-password"
           placeholder="••••••••"
-          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
+          className="h-[48px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
           value={form.password}
           onChange={(event) => setForm({ ...form, password: event.target.value })}
           required
@@ -151,7 +151,7 @@ export default function RegisterPage() {
           type="password"
           autoComplete="new-password"
           placeholder="••••••••"
-          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
+          className="h-[48px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
           value={form.confirmPassword}
           onChange={(event) =>
             setForm({ ...form, confirmPassword: event.target.value })
@@ -165,7 +165,7 @@ export default function RegisterPage() {
           type="submit"
           variant="yellow"
           disabled={isSubmitting}
-          className="mt-1 h-[46px] w-full rounded-[13px] text-[13px] font-semibold"
+          className="mt-1 h-[50px] w-full rounded-full text-[13px] font-bold"
         >
           {isSubmitting ? t("register.submitting") : t("register.submit")}
           {!isSubmitting && <ArrowRight size={18} strokeWidth={1.8} />}

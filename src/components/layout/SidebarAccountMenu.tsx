@@ -105,12 +105,12 @@ export function SidebarAccountMenu({
           className={[
             "absolute bottom-[calc(100%+10px)] left-0 z-[70]",
             "w-[272px] max-w-[calc(100vw-2rem)] overflow-hidden",
-            "rounded-[18px] border border-paper-raised/10 bg-ink p-2",
-            "text-paper-raised shadow-[0_20px_55px_rgba(20,18,15,0.28)]",
+            "rounded-[12px] border border-line bg-paper-raised p-2",
+            "text-ink shadow-[0_16px_36px_rgba(45,40,32,0.13)]",
           ].join(" ")}
         >
           <div className="flex items-center gap-3 px-2.5 py-2.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow text-[12px] font-semibold text-ink">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink text-[12px] font-semibold text-paper-raised">
               {initials(displayName)}
             </div>
 
@@ -118,23 +118,23 @@ export function SidebarAccountMenu({
               <p className="truncate text-[13.5px] font-semibold">
                 {displayName}
               </p>
-              <p className="mt-0.5 truncate text-[11px] text-paper-raised/60">
+              <p className="mt-0.5 truncate text-[11px] text-ink-faint">
                 {user?.email || roleLabel}
               </p>
             </div>
 
-            <span className="rounded-full bg-paper-raised/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-paper-raised/70">
+            <span className="rounded-full bg-yellow-soft px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
               {roleLabel}
             </span>
           </div>
 
-          <div className="my-1 border-t border-paper-raised/15" />
+          <div className="my-1 border-t border-line" />
 
           <Link
             href={profileHref}
             role="menuitem"
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[13px] transition-colors hover:bg-paper-raised/10"
+            className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[13px] text-ink-soft transition-colors hover:bg-line-soft hover:text-ink"
           >
             <UserRound size={17} strokeWidth={1.7} aria-hidden="true" />
             {t("nav.profile")}
@@ -144,7 +144,7 @@ export function SidebarAccountMenu({
             href={settingsHref}
             role="menuitem"
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[13px] transition-colors hover:bg-paper-raised/10"
+            className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[13px] text-ink-soft transition-colors hover:bg-line-soft hover:text-ink"
           >
             <Settings size={17} strokeWidth={1.7} aria-hidden="true" />
             {t("nav.settings")}
@@ -154,22 +154,22 @@ export function SidebarAccountMenu({
             type="button"
             role="menuitem"
             onClick={() => setLocale(nextLocale)}
-            className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-paper-raised/10"
+            className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[13px] text-ink-soft transition-colors hover:bg-line-soft hover:text-ink"
           >
             <Languages size={17} strokeWidth={1.7} aria-hidden="true" />
             <span className="flex-1">{t("common.language")}</span>
-            <span className="text-[10px] font-semibold text-paper-raised/60">
+            <span className="rounded-md bg-line-soft px-1.5 py-0.5 text-[10px] font-semibold text-ink-faint">
               {locale === "en" ? "EN" : "မြန်မာ"}
             </span>
           </button>
 
-          <div className="my-1 border-t border-paper-raised/15" />
+          <div className="my-1 border-t border-line" />
 
           <Link
             href={aboutHref}
             role="menuitem"
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[13px] transition-colors hover:bg-paper-raised/10"
+            className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[13px] text-ink-soft transition-colors hover:bg-line-soft hover:text-ink"
           >
             <Info size={17} strokeWidth={1.7} aria-hidden="true" />
             {t("sidebar.aboutTitle")}
@@ -179,7 +179,7 @@ export function SidebarAccountMenu({
             type="button"
             role="menuitem"
             onClick={() => void handleLogout()}
-            className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-coral/20 hover:text-coral-soft"
+            className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[13px] text-ink-soft transition-colors hover:bg-coral-soft hover:text-coral"
           >
             <LogOut size={17} strokeWidth={1.7} aria-hidden="true" />
             {t("sidebar.logout")}
@@ -194,7 +194,7 @@ export function SidebarAccountMenu({
         aria-haspopup="menu"
         aria-expanded={isOpen}
         className={[
-          "flex w-full items-center rounded-[11px] py-2 transition-colors",
+          "flex w-full items-center rounded-[8px] py-2 transition-colors",
           "text-ink-soft hover:bg-line-soft hover:text-ink",
           collapsed ? "justify-center px-1" : "gap-2.5 px-2",
         ].join(" ")}

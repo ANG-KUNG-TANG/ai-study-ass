@@ -173,14 +173,10 @@ export default function AdminActivityPage() {
 
   return (
     <>
-      <Topbar eyebrow={t("admin.eyebrow")} title={t("admin.activity.title")} />
+      <Topbar eyebrow={t("admin.eyebrow")} title={t("admin.activity.title")} description={t("admin.activity.description")} />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[12px] text-ink-faint">
-            {t("admin.activity.description")}
-          </p>
-
           {activity && (
             <p className="mt-1 font-mono text-[10px] text-ink-faint">
               {t("admin.activity.eventsRetained", {
@@ -216,7 +212,7 @@ export default function AdminActivityPage() {
         </div>
       </div>
 
-      <div className="mb-4 grid gap-2 rounded-xl border border-line bg-paper-raised p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-4 grid gap-2 border-y border-line bg-transparent px-0 py-3 sm:grid-cols-2 lg:grid-cols-4">
         <input
           value={search}
           onChange={(event) => {
@@ -271,7 +267,7 @@ export default function AdminActivityPage() {
         </div>
       )}
 
-      <AdminPanel className="overflow-hidden p-0">
+      <AdminPanel className="overflow-hidden rounded-none border-x-0 p-0">
         {isLoading && !activity ? (
           <div className="space-y-3 p-5">
             {Array.from({ length: 7 }).map((_, index) => (

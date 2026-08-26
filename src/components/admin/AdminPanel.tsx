@@ -10,7 +10,7 @@ export function AdminPanel({
   return (
     <section
       className={[
-        "rounded-card border border-line bg-paper-raised p-5",
+        "rounded-[8px] border border-line bg-paper-raised p-5 shadow-none",
         className,
       ].join(" ")}
     >

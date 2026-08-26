@@ -53,7 +53,7 @@ export default function QuizPage() {
 
   if (!quiz) {
     return (
-      <Card className="flex min-h-[260px] flex-col items-center justify-center text-center">
+      <Card className="flex min-h-[260px] flex-col items-center justify-center rounded-none border-x-0 text-center">
         <h2 className="font-serif text-[18px] font-semibold">
           {t("quiz.unavailable")}
         </h2>
@@ -111,9 +111,9 @@ export default function QuizPage() {
             question.answer.trim().toLowerCase();
 
         return (
-          <Card key={question.id}>
+          <Card key={question.id} className="rounded-none border-x-0 bg-transparent px-0 sm:px-2">
             <div className="mb-3 flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F2EEE5] text-[12px] font-semibold">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-line-soft text-[12px] font-semibold">
                 {index + 1}
               </span>
 
@@ -144,14 +144,14 @@ export default function QuizPage() {
                   }))
                 }
                 placeholder={t("quiz.typeAnswer")}
-                className="w-full rounded-xl border border-[#E6DDC8] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#8C82C8]"
+                className="w-full rounded-[8px] border border-line bg-paper-raised px-3 py-2 text-[13px] outline-none focus:border-violet"
               />
             ) : (
               <div className="space-y-2">
                 {question.options.map((option) => (
                   <label
                     key={option}
-                    className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#E6DDC8] px-3 py-2.5 text-[13px] hover:bg-[#FBF8F1]"
+                    className="flex cursor-pointer items-center gap-3 border-b border-line px-3 py-2.5 text-[13px] first:border-t hover:bg-paper-raised"
                   >
                     <input
                       type="radio"
@@ -198,7 +198,7 @@ export default function QuizPage() {
         );
       })}
 
-      <Card className="flex flex-wrap items-center justify-between gap-3">
+      <Card className="flex flex-wrap items-center justify-between gap-3 rounded-none border-x-0 bg-transparent px-0">
         <div>
           {score === null ? (
             <p className="text-[13px] text-ink-soft">
