@@ -69,9 +69,9 @@ function ForgotPasswordContent() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 text-center">
+      <div className="mb-6 text-left">
         <AuthPageMark />
-        <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
+        <h1 className="font-serif text-[28px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[30px]">
           {t("forgot.title")}
         </h1>
         <p className="mx-auto mt-1.5 max-w-[340px] text-[13px] leading-5 text-ink-soft">
@@ -85,14 +85,14 @@ function ForgotPasswordContent() {
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
-          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper px-4 text-[13px]"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
         />
 
         {error && (
-          <p className="rounded-xl bg-coral-soft px-4 py-3 text-[12px] text-coral">
+          <p className="rounded-[8px] bg-coral-soft px-4 py-3 text-[12px] text-coral">
             {error}
           </p>
         )}

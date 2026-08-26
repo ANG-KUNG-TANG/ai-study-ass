@@ -105,7 +105,7 @@ function VerifyEmailContent() {
             : t("verify.enterEmail"));
 
   return (
-    <Card className="w-full max-w-[420px] rounded-none border-x-0 bg-transparent px-0 text-center">
+    <Card className="w-full max-w-[420px] rounded-none border-0 bg-transparent p-0 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-line-soft">
         {state === "verifying" && (
           <LoaderCircle className="animate-spin text-ink-soft" size={24} />

@@ -68,10 +68,10 @@ function LoginContent() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 text-center">
+      <div className="mb-6 text-left">
         <AuthPageMark />
 
-        <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
+        <h1 className="font-serif text-[28px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[30px]">
           {t("login.title")}
         </h1>
         <p className="mt-1.5 text-[14px] text-ink-soft">
@@ -92,7 +92,7 @@ function LoginContent() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="h-[46px] w-full rounded-[8px] border border-line bg-paper-raised px-4 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+            className="h-[46px] w-full rounded-[8px] border border-line bg-paper px-4 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
           />
         </div>
 
@@ -109,7 +109,7 @@ function LoginContent() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
-              className="h-[46px] w-full rounded-[8px] border border-line bg-paper-raised px-4 pr-12 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+              className="h-[46px] w-full rounded-[8px] border border-line bg-paper px-4 pr-12 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
             />
             <button
               type="button"
@@ -127,7 +127,7 @@ function LoginContent() {
         </div>
 
         {displayedError && (
-          <div className="rounded-xl bg-coral-soft px-4 py-3 text-[13px] text-coral">
+          <div className="rounded-[8px] bg-coral-soft px-4 py-3 text-[13px] text-coral">
             <p>{displayedError}</p>
             {needsVerification && (
               <Link

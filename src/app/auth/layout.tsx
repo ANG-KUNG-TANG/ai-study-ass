@@ -31,49 +31,51 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   const { t } = useLanguage();
 
   return (
-    <main className="min-h-dvh bg-paper px-4 py-4 sm:px-6 lg:px-8 lg:py-7">
-      <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between border-b border-line pb-4">
-        <BrandMark />
-        <LanguageSwitcher />
-      </div>
+    <main className="min-h-dvh bg-paper">
+      <header className="border-b border-line">
+        <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between px-5 py-4 sm:px-7">
+          <BrandMark />
+          <LanguageSwitcher />
+        </div>
+      </header>
 
-      <div className="mx-auto grid min-h-[calc(100dvh-6rem)] w-full max-w-[1180px] lg:grid-cols-[minmax(0,1.08fr)_minmax(350px,0.72fr)]">
-        <section className="hidden min-w-0 flex-col justify-center border-r border-line bg-yellow-soft/35 px-10 py-12 lg:flex xl:px-14">
+      <div className="mx-auto grid w-full max-w-[1120px] items-start gap-7 px-5 py-8 sm:px-7 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(390px,0.72fr)] lg:gap-10 lg:py-12">
+        <section className="hidden min-w-0 border-y border-line bg-yellow-soft/40 px-8 py-9 lg:block xl:px-10 xl:py-10">
           <span className="editorial-kicker">{t("auth.editorial.kicker")}</span>
-          <h1 className="mt-4 max-w-[600px] font-serif text-[clamp(2.55rem,4vw,4.15rem)] font-semibold leading-[1.02] tracking-[-0.045em] text-ink">
+          <h1 className="mt-4 max-w-[520px] font-serif text-[clamp(2.3rem,3.25vw,3.35rem)] font-semibold leading-[1.04] tracking-[-0.04em] text-ink">
             {t("auth.hero.title")}
           </h1>
-          <p className="mt-5 max-w-[560px] text-[15px] leading-7 text-ink-soft">
+          <p className="mt-4 max-w-[500px] text-[13.5px] leading-6 text-ink-soft">
             {t("auth.hero.description")}
           </p>
 
-          <div className="mt-9 max-w-[560px] border-y border-line">
-            <div className="flex items-center gap-4 border-b border-line py-4">
-              <FileText className="text-coral" size={19} strokeWidth={1.7} />
+          <div className="mt-7 max-w-[520px] border-y border-line">
+            <div className="flex items-start gap-3 border-b border-line py-3.5">
+              <FileText className="mt-0.5 text-coral" size={17} strokeWidth={1.7} />
               <div>
-                <strong className="text-[13px] font-semibold text-ink">{t("auth.editorial.sourceTitle")}</strong>
-                <p className="mt-0.5 text-[12px] text-ink-soft">{t("auth.editorial.sourceDescription")}</p>
+                <strong className="text-[12.5px] font-semibold text-ink">{t("auth.editorial.sourceTitle")}</strong>
+                <p className="mt-0.5 text-[11.5px] leading-5 text-ink-soft">{t("auth.editorial.sourceDescription")}</p>
               </div>
             </div>
-            <div className="flex items-center gap-4 border-b border-line py-4">
-              <CheckCircle2 className="text-sage" size={19} strokeWidth={1.7} />
+            <div className="flex items-start gap-3 border-b border-line py-3.5">
+              <CheckCircle2 className="mt-0.5 text-sage" size={17} strokeWidth={1.7} />
               <div>
-                <strong className="text-[13px] font-semibold text-ink">{t("auth.editorial.practiceTitle")}</strong>
-                <p className="mt-0.5 text-[12px] text-ink-soft">{t("auth.editorial.practiceDescription")}</p>
+                <strong className="text-[12.5px] font-semibold text-ink">{t("auth.editorial.practiceTitle")}</strong>
+                <p className="mt-0.5 text-[11.5px] leading-5 text-ink-soft">{t("auth.editorial.practiceDescription")}</p>
               </div>
             </div>
-            <div className="flex items-center gap-4 py-4">
-              <MessageSquareText className="text-violet" size={19} strokeWidth={1.7} />
+            <div className="flex items-start gap-3 py-3.5">
+              <MessageSquareText className="mt-0.5 text-violet" size={17} strokeWidth={1.7} />
               <div>
-                <strong className="text-[13px] font-semibold text-ink">{t("auth.editorial.chatTitle")}</strong>
-                <p className="mt-0.5 text-[12px] text-ink-soft">{t("auth.editorial.chatDescription")}</p>
+                <strong className="text-[12.5px] font-semibold text-ink">{t("auth.editorial.chatTitle")}</strong>
+                <p className="mt-0.5 text-[11.5px] leading-5 text-ink-soft">{t("auth.editorial.chatDescription")}</p>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="flex min-w-0 items-center justify-center bg-paper-raised px-2 py-10 sm:px-8 lg:px-10">
-          <div className="w-full max-w-[390px]">{children}</div>
+        <section className="w-full max-w-[460px] justify-self-center rounded-[10px] border border-line border-t-[3px] border-t-yellow bg-paper-raised px-6 py-7 sm:px-8 sm:py-8 lg:justify-self-end">
+          <div className="w-full">{children}</div>
         </section>
       </div>
     </main>

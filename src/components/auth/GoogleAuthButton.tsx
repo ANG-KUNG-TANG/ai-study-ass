@@ -14,7 +14,7 @@ export function GoogleAuthButton({
   return (
     <a
       href="/api/auth/google/start"
-      className="flex h-[46px] w-full items-center justify-center gap-3 rounded-[8px] border border-line bg-paper-raised px-4 text-[13px] font-medium text-ink transition-colors hover:bg-line-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+      className="flex h-[46px] w-full items-center justify-center gap-3 rounded-[8px] border border-line bg-paper px-4 text-[13px] font-medium text-ink transition-colors hover:bg-line-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
     >
       <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
         <path

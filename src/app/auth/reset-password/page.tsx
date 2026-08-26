@@ -55,7 +55,7 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="border-y border-line py-8">
+    <div className="py-1">
       <div className="mb-6">
         <h1 className="font-serif text-2xl font-semibold text-ink">
           {t("reset.title")}

@@ -93,9 +93,9 @@ export default function RegisterPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-5 text-center">
+      <div className="mb-5 text-left">
         <AuthPageMark />
-        <h1 className="font-serif text-[30px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[32px]">
+        <h1 className="font-serif text-[28px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[30px]">
           {t("register.title")}
         </h1>
         <p className="mt-1.5 text-[14px] text-ink-soft">
@@ -118,7 +118,7 @@ export default function RegisterPage() {
           label={t("common.name")}
           placeholder={t("register.namePlaceholder")}
           autoComplete="name"
-          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper px-4 text-[13px]"
           value={form.name}
           onChange={(event) => setForm({ ...form, name: event.target.value })}
           required
@@ -128,7 +128,7 @@ export default function RegisterPage() {
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
-          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper px-4 text-[13px]"
           value={form.email}
           onChange={(event) => setForm({ ...form, email: event.target.value })}
           required
@@ -138,7 +138,7 @@ export default function RegisterPage() {
           type="password"
           autoComplete="new-password"
           placeholder="••••••••"
-          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper px-4 text-[13px]"
           value={form.password}
           onChange={(event) => setForm({ ...form, password: event.target.value })}
           required
@@ -151,7 +151,7 @@ export default function RegisterPage() {
           type="password"
           autoComplete="new-password"
           placeholder="••••••••"
-          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper px-4 text-[13px]"
           value={form.confirmPassword}
           onChange={(event) =>
             setForm({ ...form, confirmPassword: event.target.value })
