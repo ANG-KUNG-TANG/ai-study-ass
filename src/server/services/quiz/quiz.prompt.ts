@@ -77,7 +77,11 @@ Each question object must have exactly these keys:
   "answer": the exact correct answer. For multiple_choice, it must exactly match one of "options".
             For true_false, it must be exactly "True" or "False".
   "explanation": one sentence explaining why the answer is correct.
-Only use question types from this list: ${types.join(', ')}. Base every question strictly on the material below — do not invent facts not present in it.`);
+Only use question types from this list: ${types.join(', ')}.
+For multiple_choice, exactly one option must be defensibly correct from the material; distractors must not also be supported as correct answers to the same question.
+For true_false, use False only when the material directly disproves the statement; missing evidence alone is not enough to mark a statement False.
+For short_answer, the answer must be directly supported by the supplied material and must not require outside knowledge.
+Do not reveal the answer in the question text. Base every question strictly on the material below — do not invent facts not present in it.`);
 
   const prompt = [
     `Write a ${count}-question quiz for the supplied study material.${
