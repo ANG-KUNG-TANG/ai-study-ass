@@ -33,6 +33,13 @@ import {
 } from "@/server/services/grounded-artifacts.service";
 import { z } from "zod";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
+import {
+  quizQualityLogContext,
+  validateGroundedQuizQuestions,
+} from "@/server/services/quiz/quiz-quality.service";
+import type {
+  GroundedKnowledge,
+} from "@/server/intelligence/grounding";
 
 const quizResponseSchema = z.object({
   questions: z.array(z.object({
@@ -201,6 +208,31 @@ function validateQuestions(
   });
 }
 
+function validateGroundedQuestions(
+  noteId: string,
+  questions: QuizQuestionInput[],
+  grounding: GroundedKnowledge | null,
+): QuizQuestionInput[] {
+  if (!grounding) return questions;
+
+  const result = validateGroundedQuizQuestions(
+    questions,
+    grounding,
+  );
+
+  if (result.rejected.length > 0) {
+    logger.warn(
+      "Quiz questions rejected by grounded quality validation",
+      {
+        noteId,
+        ...quizQualityLogContext(result),
+      },
+    );
+  }
+
+  return result.accepted;
+}
+
 export interface GenerateQuizOptions extends QuizPromptOptions {
   dropInvalidQuestions?: boolean;
   force?: boolean;
@@ -287,6 +319,17 @@ export async function generateQuizWithMetadata(
     ...sourceQuestions,
   ]).slice(0, count);
 
+  questions = validateQuestions(
+    noteId,
+    userId,
+    questions,
+  );
+  questions = validateGroundedQuestions(
+    noteId,
+    questions,
+    grounding,
+  );
+
   const symbolicCount = questions.length;
   let source: GenerationSource = "symbolic";
   let aiFallbackUsed = false;
@@ -340,7 +383,16 @@ export async function generateQuizWithMetadata(
     }
   }
 
-  questions = validateQuestions(noteId, userId, questions);
+  questions = validateQuestions(
+    noteId,
+    userId,
+    questions,
+  );
+  questions = validateGroundedQuestions(
+    noteId,
+    questions,
+    grounding,
+  );
 
   if (questions.length === 0) {
     throw new ValidationError(
