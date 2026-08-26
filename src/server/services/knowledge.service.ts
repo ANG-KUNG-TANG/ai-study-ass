@@ -12,13 +12,14 @@ import {
 import type {
   ConfidenceMode,
   GraphData,
+  KnowledgeGraphQuality,
   KnowledgeTreeData,
   OntologyMatchRef,
   PipelineStage,
 } from "@/server/types/Knowledge";
 import type { IntelligenceResult } from "@/server/intelligence/types";
 import type { GroundedKnowledge } from "@/server/intelligence/grounding";
-import { buildGroundedKnowledgeGraph } from "@/server/services/grounded-knowledge-graph.service";
+import { buildGroundedKnowledgeGraphResult } from "@/server/services/grounded-knowledge-graph.service";
 import { buildGroundedKnowledgeTree } from "@/server/services/knowledge/knowledge-tree.service";
 
 export type KnowledgeStatus = "not_generated" | "ready" | "partial" | "failed";
@@ -27,6 +28,7 @@ export interface KnowledgeView extends KnowledgeProps {
   status: KnowledgeStatus;
   mode: ConfidenceMode | null;
   tree: KnowledgeTreeData | null;
+  graphQuality: KnowledgeGraphQuality | null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -151,6 +153,8 @@ function emptyKnowledge(noteId: string): KnowledgeView {
       edges: [],
     },
 
+    graphQuality: null,
+
     tree: null,
 
     ontologyMatches: [],
@@ -205,6 +209,12 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
     raw.grounding,
   );
 
+  const groundedGraphResult = grounding
+    ? buildGroundedKnowledgeGraphResult(
+        grounding,
+      )
+    : null;
+
   const props: KnowledgeProps = {
     noteId: typeof raw.noteId === "string" ? raw.noteId : noteId,
 
@@ -216,8 +226,8 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
 
     ontologyMatches: normalizeOntology(raw.ontology ?? raw.ontologyMatches),
 
-    graph: grounding
-      ? buildGroundedKnowledgeGraph(grounding)
+    graph: groundedGraphResult
+      ? groundedGraphResult.graph
       : normalizeGraph(raw.graph),
 
     prologFacts: Array.isArray(raw.facts)
@@ -248,6 +258,9 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
     tree: grounding
       ? buildGroundedKnowledgeTree(grounding)
       : null,
+
+    graphQuality:
+      groundedGraphResult?.quality ?? null,
 
     status,
 

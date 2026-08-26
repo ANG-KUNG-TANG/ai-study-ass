@@ -142,6 +142,23 @@ export function collectEvidence(
     });
 }
 
+export function extractEdgeEvidence(
+  edge: KnowledgeGraphEdge,
+  nodes: KnowledgeGraphNode[],
+): EvidenceItem[] {
+  const wanted = new Set(
+    edge.evidenceIds ?? [],
+  );
+
+  if (wanted.size === 0) {
+    return [];
+  }
+
+  return collectEvidence(nodes).filter(
+    (item) => wanted.has(item.id),
+  );
+}
+
 export function connectionCountByNode(
   edges: KnowledgeGraphEdge[],
 ): Map<string, number> {
@@ -181,6 +198,14 @@ export function relationLabel(type: string): string {
     achieves: "achieves",
     solves: "solves",
     trained_on: "trained on",
+    prevents: "prevents",
+    causes: "causes",
+    leads_to: "leads to",
+    depends_on: "depends on",
+    requires: "requires",
+    protects: "protects",
+    controls: "controls",
+    enables: "enables",
   };
 
   return (
@@ -254,6 +279,8 @@ export function nodeColor(type: string): string {
       return "#C08A1A";
     case "concept":
       return "#825ED3";
+    case "term":
+      return "#6E54C9";
     case "method":
       return "#E5A229";
     case "tool":

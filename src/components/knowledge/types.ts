@@ -30,6 +30,21 @@ export interface KnowledgeGraphEdge {
 }
 
 
+
+export interface KnowledgeGraphQuality {
+  status: "passed" | "warning" | "failed";
+  semanticNodeCount: number;
+  semanticEdgeCount: number;
+  semanticIsolationCount: number;
+  semanticEdgeEvidenceCoverage: number;
+  relationshipFactCoverage: number;
+  duplicateEdgeCount: number;
+  conflictingEdgeCount: number;
+  skippedUnsafeRelationshipCount: number;
+  omittedUngroundedNodeCount: number;
+  warnings: string[];
+}
+
 export type KnowledgeTreeNodeType =
   | "root"
   | "topic"
@@ -83,6 +98,7 @@ export interface KnowledgeResponse {
     nodes: KnowledgeGraphNode[];
     edges: KnowledgeGraphEdge[];
   };
+  graphQuality?: KnowledgeGraphQuality | null;
   tree?: KnowledgeTreeData | null;
   core?: {
     method?: string | null;
