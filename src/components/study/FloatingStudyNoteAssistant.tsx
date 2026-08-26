@@ -26,10 +26,66 @@ import {
 import type { StickyNote } from "@/types/sticky-note";
 
 const DRAFT_KEY = "ai-study-assistant:sticky-note-draft:v1";
+const POSITION_KEY = "ai-study-assistant:sticky-note-position:v1";
 const MAX_CONTENT_LENGTH = 10_000;
 const RECENT_NOTE_LIMIT = 20;
+const BALL_SIZE = 48;
+const VIEWPORT_MARGIN = 12;
+const PANEL_GAP = 10;
 
 type AssistantView = "compose" | "saved";
+type ScreenPosition = { x: number; y: number };
+
+function clampPosition(
+  position: ScreenPosition,
+  viewport: { width: number; height: number },
+): ScreenPosition {
+  return {
+    x: Math.min(
+      Math.max(VIEWPORT_MARGIN, position.x),
+      Math.max(VIEWPORT_MARGIN, viewport.width - BALL_SIZE - VIEWPORT_MARGIN),
+    ),
+    y: Math.min(
+      Math.max(VIEWPORT_MARGIN, position.y),
+      Math.max(VIEWPORT_MARGIN, viewport.height - BALL_SIZE - VIEWPORT_MARGIN),
+    ),
+  };
+}
+
+function defaultPosition(viewport: { width: number; height: number }): ScreenPosition {
+  return clampPosition(
+    {
+      x: viewport.width - BALL_SIZE - 20,
+      y: viewport.height - BALL_SIZE - 16,
+    },
+    viewport,
+  );
+}
+
+function readStoredPosition(): ScreenPosition | null {
+  try {
+    const value: unknown = JSON.parse(
+      window.localStorage.getItem(POSITION_KEY) ?? "null",
+    );
+
+    if (
+      value &&
+      typeof value === "object" &&
+      "x" in value &&
+      "y" in value &&
+      typeof value.x === "number" &&
+      typeof value.y === "number" &&
+      Number.isFinite(value.x) &&
+      Number.isFinite(value.y)
+    ) {
+      return { x: value.x, y: value.y };
+    }
+  } catch {
+    // Ignore malformed local preferences and use the default position.
+  }
+
+  return null;
+}
 
 function downloadText(fileName: string, text: string): void {
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
@@ -75,6 +131,14 @@ function noteAsText(note: StickyNote): string {
 export function FloatingStudyNoteAssistant() {
   const pathname = usePathname();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const suppressClickRef = useRef(false);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    origin: ScreenPosition;
+    moved: boolean;
+  } | null>(null);
 
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<AssistantView>("compose");
@@ -86,6 +150,8 @@ export function FloatingStudyNoteAssistant() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notesError, setNotesError] = useState<string | null>(null);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const [position, setPosition] = useState<ScreenPosition | null>(null);
 
   const remaining = MAX_CONTENT_LENGTH - draft.length;
   const showRemaining = remaining <= 1_000;
@@ -127,6 +193,49 @@ export function FloatingStudyNoteAssistant() {
 
     return () => window.clearTimeout(timer);
   }, [draft]);
+
+  useEffect(() => {
+    const initializeTimer = window.setTimeout(() => {
+      const nextViewport = {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
+      setViewport(nextViewport);
+      setPosition(
+        clampPosition(
+          readStoredPosition() ?? defaultPosition(nextViewport),
+          nextViewport,
+        ),
+      );
+    }, 0);
+
+    function handleResize() {
+      const nextViewport = {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
+      setViewport(nextViewport);
+      setPosition((current) =>
+        clampPosition(current ?? defaultPosition(nextViewport), nextViewport),
+      );
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.clearTimeout(initializeTimer);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!position) return;
+
+    const timer = window.setTimeout(() => {
+      window.localStorage.setItem(POSITION_KEY, JSON.stringify(position));
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [position]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -184,7 +293,50 @@ export function FloatingStudyNoteAssistant() {
     [notes],
   );
 
+  const panelStyle = useMemo(() => {
+    if (!position || viewport.width <= 0 || viewport.height <= 0) {
+      return undefined;
+    }
+
+    const width = Math.min(320, viewport.width - VIEWPORT_MARGIN * 2);
+    const roomAbove = Math.max(
+      0,
+      position.y - PANEL_GAP - VIEWPORT_MARGIN,
+    );
+    const roomBelow = Math.max(
+      0,
+      viewport.height -
+        (position.y + BALL_SIZE + PANEL_GAP + VIEWPORT_MARGIN),
+    );
+    const shouldOpenAbove = roomAbove >= roomBelow;
+    const maxHeight = Math.min(
+      440,
+      shouldOpenAbove ? roomAbove : roomBelow,
+    );
+    const left = Math.min(
+      Math.max(
+        VIEWPORT_MARGIN,
+        position.x + BALL_SIZE - width,
+      ),
+      viewport.width - width - VIEWPORT_MARGIN,
+    );
+    const desiredTop = shouldOpenAbove
+      ? position.y - maxHeight - PANEL_GAP
+      : position.y + BALL_SIZE + PANEL_GAP;
+    const top = Math.min(
+      Math.max(VIEWPORT_MARGIN, desiredTop),
+      viewport.height - maxHeight - VIEWPORT_MARGIN,
+    );
+
+    return { left, top, width, maxHeight };
+  }, [position, viewport]);
+
   function handleToggle() {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+
     if (isOpen) {
       setIsOpen(false);
       return;
@@ -194,6 +346,77 @@ export function FloatingStudyNoteAssistant() {
     setMessage(null);
     setError(null);
     setIsOpen(true);
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0 || !position) return;
+
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: position,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || viewport.width <= 0) return;
+
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+
+    if (!drag.moved && Math.hypot(deltaX, deltaY) >= 5) {
+      drag.moved = true;
+    }
+
+    if (!drag.moved) return;
+    event.preventDefault();
+    setPosition(
+      clampPosition(
+        { x: drag.origin.x + deltaX, y: drag.origin.y + deltaY },
+        viewport,
+      ),
+    );
+  }
+
+  function finishPointerDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    suppressClickRef.current = drag.moved;
+    dragRef.current = null;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handleBallKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (!position || viewport.width <= 0) return;
+
+    const movement: Record<string, ScreenPosition> = {
+      ArrowLeft: { x: -1, y: 0 },
+      ArrowRight: { x: 1, y: 0 },
+      ArrowUp: { x: 0, y: -1 },
+      ArrowDown: { x: 0, y: 1 },
+    };
+    const direction = movement[event.key];
+    if (!direction) return;
+
+    event.preventDefault();
+    const distance = event.shiftKey ? 32 : 12;
+    setPosition(
+      clampPosition(
+        {
+          x: position.x + direction.x * distance,
+          y: position.y + direction.y * distance,
+        },
+        viewport,
+      ),
+    );
   }
 
   function handleShowSavedNotes() {
@@ -259,7 +482,8 @@ export function FloatingStudyNoteAssistant() {
       {isOpen ? (
         <section
           aria-label="Study note assistant"
-          className="fixed bottom-20 right-3 z-50 flex max-h-[min(440px,calc(100dvh-6rem))] w-[min(320px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[12px] border border-line border-t-[3px] border-t-yellow bg-paper-raised shadow-[0_18px_42px_rgba(34,31,26,0.16)] sm:right-5"
+          style={panelStyle}
+          className={`fixed z-50 flex flex-col overflow-hidden rounded-[12px] border border-line border-t-[3px] border-t-yellow bg-paper-raised shadow-[0_18px_42px_rgba(34,31,26,0.16)] ${panelStyle ? "" : "bottom-20 right-3 max-h-[min(440px,calc(100dvh-6rem))] w-[min(320px,calc(100vw-1.5rem))] sm:right-5"}`}
         >
           <header className="flex min-h-12 items-center justify-between gap-2 border-b border-line-soft px-3 py-2">
             <div className="flex min-w-0 items-center gap-2">
@@ -487,9 +711,16 @@ export function FloatingStudyNoteAssistant() {
       <button
         type="button"
         onClick={handleToggle}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishPointerDrag}
+        onPointerCancel={finishPointerDrag}
+        onKeyDown={handleBallKeyDown}
+        style={position ? { left: position.x, top: position.y } : undefined}
         aria-label={isOpen ? "Close quick study notes" : "Open quick study notes"}
         aria-expanded={isOpen}
-        className="fixed bottom-4 right-3 z-50 grid size-12 place-items-center rounded-full border border-white/70 bg-ink/90 text-white shadow-[0_10px_28px_rgba(34,31,26,0.24)] backdrop-blur-md transition duration-200 hover:scale-105 hover:bg-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-yellow/40 sm:right-5"
+        title="Quick notes — drag to move"
+        className={`fixed z-50 grid size-12 touch-none select-none place-items-center rounded-full border border-white/70 bg-ink/90 text-white shadow-[0_10px_28px_rgba(34,31,26,0.24)] backdrop-blur-md transition-[background-color,box-shadow,transform] duration-200 hover:scale-105 hover:bg-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-yellow/40 active:cursor-grabbing ${position ? "cursor-grab" : "bottom-4 right-3 cursor-grab sm:right-5"}`}
       >
         <span
           className="absolute inset-1 rounded-full border border-white/15"

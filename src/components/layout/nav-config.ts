@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, AlignLeft, HelpCircle, Copy, MessageSquare, Users, Gauge, Activity, History, ShieldAlert, Settings } from "lucide-react";
+import { LayoutDashboard, FileText, AlignLeft, HelpCircle, Copy, MessageSquare, Users, Gauge, Activity, History, ShieldAlert, Settings, MessageSquareText } from "lucide-react";
 
 export const studentNavItems = [
   { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -8,6 +8,7 @@ export const studentNavItems = [
   { href: "/student/flashcards", label: "Flashcards", icon: Copy },
   { href: "/student/chat", label: "Chat", icon: MessageSquare },
   { href: "/student/ai-usage", label: "AI Usage", icon: Gauge },
+  { href: "/student/feedback", label: "Feedback", icon: MessageSquareText },
 ];
 
 export const adminNavItems = [
@@ -18,5 +19,6 @@ export const adminNavItems = [
   { href: "/admin/activity", label: "Activity", icon: History },
   { href: "/admin/security", label: "Security", icon: ShieldAlert },
   { href: "/admin/health", label: "Health", icon: Activity },
+  { href: "/admin/feedback", label: "Feedback", icon: MessageSquareText },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

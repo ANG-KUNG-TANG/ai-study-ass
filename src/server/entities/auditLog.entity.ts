@@ -17,6 +17,7 @@ export const AUDIT_ACTIONS = [
   "quiz.generated",
   "flashcards.generated",
   "summary.generated",
+  "feedback.submitted",
   "user.profile_updated",
   "user.account_deleted",
   "rate_limit.hit",
@@ -33,6 +34,8 @@ export const AUDIT_ACTIONS = [
   "admin.settings_changed",
   "admin.retention_executed",
   "admin.provider_tested",
+  "admin.feedback_updated",
+  "admin.feedback_exported",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -71,7 +74,9 @@ export function categoryForAuditAction(action: AuditAction): AuditCategory {
   }
   if (
     action.startsWith("user.") ||
+    action.startsWith("feedback.") ||
     action.startsWith("admin.user") ||
+    action.startsWith("admin.feedback") ||
     action === "admin.role_changed" ||
     action === "admin.sessions_revoked"
   ) {
@@ -160,6 +165,7 @@ export class AuditLogEntity {
         return `${who} generated a flashcard deck${count ? ` (${count} cards)` : ""}`;
       }
       case "summary.generated": return `${who} generated a summary`;
+      case "feedback.submitted": return `${who} submitted product feedback`;
       case "user.profile_updated": return `${who} updated their profile`;
       case "user.account_deleted": return `${who} deleted their account`;
       case "rate_limit.hit": {
@@ -193,6 +199,8 @@ export class AuditLogEntity {
       case "admin.settings_changed": return `${who} changed operational settings`;
       case "admin.retention_executed": return `${who} executed the retention policy`;
       case "admin.provider_tested": return `${who} tested the AI provider`;
+      case "admin.feedback_updated": return `${who} updated a feedback submission`;
+      case "admin.feedback_exported": return `${who} exported user feedback`;
       default: return `${who} performed ${this.action}`;
     }
   }

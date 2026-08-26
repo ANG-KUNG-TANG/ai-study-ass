@@ -8,6 +8,8 @@ import * as intelligenceRepo from "@/server/repositories/intelligence.repo";
 import * as generationRepo from "@/server/repositories/study-generation.repo";
 import * as aiUsageRepo from "@/server/repositories/ai-usage.repo";
 import * as userAIPolicyRepo from "@/server/repositories/user-ai-policy.repo";
+import * as stickyNoteRepo from "@/server/repositories/sticky-note.repo";
+import * as feedbackRepo from "@/server/repositories/feedback.repo";
 import { UserEntity } from "@/server/entities/user.entity";
 import { revokeAllUserTokens } from "@/server/utils/jwt";
 import { NotFoundError, ForbiddenError } from "@/server/utils/errors";
@@ -77,6 +79,8 @@ export async function deleteAccount(
     chatRepo.deleteByUserId(userId),
     aiUsageRepo.deleteByUserId(userId),
     userAIPolicyRepo.deleteByUserId(userId),
+    stickyNoteRepo.deleteByUserId(userId),
+    feedbackRepo.deleteByUserId(userId),
     noteRepo.deleteByUserId(userId),
     revokeAllUserTokens(userId),
   ]);

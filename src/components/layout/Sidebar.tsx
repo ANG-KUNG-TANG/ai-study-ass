@@ -48,6 +48,7 @@ const NAVIGATION_KEYS: Record<string, TranslationKey> = {
   Content: "nav.content",
   "AI Usage": "nav.aiUsage",
   Health: "nav.health",
+  Feedback: "nav.feedback",
   Settings: "nav.settings",
   "Original text": "nav.originalText",
 };
