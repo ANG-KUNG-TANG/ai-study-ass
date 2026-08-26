@@ -14,6 +14,9 @@ import {
   getStudyNotesVersionMarker,
 } from "@/server/services/summary/grounded-study-notes.service";
 import {
+  buildGroundedSummaryRecovery,
+} from "@/server/services/summary/summary-recovery.service";
+import {
   assessSummaryQuality,
   summaryQualityLogContext,
   summaryQualityWarnings,
@@ -112,18 +115,47 @@ export async function generateSummary(
     ? intelligence?.grounding ?? null
     : null;
 
-  let result = grounding
-    ? buildGroundedStudyNotes(
+  let result:
+    | ReturnType<typeof buildGroundedStudyNotes>
+    | ReturnType<typeof buildReliableSymbolicSummary>;
+  let recoveryUsed = false;
+
+  if (grounding) {
+    try {
+      result = buildGroundedStudyNotes(
         grounding,
         getReliableProfile(intelligence?.core),
         note.title,
         { mode },
-      )
-    : buildReliableSymbolicSummary(
-        intelligence?.core,
-        note.content,
-        note.title,
       );
+    } catch (error) {
+      logger.warn(
+        "Grounded study-note construction failed; using strict source-extractive recovery",
+        {
+          noteId,
+          error:
+            error instanceof Error
+              ? error.message
+              : String(error),
+        },
+      );
+
+      result = buildGroundedSummaryRecovery(
+        grounding,
+        getReliableProfile(intelligence?.core),
+        note.title,
+        mode,
+      );
+      recoveryUsed = true;
+    }
+  } else {
+    result = buildReliableSymbolicSummary(
+      intelligence?.core,
+      note.content,
+      note.title,
+    );
+  }
+
   const deterministicResult = result;
 
   let source: GenerationSource = "symbolic";
@@ -131,6 +163,7 @@ export async function generateSummary(
   let tokensUsed = 0;
 
   const needsFallback =
+    !recoveryUsed &&
     mode === "comprehensive" &&
     (
       result.status === "partial" ||
@@ -223,16 +256,81 @@ export async function generateSummary(
     });
   }
 
-  if (summaryQuality?.status === "failed") {
+  if (
+    summaryQuality?.status === "failed" &&
+    grounding
+  ) {
+    const recovery =
+      buildGroundedSummaryRecovery(
+        grounding,
+        getReliableProfile(intelligence?.core),
+        note.title,
+        mode,
+      );
+
+    const recoveryQuality =
+      assessSummaryQuality({
+        artifact: {
+          summary: recovery.summary,
+          keyPoints: recovery.keyPoints,
+          importantConcepts:
+            recovery.importantConcepts,
+        },
+        grounding,
+        mode,
+      });
+
+    logger.warn(
+      "Grounded summary failed validation; evaluated strict source-extractive recovery",
+      {
+        noteId,
+        original:
+          summaryQualityLogContext(
+            summaryQuality,
+          ),
+        recovery:
+          summaryQualityLogContext(
+            recoveryQuality,
+          ),
+      },
+    );
+
+    if (recoveryQuality.faithful) {
+      result = recovery;
+      source = "symbolic";
+      aiFallbackUsed = false;
+      summaryQuality =
+        recoveryQuality;
+      recoveryUsed = true;
+    }
+  }
+
+  if (
+    summaryQuality?.status === "failed" &&
+    !summaryQuality.faithful
+  ) {
     logger.error(
-      "Grounded summary failed faithfulness/coverage validation",
+      "Grounded summary failed faithfulness validation after strict recovery",
       {
         noteId,
         ...summaryQualityLogContext(summaryQuality),
       },
     );
     throw new Error(
-      "Grounded summary failed faithfulness/coverage validation",
+      "Grounded summary failed faithfulness validation",
+    );
+  }
+
+  if (
+    summaryQuality?.status === "failed" &&
+    summaryQuality.faithful
+  ) {
+    logger.warn(
+      "Returning faithful partial summary with coverage limitations instead of failing the request",
+      {
+        noteId,
+        ...summaryQualityLogContext(summaryQuality),
+      },
     );
   }
 
@@ -268,6 +366,11 @@ export async function generateSummary(
       ...(grounding?.quality.warnings ?? []),
       ...(summaryQuality
         ? summaryQualityWarnings(summaryQuality)
+        : []),
+      ...(recoveryUsed
+        ? [
+            "A strict source-extractive recovery summary was used because the normal grounded summary could not be returned safely.",
+          ]
         : []),
     ],
   };
