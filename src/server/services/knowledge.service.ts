@@ -12,18 +12,21 @@ import {
 import type {
   ConfidenceMode,
   GraphData,
+  KnowledgeTreeData,
   OntologyMatchRef,
   PipelineStage,
 } from "@/server/types/Knowledge";
 import type { IntelligenceResult } from "@/server/intelligence/types";
 import type { GroundedKnowledge } from "@/server/intelligence/grounding";
 import { buildGroundedKnowledgeGraph } from "@/server/services/grounded-knowledge-graph.service";
+import { buildGroundedKnowledgeTree } from "@/server/services/knowledge/knowledge-tree.service";
 
 export type KnowledgeStatus = "not_generated" | "ready" | "partial" | "failed";
 
 export interface KnowledgeView extends KnowledgeProps {
   status: KnowledgeStatus;
   mode: ConfidenceMode | null;
+  tree: KnowledgeTreeData | null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -148,6 +151,8 @@ function emptyKnowledge(noteId: string): KnowledgeView {
       edges: [],
     },
 
+    tree: null,
+
     ontologyMatches: [],
 
     prologFacts: [],
@@ -196,6 +201,10 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
       ? "failed"
       : "partial";
 
+  const grounding = normalizeGrounding(
+    raw.grounding,
+  );
+
   const props: KnowledgeProps = {
     noteId: typeof raw.noteId === "string" ? raw.noteId : noteId,
 
@@ -207,12 +216,9 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
 
     ontologyMatches: normalizeOntology(raw.ontology ?? raw.ontologyMatches),
 
-    graph: (() => {
-      const grounding = normalizeGrounding(raw.grounding);
-      return grounding
-        ? buildGroundedKnowledgeGraph(grounding)
-        : normalizeGraph(raw.graph);
-    })(),
+    graph: grounding
+      ? buildGroundedKnowledgeGraph(grounding)
+      : normalizeGraph(raw.graph),
 
     prologFacts: Array.isArray(raw.facts)
       ? (raw.facts as NonNullable<KnowledgeProps["prologFacts"]>)
@@ -238,6 +244,10 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
 
   return {
     ...props,
+
+    tree: grounding
+      ? buildGroundedKnowledgeTree(grounding)
+      : null,
 
     status,
 
