@@ -10,6 +10,12 @@ import { logger } from "@/server/utils/logger";
 import type { FileType } from "@/server/entities/note.entity";
 import path from "path";
 import type { AdminFileType } from "@/server/entities/operational-settings.entity";
+import {
+  assessExtractionQuality,
+  assertExtractionUsable,
+  extractionQualityLogContext,
+  type ExtractionQualityReport,
+} from "@/server/services/extraction-quality.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +37,11 @@ export interface ProcessedFile {
     rawText: string;
   }>;
   charCount: number;
+  extractionQuality?: ExtractionQualityReport;
+}
+
+export interface QualityAssessedProcessedFile extends ProcessedFile {
+  extractionQuality: ExtractionQualityReport;
 }
 
 export interface PreparedUpload {
@@ -208,7 +219,7 @@ export function prepareUpload(
 export async function processUpload(
   file: UploadedFile,
   policy: UploadValidationPolicy = DEFAULT_UPLOAD_POLICY,
-): Promise<ProcessedFile> {
+): Promise<QualityAssessedProcessedFile> {
   validateFile(file, policy);
 
   const fileName = sanitizeFileName(file.originalName);
@@ -222,6 +233,20 @@ export async function processUpload(
 
   if (ext === ".pdf") {
     const parsed = await parsePDF(file.buffer);
+    const extractionQuality = assessExtractionQuality({
+      fileType: "pdf",
+      content: parsed.text,
+      pageCount: parsed.pageCount,
+      pages: parsed.pages,
+    });
+
+    logger.info("Extraction quality assessed", {
+      fileType: "pdf",
+      ...extractionQualityLogContext(extractionQuality),
+    });
+
+    assertExtractionUsable(extractionQuality);
+
     return {
       fileName,
       fileType: "pdf",
@@ -230,17 +255,31 @@ export async function processUpload(
       pageCount: parsed.pageCount,
       pages: parsed.pages,
       charCount: parsed.charCount,
+      extractionQuality,
     };
   }
 
   if (ext === ".docx") {
     const parsed = await parseDOCX(file.buffer);
+    const extractionQuality = assessExtractionQuality({
+      fileType: "docx",
+      content: parsed.text,
+    });
+
+    logger.info("Extraction quality assessed", {
+      fileType: "docx",
+      ...extractionQualityLogContext(extractionQuality),
+    });
+
+    assertExtractionUsable(extractionQuality);
+
     return {
       fileName,
       fileType: "docx",
       fileSize: file.size,
       content: parsed.text,
       charCount: parsed.charCount,
+      extractionQuality,
     };
   }
 

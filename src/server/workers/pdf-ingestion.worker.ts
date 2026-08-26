@@ -1,4 +1,4 @@
-import { Worker, type Job } from "bullmq";
+import { UnrecoverableError, Worker, type Job } from "bullmq";
 import IORedis from "ioredis";
 
 import {
@@ -15,6 +15,7 @@ import {
   readTemporaryUpload,
 } from "@/server/services/document-storage.service";
 import { processUpload } from "@/server/services/upload.service";
+import { ExtractionQualityError } from "@/server/services/extraction-quality.service";
 import { enqueueStudyGeneration } from "@/server/queues/study-generation.queue";
 import { startWorkerHeartbeat } from "@/server/services/system-health.service";
 import { logger } from "@/server/utils/logger";
@@ -49,15 +50,43 @@ async function processPdfJob(
   });
 
   const buffer = await readTemporaryUpload(storageKey);
-  const processed = await processUpload({
-    buffer,
-    originalName: note.fileName,
-    mimeType: "application/pdf",
-    size: note.fileSize,
-  });
+  let processed: Awaited<ReturnType<typeof processUpload>>;
+
+  try {
+    processed = await processUpload({
+      buffer,
+      originalName: note.fileName,
+      mimeType: "application/pdf",
+      size: note.fileSize,
+    });
+  } catch (error) {
+    if (error instanceof ExtractionQualityError) {
+      logger.warn("[pdf-worker] deterministic extraction-quality failure", {
+        jobId: job.id,
+        noteId,
+        score: error.report.score,
+        reasons: error.report.reasons.map((reason) => reason.code),
+      });
+
+      throw new UnrecoverableError(error.message);
+    }
+
+    throw error;
+  }
 
   if (processed.fileType !== "pdf" || !processed.content.trim()) {
     throw new Error("PDF extraction completed without readable content");
+  }
+
+  if (processed.extractionQuality.status === "warning") {
+    logger.warn("[pdf-worker] extraction passed with quality warnings", {
+      jobId: job.id,
+      noteId,
+      score: processed.extractionQuality.score,
+      reasons: processed.extractionQuality.reasons.map(
+        (reason) => reason.code,
+      ),
+    });
   }
 
   await noteRepo.updateContent(noteId, processed.content, {
@@ -127,7 +156,11 @@ async function main(): Promise<void> {
     });
 
     const attempts = typeof job?.opts.attempts === "number" ? job.opts.attempts : 1;
-    if (job && job.attemptsMade >= attempts) {
+    const unrecoverable =
+      error instanceof UnrecoverableError ||
+      error.name === "UnrecoverableError";
+
+    if (job && (unrecoverable || job.attemptsMade >= attempts)) {
       void Promise.allSettled([
         generationRepo.updateStage(job.data.noteId, "failed"),
         deleteTemporaryUpload(job.data.storageKey),
