@@ -187,7 +187,7 @@ describe("Intelligence Engine V2 grounding", () => {
 
   it("builds complete grounded notes with distinct points and takeaways", () => {
     expect(notes.summary).toContain(
-      "<!-- intelligence-engine:v2.4;mode:comprehensive -->",
+      "<!-- intelligence-engine:v2.5;mode:comprehensive -->",
     );
     expect(notes.summary).toContain("## Section Notes");
     expect(notes.summary).toContain("Principles of Effective Stakeholder Presentation");
@@ -371,10 +371,10 @@ describe("Intelligence Engine V2 grounding", () => {
     );
 
     expect(concise.summary).toContain(
-      "<!-- intelligence-engine:v2.4;mode:concise -->",
+      "<!-- intelligence-engine:v2.5;mode:concise -->",
     );
     expect(exam.summary).toContain(
-      "<!-- intelligence-engine:v2.4;mode:exam -->",
+      "<!-- intelligence-engine:v2.5;mode:exam -->",
     );
     expect(concise.summary.length).toBeLessThan(notes.summary.length);
     expect(sectionBullets(concise.summary, "Key Points")).toHaveLength(5);
