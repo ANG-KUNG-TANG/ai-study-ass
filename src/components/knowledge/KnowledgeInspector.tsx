@@ -14,6 +14,7 @@ import type {
   KnowledgeGraphNode,
 } from "./types";
 import {
+  extractEdgeEvidence,
   extractNodeEvidence,
   formatProperty,
   getNodeDescription,
@@ -102,6 +103,11 @@ export function KnowledgeInspector({
               edge.from === node.id
                 ? "outgoing"
                 : "incoming",
+            evidence:
+              extractEdgeEvidence(
+                edge,
+                nodes,
+              ),
           } as const;
         }),
     [edges, node.id, nodes],
@@ -373,6 +379,7 @@ export function KnowledgeInspector({
                   edge,
                   node: connectedNode,
                   direction,
+                  evidence: relationEvidence,
                 }) => {
                   if (!connectedNode) return null;
 
@@ -412,6 +419,12 @@ export function KnowledgeInspector({
                           <span className="mt-2 inline-block rounded-full bg-line-soft px-2 py-1 text-[10px] text-ink-soft">
                             {relationLabel(edge.type)}
                           </span>
+
+                          {relationEvidence[0] && (
+                            <blockquote className="mt-2 border-l-2 border-yellow pl-2.5 text-[10.5px] leading-4 text-ink-soft">
+                              “{relationEvidence[0].text}”
+                            </blockquote>
+                          )}
                         </div>
                       </div>
                     </div>

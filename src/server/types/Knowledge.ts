@@ -84,6 +84,26 @@ export interface KnowledgeTreeData {
   quality: KnowledgeTreeQuality;
 }
 
+
+export type KnowledgeGraphQualityStatus =
+  | "passed"
+  | "warning"
+  | "failed";
+
+export interface KnowledgeGraphQuality {
+  status: KnowledgeGraphQualityStatus;
+  semanticNodeCount: number;
+  semanticEdgeCount: number;
+  semanticIsolationCount: number;
+  semanticEdgeEvidenceCoverage: number;
+  relationshipFactCoverage: number;
+  duplicateEdgeCount: number;
+  conflictingEdgeCount: number;
+  skippedUnsafeRelationshipCount: number;
+  omittedUngroundedNodeCount: number;
+  warnings: string[];
+}
+
 export interface GraphData {
   nodes: GraphNodeData[];
   edges: GraphEdgeData[];
