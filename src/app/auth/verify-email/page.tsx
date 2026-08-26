@@ -115,7 +115,7 @@ function VerifyEmailContent() {
         {state === "waiting" && <MailCheck className="text-sage" size={24} />}
       </div>
 
-      <h1 className="mt-4 font-serif text-[22px] font-semibold">
+      <h1 className="mt-5 text-[34px] font-bold leading-tight tracking-[-0.045em]">
         {title}
       </h1>
 
@@ -133,6 +133,7 @@ function VerifyEmailContent() {
             onChange={(event) => setEmail(event.target.value)}
             placeholder="you@example.com"
             autoComplete="email"
+            className="h-[50px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
             required
           />
 
@@ -151,7 +152,7 @@ function VerifyEmailContent() {
             type="submit"
             variant="yellow"
             disabled={resending || cooldown > 0}
-            className="w-full"
+            className="h-[50px] w-full rounded-full text-[13px] font-bold"
           >
             {resending
               ? t("verify.resending")

@@ -51,7 +51,7 @@ function ForgotPasswordContent() {
             />
           </svg>
         </div>
-        <h2 className="font-serif text-[28px] font-semibold tracking-[-0.02em]">
+        <h2 className="text-[34px] font-bold tracking-[-0.045em]">
           {t("forgot.checkInbox")}
         </h2>
         <p className="mx-auto mt-2 max-w-[330px] text-[13px] leading-5 text-ink-soft">
@@ -69,12 +69,12 @@ function ForgotPasswordContent() {
 
   return (
     <div className="w-full">
-      <div className="mb-6 text-left">
+      <div className="mb-7 text-left">
         <AuthPageMark />
-        <h1 className="font-serif text-[28px] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[30px]">
+        <h1 className="text-[38px] font-bold leading-[0.98] tracking-[-0.055em] text-ink sm:text-[44px]">
           {t("forgot.title")}
         </h1>
-        <p className="mx-auto mt-1.5 max-w-[340px] text-[13px] leading-5 text-ink-soft">
+        <p className="mt-3 max-w-[380px] text-[13px] leading-6 text-ink-soft">
           {t("forgot.subtitle")}
         </p>
       </div>
@@ -85,7 +85,7 @@ function ForgotPasswordContent() {
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
-          className="h-[46px] rounded-[8px] bg-paper px-4 text-[13px]"
+          className="h-[50px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
@@ -100,7 +100,7 @@ function ForgotPasswordContent() {
         <Button
           type="submit"
           variant="yellow"
-          className="h-[46px] w-full rounded-[8px] text-[13px] font-semibold"
+          className="h-[50px] w-full rounded-full text-[13px] font-bold"
           disabled={isLoading}
         >
           {isLoading ? t("forgot.submitting") : t("forgot.submit")}

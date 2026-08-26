@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 
+import { AuthPageMark } from "@/components/auth/AuthPageMark";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/context/LanguageContext";
@@ -56,11 +57,12 @@ function ResetPasswordForm() {
 
   return (
     <div className="py-1">
-      <div className="mb-6">
-        <h1 className="font-serif text-2xl font-semibold text-ink">
+      <div className="mb-7">
+        <AuthPageMark />
+        <h1 className="text-[38px] font-bold leading-[0.98] tracking-[-0.055em] text-ink sm:text-[44px]">
           {t("reset.title")}
         </h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-3 text-[13px] leading-6 text-ink-soft">
           {t("reset.subtitle")}
         </p>
       </div>
@@ -73,6 +75,7 @@ function ResetPasswordForm() {
             placeholder="••••••••"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            className="h-[50px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
             required
           />
           <button
@@ -97,6 +100,7 @@ function ResetPasswordForm() {
           placeholder="••••••••"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
+          className="h-[50px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
           required
         />
 
@@ -105,7 +109,7 @@ function ResetPasswordForm() {
         <Button
           type="submit"
           variant="yellow"
-          className="w-full"
+          className="h-[50px] w-full rounded-full text-[13px] font-bold"
           disabled={isLoading}
         >
           {isLoading ? t("reset.submitting") : t("reset.submit")}
