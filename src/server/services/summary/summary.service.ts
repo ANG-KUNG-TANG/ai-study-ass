@@ -13,6 +13,11 @@ import {
   buildGroundedStudyNotes,
   getStudyNotesVersionMarker,
 } from "@/server/services/summary/grounded-study-notes.service";
+import {
+  assessSummaryQuality,
+  summaryQualityLogContext,
+  summaryQualityWarnings,
+} from "@/server/services/summary/summary-quality.service";
 import { buildGroundedPromptSource } from "@/server/services/grounded-artifacts.service";
 import { getReliableProfile } from "@/server/intelligence/reliability/profile";
 import { NotFoundError } from "@/server/utils/errors";
@@ -119,6 +124,7 @@ export async function generateSummary(
         note.content,
         note.title,
       );
+  const deterministicResult = result;
 
   let source: GenerationSource = "symbolic";
   let aiFallbackUsed = false;
@@ -177,6 +183,69 @@ export async function generateSummary(
     }
   }
 
+  let summaryQuality = grounding
+    ? assessSummaryQuality({
+        artifact: {
+          summary: result.summary,
+          keyPoints: result.keyPoints,
+          importantConcepts: result.importantConcepts,
+        },
+        grounding,
+        mode,
+      })
+    : null;
+
+  if (
+    summaryQuality?.status === "failed" &&
+    source === "hybrid" &&
+    grounding
+  ) {
+    logger.warn(
+      "AI-enhanced summary failed grounded summary validation; reverting to deterministic notes",
+      {
+        noteId,
+        ...summaryQualityLogContext(summaryQuality),
+      },
+    );
+
+    result = deterministicResult;
+    source = "symbolic";
+    aiFallbackUsed = false;
+
+    summaryQuality = assessSummaryQuality({
+      artifact: {
+        summary: result.summary,
+        keyPoints: result.keyPoints,
+        importantConcepts: result.importantConcepts,
+      },
+      grounding,
+      mode,
+    });
+  }
+
+  if (summaryQuality?.status === "failed") {
+    logger.error(
+      "Grounded summary failed faithfulness/coverage validation",
+      {
+        noteId,
+        ...summaryQualityLogContext(summaryQuality),
+      },
+    );
+    throw new Error(
+      "Grounded summary failed faithfulness/coverage validation",
+    );
+  }
+
+  if (summaryQuality?.status === "warning") {
+    logger.warn(
+      "Grounded summary passed with quality warnings",
+      {
+        noteId,
+        ...summaryQualityLogContext(summaryQuality),
+      },
+    );
+  }
+
   await noteRepo.updateSummary(noteId, result.summary);
 
   return {
@@ -197,6 +266,9 @@ export async function generateSummary(
     warnings: [
       ...(result.profile?.warnings ?? []),
       ...(grounding?.quality.warnings ?? []),
+      ...(summaryQuality
+        ? summaryQualityWarnings(summaryQuality)
+        : []),
     ],
   };
 }

@@ -7,7 +7,7 @@ import type { ReliableDocumentProfile } from "@/server/intelligence/reliability/
 import { NOTE_RULES } from "@/server/entities/note.entity";
 import type { SummaryMode } from "@/types/summary";
 
-export const STUDY_NOTES_VERSION = "v2.4" as const;
+export const STUDY_NOTES_VERSION = "v2.5" as const;
 
 export function getStudyNotesVersionMarker(
   mode: SummaryMode = "comprehensive",
