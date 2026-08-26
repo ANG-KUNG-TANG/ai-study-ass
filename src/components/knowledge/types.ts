@@ -29,6 +29,49 @@ export interface KnowledgeGraphEdge {
   evidenceIds?: string[];
 }
 
+
+export type KnowledgeTreeNodeType =
+  | "root"
+  | "topic"
+  | "concept"
+  | "term"
+  | "fact";
+
+export type KnowledgeTreeRelation =
+  | "root"
+  | "topic_group"
+  | "explicit_hierarchy"
+  | "supporting_fact";
+
+export interface KnowledgeTreeNode {
+  id: string;
+  type: KnowledgeTreeNodeType;
+  label: string;
+  description: string | null;
+  importance: number | null;
+  sourceSectionIds: string[];
+  evidenceIds: string[];
+  graphNodeId: string | null;
+  relationToParent: KnowledgeTreeRelation;
+  relationEvidenceIds: string[];
+  children: KnowledgeTreeNode[];
+}
+
+export interface KnowledgeTreeData {
+  root: KnowledgeTreeNode | null;
+  quality: {
+    status: "passed" | "warning" | "failed";
+    majorConceptCoverage: number;
+    orphanCount: number;
+    duplicateAliasCount: number;
+    explicitHierarchyCount: number;
+    skippedHierarchyCount: number;
+    omittedUngroundedCount: number;
+    maxDepth: number;
+    warnings: string[];
+  };
+}
+
 export interface KnowledgeResponse {
   noteId: string;
   stage: string;
@@ -40,6 +83,7 @@ export interface KnowledgeResponse {
     nodes: KnowledgeGraphNode[];
     edges: KnowledgeGraphEdge[];
   };
+  tree?: KnowledgeTreeData | null;
   core?: {
     method?: string | null;
     dataset?: string | null;

@@ -19,7 +19,7 @@ import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { KnowledgeGraphCanvas } from "@/components/knowledge/KnowledgeGraphCanvas";
 import { KnowledgeInspector } from "@/components/knowledge/KnowledgeInspector";
-import { LearningPath } from "@/components/knowledge/LearningPath";
+import { KnowledgeTree } from "@/components/knowledge/KnowledgeTree";
 import {
   collectEvidence,
   getNodeDescription,
@@ -381,9 +381,8 @@ export default function KnowledgePage() {
             </div>
 
             {activeTab === "learn" && (
-              <LearningPath
-                nodes={allNodes}
-                edges={allEdges}
+              <KnowledgeTree
+                tree={knowledge.tree}
                 onOpen={openConcept}
               />
             )}
