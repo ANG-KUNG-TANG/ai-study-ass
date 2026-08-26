@@ -28,6 +28,12 @@ function toEntity(
 export async function upsert(entity: IntelligenceResultEntity): Promise<void> {
   const data = entity.toPersistence();
 
+  if (!data.grounding) {
+    throw new Error(
+      `Cannot persist successful intelligence result without grounded knowledge for note ${data.noteId}`,
+    );
+  }
+
   await PaperIntelligence.findOneAndUpdate(
     { noteId: data.noteId },
     {
@@ -46,11 +52,22 @@ export async function upsert(entity: IntelligenceResultEntity): Promise<void> {
     { upsert: true, returnDocument: "after" }
   );
 
-  logger.info("Intelligence result persisted", { noteId: data.noteId, stage: data.stage });
+  await groundedKnowledgeRepo.upsert(data.noteId, data.grounding);
+
+  logger.info("Intelligence result persisted", {
+    noteId: data.noteId,
+    stage: data.stage,
+    groundingPersisted: true,
+  });
 }
 
 export async function upsertFailed(entity: IntelligenceResultEntity): Promise<void> {
   const data = entity.toPersistence();
+
+  // A failed rerun must never expose grounding from an older successful run.
+  // Delete first: if cleanup fails, do not overwrite the primary result with
+  // a failed record that could still rehydrate stale grounding.
+  await groundedKnowledgeRepo.deleteByNoteId(data.noteId);
 
   await PaperIntelligence.findOneAndUpdate(
     { noteId: data.noteId },
