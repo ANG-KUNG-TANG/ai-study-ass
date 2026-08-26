@@ -37,6 +37,7 @@ const en = {
   "auth.feature.quizzes": "Practice quizzes",
   "auth.feature.explanations": "Clear explanations",
   "auth.feature.chat": "AI chat",
+  "auth.feature.notes": "Quick study notes",
   "auth.google.continue": "Continue with Google",
   "auth.google.signup": "Sign up with Google",
 
@@ -905,6 +906,7 @@ const my: Record<TranslationKey, string> = {
   "auth.feature.quizzes": "လေ့ကျင့်ခန်းမေးခွန်းများ",
   "auth.feature.explanations": "ရှင်းလင်းသော အဖြေများ",
   "auth.feature.chat": "AI စကားပြောခန်း",
+  "auth.feature.notes": "အမြန် လေ့လာရေးမှတ်စုများ",
   "auth.google.continue": "Google ဖြင့် ဆက်လက်ဝင်ရောက်ရန်",
   "auth.google.signup": "Google ဖြင့် စာရင်းသွင်းရန်",
 

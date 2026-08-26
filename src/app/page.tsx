@@ -23,11 +23,11 @@ export default function RootPage() {
               {t("home.kicker")}
             </span>
 
-            <h1 className="mt-6 text-[clamp(3.35rem,6vw,6rem)] font-bold leading-[0.9] tracking-[-0.075em] text-ink">
-              {t("auth.hero.title")}
+            <h1 className="mt-6 text-[clamp(3.15rem,5.4vw,5.5rem)] font-bold leading-[0.9] tracking-[-0.075em] text-ink">
+              {t("about.getStartedTitle")}
             </h1>
             <p className="mt-7 max-w-[490px] text-[15px] leading-7 text-ink-soft sm:text-[16px]">
-              {t("auth.hero.description")}
+              {t("about.getStartedDescription")}
             </p>
 
             <div className="mt-8 max-w-[440px] space-y-3">

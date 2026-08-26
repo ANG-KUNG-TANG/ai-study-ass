@@ -20,9 +20,9 @@ export default {
         slate: { DEFAULT: "#5E7A96", soft: "#DEE9F2" },
       },
       fontFamily: {
-        serif: ["var(--font-serif)", "serif"],
+        serif: ["var(--font-sans)", "sans-serif"],
         sans: ["var(--font-sans)", "sans-serif"],
-        mono: ["var(--font-mono)", "monospace"],
+        mono: ["var(--font-sans)", "sans-serif"],
       },
       borderRadius: {
         card: "14px",
