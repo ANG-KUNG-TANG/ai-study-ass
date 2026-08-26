@@ -29,6 +29,13 @@ import {
 } from "@/server/services/grounded-artifacts.service";
 import { z } from "zod";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
+import type {
+  GroundedKnowledge,
+} from "@/server/intelligence/grounding";
+import {
+  flashcardQualityLogContext,
+  validateGroundedFlashcards,
+} from "@/server/services/flashcard/flashcard-quality.service";
 
 interface FlashcardPair {
   front: string;
@@ -133,6 +140,31 @@ function deduplicateCards(cards: FlashcardPair[]): FlashcardPair[] {
   });
 }
 
+function validateGroundedCards(
+  noteId: string,
+  cards: FlashcardPair[],
+  grounding: GroundedKnowledge | null,
+): FlashcardPair[] {
+  if (!grounding) return cards;
+
+  const result = validateGroundedFlashcards(
+    cards,
+    grounding,
+  );
+
+  if (result.rejected.length > 0) {
+    logger.warn(
+      "Flashcards rejected by grounded quality validation",
+      {
+        noteId,
+        ...flashcardQualityLogContext(result),
+      },
+    );
+  }
+
+  return result.accepted;
+}
+
 async function generateCardsViaAI(
   title: string,
   content: string,
@@ -156,11 +188,21 @@ async function generateCardsViaAI(
 
   const result = await generate({
     systemPrompt: appendUntrustedContentRules(
-      "Create factual study flashcards using only the uploaded document. " +
+      "Create atomic, factual study flashcards using only the uploaded document. " +
+        "Each card must test exactly one useful idea, the back must be directly supported, " +
+        "and the front must not reveal the answer. Avoid metadata, trivial facts, and duplicate cards. " +
         "Return a JSON object and do not use markdown fences.",
     ),
     prompt: `
 Generate exactly ${count} additional flashcards.
+
+Quality requirements:
+- Test exactly one study idea per card.
+- The back must be answerable directly from the supplied document evidence.
+- Do not reveal or substantially repeat the answer in the front.
+- Avoid project names, student names, dates, page labels, and other low-value metadata.
+- Avoid duplicate or near-duplicate cards.
+- Prefer important definitions, rules, relationships, results, warnings, procedures, and concepts.
 
 Return:
 {
@@ -265,6 +307,12 @@ export async function generateFlashcardsWithMetadata(
     ...sourceCards,
   ]).slice(0, count);
 
+  pairs = validateGroundedCards(
+    noteId,
+    pairs,
+    grounding,
+  );
+
   const symbolicCount = pairs.length;
   let source: GenerationSource = "symbolic";
   let aiFallbackUsed = false;
@@ -284,17 +332,28 @@ export async function generateFlashcardsWithMetadata(
         noteId,
       );
 
-      pairs = deduplicateCards([
+      const combinedPairs = deduplicateCards([
         ...pairs,
         ...ai.cards,
       ]).slice(0, count);
+      const validatedPairs = validateGroundedCards(
+        noteId,
+        combinedPairs,
+        grounding,
+      );
+      const acceptedAIContent =
+        validatedPairs.length > pairs.length;
 
-      source =
-        symbolicCount > 0
-          ? "hybrid"
-          : "ai_fallback";
-      aiFallbackUsed = true;
+      pairs = validatedPairs;
       tokensUsed = ai.tokensUsed;
+
+      if (acceptedAIContent) {
+        source =
+          symbolicCount > 0
+            ? "hybrid"
+            : "ai_fallback";
+        aiFallbackUsed = true;
+      }
     } catch (error) {
       logger.warn(
         "AI flashcard fallback unavailable; keeping symbolic cards",
