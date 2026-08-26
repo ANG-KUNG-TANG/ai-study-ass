@@ -8,6 +8,8 @@ export type KnowledgeStatus =
 
 export type KnowledgeTab =
   | "learn"
+  | "tree"
+  | "concept-map"
   | "graph"
   | "concepts"
   | "evidence";
@@ -94,6 +96,10 @@ export interface KnowledgeResponse {
   mode: string | null;
   error?: string;
   confidence?: number;
+  conceptMap?: {
+    nodes: KnowledgeGraphNode[];
+    edges: KnowledgeGraphEdge[];
+  } | null;
   graph?: {
     nodes: KnowledgeGraphNode[];
     edges: KnowledgeGraphEdge[];

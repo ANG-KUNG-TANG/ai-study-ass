@@ -20,6 +20,7 @@ import { Card } from "@/components/ui/Card";
 import { KnowledgeGraphCanvas } from "@/components/knowledge/KnowledgeGraphCanvas";
 import { KnowledgeInspector } from "@/components/knowledge/KnowledgeInspector";
 import { KnowledgeTree } from "@/components/knowledge/KnowledgeTree";
+import { LearningPath } from "@/components/knowledge/LearningPath";
 import {
   collectEvidence,
   getNodeDescription,
@@ -95,9 +96,13 @@ export default function KnowledgePage() {
           setKnowledge(data);
 
           setSelectedNodeId(
-            data.graph?.nodes.find(
+            data.conceptMap?.nodes.find(
               (node) => node.type === "paper",
             )?.id ??
+              data.conceptMap?.nodes[0]?.id ??
+              data.graph?.nodes.find(
+                (node) => node.type === "paper",
+              )?.id ??
               data.graph?.nodes[0]?.id ??
               null,
           );
@@ -125,11 +130,33 @@ export default function KnowledgePage() {
   }, [noteId]);
 
   const allNodes = useMemo(
+    () =>
+      knowledge?.conceptMap?.nodes ??
+      knowledge?.graph?.nodes ??
+      [],
+    [
+      knowledge?.conceptMap?.nodes,
+      knowledge?.graph?.nodes,
+    ],
+  );
+
+  const allEdges = useMemo(
+    () =>
+      knowledge?.conceptMap?.edges ??
+      knowledge?.graph?.edges ??
+      [],
+    [
+      knowledge?.conceptMap?.edges,
+      knowledge?.graph?.edges,
+    ],
+  );
+
+  const knowledgeGraphNodes = useMemo(
     () => knowledge?.graph?.nodes ?? [],
     [knowledge?.graph?.nodes],
   );
 
-  const allEdges = useMemo(
+  const knowledgeGraphEdges = useMemo(
     () => knowledge?.graph?.edges ?? [],
     [knowledge?.graph?.edges],
   );
@@ -176,6 +203,30 @@ export default function KnowledgePage() {
     [allEdges],
   );
 
+  const knowledgeGraphNodeTypes = useMemo(
+    () =>
+      [
+        ...new Set(
+          knowledgeGraphNodes
+            .map((node) => node.type)
+            .filter(Boolean),
+        ),
+      ].sort(),
+    [knowledgeGraphNodes],
+  );
+
+  const knowledgeGraphRelationTypes = useMemo(
+    () =>
+      [
+        ...new Set(
+          knowledgeGraphEdges
+            .map((edge) => edge.type)
+            .filter(Boolean),
+        ),
+      ].sort(),
+    [knowledgeGraphEdges],
+  );
+
   const filteredGraph = useMemo(
     () =>
       filterGraph({
@@ -196,6 +247,26 @@ export default function KnowledgePage() {
     ],
   );
 
+  const filteredKnowledgeGraph = useMemo(
+    () =>
+      filterGraph({
+        nodes: knowledgeGraphNodes,
+        edges: knowledgeGraphEdges,
+        search,
+        nodeType,
+        relationType,
+        minimumConfidence,
+      }),
+    [
+      knowledgeGraphEdges,
+      knowledgeGraphNodes,
+      minimumConfidence,
+      nodeType,
+      relationType,
+      search,
+    ],
+  );
+
   const evidence = useMemo(
     () => collectEvidence(allNodes),
     [allNodes],
@@ -203,6 +274,11 @@ export default function KnowledgePage() {
 
   const selectedNode =
     allNodes.find(
+      (node) => node.id === selectedNodeId,
+    ) ?? null;
+
+  const selectedKnowledgeGraphNode =
+    knowledgeGraphNodes.find(
       (node) => node.id === selectedNodeId,
     ) ?? null;
 
@@ -227,6 +303,13 @@ export default function KnowledgePage() {
   }, [conceptNodes, knowledge?.confidence]);
 
   function openConcept(nodeId: string) {
+    setSelectedNodeId(nodeId);
+    setActiveTab("concept-map");
+  }
+
+  function openKnowledgeGraphNode(
+    nodeId: string,
+  ) {
     setSelectedNodeId(nodeId);
     setActiveTab("graph");
   }
@@ -339,9 +422,33 @@ export default function KnowledgePage() {
                 />
 
                 <TabButton
-                  active={activeTab === "graph"}
+                  active={activeTab === "tree"}
+                  label={t("knowledge.knowledgeTree")}
+                  count={conceptNodes.length}
+                  onClick={() =>
+                    setActiveTab("tree")
+                  }
+                />
+
+                <TabButton
+                  active={activeTab === "concept-map"}
                   label={t("knowledge.conceptMap")}
                   count={conceptNodes.length}
+                  onClick={() =>
+                    setActiveTab("concept-map")
+                  }
+                />
+
+                <TabButton
+                  active={activeTab === "graph"}
+                  label={t("knowledge.knowledgeGraph")}
+                  count={
+                    knowledgeGraphNodes.filter(
+                      (node) =>
+                        node.type !== "paper" &&
+                        node.type !== "section",
+                    ).length
+                  }
                   onClick={() =>
                     setActiveTab("graph")
                   }
@@ -381,13 +488,21 @@ export default function KnowledgePage() {
             </div>
 
             {activeTab === "learn" && (
-              <KnowledgeTree
-                tree={knowledge.tree}
+              <LearningPath
+                nodes={allNodes}
+                edges={allEdges}
                 onOpen={openConcept}
               />
             )}
 
-            {activeTab === "graph" && (
+            {activeTab === "tree" && (
+              <KnowledgeTree
+                tree={knowledge.tree}
+                onOpen={openKnowledgeGraphNode}
+              />
+            )}
+
+            {activeTab === "concept-map" && (
               <>
                 <GraphFilters
                   search={search}
@@ -460,6 +575,85 @@ export default function KnowledgePage() {
                   nodeTypes={nodeTypes}
                   relationTypes={
                     relationTypes
+                  }
+                />
+              </>
+            )}
+
+
+            {activeTab === "graph" && (
+              <>
+                <GraphFilters
+                  search={search}
+                  nodeType={nodeType}
+                  relationType={relationType}
+                  minimumConfidence={
+                    minimumConfidence
+                  }
+                  nodeTypes={knowledgeGraphNodeTypes}
+                  relationTypes={knowledgeGraphRelationTypes}
+                  onSearch={setSearch}
+                  onNodeType={setNodeType}
+                  onRelationType={
+                    setRelationType
+                  }
+                  onMinimumConfidence={
+                    setMinimumConfidence
+                  }
+                />
+
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <KnowledgeGraphCanvas
+                    nodes={
+                      filteredKnowledgeGraph.nodes
+                    }
+                    edges={
+                      filteredKnowledgeGraph.edges
+                    }
+                    selectedNodeId={
+                      selectedNodeId
+                    }
+                    onSelectNode={
+                      setSelectedNodeId
+                    }
+                  />
+
+                  <div className="hidden xl:block">
+                    {selectedKnowledgeGraphNode ? (
+                      <KnowledgeInspector
+                        node={selectedKnowledgeGraphNode}
+                        nodes={knowledgeGraphNodes}
+                        edges={knowledgeGraphEdges}
+                        onClose={() =>
+                          setSelectedNodeId(
+                            null,
+                          )
+                        }
+                      />
+                    ) : (
+                      <InspectorPlaceholder />
+                    )}
+                  </div>
+                </div>
+
+                {selectedKnowledgeGraphNode && (
+                  <div className="fixed inset-x-3 bottom-3 z-50 xl:hidden">
+                    <KnowledgeInspector
+                      node={selectedKnowledgeGraphNode}
+                      nodes={knowledgeGraphNodes}
+                      edges={knowledgeGraphEdges}
+                      onClose={() =>
+                        setSelectedNodeId(null)
+                      }
+                      compact
+                    />
+                  </div>
+                )}
+
+                <GraphLegend
+                  nodeTypes={knowledgeGraphNodeTypes}
+                  relationTypes={
+                    knowledgeGraphRelationTypes
                   }
                 />
               </>
