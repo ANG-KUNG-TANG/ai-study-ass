@@ -123,19 +123,20 @@ export default function StudentSettingsPage() {
 
   return (
     <>
-      <Topbar eyebrow={t("settings.eyebrow")} title={t("settings.title")} />
-      <p className="-mt-4 mb-6 text-[13px] text-ink-soft">
-        {t("settings.description")}
-      </p>
+      <Topbar
+        eyebrow={t("settings.eyebrow")}
+        title={t("settings.title")}
+        description={t("settings.description")}
+      />
 
       {loadError && (
-        <div className="mb-5 rounded-xl border border-coral/30 bg-coral-soft px-4 py-3 text-[12px] text-coral">
+        <div className="mb-5 border-l-[3px] border-coral bg-coral-soft px-4 py-3 text-[12px] text-coral">
           {loadError}
         </div>
       )}
 
       <div className="space-y-5">
-        <Card>
+        <Card className="rounded-none border-x-0 bg-transparent px-0">
           <div className="flex gap-3">
             <Globe2 className="mt-0.5 shrink-0 text-ink-faint" size={19} />
             <div className="flex-1">
@@ -145,7 +146,7 @@ export default function StudentSettingsPage() {
               <p className="mt-1 text-[12px] leading-5 text-ink-faint">
                 {t("settings.languageDescription")}
               </p>
-              <div className="mt-4 inline-flex rounded-xl border border-line bg-paper p-1">
+              <div className="mt-4 inline-flex rounded-[8px] border border-line bg-paper p-1">
                 <button
                   type="button"
                   onClick={() => setLocale("en")}
@@ -175,7 +176,7 @@ export default function StudentSettingsPage() {
           </div>
         </Card>
 
-        <Card>
+        <Card className="rounded-none border-x-0 bg-transparent px-0">
           <div className="flex gap-3">
             <KeyRound className="mt-0.5 shrink-0 text-ink-faint" size={19} />
             <div className="min-w-0 flex-1">
@@ -202,7 +203,7 @@ export default function StudentSettingsPage() {
               )}
 
               {profile && !profile.passwordConfigured && (
-                <div className="mt-4 rounded-xl border border-line bg-paper px-4 py-3">
+                <div className="mt-4 border-l-[3px] border-yellow bg-yellow-soft/50 px-4 py-3">
                   <p className="text-[12px] leading-5 text-ink-soft">
                     {t("settings.googlePasswordHelp")}
                   </p>
@@ -256,7 +257,7 @@ export default function StudentSettingsPage() {
                     {t("register.passwordHelp")}
                   </p>
                   {passwordError && (
-                    <p className="rounded-xl bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+                    <p className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
                       {passwordError}
                     </p>
                   )}
@@ -273,7 +274,7 @@ export default function StudentSettingsPage() {
           </div>
         </Card>
 
-        <Card>
+        <Card className="rounded-none border-x-0 bg-transparent px-0">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex gap-3">
               <Laptop2 className="mt-0.5 shrink-0 text-ink-faint" size={19} />
@@ -298,13 +299,13 @@ export default function StudentSettingsPage() {
             </Button>
           </div>
           {sessionError && (
-            <p className="mt-3 rounded-xl bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+            <p className="mt-3 rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
               {sessionError}
             </p>
           )}
         </Card>
 
-        <Card className="border-coral/30">
+        <Card className="rounded-none border-x-0 border-l-[3px] border-l-coral bg-transparent pl-4">
           <div className="flex gap-3">
             <ShieldAlert className="mt-0.5 shrink-0 text-coral" size={19} />
             <div className="min-w-0 flex-1">
@@ -320,7 +321,7 @@ export default function StudentSettingsPage() {
                   {loadError ? t("settings.loadFailed") : t("common.loading")}
                 </p>
               ) : !profile.passwordConfigured ? (
-                <div className="mt-4 flex items-start gap-2 rounded-xl bg-line-soft px-4 py-3 text-[12px] leading-5 text-ink-soft">
+                <div className="mt-4 flex items-start gap-2 bg-line-soft px-4 py-3 text-[12px] leading-5 text-ink-soft">
                   <ShieldCheck className="mt-0.5 shrink-0" size={15} />
                   <p>{t("settings.deleteNeedsPassword")}</p>
                 </div>
@@ -345,7 +346,7 @@ export default function StudentSettingsPage() {
                     {t("settings.deleteConfirmation")}
                   </label>
                   {deleteError && (
-                    <p className="rounded-xl bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+                    <p className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
                       {deleteError}
                     </p>
                   )}

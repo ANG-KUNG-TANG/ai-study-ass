@@ -237,14 +237,10 @@ export default function AdminHealthPage() {
 
   return (
     <>
-      <Topbar eyebrow={t("admin.eyebrow")} title={t("admin.health.title")} />
+      <Topbar eyebrow={t("admin.eyebrow")} title={t("admin.health.title")} description={t("admin.health.description")} />
 
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-[12px] text-ink-faint">
-            {t("admin.health.description")}
-          </p>
-
           {health && (
             <p className="mt-1 text-[10px] text-ink-faint">
               {t("admin.health.lastSnapshot", {

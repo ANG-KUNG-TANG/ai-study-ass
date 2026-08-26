@@ -105,7 +105,7 @@ function VerifyEmailContent() {
             : t("verify.enterEmail"));
 
   return (
-    <Card className="w-full max-w-[420px] text-center">
+    <Card className="w-full max-w-[420px] rounded-none border-x-0 bg-transparent px-0 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-line-soft">
         {state === "verifying" && (
           <LoaderCircle className="animate-spin text-ink-soft" size={24} />
@@ -137,12 +137,12 @@ function VerifyEmailContent() {
           />
 
           {resendSuccess && (
-            <p className="rounded-xl bg-sage-soft px-3 py-2 text-[12px] text-sage" aria-live="polite">
+            <p className="rounded-[8px] bg-sage-soft px-3 py-2 text-[12px] text-sage" aria-live="polite">
               {t("verify.resendSuccess")}
             </p>
           )}
           {resendError && (
-            <p className="rounded-xl bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+            <p className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
               {resendError}
             </p>
           )}

@@ -92,7 +92,7 @@ function LoginContent() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="h-[46px] w-full rounded-[13px] border border-line bg-paper-raised/45 px-4 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+            className="h-[46px] w-full rounded-[8px] border border-line bg-paper-raised px-4 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
           />
         </div>
 
@@ -109,7 +109,7 @@ function LoginContent() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
-              className="h-[46px] w-full rounded-[13px] border border-line bg-paper-raised/45 px-4 pr-12 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
+              className="h-[46px] w-full rounded-[8px] border border-line bg-paper-raised px-4 pr-12 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink"
             />
             <button
               type="button"
@@ -159,7 +159,7 @@ function LoginContent() {
         <Button
           type="submit"
           variant="yellow"
-          className="h-[46px] w-full rounded-[13px] text-[13px] font-semibold shadow-[0_6px_16px_rgba(255,206,62,0.16)]"
+          className="h-[46px] w-full rounded-[8px] text-[13px] font-semibold"
           disabled={isLoading}
         >
           {isLoading ? t("login.submitting") : t("login.submit")}

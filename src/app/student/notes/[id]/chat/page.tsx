@@ -67,7 +67,7 @@ export default function ChatPage() {
         )}
       </div>
 
-      <Card className="flex min-h-[470px] flex-1 flex-col">
+      <Card className="flex min-h-[470px] flex-1 flex-col rounded-none border-x-0 bg-transparent px-0 sm:px-2">
         <div className="flex-1 space-y-5 overflow-y-auto pr-1">
           {isLoading && (
             <p className="text-[13px] text-ink-soft">
@@ -88,11 +88,11 @@ export default function ChatPage() {
 
           {messages.map((message) => (
             <div key={message.id} className="space-y-3">
-              <div className="ml-auto max-w-[82%] rounded-2xl rounded-br-sm bg-[#221F1A] px-4 py-3 text-[13px] leading-relaxed text-white">
+              <div className="ml-auto max-w-[82%] rounded-[8px] border-l-2 border-yellow bg-ink px-4 py-3 text-[13px] leading-relaxed text-paper-raised">
                 {message.question}
               </div>
 
-              <div className="max-w-[88%] rounded-2xl rounded-bl-sm bg-[#F5F0E6] px-4 py-3 text-[13px] leading-relaxed text-ink">
+              <div className="max-w-[88%] border-l-2 border-line bg-line-soft px-4 py-3 text-[13px] leading-relaxed text-ink">
                 <p className="whitespace-pre-wrap">{message.answer}</p>
                 <p className="mt-2 text-[10px] uppercase tracking-wide text-ink-faint">
                   {message.provider}
@@ -102,7 +102,7 @@ export default function ChatPage() {
           ))}
 
           {isSending && (
-            <div className="max-w-[88%] rounded-2xl rounded-bl-sm bg-[#F5F0E6] px-4 py-3 text-[13px] text-ink-soft">
+            <div className="max-w-[88%] border-l-2 border-line bg-line-soft px-4 py-3 text-[13px] text-ink-soft">
               {t("chat.thinking")}
             </div>
           )}
@@ -112,7 +112,7 @@ export default function ChatPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="mt-4 flex items-end gap-2 border-t border-[#E6DDC8] pt-4"
+          className="mt-4 flex items-end gap-2 border-t border-line pt-4"
         >
           <textarea
             value={question}
@@ -129,7 +129,7 @@ export default function ChatPage() {
             }}
             placeholder={t("chat.placeholder")}
             rows={2}
-            className="min-h-[46px] flex-1 resize-none rounded-xl border border-[#E6DDC8] bg-white px-3 py-2.5 text-[13px] leading-relaxed outline-none focus:border-[#8C82C8]"
+            className="min-h-[46px] flex-1 resize-none rounded-[8px] border border-line bg-paper-raised px-3 py-2.5 text-[13px] leading-relaxed outline-none focus:border-violet"
           />
 
           <Button

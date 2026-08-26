@@ -63,7 +63,7 @@ export default function SummaryPage() {
   return (
     <div className="space-y-5">
       {!parsed && (
-        <Card className="flex min-h-[260px] flex-col items-center justify-center text-center">
+        <Card className="flex min-h-[260px] flex-col items-center justify-center rounded-none border-x-0 text-center">
           <RefreshCw
             aria-hidden="true"
             size={24}
@@ -89,7 +89,7 @@ export default function SummaryPage() {
       )}
 
       {parsed && (
-        <Card>
+        <Card className="rounded-none border-x-0 bg-transparent px-0 sm:px-2">
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
@@ -110,14 +110,14 @@ export default function SummaryPage() {
             </button>
           </div>
 
-          <section className="mb-6 rounded-xl border border-line bg-paper p-3">
+          <section className="mb-6 border-y border-line bg-paper py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t("summary.mode.label")}
             </p>
             <div
               role="group"
               aria-label={t("summary.mode.label")}
-              className="mt-2 inline-flex flex-wrap gap-1 rounded-lg bg-line-soft p-1"
+              className="mt-2 inline-flex flex-wrap gap-1 rounded-[8px] bg-line-soft p-1"
             >
               {SUMMARY_MODES.map((mode) => {
                 const selected = selectedMode === mode;
@@ -135,7 +135,7 @@ export default function SummaryPage() {
                     }}
                     className={`rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-50 ${
                       selected
-                        ? "bg-white text-ink shadow-sm"
+                        ? "bg-paper-raised text-ink"
                         : "text-ink-soft hover:text-ink"
                     }`}
                   >
@@ -225,7 +225,7 @@ function SummarySection({
           {section.subsections.map((subsection, index) => (
             <article
               key={`${subsection.heading}-${index}`}
-              className="rounded-xl border border-line bg-paper p-4"
+              className="border-l-2 border-yellow bg-paper px-4 py-3"
             >
               <h5 className="font-serif text-[15px] font-semibold text-ink">
                 {subsection.heading}

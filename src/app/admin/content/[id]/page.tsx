@@ -61,13 +61,13 @@ export default function AdminContentDetailPage() {
 
   return (
     <>
-      <Topbar eyebrow="Admin · Content" title={data?.note.title ?? "Content detail"} />
-      {error && <div className="mb-4 rounded-xl border border-coral/30 bg-coral-soft px-4 py-3 text-[12px] text-coral">{error}</div>}
+      <Topbar eyebrow="Admin · Content" title={data?.note.title ?? "Content detail"} description="Inspect provenance, processing state, generated material, and provider activity before taking action." />
+      {error && <div className="mb-4 border-l-[3px] border-coral bg-coral-soft px-4 py-3 text-[12px] text-coral">{error}</div>}
       {!data ? (
-        <AdminPanel><p className="py-8 text-center text-[12px] text-ink-faint">Loading content record…</p></AdminPanel>
+        <AdminPanel className="rounded-none border-x-0 bg-transparent"><p className="py-8 text-center text-[12px] text-ink-faint">Loading content record…</p></AdminPanel>
       ) : (
         <div className="space-y-5">
-          <AdminPanel>
+          <AdminPanel className="rounded-none border-x-0 bg-transparent px-0">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-[12px] text-ink-soft">
@@ -103,8 +103,8 @@ export default function AdminContentDetailPage() {
             </div>
           </AdminPanel>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <AdminPanel>
+          <div className="grid border-y border-line lg:grid-cols-2">
+            <AdminPanel className="rounded-none border-0 border-b bg-transparent px-0 lg:border-b-0 lg:border-r lg:pr-5">
               <h2 className="font-serif text-[16px] font-semibold">Processing</h2>
               <dl className="mt-4 space-y-2 text-[12px]">
                 <div className="flex justify-between"><dt className="text-ink-soft">Generation stage</dt><dd>{data.generation?.stage ?? "Not started"}</dd></div>
@@ -115,28 +115,28 @@ export default function AdminContentDetailPage() {
               {data.generation?.features && (
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   {Object.entries(data.generation.features).map(([name, feature]) => (
-                    <div key={name} className="rounded-lg border border-line p-3 text-[11px]"><p className="font-medium">{name}</p><p className="mt-1 text-ink-faint">{feature.status}{feature.error ? ` · ${feature.error}` : ""}</p></div>
+                    <div key={name} className="border-b border-line-soft py-3 text-[11px]"><p className="font-medium">{name}</p><p className="mt-1 text-ink-faint">{feature.status}{feature.error ? ` · ${feature.error}` : ""}</p></div>
                   ))}
                 </div>
               )}
             </AdminPanel>
 
-            <AdminPanel>
+            <AdminPanel className="rounded-none border-0 bg-transparent px-0 lg:pl-5">
               <h2 className="font-serif text-[16px] font-semibold">AI usage for this note</h2>
               <p className="mt-2 text-[12px] text-ink-soft">{data.aiUsage.length} retained provider event(s)</p>
               <div className="mt-4 max-h-56 space-y-2 overflow-auto">
                 {data.aiUsage.map((item) => (
-                  <div key={item.id} className="flex justify-between rounded-lg border border-line p-2 text-[10px]"><span>{item.usageLabel} · {item.provider}</span><span>{item.tokensUsed.toLocaleString()} tokens · ${item.estimatedCostUsd.toFixed(6)}</span></div>
+                  <div key={item.id} className="flex justify-between border-b border-line-soft py-2 text-[10px]"><span>{item.usageLabel} · {item.provider}</span><span>{item.tokensUsed.toLocaleString()} tokens · ${item.estimatedCostUsd.toFixed(6)}</span></div>
                 ))}
                 {data.aiUsage.length === 0 && <p className="text-[11px] text-ink-faint">No AI-provider usage is associated with this note.</p>}
               </div>
             </AdminPanel>
           </div>
 
-          <AdminPanel>
+          <AdminPanel className="rounded-none border-x-0 bg-transparent px-0">
             <h2 className="font-serif text-[16px] font-semibold">Extracted context preview</h2>
             <p className="mt-1 text-[10px] text-ink-faint">The original upload is removed from temporary storage after ingestion; this is the retained extracted text.</p>
-            <pre className="mt-4 max-h-[420px] overflow-auto whitespace-pre-wrap rounded-xl bg-line-soft p-4 font-mono text-[11px] leading-5 text-ink-soft">{data.extractedTextPreview}</pre>
+            <pre className="mt-4 max-h-[420px] overflow-auto whitespace-pre-wrap border-l-[3px] border-yellow bg-line-soft p-4 font-mono text-[11px] leading-5 text-ink-soft">{data.extractedTextPreview}</pre>
           </AdminPanel>
         </div>
       )}

@@ -319,11 +319,11 @@ function KpiCard({
   };
 
   return (
-    <AdminPanel className="p-4">
+    <section className="min-w-0 border-b border-r border-line p-4 sm:border-b-0">
       <div className="flex items-start justify-between gap-3">
         <div
           className={[
-            "flex h-9 w-9 items-center justify-center rounded-xl",
+            "flex h-9 w-9 items-center justify-center rounded-md",
             tones[tone],
           ].join(" ")}
         >
@@ -349,7 +349,7 @@ function KpiCard({
       <p className="mt-1 text-[10.5px] leading-4 text-ink-faint">
         {helper}
       </p>
-    </AdminPanel>
+    </section>
   );
 }
 
@@ -806,6 +806,7 @@ export default function AdminOverviewPage() {
       <Topbar
         eyebrow={t("admin.overview.eyebrow")}
         title={t("admin.overview.title")}
+        description={t("admin.overview.description")}
         actions={
           <button
             type="button"
@@ -816,7 +817,7 @@ export default function AdminOverviewPage() {
               isLoading ||
               isActivityLoading
             }
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-paper-raised px-3.5 text-[12px] font-medium text-ink-soft transition hover:bg-line-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-10 items-center gap-2 rounded-[8px] border border-line bg-paper-raised px-3.5 text-[12px] font-medium text-ink-soft transition hover:bg-line-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw
               size={14}
@@ -833,11 +834,7 @@ export default function AdminOverviewPage() {
         }
       />
 
-      <div className="-mt-5 mb-5 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[11px] text-ink-faint">
-          {t("admin.overview.description")}
-        </p>
-
+      <div className="-mt-3 mb-5 flex justify-end">
         <p className="font-mono text-[10px] text-ink-faint">
           {updatedAt
             ? t("admin.overview.updated", {
@@ -848,11 +845,11 @@ export default function AdminOverviewPage() {
       </div>
 
       {errors.length > 0 && (
-        <div className="mb-5 rounded-xl border border-yellow/50 bg-yellow-soft px-4 py-3">
+        <div className="mb-5 border-l-[3px] border-yellow bg-yellow-soft px-4 py-3">
           <div className="flex items-start gap-2">
             <AlertTriangle
               size={16}
-              className="mt-0.5 shrink-0 text-[#8B6A0E]"
+              className="mt-0.5 shrink-0 text-ink"
             />
 
             <div>
@@ -870,7 +867,29 @@ export default function AdminOverviewPage() {
         </div>
       )}
 
-      <section className="mb-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 2xl:grid-cols-4">
+      <section className="mb-6 border-y border-line py-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <span className="editorial-kicker">Decision queue</span>
+            <h2 className="mt-1 font-serif text-[18px] font-semibold text-ink">{t("admin.overview.attention")}</h2>
+          </div>
+          <Link href="/admin/activity" className="text-[11px] font-medium text-ink-soft hover:text-ink">{t("admin.overview.openAudit")}</Link>
+        </div>
+        {attentionItems.length === 0 ? (
+          <div className="border-l-[3px] border-sage bg-sage-soft/55 px-4 py-3 text-[12px] text-ink">{t("admin.overview.noUrgent")}</div>
+        ) : (
+          <div className="border-y border-line">
+            {attentionItems.slice(0, 3).map((item) => (
+              <Link key={item.id} href={item.href} className="flex items-start justify-between gap-4 border-b border-line-soft px-2 py-3 text-[12px] last:border-b-0 hover:bg-paper-raised">
+                <div><strong className="font-medium text-ink">{item.title}</strong><p className="mt-1 text-[11px] text-ink-soft">{item.detail}</p></div>
+                <span className="shrink-0 rounded-full border border-line px-2 py-1 font-mono text-[9px] uppercase text-coral">Review</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mb-5 grid grid-cols-1 border-l border-t border-line sm:grid-cols-2 2xl:grid-cols-4 2xl:border-bottom">
         <KpiCard
           label={t("admin.overview.userAccounts")}
           value={
@@ -1286,7 +1305,7 @@ export default function AdminOverviewPage() {
                           key={item.id}
                           href={item.href}
                           className={[
-                            "block rounded-xl border p-3 transition hover:-translate-y-0.5",
+                            "block border-l-[3px] p-3 transition-colors",
                             tone,
                           ].join(" ")}
                         >

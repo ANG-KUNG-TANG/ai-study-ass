@@ -93,7 +93,9 @@ export default function NotesPage() {
   return (
     <>
       <Topbar
+        eyebrow={t("notes.eyebrow")}
         title={t("notes.title")}
+        description={t("notes.description")}
         search={{
           value: search,
           onChange: handleSearchChange,
@@ -101,7 +103,7 @@ export default function NotesPage() {
         }}
       />
 
-      <div className="mb-6">
+      <div id="upload" className="mb-2">
         <UploadZone onUploaded={() => refetch()} />
       </div>
 
@@ -126,17 +128,13 @@ export default function NotesPage() {
       </div>
 
       {isLoading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="border-y border-line">
           {[...Array(6)].map((_, index) => (
             <div
               key={index}
-              className="animate-pulse rounded-card border border-line bg-paper-raised p-4"
+              className="animate-pulse border-b border-line-soft px-3 py-5 last:border-b-0"
             >
-              <div className="flex items-start justify-between">
-                <div className="h-9 w-9 rounded-lg bg-line-soft" />
-                <div className="h-3 w-16 rounded bg-line-soft" />
-              </div>
-              <div className="mt-3 h-5 w-3/4 rounded bg-line-soft" />
+              <div className="h-5 w-1/2 rounded bg-line-soft" />
               <div className="mt-2 h-4 w-1/2 rounded bg-line-soft" />
             </div>
           ))}
@@ -153,7 +151,7 @@ export default function NotesPage() {
       )}
 
       {!isLoading && !error && notes.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-card border-2 border-dashed border-line bg-paper-raised p-12 text-center">
+        <div className="flex flex-col items-center justify-center border-y border-dashed border-line p-12 text-center">
           <div className="mb-4 text-ink-faint">
             <FilePlus size={48} strokeWidth={1.5} />
           </div>
@@ -172,7 +170,7 @@ export default function NotesPage() {
 
       {!isLoading && !error && notes.length > 0 && (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="border-y border-line">
             {notes.map((note) => (
               <NoteCard
                 key={note.id}

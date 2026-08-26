@@ -259,11 +259,11 @@ export function FloatingStudyNoteAssistant() {
       {isOpen ? (
         <section
           aria-label="Study note assistant"
-          className="fixed bottom-20 right-3 z-50 flex max-h-[min(440px,calc(100dvh-6rem))] w-[min(320px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[20px] border border-line bg-paper-raised shadow-xl sm:right-5"
+          className="fixed bottom-20 right-3 z-50 flex max-h-[min(440px,calc(100dvh-6rem))] w-[min(320px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[12px] border border-line border-t-[3px] border-t-yellow bg-paper-raised shadow-[0_18px_42px_rgba(34,31,26,0.16)] sm:right-5"
         >
           <header className="flex min-h-12 items-center justify-between gap-2 border-b border-line-soft px-3 py-2">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-yellow-soft text-ink">
+              <span className="grid size-8 shrink-0 place-items-center rounded-md bg-yellow-soft text-ink">
                 {view === "compose" ? (
                   <NotebookPen className="size-4" aria-hidden="true" />
                 ) : (
@@ -288,7 +288,7 @@ export function FloatingStudyNoteAssistant() {
                 <button
                   type="button"
                   onClick={handleShowSavedNotes}
-                  className="grid size-8 place-items-center rounded-full text-ink-soft transition hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow"
+                  className="grid size-8 place-items-center rounded-md text-ink-soft transition hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow"
                   aria-label="View saved notes"
                   title="Saved notes"
                 >
@@ -298,7 +298,7 @@ export function FloatingStudyNoteAssistant() {
                 <button
                   type="button"
                   onClick={handleNewNote}
-                  className="grid size-8 place-items-center rounded-full text-ink-soft transition hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow"
+                  className="grid size-8 place-items-center rounded-md text-ink-soft transition hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow"
                   aria-label="Write a new note"
                   title="New note"
                 >
@@ -309,7 +309,7 @@ export function FloatingStudyNoteAssistant() {
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="grid size-8 place-items-center rounded-full text-ink-soft transition hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow"
+                className="grid size-8 place-items-center rounded-md text-ink-soft transition hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow"
                 aria-label="Close study note assistant"
               >
                 <X className="size-4" aria-hidden="true" />
@@ -331,7 +331,7 @@ export function FloatingStudyNoteAssistant() {
                 maxLength={MAX_CONTENT_LENGTH}
                 rows={4}
                 placeholder="Write a note…"
-                className="min-h-28 w-full resize-none rounded-xl border border-line bg-paper px-3 py-2.5 text-sm leading-5 text-ink outline-none transition placeholder:text-ink-faint focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
+                className="min-h-28 w-full resize-none rounded-[8px] border border-line bg-paper px-3 py-2.5 text-sm leading-5 text-ink outline-none transition placeholder:text-ink-faint focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
               />
 
               {error ? (
@@ -352,7 +352,7 @@ export function FloatingStudyNoteAssistant() {
                   type="button"
                   onClick={() => void handleSave()}
                   disabled={!draft.trim() || isSaving}
-                  className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-ink px-4 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow"
+                  className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] bg-ink px-4 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow"
                 >
                   {isSaving ? (
                     <LoaderCircle
@@ -382,7 +382,7 @@ export function FloatingStudyNoteAssistant() {
                       exportText,
                     )
                   }
-                  className="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium text-ink-soft transition hover:bg-paper hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-ink-soft transition hover:bg-paper hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   <Download className="size-3.5" aria-hidden="true" />
                   Download all
@@ -410,7 +410,7 @@ export function FloatingStudyNoteAssistant() {
                   <button
                     type="button"
                     onClick={handleNewNote}
-                    className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-full bg-ink px-3 text-[11px] font-semibold text-white"
+                    className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-[8px] bg-ink px-3 text-[11px] font-semibold text-white"
                   >
                     <Plus className="size-3.5" aria-hidden="true" />
                     New note
@@ -421,7 +421,7 @@ export function FloatingStudyNoteAssistant() {
                   {notes.map((note) => (
                     <li
                       key={note.id}
-                      className="rounded-xl border border-line-soft bg-paper px-2.5 py-2"
+                      className="rounded-[8px] border border-line-soft bg-paper px-2.5 py-2"
                     >
                       <p className="line-clamp-3 whitespace-pre-wrap break-words text-xs leading-5 text-ink">
                         {note.content}

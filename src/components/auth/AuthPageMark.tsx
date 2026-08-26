@@ -1,6 +1,6 @@
 export function AuthPageMark() {
   return (
-    <div className="relative mx-auto mb-4 flex h-[38px] w-[38px] items-center justify-center rounded-[10px] bg-ink shadow-[0_5px_14px_rgba(34,31,26,0.11)]">
+    <div className="relative mx-auto mb-4 flex h-[38px] w-[38px] items-center justify-center rounded-md bg-ink">
       <svg
         viewBox="0 0 24 24"
         fill="none"

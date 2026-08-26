@@ -11,7 +11,7 @@ export function StreakBox({ days, message }: StreakBoxProps) {
   const { t } = useLanguage();
 
   return (
-    <div className="rounded-xl border border-yellow-line bg-yellow-soft px-3.5 py-3.5">
+    <div className="border-l-2 border-yellow px-3 py-1.5">
       <div className="mb-1 flex items-center gap-1.5">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none">
           <path

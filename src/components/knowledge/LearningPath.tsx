@@ -102,11 +102,11 @@ export function LearningPath({
       .slice(0, 12);
 
     return (
-      <div className="rounded-2xl border border-[#E6DDC8] bg-white p-5">
-        <h2 className="font-serif text-[18px] font-semibold text-[#221F1A]">
+      <div className="rounded-[10px] border border-line bg-paper-raised p-5">
+        <h2 className="font-serif text-[18px] font-semibold text-ink">
           {t("knowledge.keyConcepts")}
         </h2>
-        <p className="mt-1 text-[12px] text-[#726B5C]">
+        <p className="mt-1 text-[12px] text-ink-soft">
           {t("knowledge.legacyDescription")}
         </p>
 
@@ -116,12 +116,12 @@ export function LearningPath({
               key={concept.id}
               type="button"
               onClick={() => onOpen(concept.id)}
-              className="rounded-xl border border-[#E6DDC8] bg-[#FFFCF6] p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+              className="rounded-[8px] border border-line bg-paper p-4 text-left transition"
             >
-              <p className="font-medium text-[#38342C]">
+              <p className="font-medium text-ink">
                 {concept.label}
               </p>
-              <p className="mt-2 line-clamp-3 text-[12px] leading-5 text-[#726B5C]">
+              <p className="mt-2 line-clamp-3 text-[12px] leading-5 text-ink-soft">
                 {getNodeDescription(concept)}
               </p>
             </button>
@@ -133,17 +133,17 @@ export function LearningPath({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-[#D7E4FF] bg-[#F4F8FF] p-4">
+      <div className="rounded-[10px] border border-violet/25 bg-violet-soft/45 p-4">
         <div className="flex items-start gap-3">
           <Lightbulb
             size={18}
-            className="mt-0.5 shrink-0 text-[#4D7DF3]"
+            className="mt-0.5 shrink-0 text-violet"
           />
           <div>
-            <p className="text-[13px] font-semibold text-[#255FD6]">
+            <p className="text-[13px] font-semibold text-violet">
               {t("knowledge.followOrder")}
             </p>
-            <p className="mt-1 text-[12px] leading-5 text-[#5F6F91]">
+            <p className="mt-1 text-[12px] leading-5 text-slate">
               {t("knowledge.followOrderDescription")}
             </p>
           </div>
@@ -151,7 +151,7 @@ export function LearningPath({
       </div>
 
       <div className="relative">
-        <div className="absolute bottom-8 left-[21px] top-8 w-px bg-[#DDD4C1]" />
+        <div className="absolute bottom-8 left-[21px] top-8 w-px bg-line" />
 
         <div className="space-y-4">
           {steps.map((step, index) => {
@@ -164,11 +164,11 @@ export function LearningPath({
                 key={step.node.id}
                 className="relative pl-14"
               >
-                <div className="absolute left-0 top-5 flex h-11 w-11 items-center justify-center rounded-full border-4 border-[#FAF6EC] bg-[#221F1A] font-mono text-[11px] font-semibold text-white">
+                <div className="absolute left-0 top-5 flex h-11 w-11 items-center justify-center rounded-full border-4 border-paper bg-ink font-mono text-[11px] font-semibold text-paper-raised">
                   {index + 1}
                 </div>
 
-                <div className="rounded-2xl border border-[#E6DDC8] bg-white p-5 shadow-sm">
+                <div className="rounded-[10px] border border-line bg-paper-raised p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9B7221]">
@@ -176,13 +176,13 @@ export function LearningPath({
                         {t("knowledge.learningSection")}
                       </div>
 
-                      <h3 className="mt-2 font-serif text-[19px] font-semibold text-[#221F1A]">
+                      <h3 className="mt-2 font-serif text-[19px] font-semibold text-ink">
                         {step.node.label}
                       </h3>
                     </div>
 
                     {pageNumber && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F4EFE4] px-2.5 py-1 text-[10px] text-[#726B5C]">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-line-soft px-2.5 py-1 text-[10px] text-ink-soft">
                         <BookOpen size={11} />
                         {t("knowledge.page", { page: pageNumber })}
                       </span>
@@ -198,27 +198,27 @@ export function LearningPath({
                           onClick={() =>
                             onOpen(concept.id)
                           }
-                          className="group rounded-xl border border-[#EFE8D6] bg-[#FFFCF6] p-3.5 text-left transition hover:border-[#CFC1A2] hover:bg-white"
+                          className="group rounded-[8px] border border-[#EFE8D6] bg-paper p-3.5 text-left transition hover:border-[#CFC1A2] hover:bg-paper-raised"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-[12.5px] font-semibold leading-5 text-[#38342C]">
+                            <p className="text-[12.5px] font-semibold leading-5 text-ink">
                               {concept.label}
                             </p>
 
                             <ChevronRight
                               size={14}
-                              className="mt-0.5 shrink-0 text-[#B3A98F] transition group-hover:translate-x-0.5 group-hover:text-[#4D7DF3]"
+                              className="mt-0.5 shrink-0 text-ink-faint transition group-hover:translate-x-0.5 group-hover:text-violet"
                             />
                           </div>
 
-                          <p className="mt-1.5 line-clamp-3 text-[11.5px] leading-5 text-[#726B5C]">
+                          <p className="mt-1.5 line-clamp-3 text-[11.5px] leading-5 text-ink-soft">
                             {getNodeDescription(concept)}
                           </p>
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-4 text-[12px] text-[#726B5C]">
+                    <p className="mt-4 text-[12px] text-ink-soft">
                       {t("knowledge.noSectionConcepts")}
                     </p>
                   )}

@@ -22,6 +22,16 @@ const en = {
   "auth.hero.title": "Turn confusion into clarity—in one click.",
   "auth.hero.description":
     "Upload your notes and let AI create summaries, flashcards, quizzes, and clear explanations in seconds.",
+  "auth.editorial.kicker": "A source-first study workspace",
+  "auth.editorial.sourceTitle": "Keep the source visible",
+  "auth.editorial.sourceDescription":
+    "Generated study material links back to your document.",
+  "auth.editorial.practiceTitle": "Practise with purpose",
+  "auth.editorial.practiceDescription":
+    "Move from reading to quizzes and flashcards in one workspace.",
+  "auth.editorial.chatTitle": "Ask grounded questions",
+  "auth.editorial.chatDescription":
+    "Use document chat when a section needs clarification.",
   "auth.feature.summaries": "Smart summaries",
   "auth.feature.flashcards": "Instant flashcards",
   "auth.feature.quizzes": "Practice quizzes",
@@ -140,12 +150,22 @@ const en = {
   "about.eyebrow": "Application",
   "about.title": "About AI Study Assistant",
   "about.version": "Version {version}",
+  "about.statusBadge": "Active development",
+  "about.whatTitle": "Turn course documents into a connected study workspace",
   "about.description":
-    "AI Study Assistant is a document-grounded learning workspace that turns your course materials into practical study tools while keeping the original source at the centre of the experience.",
-  "about.purposeTitle": "Designed for focused learning",
-  "about.purposeDescription":
-    "The application reduces the time required to organise long documents, identify essential ideas, and prepare effective revision activities.",
+    "AI Study Assistant helps students upload their course documents and turn them into clear summaries, quizzes, flashcards, knowledge maps, and an AI chat that understands the selected material.",
+  "about.problemTitle": "The problem it solves",
+  "about.problemDescription":
+    "Long lecture notes and research documents take time to organise and revise. The application reduces repetitive preparation so learners can concentrate on understanding and practice.",
+  "about.audienceTitle": "Who it is for",
+  "about.audienceDescription":
+    "Built primarily for university students and independent learners who study from PDF or DOCX materials. Administrators receive additional controls for safe platform operation.",
+  "about.statusTitle": "Current status",
+  "about.statusDescription":
+    "The project is a working MVP under active development. Core document processing and study features are operational while reliability and learning quality continue to improve.",
   "about.workflowTitle": "How it works",
+  "about.workflowDescription":
+    "A short pipeline keeps every learning tool connected to the uploaded source.",
   "about.workflow.uploadTitle": "Upload",
   "about.workflow.uploadDescription": "Add a supported PDF or DOCX study document.",
   "about.workflow.analyseTitle": "Understand",
@@ -164,11 +184,32 @@ const en = {
   "about.feature.knowledgeDescription": "Explore relationships between the document’s important concepts.",
   "about.feature.chatTitle": "Document-aware chat",
   "about.feature.chatDescription": "Ask questions using the uploaded material as learning context.",
+  "about.techTitle": "Technology",
+  "about.techDescription":
+    "The application uses a typed Next.js architecture, MongoDB for durable data, Redis and BullMQ for background document jobs, provider-based AI generation, and Docker for consistent deployment.",
   "about.reliabilityTitle": "Grounded and reviewable",
   "about.reliabilityDescription":
     "Generated materials remain connected to the uploaded document. Important academic information should still be checked against the original text.",
   "about.adminDescription":
     "Administrators can manage accounts, content, AI policies, audit activity, security signals, and operational health from the administration workspace.",
+  "about.originTitle": "Why I built it",
+  "about.originDescription":
+    "The project began as a computer science university project after repeatedly seeing how much study time is spent reorganising long lecture documents before meaningful revision can begin.",
+  "about.roadmapTitle": "Roadmap and vision",
+  "about.roadmapDescription":
+    "The long-term direction includes stronger source citations, support for scanned documents, adaptive learning paths, richer progress analytics, and continued security and deployment hardening.",
+  "about.getStartedTitle": "Start with one study document",
+  "about.getStartedDescription":
+    "Open the workspace, upload a supported PDF or DOCX file, wait for processing to complete, and choose the learning tool that matches your study goal.",
+  "about.startStudying": "Open study library",
+  "about.openAdmin": "Open admin overview",
+  "about.github": "View GitHub",
+  "about.capabilitiesKicker": "Core capabilities",
+  "about.processKicker": "Process",
+  "about.implementationKicker": "Implementation",
+
+  "home.kicker": "Study from your own material",
+  "home.learningLoop": "Learning loop",
 
   "common.previous": "Previous",
   "common.next": "Next",
@@ -186,6 +227,9 @@ const en = {
   "common.live": "live",
 
   "dashboard.welcome": "Welcome back{name}",
+  "dashboard.eyebrow": "Student workspace",
+  "dashboard.description":
+    "Return to your latest document, then continue through reading, review, and recall.",
   "dashboard.search": "Search notes…",
   "dashboard.deleteFailed": "Failed to delete paper",
   "dashboard.notesUploaded": "Notes uploaded",
@@ -200,8 +244,19 @@ const en = {
   "dashboard.viewAll": "View all",
   "dashboard.noNotes": "No notes yet",
   "dashboard.noNotesDescription": "Upload your first PDF or DOCX to start learning.",
+  "dashboard.libraryKicker": "Library",
+  "dashboard.rhythmKicker": "Study rhythm",
+  "dashboard.rhythmTitle": "A calm daily loop",
+  "dashboard.rhythmRead": "Read the source",
+  "dashboard.rhythmReview": "Review key ideas",
+  "dashboard.rhythmPractise": "Practise recall",
+  "dashboard.floatingNote":
+    "Your floating note stays available on every student page for quick observations.",
 
   "notes.title": "All papers",
+  "notes.eyebrow": "Library",
+  "notes.description":
+    "Upload, find, and manage the source documents behind every study tool.",
   "notes.search": "Search all papers…",
   "notes.uploaded": "Uploaded papers",
   "notes.libraryCount": "{count} papers in your library",
@@ -214,6 +269,11 @@ const en = {
   "notes.uploadFirst": "Upload your first PDF or DOCX above to start learning.",
   "notes.pageOf": "Page {page} of {total}",
   "notes.deleteFailed": "Failed to delete the paper.",
+
+  "document.eyebrow": "Document workspace · {type}",
+  "document.description":
+    "Read the source, review key ideas, and practise from one connected document.",
+  "document.sourceReady": "Source ready",
 
   "upload.unsupported": "Unsupported file type. Allowed: {types}",
   "upload.tooLarge": "File too large. Max size: {size}MB",
@@ -830,6 +890,16 @@ const my: Record<TranslationKey, string> = {
   "auth.hero.title": "မရှင်းလင်းမှုကို တစ်ချက်နှိပ်ရုံဖြင့် နားလည်မှုအဖြစ် ပြောင်းလဲပါ။",
   "auth.hero.description":
     "သင်ခန်းစာမှတ်စုများကို တင်ပြီး AI ဖြင့် အနှစ်ချုပ်၊ ကတ်များ၊ မေးခွန်းများနှင့် ရှင်းလင်းချက်များကို စက္ကန့်ပိုင်းအတွင်း ဖန်တီးပါ။",
+  "auth.editorial.kicker": "မူရင်းအကြောင်းအရာကို အခြေခံသော လေ့လာရေးအလုပ်နေရာ",
+  "auth.editorial.sourceTitle": "မူရင်းစာသားကို အမြဲမြင်နိုင်ပါစေ",
+  "auth.editorial.sourceDescription":
+    "ဖန်တီးထားသော လေ့လာရေးအကြောင်းအရာများသည် သင့်စာရွက်စာတမ်းနှင့် ပြန်လည်ချိတ်ဆက်ထားသည်။",
+  "auth.editorial.practiceTitle": "ရည်ရွယ်ချက်ရှိရှိ လေ့ကျင့်ပါ",
+  "auth.editorial.practiceDescription":
+    "ဖတ်ရှုခြင်းမှ မေးခွန်းနှင့် လေ့လာရေးကတ်များသို့ အလုပ်နေရာတစ်ခုတည်းတွင် ဆက်လက်ပါ။",
+  "auth.editorial.chatTitle": "မူရင်းအခြေပြု မေးခွန်းများ မေးပါ",
+  "auth.editorial.chatDescription":
+    "အပိုင်းတစ်ခုကို ပိုမိုရှင်းလင်းလိုသည့်အခါ စာရွက်စာတမ်းစကားပြောခန်းကို သုံးပါ။",
   "auth.feature.summaries": "စမတ်အနှစ်ချုပ်များ",
   "auth.feature.flashcards": "ချက်ချင်း လေ့လာရေးကတ်များ",
   "auth.feature.quizzes": "လေ့ကျင့်ခန်းမေးခွန်းများ",
@@ -945,12 +1015,22 @@ const my: Record<TranslationKey, string> = {
   "about.eyebrow": "အပလီကေးရှင်း",
   "about.title": "AI Study Assistant အကြောင်း",
   "about.version": "ဗားရှင်း {version}",
+  "about.statusBadge": "ဆက်လက်တိုးတက်နေသည်",
+  "about.whatTitle": "သင်ခန်းစာစာရွက်စာတမ်းများကို ချိတ်ဆက်ထားသော လေ့လာရေးအလုပ်နေရာအဖြစ် ပြောင်းပါ",
   "about.description":
-    "AI Study Assistant သည် သင်ခန်းစာစာရွက်စာတမ်းများကို လက်တွေ့အသုံးဝင်သော လေ့လာရေးကိရိယာများအဖြစ် ပြောင်းလဲပေးပြီး မူရင်းအကြောင်းအရာကို အခြေခံထားသော လေ့လာရေးအလုပ်နေရာဖြစ်သည်။",
-  "about.purposeTitle": "အာရုံစိုက်လေ့လာရန် ဒီဇိုင်းပြုလုပ်ထားသည်",
-  "about.purposeDescription":
-    "ရှည်လျားသောစာရွက်စာတမ်းများကို စုစည်းခြင်း၊ အရေးကြီးသောအယူအဆများကို ဖော်ထုတ်ခြင်းနှင့် ထိရောက်သော ပြန်လည်လေ့လာမှုများ ပြင်ဆင်ခြင်းအတွက် လိုအပ်သောအချိန်ကို လျှော့ချပေးသည်။",
+    "AI Study Assistant သည် ကျောင်းသားများ၏ သင်ခန်းစာစာရွက်စာတမ်းများကို ရှင်းလင်းသော အနှစ်ချုပ်များ၊ မေးခွန်းများ၊ လေ့လာရေးကတ်များ၊ အသိပညာမြေပုံများနှင့် ရွေးချယ်ထားသောအကြောင်းအရာကို နားလည်သည့် AI စကားပြောခန်းအဖြစ် ပြောင်းလဲပေးသည်။",
+  "about.problemTitle": "ဖြေရှင်းပေးသည့် ပြဿနာ",
+  "about.problemDescription":
+    "ရှည်လျားသော သင်ခန်းစာမှတ်စုများနှင့် သုတေသနစာရွက်စာတမ်းများကို စုစည်းပြီး ပြန်လည်လေ့လာရန် အချိန်များစွာ လိုအပ်သည်။ ဤအက်ပ်သည် ထပ်ခါတလဲလဲ ပြင်ဆင်ရသောအလုပ်ကို လျှော့ချပေးပြီး နားလည်မှုနှင့် လေ့ကျင့်မှုကို အာရုံစိုက်နိုင်စေသည်။",
+  "about.audienceTitle": "မည်သူများအတွက်လဲ",
+  "about.audienceDescription":
+    "PDF သို့မဟုတ် DOCX သင်ခန်းစာများဖြင့် လေ့လာသော တက္ကသိုလ်ကျောင်းသားများနှင့် ကိုယ်တိုင်လေ့လာသူများအတွက် အဓိကတည်ဆောက်ထားသည်။ စီမံခန့်ခွဲသူများအတွက် လုံခြုံသောစနစ်စီမံမှု ကိရိယာများလည်း ပါဝင်သည်။",
+  "about.statusTitle": "လက်ရှိအခြေအနေ",
+  "about.statusDescription":
+    "ဤပရောဂျက်သည် လက်တွေ့အသုံးပြုနိုင်သော MVP ဖြစ်ပြီး ဆက်လက်တိုးတက်နေသည်။ စာရွက်စာတမ်းလုပ်ဆောင်မှုနှင့် အဓိကလေ့လာရေးအင်္ဂါရပ်များ အလုပ်လုပ်နေပြီး ယုံကြည်စိတ်ချရမှုနှင့် အရည်အသွေးကို ဆက်လက်မြှင့်တင်နေသည်။",
   "about.workflowTitle": "အလုပ်လုပ်ပုံ",
+  "about.workflowDescription":
+    "လေ့လာရေးကိရိယာတိုင်းကို တင်ထားသော မူရင်းအကြောင်းအရာနှင့် ဆက်စပ်ထားသည့် လုပ်ငန်းစဉ်ဖြစ်သည်။",
   "about.workflow.uploadTitle": "တင်ပါ",
   "about.workflow.uploadDescription": "ပံ့ပိုးထားသော PDF သို့မဟုတ် DOCX စာရွက်စာတမ်းကို ထည့်ပါ။",
   "about.workflow.analyseTitle": "နားလည်ပါ",
@@ -969,11 +1049,32 @@ const my: Record<TranslationKey, string> = {
   "about.feature.knowledgeDescription": "အရေးကြီးသော အယူအဆများအကြား ဆက်နွယ်မှုကို လေ့လာပါ။",
   "about.feature.chatTitle": "စာရွက်စာတမ်းအခြေပြု စကားပြောခန်း",
   "about.feature.chatDescription": "တင်ထားသောအကြောင်းအရာကို အခြေခံ၍ မေးခွန်းများ မေးနိုင်သည်။",
+  "about.techTitle": "နည်းပညာများ",
+  "about.techDescription":
+    "ဤအက်ပ်သည် typed Next.js architecture၊ အမြဲတမ်းဒေတာအတွက် MongoDB၊ နောက်ခံစာရွက်စာတမ်းအလုပ်များအတွက် Redis နှင့် BullMQ၊ AI provider များနှင့် တည်ငြိမ်သောဖြန့်ချိမှုအတွက် Docker ကို အသုံးပြုထားသည်။",
   "about.reliabilityTitle": "မူရင်းအထောက်အထားရှိပြီး ပြန်လည်စစ်ဆေးနိုင်သည်",
   "about.reliabilityDescription":
     "ဖန်တီးထားသော လေ့လာရေးအကြောင်းအရာများသည် တင်ထားသောစာရွက်စာတမ်းနှင့် ဆက်စပ်နေသည်။ အရေးကြီးသော ပညာရေးဆိုင်ရာအချက်အလက်များကို မူရင်းစာသားနှင့် ပြန်လည်စစ်ဆေးသင့်သည်။",
   "about.adminDescription":
     "စီမံခန့်ခွဲသူများသည် အကောင့်များ၊ အကြောင်းအရာ၊ AI မူဝါဒများ၊ စစ်ဆေးမှတ်တမ်းများ၊ လုံခြုံရေးအချက်ပြမှုများနှင့် စနစ်အခြေအနေကို စီမံခန့်ခွဲနိုင်သည်။",
+  "about.originTitle": "တည်ဆောက်ရသည့်အကြောင်းရင်း",
+  "about.originDescription":
+    "အဓိပ္ပာယ်ရှိသော ပြန်လည်လေ့လာမှုမစတင်မီ ရှည်လျားသော သင်ခန်းစာစာရွက်စာတမ်းများကို ပြန်လည်စုစည်းရာတွင် အချိန်များစွာကုန်ဆုံးရသည်ကို တွေ့ရှိပြီးနောက် ကွန်ပျူတာသိပ္ပံတက္ကသိုလ်ပရောဂျက်အဖြစ် စတင်တည်ဆောက်ခဲ့သည်။",
+  "about.roadmapTitle": "ရှေ့ဆက်မည့်အစီအစဉ်",
+  "about.roadmapDescription":
+    "အနာဂတ်တွင် ပိုမိုကောင်းမွန်သော မူရင်းကိုးကားချက်များ၊ scan စာရွက်စာတမ်းပံ့ပိုးမှု၊ လိုက်လျောညီထွေ လေ့လာရေးလမ်းကြောင်းများ၊ တိုးတက်မှုဆန်းစစ်ချက်များနှင့် ပိုမိုခိုင်မာသော လုံခြုံရေးနှင့် ဖြန့်ချိမှုတို့ကို ထည့်သွင်းရန် ရည်ရွယ်ထားသည်။",
+  "about.getStartedTitle": "သင်ခန်းစာစာရွက်စာတမ်းတစ်ခုဖြင့် စတင်ပါ",
+  "about.getStartedDescription":
+    "လေ့လာရေးအလုပ်နေရာကို ဖွင့်ပါ၊ ပံ့ပိုးထားသော PDF သို့မဟုတ် DOCX ဖိုင်ကို တင်ပါ၊ လုပ်ဆောင်မှုပြီးဆုံးသည်အထိ စောင့်ပြီး သင့်ရည်မှန်းချက်နှင့် ကိုက်ညီသော လေ့လာရေးကိရိယာကို ရွေးပါ။",
+  "about.startStudying": "လေ့လာရေးစာကြည့်တိုက် ဖွင့်ရန်",
+  "about.openAdmin": "စီမံခန့်ခွဲမှုခြုံငုံစာမျက်နှာ ဖွင့်ရန်",
+  "about.github": "GitHub တွင် ကြည့်ရန်",
+  "about.capabilitiesKicker": "အဓိကစွမ်းဆောင်ရည်များ",
+  "about.processKicker": "လုပ်ငန်းစဉ်",
+  "about.implementationKicker": "တည်ဆောက်ပုံ",
+
+  "home.kicker": "သင့်ကိုယ်ပိုင်သင်ခန်းစာမှ လေ့လာပါ",
+  "home.learningLoop": "လေ့လာမှုစက်ဝန်း",
 
   "common.previous": "ယခင်",
   "common.next": "နောက်တစ်ခု",
@@ -991,6 +1092,9 @@ const my: Record<TranslationKey, string> = {
   "common.live": "တိုက်ရိုက်",
 
   "dashboard.welcome": "ပြန်လည်ကြိုဆိုပါသည်{name}",
+  "dashboard.eyebrow": "ကျောင်းသားအလုပ်နေရာ",
+  "dashboard.description":
+    "နောက်ဆုံးစာရွက်စာတမ်းသို့ ပြန်ဝင်ပြီး ဖတ်ရှုခြင်း၊ ပြန်လည်သုံးသပ်ခြင်းနှင့် မှတ်ဉာဏ်လေ့ကျင့်ခြင်းကို ဆက်လုပ်ပါ။",
   "dashboard.search": "မှတ်စုများ ရှာရန်…",
   "dashboard.deleteFailed": "စာတမ်းကို ဖျက်၍မရပါ",
   "dashboard.notesUploaded": "တင်ထားသော မှတ်စုများ",
@@ -1005,8 +1109,19 @@ const my: Record<TranslationKey, string> = {
   "dashboard.viewAll": "အားလုံးကြည့်ရန်",
   "dashboard.noNotes": "မှတ်စုမရှိသေးပါ",
   "dashboard.noNotesDescription": "စတင်လေ့လာရန် ပထမဆုံး PDF သို့မဟုတ် DOCX ကို တင်ပါ။",
+  "dashboard.libraryKicker": "စာကြည့်တိုက်",
+  "dashboard.rhythmKicker": "လေ့လာမှုစည်းချက်",
+  "dashboard.rhythmTitle": "တည်ငြိမ်သော နေ့စဉ်လေ့လာမှု",
+  "dashboard.rhythmRead": "မူရင်းစာသားကို ဖတ်ပါ",
+  "dashboard.rhythmReview": "အဓိကအချက်များကို ပြန်လည်ကြည့်ပါ",
+  "dashboard.rhythmPractise": "မှတ်ဉာဏ်ကို လေ့ကျင့်ပါ",
+  "dashboard.floatingNote":
+    "ကျောင်းသားစာမျက်နှာတိုင်းတွင် အမြန်မှတ်သားရန် floating note ကို အသုံးပြုနိုင်သည်။",
 
   "notes.title": "စာတမ်းအားလုံး",
+  "notes.eyebrow": "စာကြည့်တိုက်",
+  "notes.description":
+    "လေ့လာရေးကိရိယာအားလုံး၏ မူရင်းစာရွက်စာတမ်းများကို တင်ခြင်း၊ ရှာခြင်းနှင့် စီမံခြင်း ပြုလုပ်ပါ။",
   "notes.search": "စာတမ်းအားလုံးတွင် ရှာရန်…",
   "notes.uploaded": "တင်ထားသော စာတမ်းများ",
   "notes.libraryCount": "သင့်စာကြည့်တိုက်တွင် စာတမ်း {count} ခုရှိသည်",
@@ -1019,6 +1134,11 @@ const my: Record<TranslationKey, string> = {
   "notes.uploadFirst": "စတင်လေ့လာရန် အပေါ်တွင် PDF သို့မဟုတ် DOCX ကို တင်ပါ။",
   "notes.pageOf": "စာမျက်နှာ {page} / {total}",
   "notes.deleteFailed": "စာတမ်းကို ဖျက်၍မရပါ။",
+
+  "document.eyebrow": "စာရွက်စာတမ်းအလုပ်နေရာ · {type}",
+  "document.description":
+    "ချိတ်ဆက်ထားသော စာရွက်စာတမ်းတစ်ခုတည်းမှ မူရင်းစာသားကို ဖတ်၊ အဓိကအချက်များကို ပြန်လည်ကြည့်ပြီး လေ့ကျင့်ပါ။",
+  "document.sourceReady": "မူရင်းစာသား အသင့်ဖြစ်ပါပြီ",
 
   "upload.unsupported": "ဤဖိုင်အမျိုးအစားကို မထောက်ပံ့ပါ။ ခွင့်ပြုထားသည်များ: {types}",
   "upload.tooLarge": "ဖိုင်အရွယ်အစား ကြီးလွန်းသည်။ အများဆုံး: {size}MB",

@@ -85,19 +85,24 @@ export function UploadZone({ onUploaded }: UploadZoneProps) {
       }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
-      className={`mb-7 flex flex-col items-center gap-2 rounded-card border-2 border-dashed px-6 py-10 text-center transition-colors ${
-        isDragging ? "border-ink bg-line-soft" : "border-line bg-paper-raised"
+      className={`mb-7 flex flex-col gap-4 border-y border-dashed px-4 py-5 transition-colors sm:flex-row sm:items-center sm:justify-between ${
+        isDragging ? "border-ink bg-line-soft" : "border-line bg-transparent"
       }`}
     >
-      <Upload size={22} strokeWidth={1.6} className="text-ink-faint" />
-      <h3 className="font-serif text-[15px] font-semibold">
-        {isUploading ? t("upload.uploading") : t("upload.drop")}
-      </h3>
-      <p className="max-w-[360px] text-[12.5px] text-ink-soft">
-        {t("upload.description")}
-      </p>
-
-      {error && <p className="text-[12px] text-coral">{error}</p>}
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-yellow-soft text-ink">
+          <Upload size={17} strokeWidth={1.7} />
+        </span>
+        <div className="min-w-0">
+          <h3 className="font-serif text-[15px] font-semibold">
+            {isUploading ? t("upload.uploading") : t("upload.drop")}
+          </h3>
+          <p className="mt-1 max-w-[520px] text-[12.5px] leading-5 text-ink-soft">
+            {t("upload.description")}
+          </p>
+          {error && <p className="mt-1 text-[12px] text-coral">{error}</p>}
+        </div>
+      </div>
 
       <input
         ref={inputRef}
@@ -106,7 +111,7 @@ export function UploadZone({ onUploaded }: UploadZoneProps) {
         onChange={handleBrowse}
         className="hidden"
       />
-      <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={isUploading}>
+      <Button className="shrink-0" variant="outline" onClick={() => inputRef.current?.click()} disabled={isUploading}>
         {isUploading ? t("upload.uploading") : t("upload.browse")}
       </Button>
     </div>

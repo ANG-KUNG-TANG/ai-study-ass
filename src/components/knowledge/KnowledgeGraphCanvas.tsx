@@ -63,7 +63,7 @@ function KnowledgeGraphCanvasInner({
   }
 
   return (
-    <div className="knowledge-flow h-[640px] w-full overflow-hidden rounded-2xl border border-[#E6DDC8] bg-white">
+    <div className="knowledge-flow h-[640px] w-full overflow-hidden rounded-[10px] border border-line bg-paper-raised">
       <ReactFlow
         nodes={laidOut.nodes}
         edges={laidOut.edges}
@@ -88,21 +88,21 @@ function KnowledgeGraphCanvasInner({
           nodeColor={(node) => nodeColor(String(node.data?.nodeType ?? "concept"))}
           nodeStrokeWidth={2}
           maskColor="rgba(250, 246, 236, 0.72)"
-          className="!border !border-[#E6DDC8] !bg-white"
+          className="!border !border-line !bg-paper-raised"
         />
         <Panel position="top-right">
-          <div className="flex items-center gap-2 rounded-xl border border-[#E6DDC8] bg-white/95 p-1.5 shadow-sm backdrop-blur">
+          <div className="flex items-center gap-2 rounded-[8px] border border-line bg-paper-raised/95 p-1.5 backdrop-blur">
             <button type="button" onClick={fitGraph}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-[#514B40] hover:bg-[#F4EFE4]">
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-ink-soft hover:bg-line-soft">
               <Maximize2 size={14} /> {t("knowledge.fitGraph")}
             </button>
             <button type="button" onClick={toggleDirection}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-[#514B40] hover:bg-[#F4EFE4]">
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-ink-soft hover:bg-line-soft">
               {direction === "LR" ? <Columns3 size={14} /> : <Rows3 size={14} />}
               {direction}
             </button>
             <button type="button" onClick={resetLayout}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-[#514B40] hover:bg-[#F4EFE4]">
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-ink-soft hover:bg-line-soft">
               <RotateCcw size={14} /> {t("knowledge.resetGraph")}
             </button>
           </div>

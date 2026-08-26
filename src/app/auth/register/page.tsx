@@ -118,7 +118,7 @@ export default function RegisterPage() {
           label={t("common.name")}
           placeholder={t("register.namePlaceholder")}
           autoComplete="name"
-          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
           value={form.name}
           onChange={(event) => setForm({ ...form, name: event.target.value })}
           required
@@ -128,7 +128,7 @@ export default function RegisterPage() {
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
-          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
           value={form.email}
           onChange={(event) => setForm({ ...form, email: event.target.value })}
           required
@@ -138,7 +138,7 @@ export default function RegisterPage() {
           type="password"
           autoComplete="new-password"
           placeholder="••••••••"
-          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
           value={form.password}
           onChange={(event) => setForm({ ...form, password: event.target.value })}
           required
@@ -151,7 +151,7 @@ export default function RegisterPage() {
           type="password"
           autoComplete="new-password"
           placeholder="••••••••"
-          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
           value={form.confirmPassword}
           onChange={(event) =>
             setForm({ ...form, confirmPassword: event.target.value })
@@ -165,7 +165,7 @@ export default function RegisterPage() {
           type="submit"
           variant="yellow"
           disabled={isSubmitting}
-          className="mt-1 h-[46px] w-full rounded-[13px] text-[13px] font-semibold"
+          className="mt-1 h-[46px] w-full rounded-[8px] text-[13px] font-semibold"
         >
           {isSubmitting ? t("register.submitting") : t("register.submit")}
           {!isSubmitting && <ArrowRight size={18} strokeWidth={1.8} />}

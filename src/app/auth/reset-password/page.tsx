@@ -23,7 +23,7 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <p className="text-[13px] text-[#E85D46]">
+      <p className="text-[13px] text-coral">
         {t("reset.missingToken")}
       </p>
     );
@@ -55,12 +55,12 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="rounded-2xl border border-[#E6DDC8] bg-white p-8 shadow-sm">
+    <div className="border-y border-line py-8">
       <div className="mb-6">
-        <h1 className="font-serif text-2xl font-semibold text-[#221F1A]">
+        <h1 className="font-serif text-2xl font-semibold text-ink">
           {t("reset.title")}
         </h1>
-        <p className="mt-1 text-sm text-[#726B5C]">
+        <p className="mt-1 text-sm text-ink-soft">
           {t("reset.subtitle")}
         </p>
       </div>
@@ -78,7 +78,7 @@ function ResetPasswordForm() {
           <button
             type="button"
             onClick={() => setShowPassword((current) => !current)}
-            className="absolute right-3 top-[34px] text-[#B3A98F] hover:text-[#726B5C]"
+            className="absolute right-3 top-[34px] text-ink-faint hover:text-ink-soft"
             aria-label={
               showPassword
                 ? t("common.hidePassword")
@@ -89,10 +89,7 @@ function ResetPasswordForm() {
           </button>
         </div>
 
-        <p className="-mt-2 text-[11px] text-[#726B5C]">
-          Use at least 8 characters with uppercase, lowercase, a number, and a
-          special character.
-        </p>
+        <p className="-mt-2 text-[11px] text-ink-soft">{t("register.passwordHelp")}</p>
 
         <Input
           label={t("reset.confirmPassword")}
@@ -103,7 +100,7 @@ function ResetPasswordForm() {
           required
         />
 
-        {error && <p className="text-[13px] text-[#E85D46]">{error}</p>}
+        {error && <p className="text-[13px] text-coral">{error}</p>}
 
         <Button
           type="submit"
@@ -125,7 +122,7 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <p className="text-[13px] text-[#726B5C]">
+        <p className="text-[13px] text-ink-soft">
           {t("common.loading")}
         </p>
       }

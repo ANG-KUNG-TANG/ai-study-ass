@@ -77,14 +77,14 @@ export default function AdminSettingsPage() {
 
   return (
     <>
-      <Topbar eyebrow="Admin · System" title="Operational settings" />
-      {error && <div className="mb-4 rounded-xl border border-coral/30 bg-coral-soft px-4 py-3 text-[12px] text-coral">{error}</div>}
+      <Topbar eyebrow="Admin · System" title="Operational settings" description="Configure upload, provider pricing, and retention policies in clearly separated sections." />
+      {error && <div className="mb-4 border-l-[3px] border-coral bg-coral-soft px-4 py-3 text-[12px] text-coral">{error}</div>}
       {!settings ? (
-        <AdminPanel><p className="py-8 text-center text-[12px] text-ink-faint">Loading settings…</p></AdminPanel>
+        <AdminPanel className="rounded-none border-x-0 bg-transparent"><p className="py-8 text-center text-[12px] text-ink-faint">Loading settings…</p></AdminPanel>
       ) : (
         <div className="space-y-5">
-          <div className="grid gap-5 lg:grid-cols-2">
-            <AdminPanel>
+          <div className="grid border-y border-line lg:grid-cols-2">
+            <AdminPanel className="rounded-none border-0 border-b bg-transparent px-0 lg:border-b-0 lg:border-r lg:pr-5">
               <h2 className="font-serif text-[17px] font-semibold">Feature controls</h2>
               <div className="mt-5 space-y-4 text-[12px]">
                 <label className="flex items-center justify-between gap-4"><span><strong className="block">Uploads</strong><span className="text-[10px] text-ink-faint">Pause all new document uploads.</span></span><input type="checkbox" checked={settings.uploadsEnabled} onChange={(event) => update("uploadsEnabled", event.target.checked)} /></label>
@@ -94,12 +94,12 @@ export default function AdminSettingsPage() {
               </div>
             </AdminPanel>
 
-            <AdminPanel>
+            <AdminPanel className="rounded-none border-0 bg-transparent px-0 lg:pl-5">
               <h2 className="font-serif text-[17px] font-semibold">Provider pricing</h2>
               <p className="mt-1 text-[10px] text-ink-faint">USD per one million tokens. Values drive estimated spend reporting.</p>
               <div className="mt-5 space-y-4">
                 {(["openai", "gemini"] as const).map((provider) => (
-                  <div key={provider} className="rounded-lg border border-line p-3">
+                  <div key={provider} className="border-b border-line-soft py-3 last:border-b-0">
                     <p className="text-[12px] font-medium capitalize">{provider}</p>
                     <div className="mt-3 grid grid-cols-2 gap-3">
                       {(["inputPerMillionUsd", "outputPerMillionUsd"] as const).map((field) => <label key={field} className="text-[10px] text-ink-soft">{field.startsWith("input") ? "Input" : "Output"}<input type="number" min={0} step="0.01" value={settings.pricing[provider][field]} onChange={(event) => update("pricing", { ...settings.pricing, [provider]: { ...settings.pricing[provider], [field]: Number(event.target.value) } })} className="mt-1 w-full rounded-lg border border-line bg-transparent px-3 py-2 text-[12px]" /></label>)}
@@ -110,7 +110,7 @@ export default function AdminSettingsPage() {
             </AdminPanel>
           </div>
 
-          <AdminPanel>
+          <AdminPanel className="rounded-none border-x-0 border-l-[3px] border-l-coral bg-transparent pl-4">
             <div className="flex items-start gap-3"><ShieldAlert size={18} className="mt-0.5 text-coral" /><div><h2 className="font-serif text-[17px] font-semibold">Retention policy</h2><p className="mt-1 text-[10px] text-ink-faint">Content retention at 0 is disabled. Preview before any manual execution.</p></div></div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <label className="text-[11px] text-ink-soft">Audit log days<input type="number" min={30} max={3650} value={settings.auditRetentionDays} onChange={(event) => update("auditRetentionDays", Number(event.target.value))} className="mt-1 w-full rounded-lg border border-line bg-transparent px-3 py-2" /></label>

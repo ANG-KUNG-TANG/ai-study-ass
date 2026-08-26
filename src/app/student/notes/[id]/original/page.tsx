@@ -87,7 +87,7 @@ export default function OriginalTextPage() {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="rounded-none border-x-0 bg-transparent px-0">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
@@ -154,13 +154,13 @@ export default function OriginalTextPage() {
       </Card>
 
       {content ? (
-        <Card className="max-h-[70vh] overflow-y-auto">
-          <pre className="whitespace-pre-wrap break-words font-sans text-[12px] leading-6 text-ink-soft">
+        <Card className="max-h-[70vh] overflow-y-auto rounded-none border-x-0 bg-paper-raised px-5 sm:px-8">
+          <pre className="mx-auto max-w-4xl whitespace-pre-wrap break-words font-sans text-[13px] leading-7 text-ink-soft">
             {content}
           </pre>
         </Card>
       ) : (
-        <Card className="flex min-h-[220px] flex-col items-center justify-center text-center">
+        <Card className="flex min-h-[220px] flex-col items-center justify-center rounded-none border-x-0 text-center">
           <FileText
             size={24}
             className="text-ink-faint"

@@ -16,6 +16,7 @@ export default function AdminUsersPage() {
       <Topbar
         eyebrow={t("admin.eyebrow")}
         title={t("admin.users.title")}
+        description="Search accounts, inspect details, and manage access with a clear audit trail."
         search={{ value: search, onChange: (v) => { setSearch(v); setPage(1); }, placeholder: t("admin.users.search") }}
       />
 

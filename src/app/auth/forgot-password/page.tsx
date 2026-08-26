@@ -85,7 +85,7 @@ function ForgotPasswordContent() {
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
-          className="h-[46px] rounded-[13px] bg-paper-raised/45 px-4 text-[13px]"
+          className="h-[46px] rounded-[8px] bg-paper-raised px-4 text-[13px]"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
@@ -100,7 +100,7 @@ function ForgotPasswordContent() {
         <Button
           type="submit"
           variant="yellow"
-          className="h-[46px] w-full rounded-[13px] text-[13px] font-semibold"
+          className="h-[46px] w-full rounded-[8px] text-[13px] font-semibold"
           disabled={isLoading}
         >
           {isLoading ? t("forgot.submitting") : t("forgot.submit")}

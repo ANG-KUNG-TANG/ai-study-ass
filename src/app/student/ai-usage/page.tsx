@@ -171,13 +171,10 @@ export default function StudentAIUsagePage() {
       <Topbar
         eyebrow={t("student.ai.account")}
         title={t("student.ai.title")}
+        description={t("student.ai.description")}
       />
 
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <p className="text-[12px] text-ink-faint">
-          {t("student.ai.description")}
-        </p>
-
+      <div className="mb-5 flex items-center justify-end gap-3">
         <button
           type="button"
           disabled={refreshing}
@@ -197,20 +194,20 @@ export default function StudentAIUsagePage() {
       </div>
 
       {error && (
-        <div className="mb-5 rounded-xl border border-coral/30 bg-coral-soft px-4 py-3 text-[12px] text-coral">
+        <div className="mb-5 border-l-[3px] border-coral bg-coral-soft px-4 py-3 text-[12px] text-coral">
           {error}
         </div>
       )}
 
       {!data && !error && (
-        <div className="rounded-xl border border-line bg-paper-raised px-4 py-10 text-center text-[12px] text-ink-faint">
+        <div className="border-y border-line px-4 py-10 text-center text-[12px] text-ink-faint">
           {t("student.ai.loading")}
         </div>
       )}
 
       {data && (
         <>
-          <section className="mb-5 rounded-xl border border-line bg-paper-raised p-5">
+          <section className="mb-5 border-y border-line py-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -246,7 +243,7 @@ export default function StudentAIUsagePage() {
               </span>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 border-l border-t border-line md:grid-cols-3">
               {[
                 {
                   label:
@@ -282,7 +279,7 @@ export default function StudentAIUsagePage() {
                 (item) => (
                   <div
                     key={item.label}
-                    className="rounded-lg border border-line-soft p-4"
+                    className="border-b border-r border-line p-4"
                   >
                     <p className="text-[11px] text-ink-faint">
                       {item.label}
@@ -307,7 +304,7 @@ export default function StudentAIUsagePage() {
             </p>
           </section>
 
-          <section className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-7">
+          <section className="mb-5 grid grid-cols-2 border-l border-t border-line sm:grid-cols-4 xl:grid-cols-7">
             {[
               [
                 t("admin.ai.requestsToday"),
@@ -343,7 +340,7 @@ export default function StudentAIUsagePage() {
               ([label, value]) => (
                 <div
                   key={label}
-                  className="rounded-xl border border-line bg-paper-raised p-4"
+                  className="border-b border-r border-line p-4"
                 >
                   <p className="text-[11px] text-ink-faint">
                     {label}
@@ -357,8 +354,8 @@ export default function StudentAIUsagePage() {
             )}
           </section>
 
-          <section className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-line bg-paper-raised p-5">
+          <section className="mb-5 grid grid-cols-1 border-y border-line lg:grid-cols-2">
+            <div className="border-b border-line p-5 lg:border-b-0 lg:border-r">
               <h2 className="font-serif text-[16px] font-semibold text-ink">
                 {t("student.ai.lastSevenDays")}
               </h2>
@@ -402,7 +399,7 @@ export default function StudentAIUsagePage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-line bg-paper-raised p-5">
+            <div className="p-5">
               <h2 className="font-serif text-[16px] font-semibold text-ink">
                 {t("student.ai.providerUsage")}
               </h2>
@@ -412,7 +409,7 @@ export default function StudentAIUsagePage() {
                   (provider) => (
                     <div
                       key={provider.provider}
-                      className="rounded-lg border border-line-soft p-3"
+                      className="border-b border-line-soft py-3 last:border-b-0"
                     >
                       <div className="flex items-center justify-between">
                         <span className="capitalize text-[12px] font-medium text-ink">
@@ -461,7 +458,7 @@ export default function StudentAIUsagePage() {
             </div>
           </section>
 
-          <section className="mb-5 rounded-xl border border-line bg-paper-raised p-5">
+          <section className="mb-5 border-y border-line py-5">
             <h2 className="font-serif text-[16px] font-semibold text-ink">
               {t("student.ai.byFeature")}
             </h2>
@@ -519,7 +516,7 @@ export default function StudentAIUsagePage() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-line bg-paper-raised p-5">
+          <section className="border-y border-line py-5">
             <div className="mb-4 flex items-center gap-2">
               <Sparkles
                 size={16}

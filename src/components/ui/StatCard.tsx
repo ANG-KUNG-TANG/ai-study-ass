@@ -23,10 +23,10 @@ export function StatCard({ value, label, icon, tone = "violet", delta, deltaType
   const deltaClasses = deltaType === "up" ? "bg-sage-soft text-sage" : "bg-coral-soft text-coral";
 
   return (
-    <div className="rounded-card border border-line bg-paper-raised p-4 shadow-sm transition hover:shadow-md">
+    <div className="min-w-0 border-b border-line p-4 sm:border-b-0 sm:border-r sm:last:border-r-0">
       <div className="flex items-start justify-between">
         {icon && (
-          <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${TONE_CLASSES[tone]}`}>
+          <div className={`flex h-8 w-8 items-center justify-center rounded-md ${TONE_CLASSES[tone]}`}>
             <Icon icon={icon} size={16} />
           </div>
         )}
@@ -36,7 +36,7 @@ export function StatCard({ value, label, icon, tone = "violet", delta, deltaType
           </span>
         )}
       </div>
-      <div className="mt-3 font-serif text-[26px] font-semibold text-ink">{value}</div>
+      <div className="mt-3 font-serif text-[25px] font-semibold text-ink">{value}</div>
       <div className="mt-0.5 text-[12px] text-ink-soft">{label}</div>
     </div>
   );

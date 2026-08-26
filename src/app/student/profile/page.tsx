@@ -67,6 +67,7 @@ export default function StudentProfilePage() {
       <Topbar
         eyebrow={t("profile.eyebrow")}
         title={t("profile.title")}
+        description={t("profile.description")}
         actions={
           <Link
             href="/student/settings"
@@ -78,14 +79,10 @@ export default function StudentProfilePage() {
         }
       />
 
-      <p className="-mt-4 mb-6 text-[13px] text-ink-soft">
-        {t("profile.description")}
-      </p>
-
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
-        <Card>
+        <Card className="rounded-none border-x-0 bg-transparent px-0">
           <div className="flex flex-wrap items-center gap-4 border-b border-line pb-5">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-ink font-serif text-xl font-semibold text-paper-raised">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ink font-serif text-xl font-semibold text-paper-raised">
               {initials(user.name)}
             </div>
             <div>
@@ -121,12 +118,12 @@ export default function StudentProfilePage() {
             />
 
             {success && (
-              <p className="rounded-xl bg-sage-soft px-3 py-2 text-[12px] text-sage" aria-live="polite">
+              <p className="rounded-[8px] bg-sage-soft px-3 py-2 text-[12px] text-sage" aria-live="polite">
                 {t("profile.updated")}
               </p>
             )}
             {error && (
-              <p className="rounded-xl bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+              <p className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
                 {error}
               </p>
             )}
@@ -141,7 +138,7 @@ export default function StudentProfilePage() {
           </form>
         </Card>
 
-        <Card>
+        <Card className="rounded-none border-x-0 bg-transparent px-0">
           <h2 className="font-serif text-[17px] font-semibold text-ink">
             {t("profile.accountDetails")}
           </h2>
