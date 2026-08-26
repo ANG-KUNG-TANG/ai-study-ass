@@ -19,6 +19,7 @@ import type {
 } from "@/server/types/Knowledge";
 import type { IntelligenceResult } from "@/server/intelligence/types";
 import type { GroundedKnowledge } from "@/server/intelligence/grounding";
+import { buildGroundedConceptMap } from "@/server/services/grounded-concept-map.service";
 import { buildGroundedKnowledgeGraphResult } from "@/server/services/grounded-knowledge-graph.service";
 import { buildGroundedKnowledgeTree } from "@/server/services/knowledge/knowledge-tree.service";
 
@@ -27,6 +28,7 @@ export type KnowledgeStatus = "not_generated" | "ready" | "partial" | "failed";
 export interface KnowledgeView extends KnowledgeProps {
   status: KnowledgeStatus;
   mode: ConfidenceMode | null;
+  conceptMap: GraphData | null;
   tree: KnowledgeTreeData | null;
   graphQuality: KnowledgeGraphQuality | null;
 }
@@ -155,6 +157,8 @@ function emptyKnowledge(noteId: string): KnowledgeView {
 
     graphQuality: null,
 
+    conceptMap: null,
+
     tree: null,
 
     ontologyMatches: [],
@@ -215,6 +219,12 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
       )
     : null;
 
+  const conceptMap = grounding
+    ? buildGroundedConceptMap(
+        grounding,
+      )
+    : normalizeGraph(raw.graph);
+
   const props: KnowledgeProps = {
     noteId: typeof raw.noteId === "string" ? raw.noteId : noteId,
 
@@ -254,6 +264,8 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
 
   return {
     ...props,
+
+    conceptMap,
 
     tree: grounding
       ? buildGroundedKnowledgeTree(grounding)
