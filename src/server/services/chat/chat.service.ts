@@ -27,9 +27,12 @@ import {
   buildChatPrompt,
 } from "@/server/services/chat/chat.prompt";
 import {
-  answerFromGrounding,
-  buildGroundedPromptSource,
-} from "@/server/services/grounded-artifacts.service";
+  buildGroundedChatFallback,
+  chatGroundingLogContext,
+  classifyGroundedQuestion,
+  validateGroundedChatResponse,
+  type ChatAnswerability,
+} from "@/server/services/chat/chat-grounding.service";
 import type {
   GenerationMetadata,
 } from "@/server/types/generation";
@@ -56,6 +59,7 @@ interface ChatAnswer {
   provider: AIProvider;
   tokensUsed: number;
   degraded: boolean;
+  answerability: ChatAnswerability | null;
 }
 
 async function answerQuestion(
@@ -79,31 +83,159 @@ async function answerQuestion(
   const grounding = isIntelligenceV2Enabled()
     ? intelligence?.grounding ?? null
     : null;
-  const symbolic = grounding
-    ? answerFromGrounding(
+
+  if (grounding) {
+    const decision =
+      classifyGroundedQuestion(
         grounding,
         question,
-      )
-    : buildSymbolicChatAnswer(
-        intelligence?.core,
-        noteContent,
-        question,
+      );
+    const groundedFallback =
+      buildGroundedChatFallback(
+        decision,
       );
 
-  // High-confidence structured facts or document retrieval answer the
-  // question without consuming provider quota.
+    if (
+      decision.answerability ===
+      "NOT_ANSWERABLE"
+    ) {
+      return {
+        text: groundedFallback,
+        provider: "symbolic",
+        tokensUsed: 0,
+        degraded: false,
+        answerability:
+          decision.answerability,
+      };
+    }
+
+    if (
+      decision.answerability ===
+        "ANSWERABLE" &&
+      decision.confidence >= 0.82
+    ) {
+      return {
+        text: groundedFallback,
+        provider: "symbolic",
+        tokensUsed: 0,
+        degraded: false,
+        answerability:
+          decision.answerability,
+      };
+    }
+
+    try {
+      const {
+        systemPrompt,
+        prompt,
+      } = buildChatPrompt({
+        noteTitle,
+        noteContent:
+          decision.evidence.join(
+            "\n",
+          ),
+        intelligence: null,
+        history,
+        question,
+        evidence:
+          decision.evidence,
+        answerability:
+          decision.answerability,
+        strictEvidenceOnly: true,
+      });
+
+      const aiResult =
+        await generate({
+          prompt,
+          systemPrompt,
+          temperature: 0.2,
+          maxTokens: 900,
+          usageLabel: "chat",
+          userId,
+          noteId,
+        });
+
+      const validation =
+        validateGroundedChatResponse(
+          aiResult.text,
+          decision,
+        );
+
+      if (!validation.accepted) {
+        logger.warn(
+          "AI chat response rejected by grounded validation",
+          {
+            noteId,
+            ...chatGroundingLogContext(
+              decision,
+              validation,
+            ),
+          },
+        );
+
+        return {
+          text: groundedFallback,
+          provider: "symbolic",
+          tokensUsed:
+            aiResult.tokensUsed,
+          degraded: true,
+          answerability:
+            decision.answerability,
+        };
+      }
+
+      return {
+        text: aiResult.text,
+        provider:
+          aiResult.provider,
+        tokensUsed:
+          aiResult.tokensUsed,
+        degraded: false,
+        answerability:
+          decision.answerability,
+      };
+    } catch (error) {
+      logger.warn(
+        "AI chat fallback unavailable; returning grounded evidence",
+        {
+          noteId,
+          error:
+            error instanceof Error
+              ? error.message
+              : String(error),
+          ...chatGroundingLogContext(
+            decision,
+          ),
+        },
+      );
+
+      return {
+        text: groundedFallback,
+        provider: "symbolic",
+        tokensUsed: 0,
+        degraded: true,
+        answerability:
+          decision.answerability,
+      };
+    }
+  }
+
+  const symbolic =
+    buildSymbolicChatAnswer(
+      intelligence?.core,
+      noteContent,
+      question,
+    );
+
   if (
     symbolic.confidence >= 0.72
   ) {
     return {
-      text:
-        symbolic.text,
-      provider:
-        "symbolic",
-      tokensUsed:
-        0,
-      degraded:
-        false,
+      text: symbolic.text,
+      provider: "symbolic",
+      tokensUsed: 0,
+      degraded: false,
+      answerability: null,
     };
   }
 
@@ -113,9 +245,7 @@ async function answerQuestion(
       prompt,
     } = buildChatPrompt({
       noteTitle,
-      noteContent: grounding
-        ? buildGroundedPromptSource(grounding, 8_000)
-        : noteContent,
+      noteContent,
       intelligence,
       history,
       question,
@@ -127,25 +257,21 @@ async function answerQuestion(
       await generate({
         prompt,
         systemPrompt,
-        temperature:
-          0.25,
-        maxTokens:
-          900,
-        usageLabel:
-          "chat",
+        temperature: 0.25,
+        maxTokens: 900,
+        usageLabel: "chat",
         userId,
         noteId,
       });
 
     return {
-      text:
-        aiResult.text,
+      text: aiResult.text,
       provider:
         aiResult.provider,
       tokensUsed:
         aiResult.tokensUsed,
-      degraded:
-        false,
+      degraded: false,
+      answerability: null,
     };
   } catch (error) {
     logger.warn(
@@ -159,14 +285,11 @@ async function answerQuestion(
     );
 
     return {
-      text:
-        symbolic.text,
-      provider:
-        "symbolic",
-      tokensUsed:
-        0,
-      degraded:
-        true,
+      text: symbolic.text,
+      provider: "symbolic",
+      tokensUsed: 0,
+      degraded: true,
+      answerability: null,
     };
   }
 }
@@ -309,6 +432,8 @@ export async function askQuestion(
         answer.tokensUsed,
       degraded:
         answer.degraded,
+      answerability:
+        answer.answerability,
     },
   );
 
