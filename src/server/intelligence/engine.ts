@@ -6,6 +6,7 @@ import type {
   IntelligenceStageProgress,
   KnowledgeCore,
   KnowledgeGap,
+  ExpectedField,
   KnowledgeGraph,
   NLPResult,
   PipelineProgressListener,
@@ -13,11 +14,7 @@ import type {
   PrologFact,
   ResolvedConcept,
 } from "./types";
-import type {
-  DocumentChunk,
-  RawDocument,
-  SectionedDocument,
-} from "./pipeline";
+import type { DocumentChunk, RawDocument, SectionedDocument } from "./pipeline";
 import {
   buildDocumentChunks,
   classifyDocument,
@@ -33,6 +30,8 @@ import { PrologEngine, quoteAtom } from "./prolog/prolog.engine";
 import { detectGaps } from "./pipeline/gap_detector";
 import { computeConfidenceBreakdown } from "./confidence/confidence.engine";
 import { completeWithAI } from "./fallback/ai_fallback.service";
+import { buildIntelligenceRepairEvidence } from "./fallback/intelligence-repair-evidence";
+import { logger } from "@/server/utils/logger";
 import {
   attachReliableProfile,
   buildReliableProfile,
@@ -44,7 +43,6 @@ import { buildGroundedKnowledge } from "./grounding";
 import type { GroundedKnowledge } from "./grounding";
 
 const DEFAULT_AI_FALLBACK_THRESHOLD = 0.85;
-
 
 export interface EngineInput {
   noteId: string;
@@ -60,7 +58,9 @@ export class PipelineError extends Error {
   readonly cause: unknown;
 
   constructor(stage: PipelineStage, noteId: string, cause: unknown) {
-    super(`Pipeline failed at stage '${stage}' for note ${noteId}: ${cause instanceof Error ? cause.message : String(cause)}`);
+    super(
+      `Pipeline failed at stage '${stage}' for note ${noteId}: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
     this.name = "PipelineError";
     this.stage = stage;
     this.noteId = noteId;
@@ -77,7 +77,9 @@ interface SymbolicResult {
   prologWarnings: string[];
 }
 
-export async function runPipeline(input: EngineInput): Promise<IntelligenceResult> {
+export async function runPipeline(
+  input: EngineInput,
+): Promise<IntelligenceResult> {
   const tracker = new ProgressTracker(input.onProgress);
   const { noteId, document } = input;
   const threshold = input.aiFallbackThreshold ?? DEFAULT_AI_FALLBACK_THRESHOLD;
@@ -97,61 +99,85 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
   let grounding: GroundedKnowledge;
 
   try {
-    const cleaned = await tracker.run("cleaning", () => cleanDocument(document), (value) => ({
-      cleanCharacters: value.cleanText.length,
-      citationsRemoved: value.cleaningStats.citationsRemoved,
-      referenceLinesRemoved: value.cleaningStats.referenceLinesRemoved,
-    }));
+    const cleaned = await tracker.run(
+      "cleaning",
+      () => cleanDocument(document),
+      (value) => ({
+        cleanCharacters: value.cleanText.length,
+        citationsRemoved: value.cleaningStats.citationsRemoved,
+        referenceLinesRemoved: value.cleaningStats.referenceLinesRemoved,
+      }),
+    );
 
-    sectioned = await tracker.run("section_detection", () => detectSections(cleaned), (value) => ({
-      sections: value.sections.length,
-      hasAbstract: value.hasAbstract,
-      hasMethodology: value.hasMethodology,
-    }));
+    sectioned = await tracker.run(
+      "section_detection",
+      () => detectSections(cleaned),
+      (value) => ({
+        sections: value.sections.length,
+        hasAbstract: value.hasAbstract,
+        hasMethodology: value.hasMethodology,
+      }),
+    );
 
-    const profile = await tracker.run("document_classification", () => classifyDocument(sectioned), (value) => ({
-      kind: value.kind,
-      classificationConfidence: Number(value.confidence.toFixed(3)),
-    }));
+    const profile = await tracker.run(
+      "document_classification",
+      () => classifyDocument(sectioned),
+      (value) => ({
+        kind: value.kind,
+        classificationConfidence: Number(value.confidence.toFixed(3)),
+      }),
+    );
 
-    chunks = await tracker.run("chunking", () => buildDocumentChunks(sectioned), (value) => ({
-      chunks: value.length,
-      estimatedTokens: value.reduce((sum, chunk) => sum + chunk.tokenEstimate, 0),
-    }));
+    chunks = await tracker.run(
+      "chunking",
+      () => buildDocumentChunks(sectioned),
+      (value) => ({
+        chunks: value.length,
+        estimatedTokens: value.reduce(
+          (sum, chunk) => sum + chunk.tokenEstimate,
+          0,
+        ),
+      }),
+    );
 
-    nlp = await tracker.run("nlp", () => runNLPPipeline(sectioned), (value) => ({
-      sentences: value.sentences.length,
-      entities: value.entities.length,
-      keyPhrases: value.keyPhrases.length,
-    }));
+    nlp = await tracker.run(
+      "nlp",
+      () => runNLPPipeline(sectioned),
+      (value) => ({
+        sentences: value.sentences.length,
+        entities: value.entities.length,
+        keyPhrases: value.keyPhrases.length,
+      }),
+    );
 
-    core = await tracker.run("claim_extraction", () => extractKnowledge(sectioned, nlp, profile), (value) => ({
-      claims: value.claims.length,
-      concepts: value.concepts.length,
-    }));
+    core = await tracker.run(
+      "claim_extraction",
+      () => extractKnowledge(sectioned, nlp, profile),
+      (value) => ({
+        claims: value.claims.length,
+        concepts: value.concepts.length,
+      }),
+    );
 
-    core = await tracker.run("claim_validation", () => validateKnowledge(core), (value) => ({
-      validClaims: value.validation.validClaimIds.length,
-      rejectedClaims: value.validation.rejectedClaimIds.length,
-      validConcepts: value.validation.validConceptIds.length,
-      validationPassed: value.validation.passed,
-    }));
+    core = await tracker.run(
+      "claim_validation",
+      () => validateKnowledge(core),
+      (value) => ({
+        validClaims: value.validation.validClaimIds.length,
+        rejectedClaims: value.validation.rejectedClaimIds.length,
+        validConcepts: value.validation.validConceptIds.length,
+        validationPassed: value.validation.passed,
+      }),
+    );
     // reliability profile: deterministic quality gate
-    const reliabilityProfile =
-      buildReliableProfile({
-        raw:
-          document,
-        document:
-          sectioned,
-        nlp,
-        core,
-      });
+    const reliabilityProfile = buildReliableProfile({
+      raw: document,
+      document: sectioned,
+      nlp,
+      core,
+    });
 
-    core =
-      attachReliableProfile(
-        core,
-        reliabilityProfile,
-      );
+    core = attachReliableProfile(core, reliabilityProfile);
 
     grounding = await tracker.run(
       "knowledge_grounding",
@@ -159,7 +185,9 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
       (value) => ({
         facts: value.facts.length,
         qualifiedTerms: value.keyTerms.length,
-        coveredSections: value.sections.filter((section) => section.status === "covered").length,
+        coveredSections: value.sections.filter(
+          (section) => section.status === "covered",
+        ).length,
         sectionCoverage: Number(value.quality.sectionCoverageRatio.toFixed(3)),
         quality: Number(value.quality.score.toFixed(3)),
       }),
@@ -171,94 +199,211 @@ export async function runPipeline(input: EngineInput): Promise<IntelligenceResul
 
   ensureOntologyLoaded();
 
-  let ontology = await tracker.run("ontology_resolution", () => resolveCoreOntology(core), (value) => ({
-    resolved: value.filter((item) => item.matchType !== "unknown").length,
-    documentLocal: value.filter((item) => item.matchType === "unknown").length,
-  }));
+  let ontology = await tracker.run(
+    "ontology_resolution",
+    () => resolveCoreOntology(core),
+    (value) => ({
+      resolved: value.filter((item) => item.matchType !== "unknown").length,
+      documentLocal: value.filter((item) => item.matchType === "unknown")
+        .length,
+    }),
+  );
 
-  let symbolic = await runSymbolicStages({ noteId, core, sectioned, nlp, ontology, tracker });
+  let symbolic = await runSymbolicStages({
+    noteId,
+    core,
+    sectioned,
+    nlp,
+    ontology,
+    tracker,
+  });
 
   // reliability calibration: first symbolic pass
   symbolic = {
     ...symbolic,
-    confidenceBreakdown:
-      calibrateGroundingBreakdown(
-        calibrateConfidenceBreakdown(
-          symbolic.confidenceBreakdown,
-          getReliableProfile(
-            core,
-          ),
-        ),
-        grounding,
+    confidenceBreakdown: calibrateGroundingBreakdown(
+      calibrateConfidenceBreakdown(
+        symbolic.confidenceBreakdown,
+        getReliableProfile(core),
       ),
+      grounding,
+    ),
   };
 
-  let aiFallback: IntelligenceResult["aiFallback"] = { used: false, filledFields: [] };
-  const needsRepair = symbolic.gaps.missingFields.length > 0 || symbolic.confidenceBreakdown.overall < threshold;
+  let aiFallback: IntelligenceResult["aiFallback"] = {
+    used: false,
+    filledFields: [],
+  };
+  const missingRepairFields = symbolic.gaps.missingFields;
+  const needsRepair = missingRepairFields.length > 0;
+  const repairEvidence = needsRepair
+    ? buildIntelligenceRepairEvidence(chunks, missingRepairFields)
+    : null;
 
   if (!needsRepair) {
-    await tracker.skip("ai_repair", "All required fields are present and confidence is above the repair threshold.");
+    const reason =
+      symbolic.confidenceBreakdown.overall < threshold
+        ? "Confidence is below the repair threshold, but no required structured fields are missing; AI field repair is not applicable."
+        : "All required fields are present and confidence is above the repair threshold.";
+    await tracker.skip("ai_repair", reason);
   } else if (!input.aiGenerate) {
     aiFallback = {
       used: false,
       filledFields: [],
       skippedReason: "AI repair was needed, but no AI generator was supplied.",
     };
-    await tracker.skip("ai_repair", aiFallback.skippedReason ?? "AI repair was skipped.");
+    await tracker.skip(
+      "ai_repair",
+      aiFallback.skippedReason ?? "AI repair was skipped.",
+    );
+  } else if (!repairEvidence?.text.trim()) {
+    aiFallback = {
+      used: false,
+      filledFields: [],
+      skippedReason:
+        "AI repair was needed, but no targeted source evidence could be selected.",
+    };
+    await tracker.skip(
+      "ai_repair",
+      aiFallback.skippedReason ?? "AI repair was skipped.",
+    );
   } else {
-    const repair = await tracker.run("ai_repair", async () => {
-      const result = await completeWithAI(
-        core,
-        symbolic.gaps,
-        buildFallbackSource(sectioned, chunks),
-        input.aiGenerate!,
-      );
-      aiFallback = result.result;
-      if (!result.result.used) return { repairedCore: core, used: false };
-      return { repairedCore: validateKnowledge(result.core), used: true };
-    }, (value) => ({
-      used: value.used,
-      filledFields: aiFallback.filledFields.join(", ") || "none",
-      acceptedClaims: aiFallback.acceptedClaimIds?.length ?? 0,
-      rejectedClaims: aiFallback.rejectedClaims?.length ?? 0,
-    }));
+    logger.info("Prepared targeted intelligence repair evidence", {
+      noteId,
+      missingFields: missingRepairFields,
+      evidenceCharacters: repairEvidence.characterCount,
+      evidenceChunks: repairEvidence.chunkIds.length,
+      evidenceTruncated: repairEvidence.wasTruncated,
+    });
 
-    if (repair.used) {
-      core = repair.repairedCore;
+    const beforeMissing = new Set<ExpectedField>(symbolic.gaps.missingFields);
 
-      // reliability profile: rebuild after AI repair
-      core =
-        attachReliableProfile(
+    const repair = await tracker.run(
+      "ai_repair",
+      async () => {
+        const result = await completeWithAI(
           core,
+          symbolic.gaps,
+          repairEvidence.text,
+          input.aiGenerate!,
+        );
+        aiFallback = result.result;
+
+        if (!result.result.used) {
+          return {
+            accepted: false as const,
+            reducedFields: [] as ExpectedField[],
+            repairedCore: null,
+            repairedGrounding: null,
+            repairedOntology: null,
+            repairedSymbolic: null,
+          };
+        }
+
+        let repairedCore = validateKnowledge(result.core);
+
+        repairedCore = attachReliableProfile(
+          repairedCore,
           buildReliableProfile({
-            raw:
-              document,
-            document:
-              sectioned,
+            raw: document,
+            document: sectioned,
             nlp,
-            core,
+            core: repairedCore,
           }),
         );
 
-      grounding = buildGroundedKnowledge({ document: sectioned, nlp, core });
+        const repairedGrounding = buildGroundedKnowledge({
+          document: sectioned,
+          nlp,
+          core: repairedCore,
+        });
 
-      ontology = resolveCoreOntology(core);
-      symbolic = await rerunSymbolicStages(noteId, core, sectioned, nlp, ontology);
+        const repairedOntology = resolveCoreOntology(repairedCore);
 
-      // reliability calibration: post-AI pass
-      symbolic = {
-        ...symbolic,
-        confidenceBreakdown:
-          calibrateGroundingBreakdown(
+        let repairedSymbolic = await rerunSymbolicStages(
+          noteId,
+          repairedCore,
+          sectioned,
+          nlp,
+          repairedOntology,
+        );
+
+        repairedSymbolic = {
+          ...repairedSymbolic,
+          confidenceBreakdown: calibrateGroundingBreakdown(
             calibrateConfidenceBreakdown(
-              symbolic.confidenceBreakdown,
-              getReliableProfile(
-                core,
-              ),
+              repairedSymbolic.confidenceBreakdown,
+              getReliableProfile(repairedCore),
             ),
-            grounding,
+            repairedGrounding,
           ),
-      };
+        };
+
+        const afterMissing = new Set(repairedSymbolic.gaps.missingFields);
+        const reducedFields = [...beforeMissing].filter(
+          (field) => !afterMissing.has(field),
+        );
+        const validClaimIds = new Set(repairedCore.validation.validClaimIds);
+        const acceptedClaimIds = (aiFallback.acceptedClaimIds ?? []).filter(
+          (id) => validClaimIds.has(id),
+        );
+
+        if (reducedFields.length === 0 || acceptedClaimIds.length === 0) {
+          aiFallback = {
+            ...aiFallback,
+            used: false,
+            filledFields: [],
+            acceptedClaimIds: [],
+            skippedReason:
+              "Targeted AI repair produced no validated required-field improvement.",
+          };
+
+          return {
+            accepted: false as const,
+            reducedFields: [] as ExpectedField[],
+            repairedCore: null,
+            repairedGrounding: null,
+            repairedOntology: null,
+            repairedSymbolic: null,
+          };
+        }
+
+        aiFallback = {
+          ...aiFallback,
+          used: true,
+          filledFields: reducedFields,
+          acceptedClaimIds,
+          skippedReason: undefined,
+        };
+
+        return {
+          accepted: true as const,
+          reducedFields,
+          repairedCore,
+          repairedGrounding,
+          repairedOntology,
+          repairedSymbolic,
+        };
+      },
+      (value) => ({
+        used: aiFallback.used,
+        accepted: value.accepted,
+        requestedFields: missingRepairFields.join(", "),
+        reducedFields: value.reducedFields.join(", ") || "none",
+        filledFields: aiFallback.filledFields.join(", ") || "none",
+        acceptedClaims: aiFallback.acceptedClaimIds?.length ?? 0,
+        rejectedClaims: aiFallback.rejectedClaims?.length ?? 0,
+        evidenceCharacters: repairEvidence.characterCount,
+        evidenceChunks: repairEvidence.chunkIds.length,
+        providerTokens: aiFallback.tokensUsed ?? 0,
+      }),
+    );
+
+    if (repair.accepted) {
+      core = repair.repairedCore;
+      grounding = repair.repairedGrounding;
+      ontology = repair.repairedOntology;
+      symbolic = repair.repairedSymbolic;
     }
   }
 
@@ -298,39 +443,58 @@ async function runSymbolicStages(input: {
   ontology: ResolvedConcept[];
   tracker: ProgressTracker;
 }): Promise<SymbolicResult> {
-  const graph = await input.tracker.run("graph_construction", () => buildGraph(input.core, ontologyCache, input.noteId), (value) => ({
-    nodes: value.nodes.size,
-    edges: value.edges.length,
-  }));
+  const graph = await input.tracker.run(
+    "graph_construction",
+    () => buildGraph(input.core, ontologyCache, input.noteId),
+    (value) => ({
+      nodes: value.nodes.size,
+      edges: value.edges.length,
+    }),
+  );
 
-  const reasoning = await input.tracker.run("symbolic_reasoning", () => loadReasoning(graph, input.noteId), (value) => ({
-    facts: value.facts.length,
-    keyFacts: value.answerCount,
-    degraded: value.warnings.length > 0,
-  }), { allowPartial: true });
+  const reasoning = await input.tracker.run(
+    "symbolic_reasoning",
+    () => loadReasoning(graph, input.noteId),
+    (value) => ({
+      facts: value.facts.length,
+      keyFacts: value.answerCount,
+      degraded: value.warnings.length > 0,
+    }),
+    { allowPartial: true },
+  );
 
-  const gaps = await input.tracker.run("gap_detection", () => detectGaps(
-    input.core,
-    input.ontology,
-    input.sectioned.sections.map((section) => section.title),
-  ), (value) => ({
-    missingRequiredFields: value.missingFields.length,
-    notApplicableFields: value.notApplicableFields.length,
-    coverage: Number(value.coverageScore.toFixed(3)),
-  }));
+  const gaps = await input.tracker.run(
+    "gap_detection",
+    () =>
+      detectGaps(
+        input.core,
+        input.ontology,
+        input.sectioned.sections.map((section) => section.title),
+      ),
+    (value) => ({
+      missingRequiredFields: value.missingFields.length,
+      notApplicableFields: value.notApplicableFields.length,
+      coverage: Number(value.coverageScore.toFixed(3)),
+    }),
+  );
 
-  const confidenceBreakdown = await input.tracker.run("confidence_scoring", () => computeConfidenceBreakdown({
-    nlp: input.nlp,
-    ontology: input.ontology,
-    graph,
-    core: input.core,
-    prologAnswerCount: reasoning.answerCount,
-    gaps,
-  }), (value) => ({
-    overall: Number(value.overall.toFixed(3)),
-    grounding: Number(value.grounding.toFixed(3)),
-    numericValidation: Number(value.numericValidation.toFixed(3)),
-  }));
+  const confidenceBreakdown = await input.tracker.run(
+    "confidence_scoring",
+    () =>
+      computeConfidenceBreakdown({
+        nlp: input.nlp,
+        ontology: input.ontology,
+        graph,
+        core: input.core,
+        prologAnswerCount: reasoning.answerCount,
+        gaps,
+      }),
+    (value) => ({
+      overall: Number(value.overall.toFixed(3)),
+      grounding: Number(value.grounding.toFixed(3)),
+      numericValidation: Number(value.numericValidation.toFixed(3)),
+    }),
+  );
 
   return {
     graph,
@@ -351,7 +515,11 @@ async function rerunSymbolicStages(
 ): Promise<SymbolicResult> {
   const graph = buildGraph(core, ontologyCache, noteId);
   const reasoning = await loadReasoning(graph, noteId);
-  const gaps = detectGaps(core, ontology, sectioned.sections.map((section) => section.title));
+  const gaps = detectGaps(
+    core,
+    ontology,
+    sectioned.sections.map((section) => section.title),
+  );
   const confidenceBreakdown = computeConfidenceBreakdown({
     nlp,
     ontology,
@@ -370,7 +538,10 @@ async function rerunSymbolicStages(
   };
 }
 
-async function loadReasoning(graph: KnowledgeGraph, noteId: string): Promise<{
+async function loadReasoning(
+  graph: KnowledgeGraph,
+  noteId: string,
+): Promise<{
   engine: PrologEngine;
   facts: PrologFact[];
   answerCount: number;
@@ -383,62 +554,65 @@ async function loadReasoning(graph: KnowledgeGraph, noteId: string): Promise<{
     const facts = engine.getFacts();
     let answerCount = 0;
     try {
-      const result = await engine.query(`key_fact(${quoteAtom(noteId)}, Type, Val)`);
-      answerCount = new Set(result.answers.map((answer) => answer.bindings.Type).filter(Boolean)).size;
+      const result = await engine.query(
+        `key_fact(${quoteAtom(noteId)}, Type, Val)`,
+      );
+      answerCount = new Set(
+        result.answers.map((answer) => answer.bindings.Type).filter(Boolean),
+      ).size;
     } catch (error) {
-      warnings.push(`Key-fact diagnostic failed: ${error instanceof Error ? error.message : String(error)}`);
+      warnings.push(
+        `Key-fact diagnostic failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
     return { engine, facts, answerCount, warnings };
   } catch (error) {
-    warnings.push(`Prolog reasoning was unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    warnings.push(
+      `Prolog reasoning was unavailable: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return { engine, facts: [], answerCount: 0, warnings };
   }
 }
 
 function resolveCoreOntology(core: KnowledgeCore): ResolvedConcept[] {
   const rawConcepts = [
-    ...core.concepts.filter((concept) => concept.valid).map((concept) => concept.term),
+    ...core.concepts
+      .filter((concept) => concept.valid)
+      .map((concept) => concept.term),
     ...core.claims
-      .filter((claim) => claim.validationStatus === "valid" && ["method", "tool", "data_source", "metric"].includes(claim.type))
+      .filter(
+        (claim) =>
+          claim.validationStatus === "valid" &&
+          ["method", "tool", "data_source", "metric"].includes(claim.type),
+      )
       .map((claim) => claim.object),
   ];
   const seen = new Set<string>();
-  return ontologyCache.resolveAll(rawConcepts.filter((value) => {
-    const key = value.toLowerCase().trim();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  })).map((resolution) => ({
-    ...resolution,
-    status: resolution.matchType === "unknown" ? "document_local" : "ontology",
-  }));
+  return ontologyCache
+    .resolveAll(
+      rawConcepts.filter((value) => {
+        const key = value.toLowerCase().trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }),
+    )
+    .map((resolution) => ({
+      ...resolution,
+      status:
+        resolution.matchType === "unknown" ? "document_local" : "ontology",
+    }));
 }
 
 function ensureOntologyLoaded(): void {
   if (!ontologyCache.isLoaded()) ontologyCache.load();
 }
 
-function buildFallbackSource(sectioned: SectionedDocument, chunks: DocumentChunk[]): string {
-  // AI repair may be requested for fields that live outside traditional
-  // research-paper sections, such as Business Objective, Requirements,
-  // Recommendation, Exercises, or assignment tasks. Filtering to only
-  // abstract/method/results-style chunks made exact source evidence invisible
-  // to the grounding validator and caused valid repairs to be rejected.
-  const completeChunkSource = chunks
-    .map(
-      (chunk) =>
-        `[${chunk.sectionTitle}${
-          chunk.pageStart ? `, page ${chunk.pageStart}` : ""
-        }]\n${chunk.text}`,
-    )
-    .join("\n\n")
-    .trim();
-
-  return completeChunkSource || sectioned.analysisText;
-}
-
 class ProgressTracker {
-  private readonly stages = new Map<IntelligenceStageId, IntelligenceStageProgress>();
+  private readonly stages = new Map<
+    IntelligenceStageId,
+    IntelligenceStageProgress
+  >();
 
   constructor(private readonly listener?: PipelineProgressListener) {
     for (const stage of createPendingStageProgress()) {
@@ -453,16 +627,22 @@ class ProgressTracker {
     options: { allowPartial?: boolean } = {},
   ): Promise<T> {
     const startedAt = new Date();
-    await this.publish(stage, { status: "running", startedAt, message: "Processing…" });
+    await this.publish(stage, {
+      status: "running",
+      startedAt,
+      message: "Processing…",
+    });
     try {
       const value = await task();
       const warnings = extractWarnings(value);
-      const status = options.allowPartial && warnings.length > 0 ? "partial" : "complete";
+      const status =
+        options.allowPartial && warnings.length > 0 ? "partial" : "complete";
       await this.publish(stage, {
         status,
         completedAt: new Date(),
         durationMs: Date.now() - startedAt.getTime(),
-        message: status === "partial" ? "Completed with warnings." : "Completed.",
+        message:
+          status === "partial" ? "Completed with warnings." : "Completed.",
         warnings,
         metrics: metrics?.(value),
       });
@@ -505,7 +685,10 @@ class ProgressTracker {
   }
 
   snapshot(): IntelligenceStageProgress[] {
-    return [...this.stages.values()].map((stage) => ({ ...stage, warnings: [...stage.warnings] }));
+    return [...this.stages.values()].map((stage) => ({
+      ...stage,
+      warnings: [...stage.warnings],
+    }));
   }
 
   private async publish(
@@ -530,7 +713,9 @@ class ProgressTracker {
 function extractWarnings(value: unknown): string[] {
   if (!value || typeof value !== "object") return [];
   const warnings = (value as { warnings?: unknown }).warnings;
-  return Array.isArray(warnings) ? warnings.filter((item): item is string => typeof item === "string") : [];
+  return Array.isArray(warnings)
+    ? warnings.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function calibrateGroundingBreakdown(
@@ -566,6 +751,7 @@ export function buildFailedResult(
   noteId: string,
   failedAtStage: PipelineStage,
   partial: Partial<IntelligenceResult> = {},
-): Pick<IntelligenceResult, "noteId" | "stage" | "processedAt"> & Partial<IntelligenceResult> {
+): Pick<IntelligenceResult, "noteId" | "stage" | "processedAt"> &
+  Partial<IntelligenceResult> {
   return { noteId, stage: failedAtStage, processedAt: new Date(), ...partial };
 }

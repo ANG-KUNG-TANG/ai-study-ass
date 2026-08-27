@@ -158,18 +158,45 @@ export async function processInBackground(
   await runAndPersistPipeline(noteId, document);
 }
 
+export interface GetOrRunPipelineOptions {
+  /**
+   * Re-run a current persisted deterministic result only when required
+   * structured fields are still missing. This is used by explicit
+   * "Generate All" flows, not normal feature reads.
+   */
+  repairMissingFields?: boolean;
+}
+
 export async function getOrRunPipeline(
   noteId: string,
+  options: GetOrRunPipelineOptions = {},
 ): Promise<IntelligenceResultEntity> {
   const existing = await intelligenceRepo.findByNoteId(noteId);
-  if (
+  const isCurrent =
     existing?.isComplete() &&
     (
       !isIntelligenceV2Enabled() ||
       existing.grounding?.pipelineVersion === GROUNDING_PIPELINE_VERSION
-    )
-  ) {
-    return existing;
+    );
+
+  if (isCurrent && existing) {
+    const missingFields =
+      existing.gaps?.missingFields ?? [];
+
+    if (
+      !options.repairMissingFields ||
+      missingFields.length === 0
+    ) {
+      return existing;
+    }
+
+    logger.info(
+      "Re-running persisted intelligence for targeted missing-field repair",
+      {
+        noteId,
+        missingFields,
+      },
+    );
   }
 
   const note = await noteRepo.findByIdOrThrow(noteId);
