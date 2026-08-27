@@ -28,9 +28,12 @@ import type {
   GenerationSource,
 } from "@/server/types/generation";
 import {
-  buildGroundedPromptSource,
   buildQuestionsFromGrounding,
 } from "@/server/services/grounded-artifacts.service";
+import {
+  buildQuizSufficiencyPlan,
+  retrieveQuizRepairEvidence,
+} from "@/server/services/quiz/quiz-sufficiency.service";
 import { z } from "zod";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
 import {
@@ -335,51 +338,172 @@ export async function generateQuizWithMetadata(
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
-  const missingCount = Math.max(0, count - questions.length);
+  const sufficiency =
+    buildQuizSufficiencyPlan({
+      targetCount: count,
+      acceptedCount: questions.length,
+      qualityValidated:
+        Boolean(grounding),
+    });
 
-  if (missingCount > 0) {
-    try {
-      const sourceText = grounding
-        ? buildGroundedPromptSource(grounding)
-        : note.content;
-      const { systemPrompt, prompt } = buildQuizPrompt(sourceText, {
-        ...options,
-        questionCount: missingCount,
-      });
-
-      const aiResult = await generate({
-        prompt,
-        systemPrompt,
-        jsonMode: true,
-        temperature: 0.35,
-        maxTokens: 2_000,
-        usageLabel: "quiz",
-        userId,
+  if (
+    grounding &&
+    !sufficiency.needsAI &&
+    sufficiency.targetShortfall > 0
+  ) {
+    logger.info(
+      "Returning sufficient grounded quiz without AI target fill",
+      {
         noteId,
-      });
+        targetCount: count,
+        minimumAcceptableCount:
+          sufficiency.minimumAcceptableCount,
+        acceptedCount:
+          questions.length,
+        targetShortfall:
+          sufficiency.targetShortfall,
+      },
+    );
+  }
 
-      const aiQuestions = parseQuizResponse(aiResult.text);
-      questions = deduplicateQuestions([
-        ...questions,
-        ...aiQuestions,
-      ]).slice(0, count);
+  if (sufficiency.needsAI) {
+    const repairEvidence =
+      grounding
+        ? retrieveQuizRepairEvidence(
+            grounding,
+            questions,
+            sufficiency.requestedAIAdditions,
+          )
+        : null;
+    const sourceText =
+      grounding
+        ? repairEvidence?.text ?? ""
+        : note.content;
 
-      source = symbolicCount > 0 ? "hybrid" : "ai_fallback";
-      aiFallbackUsed = true;
-      tokensUsed = aiResult.tokensUsed;
-    } catch (error) {
+    if (
+      grounding &&
+      !sourceText.trim()
+    ) {
       logger.warn(
-        "AI quiz fallback unavailable; keeping symbolic questions",
+        "Quiz AI completion was needed but no targeted grounded evidence was available",
         {
           noteId,
-          requested: count,
-          symbolicCount,
-          error:
-            error instanceof Error
-              ? error.message
-              : String(error),
+          targetCount: count,
+          minimumAcceptableCount:
+            sufficiency.minimumAcceptableCount,
+          acceptedCount:
+            questions.length,
+          requestedAIAdditions:
+            sufficiency.requestedAIAdditions,
         },
       );
+    } else {
+      try {
+        if (
+          grounding &&
+          repairEvidence
+        ) {
+          logger.info(
+            "Prepared targeted quiz repair evidence",
+            {
+              noteId,
+              targetCount: count,
+              minimumAcceptableCount:
+                sufficiency.minimumAcceptableCount,
+              acceptedCount:
+                questions.length,
+              requestedAIAdditions:
+                sufficiency.requestedAIAdditions,
+              evidenceCharacters:
+                repairEvidence.characterCount,
+              evidenceFacts:
+                repairEvidence.factIds.length,
+              evidenceSections:
+                repairEvidence.sectionIds.length,
+              evidenceTruncated:
+                repairEvidence.wasTruncated,
+            },
+          );
+        }
+
+        const {
+          systemPrompt,
+          prompt,
+        } = buildQuizPrompt(
+          sourceText,
+          {
+            ...options,
+            questionCount:
+              sufficiency.requestedAIAdditions,
+          },
+        );
+
+        const aiResult =
+          await generate({
+            prompt,
+            systemPrompt,
+            jsonMode: true,
+            temperature: 0.35,
+            maxTokens: 2_000,
+            usageLabel: "quiz",
+            userId,
+            noteId,
+          });
+
+        const aiQuestions =
+          parseQuizResponse(
+            aiResult.text,
+          );
+        const combined =
+          deduplicateQuestions([
+            ...questions,
+            ...aiQuestions,
+          ]).slice(0, count);
+        const structurallyValid =
+          validateQuestions(
+            noteId,
+            userId,
+            combined,
+          );
+        const validated =
+          validateGroundedQuestions(
+            noteId,
+            structurallyValid,
+            grounding,
+          );
+        const acceptedAIContent =
+          validated.length >
+          questions.length;
+
+        questions = validated;
+        tokensUsed =
+          aiResult.tokensUsed;
+
+        if (acceptedAIContent) {
+          source =
+            symbolicCount > 0
+              ? "hybrid"
+              : "ai_fallback";
+          aiFallbackUsed = true;
+        }
+      } catch (error) {
+        logger.warn(
+          "AI quiz fallback unavailable; keeping symbolic questions",
+          {
+            noteId,
+            requested: count,
+            minimumAcceptableCount:
+              sufficiency.minimumAcceptableCount,
+            requestedAIAdditions:
+              sufficiency.requestedAIAdditions,
+            symbolicCount,
+            error:
+              error instanceof Error
+                ? error.message
+                : String(error),
+          },
+        );
+      }
     }
   }
 
@@ -418,7 +542,8 @@ export async function generateQuizWithMetadata(
   );
 
   const status =
-    questions.length >= Math.max(3, Math.ceil(count * 0.7))
+    questions.length >=
+      sufficiency.minimumAcceptableCount
       ? "ready"
       : "partial";
 
@@ -426,8 +551,12 @@ export async function generateQuizWithMetadata(
     noteId,
     userId,
     count: questions.length,
+    targetCount: count,
+    minimumAcceptableCount:
+      sufficiency.minimumAcceptableCount,
     source,
     aiFallbackUsed,
+    tokensUsed,
   });
 
   return {
