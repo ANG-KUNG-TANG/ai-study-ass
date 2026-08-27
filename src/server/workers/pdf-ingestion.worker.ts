@@ -131,13 +131,18 @@ async function processPdfJob(
     noteId,
     pageCount: processed.pageCount ?? 0,
     charCount: processed.charCount,
+    ocrUsed:
+      processed.ocrUsed ?? false,
+    ocrPageCount:
+      processed.ocrPageNumbers?.length ?? 0,
   });
 
   return {
     noteId,
     pageCount: processed.pageCount ?? 0,
     charCount: processed.charCount,
-    visionUsed: false,
+    visionUsed:
+      processed.ocrUsed ?? false,
   };
 }
 

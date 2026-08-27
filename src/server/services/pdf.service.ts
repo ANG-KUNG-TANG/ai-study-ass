@@ -136,14 +136,14 @@ export interface ParsedPDFPage {
   rawText: string;
 }
 
-interface ParsedPDF {
+export interface ParsedPDF {
   text: string;
   pageCount: number;
   pages: ParsedPDFPage[];
   charCount: number;
 }
 
-function limitExtractedPages(
+export function limitExtractedPages(
   pages: ParsedPDFPage[],
 ): { text: string; pages: ParsedPDFPage[] } {
   const boundedPages: ParsedPDFPage[] = [];
@@ -291,18 +291,146 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
   const bounded = limitExtractedPages(rawPages);
   const rawText = bounded.text;
 
-  if (!rawText.trim()) {
-    throw new FileError(
-      "PDF appears to contain no extractable text — it may be a scanned image",
-    );
-  }
-
   return {
     text: rawText,
     pageCount: result.total,
     pages: bounded.pages,
     charCount: rawText.length,
   };
+}
+
+export interface RenderedPDFPage {
+  pageNumber: number;
+  png: Buffer;
+}
+
+export async function renderPDFPages(
+  buffer: Buffer,
+  pageNumbers: readonly number[],
+  desiredWidth = 1_600,
+): Promise<RenderedPDFPage[]> {
+  const requested = [
+    ...new Set(
+      pageNumbers
+        .filter(
+          (pageNumber) =>
+            Number.isInteger(pageNumber) &&
+            pageNumber > 0 &&
+            pageNumber <= MAX_PDF_PAGES,
+        )
+        .map((pageNumber) => Math.floor(pageNumber)),
+    ),
+  ].sort((left, right) => left - right);
+
+  if (requested.length === 0) {
+    return [];
+  }
+
+  let PDFParse:
+    | (typeof import("pdf-parse"))["PDFParse"]
+    | undefined;
+  let CanvasFactory:
+    | (typeof import("pdf-parse/worker"))["CanvasFactory"]
+    | undefined;
+
+  try {
+    const worker =
+      await import("pdf-parse/worker");
+    CanvasFactory =
+      worker.CanvasFactory;
+
+    const pdfModule =
+      await import("pdf-parse");
+    PDFParse =
+      pdfModule.PDFParse;
+
+    if (
+      typeof PDFParse !== "function" ||
+      !CanvasFactory
+    ) {
+      throw new Error(
+        "PDFParse or CanvasFactory is unavailable",
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "pdf-parse screenshot initialization failed",
+      {
+        message:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      },
+    );
+
+    throw new FileError(
+      "PDF renderer not available — check pdf-parse/canvas installation",
+    );
+  }
+
+  const parser = new PDFParse({
+    data: buffer,
+    CanvasFactory,
+  });
+
+  try {
+    const result =
+      await parser.getScreenshot({
+        partial: requested,
+        desiredWidth: Math.max(
+          800,
+          Math.min(
+            2_000,
+            Math.floor(desiredWidth),
+          ),
+        ),
+        imageDataUrl: false,
+        imageBuffer: true,
+      });
+
+    return result.pages.flatMap(
+      (page, index) => {
+        const pageNumber =
+          requested[index];
+
+        if (
+          !pageNumber ||
+          !page.data
+        ) {
+          return [];
+        }
+
+        return [{
+          pageNumber,
+          png: Buffer.from(
+            page.data,
+          ),
+        }];
+      },
+    );
+  } catch (error) {
+    throw new FileError(
+      `Failed to render PDF pages for OCR: ${
+        error instanceof Error
+          ? error.message
+          : "Unknown error"
+      }`,
+    );
+  } finally {
+    try {
+      await parser.destroy();
+    } catch (error) {
+      logger.warn(
+        "pdf-parse: failed to destroy screenshot parser instance",
+        {
+          message:
+            error instanceof Error
+              ? error.message
+              : String(error),
+        },
+      );
+    }
+  }
 }
 
 interface ParsedDOCX {

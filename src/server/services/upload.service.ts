@@ -5,7 +5,11 @@ import {
   MAX_FILE_SIZE_BYTES,
   MAX_UPLOAD_REQUEST_SIZE_BYTES,
 } from "@/server/utils/constants";
-import { parsePDF, parseDOCX } from "@/server/services/pdf.service";
+import {
+  limitExtractedPages,
+  parsePDF,
+  parseDOCX,
+} from "@/server/services/pdf.service";
 import { logger } from "@/server/utils/logger";
 import type { FileType } from "@/server/entities/note.entity";
 import path from "path";
@@ -16,6 +20,10 @@ import {
   extractionQualityLogContext,
   type ExtractionQualityReport,
 } from "@/server/services/extraction-quality.service";
+import {
+  buildSelectiveOcrPlan,
+  recoverPdfPagesWithSelectiveOcr,
+} from "@/server/services/ocr/selective-ocr.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +46,8 @@ export interface ProcessedFile {
   }>;
   charCount: number;
   extractionQuality?: ExtractionQualityReport;
+  ocrUsed?: boolean;
+  ocrPageNumbers?: number[];
 }
 
 export interface QualityAssessedProcessedFile extends ProcessedFile {
@@ -233,15 +243,151 @@ export async function processUpload(
 
   if (ext === ".pdf") {
     const parsed = await parsePDF(file.buffer);
-    const extractionQuality = assessExtractionQuality({
-      fileType: "pdf",
-      content: parsed.text,
-      pageCount: parsed.pageCount,
-      pages: parsed.pages,
-    });
+    let content = parsed.text;
+    let pages = parsed.pages;
+    let extractionQuality =
+      assessExtractionQuality({
+        fileType: "pdf",
+        content,
+        pageCount: parsed.pageCount,
+        pages,
+      });
+    let ocrUsed = false;
+    let ocrPageNumbers: number[] = [];
+
+    const ocrPlan =
+      buildSelectiveOcrPlan({
+        report: extractionQuality,
+        pages,
+        pageCount:
+          parsed.pageCount,
+      });
+
+    if (ocrPlan.action === "ocr") {
+      logger.info(
+        "Selective OCR recovery started",
+        {
+          fileType: "pdf",
+          nativeQualityScore:
+            extractionQuality.score,
+          requestedPages:
+            ocrPlan.pageNumbers,
+          requestedPageCount:
+            ocrPlan.pageNumbers.length,
+        },
+      );
+
+      try {
+        const recovery =
+          await recoverPdfPagesWithSelectiveOcr({
+            buffer: file.buffer,
+            nativePages: pages,
+            pageNumbers:
+              ocrPlan.pageNumbers,
+          });
+        const bounded =
+          limitExtractedPages(
+            recovery.pages,
+          );
+        const recoveredQuality =
+          assessExtractionQuality({
+            fileType: "pdf",
+            content:
+              bounded.text,
+            pageCount:
+              parsed.pageCount,
+            pages:
+              bounded.pages,
+          });
+        const improved =
+          recovery.recoveredPageNumbers.length >
+            0 &&
+          (
+            recoveredQuality.score >
+              extractionQuality.score ||
+            (
+              !extractionQuality.usable &&
+              recoveredQuality.usable
+            )
+          );
+
+        if (improved) {
+          content =
+            bounded.text;
+          pages =
+            bounded.pages;
+          extractionQuality =
+            recoveredQuality;
+          ocrUsed = true;
+          ocrPageNumbers =
+            recovery.recoveredPageNumbers;
+
+          logger.info(
+            "Selective OCR recovery accepted",
+            {
+              fileType: "pdf",
+              attemptedPages:
+                recovery.attemptedPageNumbers,
+              recoveredPages:
+                recovery.recoveredPageNumbers,
+              failedPages:
+                recovery.failedPageNumbers,
+              recoveredQualityScore:
+                recoveredQuality.score,
+            },
+          );
+        } else {
+          logger.warn(
+            "Selective OCR recovery did not improve extraction quality",
+            {
+              fileType: "pdf",
+              attemptedPages:
+                recovery.attemptedPageNumbers,
+              recoveredPages:
+                recovery.recoveredPageNumbers,
+              failedPages:
+                recovery.failedPageNumbers,
+              nativeQualityScore:
+                extractionQuality.score,
+              recoveredQualityScore:
+                recoveredQuality.score,
+            },
+          );
+        }
+      } catch (error) {
+        logger.warn(
+          "Selective OCR recovery unavailable; preserving native extraction result",
+          {
+            fileType: "pdf",
+            requestedPages:
+              ocrPlan.pageNumbers,
+            error:
+              error instanceof Error
+                ? error.message
+                : String(error),
+          },
+        );
+      }
+    } else if (
+      ocrPlan.action === "blocked"
+    ) {
+      logger.warn(
+        "Selective OCR recovery skipped because too many pages require OCR",
+        {
+          fileType: "pdf",
+          candidatePageCount:
+            ocrPlan.candidatePageNumbers.length,
+          maxPages:
+            ocrPlan.maxPages,
+        },
+      );
+    }
 
     logger.info("Extraction quality assessed", {
       fileType: "pdf",
+      ocrUsed,
+      ocrPageCount:
+        ocrPageNumbers.length,
       ...extractionQualityLogContext(extractionQuality),
     });
 
@@ -251,11 +397,15 @@ export async function processUpload(
       fileName,
       fileType: "pdf",
       fileSize: file.size,
-      content: parsed.text,
-      pageCount: parsed.pageCount,
-      pages: parsed.pages,
-      charCount: parsed.charCount,
+      content,
+      pageCount:
+        parsed.pageCount,
+      pages,
+      charCount:
+        content.length,
       extractionQuality,
+      ocrUsed,
+      ocrPageNumbers,
     };
   }
 

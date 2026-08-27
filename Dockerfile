@@ -43,6 +43,14 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Local OCR is intentionally installed only in the worker image. PDF uploads
+# run in the dedicated pdf-worker; healthy native extraction never invokes it.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      tesseract-ocr \
+      tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs nextjs \
     && mkdir -p /app/data/uploads \
