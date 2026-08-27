@@ -21,7 +21,15 @@ import {
   summaryQualityLogContext,
   summaryQualityWarnings,
 } from "@/server/services/summary/summary-quality.service";
-import { buildGroundedPromptSource } from "@/server/services/grounded-artifacts.service";
+import { retrieveGroundedEvidence } from "@/server/services/evidence-retriever.service";
+import { buildSummaryRepairPrompt } from "@/server/services/summary/summary-repair.prompt";
+import {
+  applySummaryRepairPatch,
+  buildSummaryRepairPlan,
+  isSummaryRepairImprovement,
+  parseSummaryRepairPatch,
+  validateSummaryRepairPatch,
+} from "@/server/services/summary/summary-targeted-repair.service";
 import { getReliableProfile } from "@/server/intelligence/reliability/profile";
 import { NotFoundError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
@@ -157,56 +165,160 @@ export async function generateSummary(
   }
 
   const deterministicResult = result;
+  const deterministicQuality = grounding
+    ? assessSummaryQuality({
+        artifact: {
+          summary: result.summary,
+          keyPoints: result.keyPoints,
+          importantConcepts: result.importantConcepts,
+        },
+        grounding,
+        mode,
+      })
+    : null;
+  const repairPlan = grounding && deterministicQuality
+    ? buildSummaryRepairPlan({
+        grounding,
+        artifact: {
+          summary: result.summary,
+          keyPoints: result.keyPoints,
+          importantConcepts: result.importantConcepts,
+        },
+        quality: deterministicQuality,
+        mode,
+      })
+    : null;
 
   let source: GenerationSource = "symbolic";
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
-  const needsFallback =
-    !recoveryUsed &&
-    mode === "comprehensive" &&
-    (
-      result.status === "partial" ||
-      result.confidence < 0.85 ||
-      (result.profile?.coverage.missingFields.length ?? 0) > 1
-    );
+  // Grounded v2 summaries use the summary validator itself as the sufficiency
+  // gate. AI is only allowed when a faithful comprehensive summary has a
+  // validator-level coverage failure. Warning-level coverage is returned
+  // without provider spend. Legacy/non-grounded generation keeps its previous
+  // fallback behavior for compatibility.
+  const needsFallback = grounding
+    ? !recoveryUsed && Boolean(repairPlan?.needed)
+    : !recoveryUsed &&
+      mode === "comprehensive" &&
+      (
+        result.status === "partial" ||
+        result.confidence < 0.85 ||
+        (result.profile?.coverage.missingFields.length ?? 0) > 1
+      );
 
   if (needsFallback && result.profile?.status !== "rejected") {
     try {
-      const prompt = buildSummaryPrompt({
-        content: grounding
-          ? buildGroundedPromptSource(grounding)
-          : result.profile?.cleanedText ?? note.content,
-        profile: result.profile,
-        symbolicDraft: result.summary,
-      });
-      const aiResult = await generate({
-        prompt: prompt.prompt,
-        systemPrompt: prompt.systemPrompt,
-        jsonMode: true,
-        temperature: 0.1,
-        maxTokens: 2_000,
-        usageLabel: "summary",
-        userId: note.userId,
-        noteId,
-      });
-      const parsed = parseAIDraft(aiResult.text);
-      const validated = validateAIDraft(
-        parsed,
-        grounding
-          ? buildGroundedPromptSource(grounding)
-          : result.profile?.cleanedText ?? note.content,
-      );
+      if (grounding && repairPlan?.needed && deterministicQuality) {
+        const evidence = retrieveGroundedEvidence(
+          grounding,
+          repairPlan.evidenceRequest,
+        );
 
-      if (validated) {
-        result = mergeAIDraft(result, validated);
-        source = "hybrid";
-        aiFallbackUsed = true;
-        tokensUsed = aiResult.tokensUsed;
+        if (!evidence.text) {
+          logger.warn(
+            "Summary coverage repair was required but no targeted evidence could be retrieved",
+            { noteId, gaps: repairPlan.gaps },
+          );
+        } else {
+          const prompt = buildSummaryRepairPrompt({
+            evidence: evidence.text,
+            gaps: repairPlan.gaps,
+            currentKeyPoints: result.keyPoints,
+            currentConcepts: result.importantConcepts,
+          });
+          const aiResult = await generate({
+            prompt: prompt.prompt,
+            systemPrompt: prompt.systemPrompt,
+            jsonMode: true,
+            temperature: 0.1,
+            maxTokens: 900,
+            usageLabel: "summary",
+            userId: note.userId,
+            noteId,
+          });
+          tokensUsed = aiResult.tokensUsed;
+
+          const parsed = parseSummaryRepairPatch(aiResult.text);
+          const validated = validateSummaryRepairPatch(
+            parsed,
+            evidence.text,
+          );
+
+          if (validated) {
+            const candidate = applySummaryRepairPatch(result, validated);
+            const candidateQuality = assessSummaryQuality({
+              artifact: {
+                summary: candidate.summary,
+                keyPoints: candidate.keyPoints,
+                importantConcepts: candidate.importantConcepts,
+              },
+              grounding,
+              mode,
+            });
+
+            if (
+              isSummaryRepairImprovement(
+                deterministicQuality,
+                candidateQuality,
+              )
+            ) {
+              result = candidate;
+              source = "hybrid";
+              aiFallbackUsed = true;
+              logger.info("Applied targeted summary coverage repair", {
+                noteId,
+                gaps: repairPlan.gaps,
+                evidenceCharacters: evidence.characterCount,
+                evidenceFacts: evidence.factIds.length,
+                promptEvidenceTruncated: prompt.wasTruncated,
+                tokensUsed: aiResult.tokensUsed,
+              });
+            } else {
+              logger.warn(
+                "Targeted summary repair did not improve grounded coverage; keeping deterministic notes",
+                { noteId, gaps: repairPlan.gaps },
+              );
+            }
+          } else {
+            logger.warn(
+              "Targeted summary repair failed evidence validation; keeping deterministic notes",
+              { noteId, gaps: repairPlan.gaps },
+            );
+          }
+        }
       } else {
-        logger.warn("AI summary fallback failed grounding/quality validation", {
+        const fallbackSource =
+          result.profile?.cleanedText ?? note.content;
+        const prompt = buildSummaryPrompt({
+          content: fallbackSource,
+          profile: result.profile,
+          symbolicDraft: result.summary,
+        });
+        const aiResult = await generate({
+          prompt: prompt.prompt,
+          systemPrompt: prompt.systemPrompt,
+          jsonMode: true,
+          temperature: 0.1,
+          maxTokens: 2_000,
+          usageLabel: "summary",
+          userId: note.userId,
           noteId,
         });
+        tokensUsed = aiResult.tokensUsed;
+        const parsed = parseAIDraft(aiResult.text);
+        const validated = validateAIDraft(parsed, fallbackSource);
+
+        if (validated) {
+          result = mergeAIDraft(result, validated);
+          source = "hybrid";
+          aiFallbackUsed = true;
+        } else {
+          logger.warn("AI summary fallback failed grounding/quality validation", {
+            noteId,
+          });
+        }
       }
     } catch (error) {
       logger.warn("AI summary fallback unavailable; keeping deterministic notes", {
