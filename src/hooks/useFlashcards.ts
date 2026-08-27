@@ -46,14 +46,21 @@ export function useFlashcards(noteId: string) {
   }, [load]);
 
   const generate = useCallback(
-    async (count?: number): Promise<Flashcard[]> => {
+    async (
+      count?: number,
+      force = false,
+    ): Promise<Flashcard[]> => {
       if (!noteId) return [];
 
       setIsGenerating(true);
       setError(null);
 
       try {
-        const created = await generateFlashcards(noteId, count);
+        const created = await generateFlashcards(
+          noteId,
+          count,
+          force,
+        );
         setFlashcards(created);
         return created;
       } catch (err) {

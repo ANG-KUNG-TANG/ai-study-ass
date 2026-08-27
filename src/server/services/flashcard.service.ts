@@ -25,8 +25,11 @@ import type {
 } from "@/server/types/generation";
 import {
   buildFlashcardsFromGrounding,
-  buildGroundedPromptSource,
 } from "@/server/services/grounded-artifacts.service";
+import {
+  buildFlashcardSufficiencyPlan,
+  retrieveFlashcardRepairEvidence,
+} from "@/server/services/flashcard/flashcard-sufficiency.service";
 import { z } from "zod";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
 import type {
@@ -318,55 +321,146 @@ export async function generateFlashcardsWithMetadata(
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
-  const missingCount = Math.max(0, count - pairs.length);
+  const sufficiency =
+    buildFlashcardSufficiencyPlan({
+      targetCount: count,
+      acceptedCount: pairs.length,
+      qualityValidated:
+        Boolean(grounding),
+    });
 
-  if (missingCount > 0) {
-    try {
-      const ai = await generateCardsViaAI(
-        note.title,
-        grounding
-          ? buildGroundedPromptSource(grounding, 8_000)
-          : note.content,
-        missingCount,
-        userId,
+  if (
+    grounding &&
+    !sufficiency.needsAI &&
+    sufficiency.targetShortfall > 0
+  ) {
+    logger.info(
+      "Returning sufficient grounded flashcard deck without AI target fill",
+      {
         noteId,
-      );
+        targetCount: count,
+        minimumAcceptableCount:
+          sufficiency.minimumAcceptableCount,
+        acceptedCount:
+          pairs.length,
+        targetShortfall:
+          sufficiency.targetShortfall,
+      },
+    );
+  }
 
-      const combinedPairs = deduplicateCards([
-        ...pairs,
-        ...ai.cards,
-      ]).slice(0, count);
-      const validatedPairs = validateGroundedCards(
-        noteId,
-        combinedPairs,
-        grounding,
-      );
-      const acceptedAIContent =
-        validatedPairs.length > pairs.length;
+  if (sufficiency.needsAI) {
+    const repairEvidence =
+      grounding
+        ? retrieveFlashcardRepairEvidence(
+            grounding,
+            pairs,
+            sufficiency.requestedAIAdditions,
+          )
+        : null;
+    const aiSource =
+      grounding
+        ? repairEvidence?.text ?? ""
+        : note.content;
 
-      pairs = validatedPairs;
-      tokensUsed = ai.tokensUsed;
-
-      if (acceptedAIContent) {
-        source =
-          symbolicCount > 0
-            ? "hybrid"
-            : "ai_fallback";
-        aiFallbackUsed = true;
-      }
-    } catch (error) {
+    if (
+      grounding &&
+      !aiSource.trim()
+    ) {
       logger.warn(
-        "AI flashcard fallback unavailable; keeping symbolic cards",
+        "Flashcard AI completion was needed but no targeted grounded evidence was available",
         {
           noteId,
-          requested: count,
-          symbolicCount,
-          error:
-            error instanceof Error
-              ? error.message
-              : String(error),
+          targetCount: count,
+          minimumAcceptableCount:
+            sufficiency.minimumAcceptableCount,
+          acceptedCount:
+            pairs.length,
+          requestedAIAdditions:
+            sufficiency.requestedAIAdditions,
         },
       );
+    } else {
+      try {
+        if (
+          grounding &&
+          repairEvidence
+        ) {
+          logger.info(
+            "Prepared targeted flashcard repair evidence",
+            {
+              noteId,
+              targetCount: count,
+              minimumAcceptableCount:
+                sufficiency.minimumAcceptableCount,
+              acceptedCount:
+                pairs.length,
+              requestedAIAdditions:
+                sufficiency.requestedAIAdditions,
+              evidenceCharacters:
+                repairEvidence.characterCount,
+              evidenceFacts:
+                repairEvidence.factIds.length,
+              evidenceSections:
+                repairEvidence.sectionIds.length,
+              evidenceTruncated:
+                repairEvidence.wasTruncated,
+            },
+          );
+        }
+
+        const ai =
+          await generateCardsViaAI(
+            note.title,
+            aiSource,
+            sufficiency.requestedAIAdditions,
+            userId,
+            noteId,
+          );
+
+        const combinedPairs =
+          deduplicateCards([
+            ...pairs,
+            ...ai.cards,
+          ]).slice(0, count);
+        const validatedPairs =
+          validateGroundedCards(
+            noteId,
+            combinedPairs,
+            grounding,
+          );
+        const acceptedAIContent =
+          validatedPairs.length >
+          pairs.length;
+
+        pairs = validatedPairs;
+        tokensUsed = ai.tokensUsed;
+
+        if (acceptedAIContent) {
+          source =
+            symbolicCount > 0
+              ? "hybrid"
+              : "ai_fallback";
+          aiFallbackUsed = true;
+        }
+      } catch (error) {
+        logger.warn(
+          "AI flashcard fallback unavailable; keeping symbolic cards",
+          {
+            noteId,
+            requested: count,
+            minimumAcceptableCount:
+              sufficiency.minimumAcceptableCount,
+            requestedAIAdditions:
+              sufficiency.requestedAIAdditions,
+            symbolicCount,
+            error:
+              error instanceof Error
+                ? error.message
+                : String(error),
+          },
+        );
+      }
     }
   }
 
@@ -401,7 +495,8 @@ export async function generateFlashcardsWithMetadata(
   );
 
   const status =
-    entities.length >= Math.max(4, Math.ceil(count * 0.7))
+    entities.length >=
+      sufficiency.minimumAcceptableCount
       ? "ready"
       : "partial";
 
@@ -409,8 +504,12 @@ export async function generateFlashcardsWithMetadata(
     noteId,
     userId,
     count: entities.length,
+    targetCount: count,
+    minimumAcceptableCount:
+      sufficiency.minimumAcceptableCount,
     source,
     aiFallbackUsed,
+    tokensUsed,
   });
 
   return {
