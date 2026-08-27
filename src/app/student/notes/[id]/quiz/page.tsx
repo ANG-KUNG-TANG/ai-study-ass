@@ -36,7 +36,9 @@ export default function QuizPage() {
 
   if (!note) return null;
 
-  async function handleGenerate() {
+  async function handleGenerate(
+    force = false,
+  ) {
     setAnswers({});
     setSubmitted(false);
 
@@ -44,6 +46,7 @@ export default function QuizPage() {
       questionCount: 10,
       questionTypes: ["multiple_choice", "true_false"],
       dropInvalidQuestions: true,
+      force,
     });
   }
 
@@ -64,7 +67,7 @@ export default function QuizPage() {
 
         <Button
           className="mt-5"
-          onClick={handleGenerate}
+          onClick={() => void handleGenerate(false)}
           disabled={isGenerating}
         >
           {isGenerating ? t("quiz.generating") : t("quiz.generate")}
@@ -91,7 +94,7 @@ export default function QuizPage() {
 
         <button
           type="button"
-          onClick={handleGenerate}
+          onClick={() => void handleGenerate(true)}
           disabled={isGenerating}
           className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
         >

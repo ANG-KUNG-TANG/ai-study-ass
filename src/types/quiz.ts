@@ -22,4 +22,5 @@ export interface GenerateQuizOptions {
   questionCount?: number;
   questionTypes?: QuestionType[];
   dropInvalidQuestions?: boolean;
+  force?: boolean;
 }
