@@ -17,7 +17,7 @@ export type PublicNote = ReturnType<NoteEntity["toPublic"]>;
 
 export interface CreateNoteOptions {
   telegramChatId?: number;
-  /** The PDF worker will enqueue generation after extraction completes. */
+  /** The PDF worker will enqueue provider-free preparation after extraction. */
   deferGeneration?: boolean;
 }
 
@@ -83,30 +83,22 @@ export async function createNote(
       noteId: saved.id,
       userId,
       telegramChatId: options.telegramChatId,
+      mode: "prepare",
     });
   } catch (error) {
-    logger.error("Failed to enqueue study generation", {
-      noteId: saved.id,
-      userId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    // The upload endpoint should not report success when no generation
-    // job exists. Roll back the just-created note if enqueueing fails.
-    try {
-      await noteRepo.deleteById(saved.id);
-    } catch (rollbackError) {
-      logger.error("Failed to roll back note after queue error", {
+    // The document itself is valid and saved. Preparation is an optimization,
+    // not a prerequisite: any feature can lazily run intelligence later.
+    logger.warn(
+      "Document saved but background preparation could not be queued",
+      {
         noteId: saved.id,
         userId,
         error:
-          rollbackError instanceof Error
-            ? rollbackError.message
-            : String(rollbackError),
-      });
-    }
-
-    throw error;
+          error instanceof Error
+            ? error.message
+            : String(error),
+      },
+    );
   }
 
   return publicNote;
