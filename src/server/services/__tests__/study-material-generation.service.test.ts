@@ -53,6 +53,9 @@ describe("study-material-generation.service", () => {
     jest.mocked(
       intelligenceService.runAndPersistPipeline,
     ).mockResolvedValue({} as never);
+    jest.mocked(
+      intelligenceService.getOrRunPipeline,
+    ).mockResolvedValue({} as never);
 
     jest.mocked(
       summaryService.generateSummary,

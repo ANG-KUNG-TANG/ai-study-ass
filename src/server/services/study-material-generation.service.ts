@@ -145,22 +145,18 @@ export async function generateStudyMaterials(
     "analyzing",
   );
 
-  const document =
-    input.document ??
-    intelligenceService.toRawDocument({
-      content: note.content,
-      fileName: note.fileName,
-      fileType: note.fileType,
-      fileSize: note.fileSize,
-      pageCount: note.sourcePageCount,
-      pages: note.sourcePages,
-    });
-
   const intelligence =
-    await intelligenceService.runAndPersistPipeline(
-      input.noteId,
-      document,
-    );
+    input.document
+      ? await intelligenceService.runAndPersistPipeline(
+          input.noteId,
+          input.document,
+        )
+      : await intelligenceService.getOrRunPipeline(
+          input.noteId,
+          {
+            repairMissingFields: true,
+          },
+        );
 
   if (intelligenceHasFailed(intelligence)) {
     await generationRepo.updateStage(
