@@ -34,8 +34,8 @@ export default function FlashcardPage() {
 
   if (!note) return null;
 
-  async function handleGenerate() {
-    await generate(12);
+  async function handleGenerate(force = false) {
+    await generate(12, force);
   }
 
   async function handleRate(difficulty: FlashcardDifficulty) {
@@ -69,7 +69,7 @@ export default function FlashcardPage() {
 
         <Button
           className="mt-5"
-          onClick={handleGenerate}
+          onClick={() => void handleGenerate(false)}
           disabled={isGenerating}
         >
           {isGenerating ? t("flashcards.generating") : t("flashcards.generate")}
@@ -98,7 +98,7 @@ export default function FlashcardPage() {
 
         <button
           type="button"
-          onClick={handleGenerate}
+          onClick={() => void handleGenerate(true)}
           disabled={isGenerating}
           className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
         >

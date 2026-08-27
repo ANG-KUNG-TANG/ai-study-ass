@@ -6,10 +6,17 @@ import type {
   FlashcardDifficulty,
 } from "@/types/flashcard";
 
-export function generateFlashcards(noteId: string, count?: number): Promise<Flashcard[]> {
+export function generateFlashcards(
+  noteId: string,
+  count?: number,
+  force = false,
+): Promise<Flashcard[]> {
   return apiFetch<Flashcard[]>(`/notes/${noteId}/flashcards`, {
     method: "POST",
-    body: count ? JSON.stringify({ count }) : undefined,
+    body: JSON.stringify({
+      ...(count !== undefined ? { count } : {}),
+      ...(force ? { force: true } : {}),
+    }),
   });
 }
 
