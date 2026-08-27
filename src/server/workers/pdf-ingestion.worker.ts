@@ -94,11 +94,28 @@ async function processPdfJob(
     pages: processed.pages,
   });
   await generationRepo.updateStage(noteId, "pending");
-  await enqueueStudyGeneration({
-    noteId,
-    userId,
-    telegramChatId,
-  });
+
+  try {
+    await enqueueStudyGeneration({
+      noteId,
+      userId,
+      telegramChatId,
+      mode: "prepare",
+    });
+  } catch (error) {
+    logger.warn(
+      "[pdf-worker] extraction succeeded but document preparation could not be queued",
+      {
+        noteId,
+        userId,
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      },
+    );
+  }
+
   try {
     await deleteTemporaryUpload(storageKey);
   } catch (error) {

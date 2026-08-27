@@ -45,6 +45,7 @@ export async function regenerateStudyMaterialsController(
     noteId,
     userId: auth.userId,
     force,
+    mode: "generate_all",
   });
 
   return NextResponse.json(
@@ -54,7 +55,7 @@ export async function regenerateStudyMaterialsController(
         noteId,
         jobId,
         stage: "pending",
-        message: "Study material regeneration has been queued.",
+        message: "Generate all study materials has been queued.",
       },
     },
     { status: 202 },

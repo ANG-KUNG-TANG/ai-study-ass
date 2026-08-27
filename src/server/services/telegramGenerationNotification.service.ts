@@ -117,6 +117,41 @@ function buildGenerationButtons(
   return rows;
 }
 
+export async function notifyTelegramDocumentReady(
+  chatId: number,
+  note: PublicNote,
+): Promise<void> {
+  await sendMessage(
+    chatId,
+    [
+      "✅ Document is ready.",
+      "",
+      `📚 ${note.title}`,
+      "",
+      "Your document has been extracted and prepared.",
+      "Summary, Quiz, Flashcards, Knowledge and Chat will use the saved document only when you open or request them.",
+      "",
+      "This on-demand flow avoids generating unused study materials.",
+    ].join("\n"),
+    {
+      buttons: [
+        [
+          {
+            text: "📝 Open Summary",
+            url: buildNoteUrl(note.id),
+          },
+        ],
+        [
+          {
+            text: "🏠 Open Dashboard",
+            url: buildDashboardUrl(),
+          },
+        ],
+      ],
+    },
+  );
+}
+
 export async function notifyTelegramGenerationComplete(
   chatId: number,
   note: PublicNote,

@@ -10,7 +10,9 @@ import {
 import { connectDb, disconnectDB } from "@/server/config/database";
 import * as noteRepo from "@/server/repositories/note.repo";
 import { generateStudyMaterials } from "@/server/services/study-material-generation.service";
+import { prepareDocumentForStudy } from "@/server/services/document-preparation.service";
 import {
+  notifyTelegramDocumentReady,
   notifyTelegramGenerationComplete,
   notifyTelegramGenerationFailure,
 } from "@/server/services/telegramGenerationNotification.service";
@@ -53,7 +55,18 @@ async function notifyCompletion(
   try {
     const note = await noteRepo.findByIdOrThrow(job.data.noteId);
 
-    await notifyTelegramGenerationComplete(chatId, note.toPublic(), state);
+    if ((job.data.mode ?? "prepare") === "generate_all") {
+      await notifyTelegramGenerationComplete(
+        chatId,
+        note.toPublic(),
+        state,
+      );
+    } else {
+      await notifyTelegramDocumentReady(
+        chatId,
+        note.toPublic(),
+      );
+    }
   } catch (error) {
     logger.error("[worker] Telegram completion notification failed", {
       jobId: job.id,
@@ -110,19 +123,29 @@ async function processStudyGenerationJob(
     noteId: job.data.noteId,
     userId: job.data.userId,
     attempt: job.attemptsMade + 1,
+    mode: job.data.mode ?? "prepare",
   });
 
-  const state = await generateStudyMaterials({
-    noteId: job.data.noteId,
-    userId: job.data.userId,
-    force: job.data.force,
-  });
+  const mode = job.data.mode ?? "prepare";
+  const state =
+    mode === "generate_all"
+      ? await generateStudyMaterials({
+          noteId: job.data.noteId,
+          userId: job.data.userId,
+          force: job.data.force,
+        })
+      : await prepareDocumentForStudy({
+          noteId: job.data.noteId,
+          userId: job.data.userId,
+          force: job.data.force,
+        });
 
   await notifyCompletion(job, state);
 
-  logger.info("[worker] study generation finished", {
+  logger.info("[worker] study generation job finished", {
     jobId: job.id,
     noteId: job.data.noteId,
+    mode,
     stage: state.stage,
   });
 

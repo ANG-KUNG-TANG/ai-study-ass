@@ -61,7 +61,7 @@ export async function uploadNoteController(
       },
     },
     result.backgroundProcessing
-      ? "Note created. PDF extraction is continuing in the background."
-      : "Note created successfully",
+      ? "Note created. PDF extraction and document preparation are continuing in the background."
+      : "Note created. Study features will generate on demand.",
   );
 }

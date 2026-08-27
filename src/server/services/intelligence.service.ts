@@ -35,9 +35,18 @@ export function toRawDocument(input: {
   };
 }
 
+export interface RunAndPersistPipelineOptions {
+  /**
+   * Background document preparation must remain provider-free.
+   * Feature services may still opt into AI through their own repair paths.
+   */
+  allowAIRepair?: boolean;
+}
+
 export async function runAndPersistPipeline(
   noteId: string,
   document: RawDocument,
+  options: RunAndPersistPipelineOptions = {},
 ): Promise<IntelligenceResultEntity | null> {
   const noteForUsage = await noteRepo.findById(noteId);
   progressService.begin(noteId);
@@ -62,23 +71,32 @@ export async function runAndPersistPipeline(
       });
 
     let result;
+    const allowAIRepair = options.allowAIRepair ?? true;
 
-    try {
-      result = await runAttempt(true);
-    } catch (aiEnabledError: unknown) {
-      logger.warn(
-        "AI-enabled intelligence run failed; retrying symbolically",
-        {
-          noteId,
-          error:
-            aiEnabledError instanceof Error
-              ? aiEnabledError.message
-              : String(aiEnabledError),
-        },
+    if (!allowAIRepair) {
+      logger.info(
+        "Running provider-free deterministic intelligence preparation",
+        { noteId },
       );
-
-      progressService.begin(noteId);
       result = await runAttempt(false);
+    } else {
+      try {
+        result = await runAttempt(true);
+      } catch (aiEnabledError: unknown) {
+        logger.warn(
+          "AI-enabled intelligence run failed; retrying symbolically",
+          {
+            noteId,
+            error:
+              aiEnabledError instanceof Error
+                ? aiEnabledError.message
+                : String(aiEnabledError),
+          },
+        );
+
+        progressService.begin(noteId);
+        result = await runAttempt(false);
+      }
     }
 
     const stillExists = await noteRepo.findById(noteId);

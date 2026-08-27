@@ -11,11 +11,20 @@ export const STUDY_GENERATION_QUEUE_NAME = "study-generation";
 export const STUDY_GENERATION_JOB_NAME = "generate-study-materials";
 export const STUDY_GENERATION_MAX_QUEUE_DEPTH = 500;
 
+export type StudyGenerationJobMode =
+  | "prepare"
+  | "generate_all";
+
 export interface StudyGenerationJobData {
   noteId: string;
   userId: string;
   telegramChatId?: number;
   force?: boolean;
+  /**
+   * prepare: provider-free intelligence only.
+   * generate_all: explicit user-requested generation of every study feature.
+   */
+  mode?: StudyGenerationJobMode;
 }
 
 export interface StudyGenerationJobResult {
@@ -170,6 +179,7 @@ export async function enqueueStudyGeneration(
     noteId: data.noteId,
     userId: data.userId,
     telegramNotification: Boolean(data.telegramChatId),
+    mode: data.mode ?? "prepare",
   });
 
   return String(job.id);
