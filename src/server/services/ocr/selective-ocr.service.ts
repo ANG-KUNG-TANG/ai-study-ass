@@ -24,6 +24,7 @@ export interface SelectiveOcrPlan {
     | "no_recoverable_quality_issue"
     | "no_weak_pages"
     | "targeted_recovery"
+    | "sparse_image_heavy_probe"
     | "too_many_weak_pages";
 }
 
@@ -36,10 +37,14 @@ export interface SelectiveOcrRecoveryResult {
   pages: ParsedPDFPage[];
   attemptedPageNumbers: number[];
   recoveredPageNumbers: number[];
+  improvedPageNumbers: number[];
   failedPageNumbers: number[];
 }
 
 const DEFAULT_MAX_OCR_PAGES = 24;
+const SPARSE_NATIVE_PAGE_CHARS = 180;
+const IMAGE_HEAVY_AVERAGE_CHARS_PER_PAGE = 350;
+const IMAGE_HEAVY_SPARSE_PAGE_RATIO = 0.25;
 const OCR_RENDER_WIDTH = 1_600;
 const OCR_PAGE_TIMEOUT_MS = 20_000;
 const OCR_MAX_OUTPUT_BYTES = 120_000;
@@ -64,32 +69,6 @@ export function buildSelectiveOcrPlan(input: {
   maxPages?: number;
 }): SelectiveOcrPlan {
   const maxPages = normaliseMaxPages(input.maxPages);
-
-  if (input.report.status === "good") {
-    return {
-      action: "skip",
-      pageNumbers: [],
-      candidatePageNumbers: [],
-      maxPages,
-      reason: "native_extraction_usable",
-    };
-  }
-
-  const hasRecoverableIssue =
-    input.report.reasons.some((reason) =>
-      RECOVERABLE_REASON_CODES.has(reason.code),
-    );
-
-  if (!hasRecoverableIssue) {
-    return {
-      action: "skip",
-      pageNumbers: [],
-      candidatePageNumbers: [],
-      maxPages,
-      reason: "no_recoverable_quality_issue",
-    };
-  }
-
   const pageText = new Map(
     input.pages.map((page) => [
       page.pageNumber,
@@ -100,7 +79,8 @@ export function buildSelectiveOcrPlan(input: {
     0,
     Math.floor(input.pageCount),
   );
-  const candidates: number[] = [];
+  const weakCandidates: number[] = [];
+  const sparseCandidates: number[] = [];
 
   for (
     let pageNumber = 1;
@@ -110,9 +90,55 @@ export function buildSelectiveOcrPlan(input: {
     const text = pageText.get(pageNumber) ?? "";
 
     if (isWeakPageText(text)) {
-      candidates.push(pageNumber);
+      weakCandidates.push(pageNumber);
+    }
+
+    if (isSparseNativePageText(text)) {
+      sparseCandidates.push(pageNumber);
     }
   }
+
+  const sparseImageHeavyProbe =
+    input.report.status === "good" &&
+    shouldProbeSparseImageHeavyPages(
+      input.report,
+      sparseCandidates,
+      pageCount,
+    );
+
+  if (
+    input.report.status === "good" &&
+    !sparseImageHeavyProbe
+  ) {
+    return {
+      action: "skip",
+      pageNumbers: [],
+      candidatePageNumbers: [],
+      maxPages,
+      reason: "native_extraction_usable",
+    };
+  }
+
+  if (!sparseImageHeavyProbe) {
+    const hasRecoverableIssue =
+      input.report.reasons.some((reason) =>
+        RECOVERABLE_REASON_CODES.has(reason.code),
+      );
+
+    if (!hasRecoverableIssue) {
+      return {
+        action: "skip",
+        pageNumbers: [],
+        candidatePageNumbers: [],
+        maxPages,
+        reason: "no_recoverable_quality_issue",
+      };
+    }
+  }
+
+  const candidates = sparseImageHeavyProbe
+    ? sparseCandidates
+    : weakCandidates;
 
   if (candidates.length === 0) {
     return {
@@ -139,8 +165,32 @@ export function buildSelectiveOcrPlan(input: {
     pageNumbers: candidates,
     candidatePageNumbers: candidates,
     maxPages,
-    reason: "targeted_recovery",
+    reason: sparseImageHeavyProbe
+      ? "sparse_image_heavy_probe"
+      : "targeted_recovery",
   };
+}
+
+export function shouldAcceptSelectiveOcrRecovery(input: {
+  nativeReport: ExtractionQualityReport;
+  recoveredReport: ExtractionQualityReport;
+  improvedPageNumbers: readonly number[];
+}): boolean {
+  if (input.improvedPageNumbers.length === 0) {
+    return false;
+  }
+
+  if (
+    !input.nativeReport.usable &&
+    input.recoveredReport.usable
+  ) {
+    return true;
+  }
+
+  return (
+    input.recoveredReport.score >=
+    input.nativeReport.score
+  );
 }
 
 export async function recoverPdfPagesWithSelectiveOcr(input: {
@@ -157,6 +207,7 @@ export async function recoverPdfPagesWithSelectiveOcr(input: {
       pages: [...input.nativePages],
       attemptedPageNumbers: [],
       recoveredPageNumbers: [],
+      improvedPageNumbers: [],
       failedPageNumbers: [],
     };
   }
@@ -202,14 +253,30 @@ export async function recoverPdfPagesWithSelectiveOcr(input: {
     }
   }
 
+  const pages = mergeRecoveredPages(
+    input.nativePages,
+    recovered,
+  );
+  const nativeByPage = new Map(
+    input.nativePages.map((page) => [
+      page.pageNumber,
+      page.rawText,
+    ]),
+  );
+  const improvedPageNumbers = pages
+    .filter((page) =>
+      requested.includes(page.pageNumber) &&
+      page.rawText !==
+        (nativeByPage.get(page.pageNumber) ?? ""),
+    )
+    .map((page) => page.pageNumber);
+
   return {
-    pages: mergeRecoveredPages(
-      input.nativePages,
-      recovered,
-    ),
+    pages,
     attemptedPageNumbers: requested,
     recoveredPageNumbers:
       recovered.map((page) => page.pageNumber),
+    improvedPageNumbers,
     failedPageNumbers:
       [...new Set(failedPageNumbers)].sort(
         (left, right) => left - right,
@@ -235,7 +302,10 @@ export function mergeRecoveredPages(
       merged.get(page.pageNumber) ?? "";
 
     if (
-      isWeakPageText(current) &&
+      (
+        isWeakPageText(current) ||
+        isSparseNativePageText(current)
+      ) &&
       pageTextQuality(page.rawText) >
         pageTextQuality(current)
     ) {
@@ -330,6 +400,41 @@ function isWeakPageText(
     alphanumericRatio < 0.35 ||
     replacementRatio > 0.005 ||
     controlRatio > 0.002
+  );
+}
+
+function isSparseNativePageText(
+  value: string,
+): boolean {
+  return value.trim().length < SPARSE_NATIVE_PAGE_CHARS;
+}
+
+function shouldProbeSparseImageHeavyPages(
+  report: ExtractionQualityReport,
+  sparseCandidates: readonly number[],
+  pageCount: number,
+): boolean {
+  if (
+    pageCount < 2 ||
+    sparseCandidates.length === 0
+  ) {
+    return false;
+  }
+
+  const averageCharsPerPage =
+    report.metrics.averageCharsPerPage;
+
+  if (
+    averageCharsPerPage === null ||
+    averageCharsPerPage >=
+      IMAGE_HEAVY_AVERAGE_CHARS_PER_PAGE
+  ) {
+    return false;
+  }
+
+  return (
+    sparseCandidates.length / pageCount >=
+    IMAGE_HEAVY_SPARSE_PAGE_RATIO
   );
 }
 
