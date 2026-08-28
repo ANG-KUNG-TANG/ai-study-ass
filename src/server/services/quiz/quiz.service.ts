@@ -43,6 +43,15 @@ import {
 import type {
   GroundedKnowledge,
 } from "@/server/intelligence/grounding";
+import {
+  buildRepairCacheDescriptor,
+  getCachedRepair,
+  invalidateCachedRepair,
+  saveCachedRepair,
+} from "@/server/services/repair-cache.service";
+import {
+  recordRepairTelemetry,
+} from "@/server/services/repair-telemetry.service";
 
 const quizResponseSchema = z.object({
   questions: z.array(z.object({
@@ -338,6 +347,13 @@ export async function generateQuizWithMetadata(
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
+  const repairStrategyVersion =
+    "quiz-sufficiency-v1";
+  let repairAttempted = false;
+  let repairCacheHit = false;
+  let repairAccepted = false;
+  let repairEvidenceCharacters = 0;
+
   const sufficiency =
     buildQuizSufficiencyPlan({
       targetCount: count,
@@ -403,6 +419,9 @@ export async function generateQuizWithMetadata(
           grounding &&
           repairEvidence
         ) {
+          repairEvidenceCharacters =
+            repairEvidence.characterCount;
+
           logger.info(
             "Prepared targeted quiz repair evidence",
             {
@@ -426,65 +445,201 @@ export async function generateQuizWithMetadata(
           );
         }
 
-        const {
-          systemPrompt,
-          prompt,
-        } = buildQuizPrompt(
-          sourceText,
-          {
-            ...options,
-            questionCount:
-              sufficiency.requestedAIAdditions,
-          },
-        );
+        const cacheDescriptor =
+          grounding
+            ? buildRepairCacheDescriptor({
+                noteId,
+                userId,
+                feature: "quiz",
+                sourceText:
+                  note.content,
+                variant: [
+                  `count=${count}`,
+                  `types=${[...types]
+                    .sort()
+                    .join(",")}`,
+                ].join(";"),
+                gapParts: [
+                  `requested=${sufficiency.requestedAIAdditions}`,
+                  ...questions.map(
+                    (question) =>
+                      `existing=${question.question}`,
+                  ),
+                ],
+                strategyVersion:
+                  repairStrategyVersion,
+              })
+            : null;
+        let cacheApplied = false;
 
-        const aiResult =
-          await generate({
-            prompt,
+        if (
+          cacheDescriptor &&
+          !options.force
+        ) {
+          const cached =
+            await getCachedRepair<unknown>(
+              cacheDescriptor,
+            );
+
+          if (cached) {
+            try {
+              const cachedQuestions =
+                parseQuizResponse(
+                  JSON.stringify(
+                    cached,
+                  ),
+                );
+              const combined =
+                deduplicateQuestions([
+                  ...questions,
+                  ...cachedQuestions,
+                ]).slice(
+                  0,
+                  count,
+                );
+              const structurallyValid =
+                validateQuestions(
+                  noteId,
+                  userId,
+                  combined,
+                );
+              const validated =
+                validateGroundedQuestions(
+                  noteId,
+                  structurallyValid,
+                  grounding,
+                );
+
+              if (
+                validated.length >
+                questions.length
+              ) {
+                questions =
+                  validated;
+                source =
+                  symbolicCount > 0
+                    ? "hybrid"
+                    : "ai_fallback";
+                aiFallbackUsed =
+                  true;
+                repairCacheHit =
+                  true;
+                repairAccepted =
+                  true;
+                cacheApplied =
+                  true;
+
+                logger.info(
+                  "Applied cached targeted quiz repair",
+                  {
+                    noteId,
+                    providerCallAvoided:
+                      true,
+                    acceptedCount:
+                      questions.length,
+                  },
+                );
+              }
+            } catch (error) {
+              logger.warn(
+                "Cached quiz repair failed validation; invalidating cache entry",
+                {
+                  noteId,
+                  error:
+                    error instanceof Error
+                      ? error.message
+                      : String(error),
+                },
+              );
+            }
+
+            if (!cacheApplied) {
+              await invalidateCachedRepair(
+                cacheDescriptor,
+              );
+            }
+          }
+        }
+
+        if (!cacheApplied) {
+          const {
             systemPrompt,
-            jsonMode: true,
-            temperature: 0.35,
-            maxTokens: 2_000,
-            usageLabel: "quiz",
-            userId,
-            noteId,
-          });
-
-        const aiQuestions =
-          parseQuizResponse(
-            aiResult.text,
+            prompt,
+          } = buildQuizPrompt(
+            sourceText,
+            {
+              ...options,
+              questionCount:
+                sufficiency.requestedAIAdditions,
+            },
           );
-        const combined =
-          deduplicateQuestions([
-            ...questions,
-            ...aiQuestions,
-          ]).slice(0, count);
-        const structurallyValid =
-          validateQuestions(
-            noteId,
-            userId,
-            combined,
-          );
-        const validated =
-          validateGroundedQuestions(
-            noteId,
-            structurallyValid,
-            grounding,
-          );
-        const acceptedAIContent =
-          validated.length >
-          questions.length;
 
-        questions = validated;
-        tokensUsed =
-          aiResult.tokensUsed;
+          repairAttempted =
+            Boolean(grounding);
 
-        if (acceptedAIContent) {
-          source =
-            symbolicCount > 0
-              ? "hybrid"
-              : "ai_fallback";
-          aiFallbackUsed = true;
+          const aiResult =
+            await generate({
+              prompt,
+              systemPrompt,
+              jsonMode: true,
+              temperature: 0.35,
+              maxTokens: 2_000,
+              usageLabel: "quiz",
+              userId,
+              noteId,
+            });
+
+          const aiQuestions =
+            parseQuizResponse(
+              aiResult.text,
+            );
+          const combined =
+            deduplicateQuestions([
+              ...questions,
+              ...aiQuestions,
+            ]).slice(0, count);
+          const structurallyValid =
+            validateQuestions(
+              noteId,
+              userId,
+              combined,
+            );
+          const validated =
+            validateGroundedQuestions(
+              noteId,
+              structurallyValid,
+              grounding,
+            );
+          const acceptedAIContent =
+            validated.length >
+            questions.length;
+
+          questions = validated;
+          tokensUsed =
+            aiResult.tokensUsed;
+
+          if (acceptedAIContent) {
+            source =
+              symbolicCount > 0
+                ? "hybrid"
+                : "ai_fallback";
+            aiFallbackUsed = true;
+            repairAccepted =
+              Boolean(grounding);
+
+            if (
+              cacheDescriptor &&
+              grounding
+            ) {
+              await saveCachedRepair(
+                cacheDescriptor,
+                {
+                  questions:
+                    aiQuestions,
+                },
+              );
+            }
+          }
         }
       } catch (error) {
         logger.warn(
@@ -546,6 +701,39 @@ export async function generateQuizWithMetadata(
       sufficiency.minimumAcceptableCount
       ? "ready"
       : "partial";
+
+  if (
+    grounding &&
+    sufficiency.needsAI
+  ) {
+    repairAccepted =
+      repairAccepted &&
+      questions.length >
+        symbolicCount;
+
+    await recordRepairTelemetry({
+      noteId,
+      userId,
+      feature: "quiz",
+      strategyVersion:
+        repairStrategyVersion,
+      repairNeeded: true,
+      repairAttempted,
+      repairCacheHit,
+      repairAccepted,
+      providerCallAvoided:
+        repairCacheHit &&
+        repairAccepted &&
+        !repairAttempted,
+      evidenceCharacters:
+        repairEvidenceCharacters,
+      tokensUsed,
+      gapCodes: [
+        `TARGET_SHORTFALL_${sufficiency.targetShortfall}`,
+        `MINIMUM_ACCEPTABLE_${sufficiency.minimumAcceptableCount}`,
+      ],
+    });
+  }
 
   logger.info("Quiz generated", {
     noteId,

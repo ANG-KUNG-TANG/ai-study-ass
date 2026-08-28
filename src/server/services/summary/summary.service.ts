@@ -40,6 +40,15 @@ import type {
 import { z } from "zod";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
 import type { SummaryMode } from "@/types/summary";
+import {
+  buildRepairCacheDescriptor,
+  getCachedRepair,
+  invalidateCachedRepair,
+  saveCachedRepair,
+} from "@/server/services/repair-cache.service";
+import {
+  recordRepairTelemetry,
+} from "@/server/services/repair-telemetry.service";
 
 export interface SummaryResult extends GenerationMetadata {
   summary: string;
@@ -193,6 +202,18 @@ export async function generateSummary(
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
+  const repairStrategyVersion =
+    "summary-targeted-v1";
+  const repairNeeded =
+    Boolean(
+      grounding &&
+      repairPlan?.needed,
+    );
+  let repairAttempted = false;
+  let repairCacheHit = false;
+  let repairAccepted = false;
+  let repairEvidenceCharacters = 0;
+
   // Grounded v2 summaries use the summary validator itself as the sufficiency
   // gate. AI is only allowed when a faithful comprehensive summary has a
   // validator-level coverage failure. Warning-level coverage is returned
@@ -215,6 +236,8 @@ export async function generateSummary(
           grounding,
           repairPlan.evidenceRequest,
         );
+        repairEvidenceCharacters =
+          evidence.characterCount;
 
         if (!evidence.text) {
           logger.warn(
@@ -222,70 +245,190 @@ export async function generateSummary(
             { noteId, gaps: repairPlan.gaps },
           );
         } else {
-          const prompt = buildSummaryRepairPrompt({
-            evidence: evidence.text,
-            gaps: repairPlan.gaps,
-            currentKeyPoints: result.keyPoints,
-            currentConcepts: result.importantConcepts,
-          });
-          const aiResult = await generate({
-            prompt: prompt.prompt,
-            systemPrompt: prompt.systemPrompt,
-            jsonMode: true,
-            temperature: 0.1,
-            maxTokens: 900,
-            usageLabel: "summary",
-            userId: note.userId,
-            noteId,
-          });
-          tokensUsed = aiResult.tokensUsed;
+          const cacheDescriptor =
+            buildRepairCacheDescriptor({
+              noteId,
+              userId: note.userId,
+              feature: "summary",
+              sourceText: note.content,
+              variant:
+                `mode=${mode}`,
+              gapParts:
+                repairPlan.gaps,
+              strategyVersion:
+                repairStrategyVersion,
+            });
+          let cacheApplied = false;
 
-          const parsed = parseSummaryRepairPatch(aiResult.text);
-          const validated = validateSummaryRepairPatch(
-            parsed,
-            evidence.text,
-          );
+          if (!options.force) {
+            const cached =
+              await getCachedRepair<unknown>(
+                cacheDescriptor,
+              );
 
-          if (validated) {
-            const candidate = applySummaryRepairPatch(result, validated);
-            const candidateQuality = assessSummaryQuality({
-              artifact: {
-                summary: candidate.summary,
-                keyPoints: candidate.keyPoints,
-                importantConcepts: candidate.importantConcepts,
-              },
-              grounding,
-              mode,
+            if (cached) {
+              try {
+                const parsedCached =
+                  parseSummaryRepairPatch(
+                    JSON.stringify(cached),
+                  );
+                const validatedCached =
+                  validateSummaryRepairPatch(
+                    parsedCached,
+                    evidence.text,
+                  );
+
+                if (validatedCached) {
+                  const candidate =
+                    applySummaryRepairPatch(
+                      result,
+                      validatedCached,
+                    );
+                  const candidateQuality =
+                    assessSummaryQuality({
+                      artifact: {
+                        summary:
+                          candidate.summary,
+                        keyPoints:
+                          candidate.keyPoints,
+                        importantConcepts:
+                          candidate.importantConcepts,
+                      },
+                      grounding,
+                      mode,
+                    });
+
+                  if (
+                    isSummaryRepairImprovement(
+                      deterministicQuality,
+                      candidateQuality,
+                    ) &&
+                    candidateQuality.status !==
+                      "failed"
+                  ) {
+                    result = candidate;
+                    source = "hybrid";
+                    aiFallbackUsed = true;
+                    repairCacheHit = true;
+                    repairAccepted = true;
+                    cacheApplied = true;
+
+                    logger.info(
+                      "Applied cached targeted summary repair",
+                      {
+                        noteId,
+                        gaps:
+                          repairPlan.gaps,
+                        evidenceCharacters:
+                          evidence.characterCount,
+                        providerCallAvoided:
+                          true,
+                      },
+                    );
+                  }
+                }
+              } catch (error) {
+                logger.warn(
+                  "Cached summary repair failed validation; invalidating cache entry",
+                  {
+                    noteId,
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : String(error),
+                  },
+                );
+              }
+
+              if (!cacheApplied) {
+                await invalidateCachedRepair(
+                  cacheDescriptor,
+                );
+              }
+            }
+          }
+
+          if (!cacheApplied) {
+            const prompt = buildSummaryRepairPrompt({
+              evidence: evidence.text,
+              gaps: repairPlan.gaps,
+              currentKeyPoints: result.keyPoints,
+              currentConcepts: result.importantConcepts,
             });
 
-            if (
-              isSummaryRepairImprovement(
-                deterministicQuality,
-                candidateQuality,
-              )
-            ) {
-              result = candidate;
-              source = "hybrid";
-              aiFallbackUsed = true;
-              logger.info("Applied targeted summary coverage repair", {
-                noteId,
-                gaps: repairPlan.gaps,
-                evidenceCharacters: evidence.characterCount,
-                evidenceFacts: evidence.factIds.length,
-                promptEvidenceTruncated: prompt.wasTruncated,
-                tokensUsed: aiResult.tokensUsed,
+            repairAttempted = true;
+
+            const aiResult = await generate({
+              prompt: prompt.prompt,
+              systemPrompt: prompt.systemPrompt,
+              jsonMode: true,
+              temperature: 0.1,
+              maxTokens: 900,
+              usageLabel: "summary",
+              userId: note.userId,
+              noteId,
+            });
+            tokensUsed = aiResult.tokensUsed;
+
+            const parsed = parseSummaryRepairPatch(aiResult.text);
+            const validated = validateSummaryRepairPatch(
+              parsed,
+              evidence.text,
+            );
+
+            if (validated) {
+              const candidate = applySummaryRepairPatch(result, validated);
+              const candidateQuality = assessSummaryQuality({
+                artifact: {
+                  summary: candidate.summary,
+                  keyPoints: candidate.keyPoints,
+                  importantConcepts: candidate.importantConcepts,
+                },
+                grounding,
+                mode,
               });
+
+              if (
+                isSummaryRepairImprovement(
+                  deterministicQuality,
+                  candidateQuality,
+                )
+              ) {
+                result = candidate;
+                source = "hybrid";
+                aiFallbackUsed = true;
+                repairAccepted = true;
+
+                if (
+                  candidateQuality.status !==
+                  "failed"
+                ) {
+                  await saveCachedRepair(
+                    cacheDescriptor,
+                    validated,
+                  );
+                }
+
+                logger.info("Applied targeted summary coverage repair", {
+                  noteId,
+                  gaps: repairPlan.gaps,
+                  evidenceCharacters: evidence.characterCount,
+                  evidenceFacts: evidence.factIds.length,
+                  promptEvidenceTruncated: prompt.wasTruncated,
+                  tokensUsed: aiResult.tokensUsed,
+                });
+              } else {
+                logger.warn(
+                  "Targeted summary repair did not improve grounded coverage; keeping deterministic notes",
+                  { noteId, gaps: repairPlan.gaps },
+                );
+              }
             } else {
               logger.warn(
-                "Targeted summary repair did not improve grounded coverage; keeping deterministic notes",
+                "Targeted summary repair failed evidence validation; keeping deterministic notes",
                 { noteId, gaps: repairPlan.gaps },
               );
             }
-          } else {
-            logger.warn(
-              "Targeted summary repair failed evidence validation; keeping deterministic notes",
-              { noteId, gaps: repairPlan.gaps },
-            );
           }
         }
       } else {
@@ -454,6 +597,33 @@ export async function generateSummary(
         ...summaryQualityLogContext(summaryQuality),
       },
     );
+  }
+
+  if (repairNeeded) {
+    repairAccepted =
+      repairAccepted &&
+      source !== "symbolic";
+
+    await recordRepairTelemetry({
+      noteId,
+      userId: note.userId,
+      feature: "summary",
+      strategyVersion:
+        repairStrategyVersion,
+      repairNeeded: true,
+      repairAttempted,
+      repairCacheHit,
+      repairAccepted,
+      providerCallAvoided:
+        repairCacheHit &&
+        repairAccepted &&
+        !repairAttempted,
+      evidenceCharacters:
+        repairEvidenceCharacters,
+      tokensUsed,
+      gapCodes:
+        repairPlan?.gaps ?? [],
+    });
   }
 
   await noteRepo.updateSummary(noteId, result.summary);
