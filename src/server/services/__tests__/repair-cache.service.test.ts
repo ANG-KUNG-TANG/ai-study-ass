@@ -91,6 +91,39 @@ describe(
     );
 
     it(
+      "isolates otherwise identical repairs by note and user",
+      () => {
+        const original =
+          buildRepairCacheDescriptor(
+            base,
+          );
+        const otherNote =
+          buildRepairCacheDescriptor({
+            ...base,
+            noteId:
+              "note-2",
+          });
+        const otherUser =
+          buildRepairCacheDescriptor({
+            ...base,
+            userId:
+              "user-2",
+          });
+
+        expect(
+          original.key,
+        ).not.toBe(
+          otherNote.key,
+        );
+        expect(
+          original.key,
+        ).not.toBe(
+          otherUser.key,
+        );
+      },
+    );
+
+    it(
       "changes when the repair strategy version changes",
       () => {
         const left =

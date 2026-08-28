@@ -484,7 +484,9 @@ export async function generateFlashcardsWithMetadata(
 
               if (
                 validatedPairs.length >
-                pairs.length
+                  pairs.length &&
+                validatedPairs.length >=
+                  sufficiency.minimumAcceptableCount
               ) {
                 pairs =
                   validatedPairs;
@@ -560,6 +562,9 @@ export async function generateFlashcardsWithMetadata(
           const acceptedAIContent =
             validatedPairs.length >
             pairs.length;
+          const repairReachedMinimum =
+            validatedPairs.length >=
+            sufficiency.minimumAcceptableCount;
 
           pairs = validatedPairs;
           tokensUsed = ai.tokensUsed;
@@ -571,11 +576,15 @@ export async function generateFlashcardsWithMetadata(
                 : "ai_fallback";
             aiFallbackUsed = true;
             repairAccepted =
-              Boolean(grounding);
+              Boolean(
+                grounding &&
+                repairReachedMinimum,
+              );
 
             if (
               cacheDescriptor &&
-              grounding
+              grounding &&
+              repairReachedMinimum
             ) {
               await saveCachedRepair(
                 cacheDescriptor,
@@ -650,8 +659,8 @@ export async function generateFlashcardsWithMetadata(
   ) {
     repairAccepted =
       repairAccepted &&
-      entities.length >
-        symbolicCount;
+      entities.length >=
+        sufficiency.minimumAcceptableCount;
 
     await recordRepairTelemetry({
       noteId,

@@ -512,7 +512,9 @@ export async function generateQuizWithMetadata(
 
               if (
                 validated.length >
-                questions.length
+                  questions.length &&
+                validated.length >=
+                  sufficiency.minimumAcceptableCount
               ) {
                 questions =
                   validated;
@@ -613,6 +615,9 @@ export async function generateQuizWithMetadata(
           const acceptedAIContent =
             validated.length >
             questions.length;
+          const repairReachedMinimum =
+            validated.length >=
+            sufficiency.minimumAcceptableCount;
 
           questions = validated;
           tokensUsed =
@@ -625,11 +630,15 @@ export async function generateQuizWithMetadata(
                 : "ai_fallback";
             aiFallbackUsed = true;
             repairAccepted =
-              Boolean(grounding);
+              Boolean(
+                grounding &&
+                repairReachedMinimum,
+              );
 
             if (
               cacheDescriptor &&
-              grounding
+              grounding &&
+              repairReachedMinimum
             ) {
               await saveCachedRepair(
                 cacheDescriptor,
@@ -708,8 +717,8 @@ export async function generateQuizWithMetadata(
   ) {
     repairAccepted =
       repairAccepted &&
-      questions.length >
-        symbolicCount;
+      questions.length >=
+        sufficiency.minimumAcceptableCount;
 
     await recordRepairTelemetry({
       noteId,
