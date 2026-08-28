@@ -39,6 +39,15 @@ import {
   flashcardQualityLogContext,
   validateGroundedFlashcards,
 } from "@/server/services/flashcard/flashcard-quality.service";
+import {
+  buildRepairCacheDescriptor,
+  getCachedRepair,
+  invalidateCachedRepair,
+  saveCachedRepair,
+} from "@/server/services/repair-cache.service";
+import {
+  recordRepairTelemetry,
+} from "@/server/services/repair-telemetry.service";
 
 interface FlashcardPair {
   front: string;
@@ -321,6 +330,13 @@ export async function generateFlashcardsWithMetadata(
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
+  const repairStrategyVersion =
+    "flashcard-sufficiency-v1";
+  let repairAttempted = false;
+  let repairCacheHit = false;
+  let repairAccepted = false;
+  let repairEvidenceCharacters = 0;
+
   const sufficiency =
     buildFlashcardSufficiencyPlan({
       targetCount: count,
@@ -386,6 +402,9 @@ export async function generateFlashcardsWithMetadata(
           grounding &&
           repairEvidence
         ) {
+          repairEvidenceCharacters =
+            repairEvidence.characterCount;
+
           logger.info(
             "Prepared targeted flashcard repair evidence",
             {
@@ -409,39 +428,164 @@ export async function generateFlashcardsWithMetadata(
           );
         }
 
-        const ai =
-          await generateCardsViaAI(
-            note.title,
-            aiSource,
-            sufficiency.requestedAIAdditions,
-            userId,
-            noteId,
-          );
+        const cacheDescriptor =
+          grounding
+            ? buildRepairCacheDescriptor({
+                noteId,
+                userId,
+                feature:
+                  "flashcards",
+                sourceText:
+                  note.content,
+                variant:
+                  `count=${count}`,
+                gapParts: [
+                  `requested=${sufficiency.requestedAIAdditions}`,
+                  ...pairs.map(
+                    (pair) =>
+                      `existing=${pair.front}`,
+                  ),
+                ],
+                strategyVersion:
+                  repairStrategyVersion,
+              })
+            : null;
+        let cacheApplied = false;
 
-        const combinedPairs =
-          deduplicateCards([
-            ...pairs,
-            ...ai.cards,
-          ]).slice(0, count);
-        const validatedPairs =
-          validateGroundedCards(
-            noteId,
-            combinedPairs,
-            grounding,
-          );
-        const acceptedAIContent =
-          validatedPairs.length >
-          pairs.length;
+        if (
+          cacheDescriptor &&
+          !options.force
+        ) {
+          const cached =
+            await getCachedRepair<unknown>(
+              cacheDescriptor,
+            );
 
-        pairs = validatedPairs;
-        tokensUsed = ai.tokensUsed;
+          if (cached) {
+            try {
+              const cachedCards =
+                flashcardResponseSchema.parse(
+                  cached,
+                ).flashcards;
+              const combinedPairs =
+                deduplicateCards([
+                  ...pairs,
+                  ...cachedCards,
+                ]).slice(
+                  0,
+                  count,
+                );
+              const validatedPairs =
+                validateGroundedCards(
+                  noteId,
+                  combinedPairs,
+                  grounding,
+                );
 
-        if (acceptedAIContent) {
-          source =
-            symbolicCount > 0
-              ? "hybrid"
-              : "ai_fallback";
-          aiFallbackUsed = true;
+              if (
+                validatedPairs.length >
+                pairs.length
+              ) {
+                pairs =
+                  validatedPairs;
+                source =
+                  symbolicCount > 0
+                    ? "hybrid"
+                    : "ai_fallback";
+                aiFallbackUsed =
+                  true;
+                repairCacheHit =
+                  true;
+                repairAccepted =
+                  true;
+                cacheApplied =
+                  true;
+
+                logger.info(
+                  "Applied cached targeted flashcard repair",
+                  {
+                    noteId,
+                    providerCallAvoided:
+                      true,
+                    acceptedCount:
+                      pairs.length,
+                  },
+                );
+              }
+            } catch (error) {
+              logger.warn(
+                "Cached flashcard repair failed validation; invalidating cache entry",
+                {
+                  noteId,
+                  error:
+                    error instanceof Error
+                      ? error.message
+                      : String(error),
+                },
+              );
+            }
+
+            if (!cacheApplied) {
+              await invalidateCachedRepair(
+                cacheDescriptor,
+              );
+            }
+          }
+        }
+
+        if (!cacheApplied) {
+          repairAttempted =
+            Boolean(grounding);
+
+          const ai =
+            await generateCardsViaAI(
+              note.title,
+              aiSource,
+              sufficiency.requestedAIAdditions,
+              userId,
+              noteId,
+            );
+
+          const combinedPairs =
+            deduplicateCards([
+              ...pairs,
+              ...ai.cards,
+            ]).slice(0, count);
+          const validatedPairs =
+            validateGroundedCards(
+              noteId,
+              combinedPairs,
+              grounding,
+            );
+          const acceptedAIContent =
+            validatedPairs.length >
+            pairs.length;
+
+          pairs = validatedPairs;
+          tokensUsed = ai.tokensUsed;
+
+          if (acceptedAIContent) {
+            source =
+              symbolicCount > 0
+                ? "hybrid"
+                : "ai_fallback";
+            aiFallbackUsed = true;
+            repairAccepted =
+              Boolean(grounding);
+
+            if (
+              cacheDescriptor &&
+              grounding
+            ) {
+              await saveCachedRepair(
+                cacheDescriptor,
+                {
+                  flashcards:
+                    ai.cards,
+                },
+              );
+            }
+          }
         }
       } catch (error) {
         logger.warn(
@@ -499,6 +643,40 @@ export async function generateFlashcardsWithMetadata(
       sufficiency.minimumAcceptableCount
       ? "ready"
       : "partial";
+
+  if (
+    grounding &&
+    sufficiency.needsAI
+  ) {
+    repairAccepted =
+      repairAccepted &&
+      entities.length >
+        symbolicCount;
+
+    await recordRepairTelemetry({
+      noteId,
+      userId,
+      feature:
+        "flashcards",
+      strategyVersion:
+        repairStrategyVersion,
+      repairNeeded: true,
+      repairAttempted,
+      repairCacheHit,
+      repairAccepted,
+      providerCallAvoided:
+        repairCacheHit &&
+        repairAccepted &&
+        !repairAttempted,
+      evidenceCharacters:
+        repairEvidenceCharacters,
+      tokensUsed,
+      gapCodes: [
+        `TARGET_SHORTFALL_${sufficiency.targetShortfall}`,
+        `MINIMUM_ACCEPTABLE_${sufficiency.minimumAcceptableCount}`,
+      ],
+    });
+  }
 
   logger.info("Flashcards generated", {
     noteId,
