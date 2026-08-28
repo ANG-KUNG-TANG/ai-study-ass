@@ -22,7 +22,7 @@
     "worker:pdf": "tsx src/server/workers/pdf-ingestion.worker.ts"
   },
   "dependencies": {
-    "@google/genai": "^2.10.0",
+    "@google/genai": "^2.18.0",
     "@napi-rs/canvas": "^0.1.80",
     "@xyflow/react": "^12.11.2",
     "bcryptjs": "^3.0.3",
