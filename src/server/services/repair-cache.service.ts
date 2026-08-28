@@ -66,6 +66,8 @@ export function buildRepairCacheDescriptor(
 
   const key = hash(
     [
+      input.userId,
+      input.noteId,
       input.feature,
       sourceFingerprint,
       variantFingerprint,
