@@ -4,6 +4,7 @@ import {
 import {
   buildSelectiveOcrPlan,
   mergeRecoveredPages,
+  shouldAcceptSelectiveOcrRecovery,
 } from "@/server/services/ocr/selective-ocr.service";
 
 function healthyText(
@@ -13,6 +14,23 @@ function healthyText(
     `${label} explains a reliable networking concept with enough readable ` +
     "detail to support study generation, validation, examples, and review."
   ).repeat(4);
+}
+
+function extractionReport(input: {
+  pages: Array<{
+    pageNumber: number;
+    rawText: string;
+  }>;
+  pageCount: number;
+}) {
+  return assessExtractionQuality({
+    fileType: "pdf",
+    content: input.pages
+      .map((page) => page.rawText)
+      .join("\n\n"),
+    pageCount: input.pageCount,
+    pages: input.pages,
+  });
 }
 
 describe(
@@ -190,6 +208,157 @@ describe(
           3,
           4,
         ]);
+      },
+    );
+
+    it(
+      "probes sparse pages in an otherwise good image-heavy PDF",
+      () => {
+        const pages = [
+          {
+            pageNumber: 1,
+            rawText:
+              healthyText("Text-heavy first page").slice(0, 320),
+          },
+          {
+            pageNumber: 2,
+            rawText:
+              "Configure the FTP server and review the screenshot below.",
+          },
+          {
+            pageNumber: 3,
+            rawText:
+              "FTP server configuration text. Delete FTP. Router interface brief is shown below.",
+          },
+          {
+            pageNumber: 4,
+            rawText:
+              "Ping from PC 0 is shown in the screenshot below.",
+          },
+        ];
+        const report =
+          extractionReport({
+            pages,
+            pageCount: 4,
+          });
+
+        expect(report.status).toBe("good");
+        expect(
+          report.metrics.averageCharsPerPage,
+        ).toBeGreaterThanOrEqual(120);
+
+        const plan =
+          buildSelectiveOcrPlan({
+            report,
+            pages,
+            pageCount: 4,
+          });
+
+        expect(plan.action).toBe("ocr");
+        expect(plan.reason).toBe(
+          "sparse_image_heavy_probe",
+        );
+        expect(plan.pageNumbers).toEqual([
+          2,
+          3,
+          4,
+        ]);
+      },
+    );
+
+    it(
+      "does not probe one sparse title page in an otherwise text-rich PDF",
+      () => {
+        const pages = [
+          {
+            pageNumber: 1,
+            rawText: "Course title and author",
+          },
+          ...[2, 3, 4, 5].map(
+            (pageNumber) => ({
+              pageNumber,
+              rawText: healthyText(
+                `Text-rich page ${pageNumber}`,
+              ),
+            }),
+          ),
+        ];
+        const report =
+          extractionReport({
+            pages,
+            pageCount: 5,
+          });
+
+        expect(report.status).toBe("good");
+
+        const plan =
+          buildSelectiveOcrPlan({
+            report,
+            pages,
+            pageCount: 5,
+          });
+
+        expect(plan.action).toBe("skip");
+        expect(plan.reason).toBe(
+          "native_extraction_usable",
+        );
+      },
+    );
+
+    it(
+      "accepts page-level OCR enrichment when the global score stays at 100",
+      () => {
+        const nativeReport =
+          extractionReport({
+            pageCount: 4,
+            pages: [
+              { pageNumber: 1, rawText: healthyText("Page one") },
+              { pageNumber: 2, rawText: "FTP screenshot caption" },
+              { pageNumber: 3, rawText: "Router screenshot caption" },
+              { pageNumber: 4, rawText: "Ping screenshot caption" },
+            ],
+          });
+        const recoveredReport = {
+          ...nativeReport,
+          score: nativeReport.score,
+        };
+
+        expect(nativeReport.score).toBe(100);
+        expect(
+          shouldAcceptSelectiveOcrRecovery({
+            nativeReport,
+            recoveredReport,
+            improvedPageNumbers: [2, 3, 4],
+          }),
+        ).toBe(true);
+      },
+    );
+
+    it(
+      "rejects OCR enrichment when page text improves but global quality regresses",
+      () => {
+        const nativeReport =
+          extractionReport({
+            pageCount: 4,
+            pages: [
+              { pageNumber: 1, rawText: healthyText("Page one") },
+              { pageNumber: 2, rawText: "FTP screenshot caption" },
+              { pageNumber: 3, rawText: "Router screenshot caption" },
+              { pageNumber: 4, rawText: "Ping screenshot caption" },
+            ],
+          });
+        const recoveredReport = {
+          ...nativeReport,
+          score: 89,
+        };
+
+        expect(
+          shouldAcceptSelectiveOcrRecovery({
+            nativeReport,
+            recoveredReport,
+            improvedPageNumbers: [2],
+          }),
+        ).toBe(false);
       },
     );
 

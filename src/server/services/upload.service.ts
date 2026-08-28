@@ -23,6 +23,7 @@ import {
 import {
   buildSelectiveOcrPlan,
   recoverPdfPagesWithSelectiveOcr,
+  shouldAcceptSelectiveOcrRecovery,
 } from "@/server/services/ocr/selective-ocr.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -274,6 +275,8 @@ export async function processUpload(
             ocrPlan.pageNumbers,
           requestedPageCount:
             ocrPlan.pageNumbers.length,
+          ocrPlanReason:
+            ocrPlan.reason,
         },
       );
 
@@ -300,16 +303,14 @@ export async function processUpload(
               bounded.pages,
           });
         const improved =
-          recovery.recoveredPageNumbers.length >
-            0 &&
-          (
-            recoveredQuality.score >
-              extractionQuality.score ||
-            (
-              !extractionQuality.usable &&
-              recoveredQuality.usable
-            )
-          );
+          shouldAcceptSelectiveOcrRecovery({
+            nativeReport:
+              extractionQuality,
+            recoveredReport:
+              recoveredQuality,
+            improvedPageNumbers:
+              recovery.improvedPageNumbers,
+          });
 
         if (improved) {
           content =
@@ -330,6 +331,8 @@ export async function processUpload(
                 recovery.attemptedPageNumbers,
               recoveredPages:
                 recovery.recoveredPageNumbers,
+              improvedPages:
+                recovery.improvedPageNumbers,
               failedPages:
                 recovery.failedPageNumbers,
               recoveredQualityScore:
