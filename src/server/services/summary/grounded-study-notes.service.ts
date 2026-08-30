@@ -1,13 +1,33 @@
 import type {
   AtomicFact,
   GroundedKnowledge,
-  SectionCoverage,
 } from "@/server/intelligence/grounding";
 import type { ReliableDocumentProfile } from "@/server/intelligence/reliability/types";
+import {
+  buildSemanticEvidenceMap,
+} from "@/server/intelligence/semantic-evidence";
 import { NOTE_RULES } from "@/server/entities/note.entity";
 import type { SummaryMode } from "@/types/summary";
+import {
+  isActionableSummaryWarningFact,
+  isMeaningfulSummaryNumberFact,
+  isSummaryCautionHeading,
+  isSummaryHeadlineTextEligible,
+  selectSummaryConcepts,
+  selectSummaryKeyTerms,
+} from "@/server/services/summary/summary-learning-structure.service";
+import {
+  buildLearningEvidenceProfile,
+  factLearningUtilityScore,
+  type LearningEvidenceRole,
+} from "@/server/services/quality/learning-evidence.service";
+import {
+  buildSummaryLearningTopics,
+  isSummaryTopicPointUseful,
+  type SummaryLearningTopic,
+} from "@/server/services/summary/summary-topic-learning.service";
 
-export const STUDY_NOTES_VERSION = "v2.5" as const;
+export const STUDY_NOTES_VERSION = "v3.0" as const;
 
 export function getStudyNotesVersionMarker(
   mode: SummaryMode = "comprehensive",
@@ -34,12 +54,14 @@ interface BuildMarkdownOptions {
 
 interface StudyNotesModeProfile {
   overviewLimit: number;
-  keyPointLimit: number;
+  topicLimit: number;
+  pointsPerTopic: number;
   takeawayLimit: number;
   conceptLimit: number;
   keyTermLimit: number;
   numberLimit: number;
   warningLimit: number;
+  procedureLimit: number;
   sectionLimit: number;
   factsPerSection: number;
 }
@@ -47,35 +69,41 @@ interface StudyNotesModeProfile {
 const MODE_PROFILES: Record<SummaryMode, StudyNotesModeProfile> = {
   concise: {
     overviewLimit: 2,
-    keyPointLimit: 5,
+    topicLimit: 5,
+    pointsPerTopic: 4,
     takeawayLimit: 3,
     conceptLimit: 8,
     keyTermLimit: 6,
     numberLimit: 5,
     warningLimit: 4,
-    sectionLimit: 8,
+    procedureLimit: 5,
+    sectionLimit: 6,
     factsPerSection: 2,
   },
   comprehensive: {
     overviewLimit: 3,
-    keyPointLimit: 8,
+    topicLimit: 10,
+    pointsPerTopic: 6,
     takeawayLimit: 5,
     conceptLimit: 16,
     keyTermLimit: 16,
     numberLimit: 12,
     warningLimit: 10,
-    sectionLimit: Number.POSITIVE_INFINITY,
-    factsPerSection: 24,
+    procedureLimit: 10,
+    sectionLimit: 12,
+    factsPerSection: 6,
   },
   exam: {
     overviewLimit: 2,
-    keyPointLimit: 10,
+    topicLimit: 8,
+    pointsPerTopic: 6,
     takeawayLimit: 5,
     conceptLimit: 12,
     keyTermLimit: 12,
     numberLimit: 10,
     warningLimit: 8,
-    sectionLimit: 12,
+    procedureLimit: 7,
+    sectionLimit: 8,
     factsPerSection: 4,
   },
 };
@@ -88,51 +116,56 @@ export function buildGroundedStudyNotes(
 ): GroundedStudyNotesResult {
   const mode = options.mode ?? "comprehensive";
   const modeProfile = MODE_PROFILES[mode];
-  const supportedFacts = grounding.facts.filter(
+  const learningProfile = buildLearningEvidenceProfile(grounding);
+  const supportedFacts = learningProfile.facts.filter(
     (fact) => fact.verificationStatus === "supported",
   );
-  const uniqueSupportedFacts = uniqueFacts(supportedFacts);
-  const factsById = new Map(supportedFacts.map((fact) => [fact.id, fact]));
-  const allVisibleSections = grounding.sections.filter(
-    (section) => ["covered", "no_extractable_knowledge"].includes(section.status),
+  const cautionSectionIds = new Set(
+    grounding.sections
+      .filter((section) => isSummaryCautionHeading(section.heading))
+      .map((section) => section.sectionId),
   );
-  const visibleSections = selectModeSections(
-    allVisibleSections,
+  const isExplicitCautionFact = (fact: AtomicFact): boolean =>
+    ["warning", "common_mistake", "limitation"].includes(fact.type);
+  const uniqueSupportedFacts = uniqueFacts(
+    supportedFacts.filter((fact) => learningProfile.rolesByFactId.get(fact.id) !== "example"),
+  );
+  const factsById = new Map(
+    uniqueSupportedFacts.map((fact) => [fact.id, fact]),
+  );
+  const semanticMap = buildSemanticEvidenceMap({
+    sections: learningProfile.sections,
+    facts: uniqueSupportedFacts,
+    concepts: learningProfile.concepts,
+    keyTerms: learningProfile.keyTerms,
+    documentTitle: profile?.title.value ?? fallbackTitle,
+  });
+  const summaryTopics = buildSummaryLearningTopics({
+    sections: learningProfile.sections,
     factsById,
+    concepts: learningProfile.concepts,
+    keyTerms: learningProfile.keyTerms,
+    rolesByFactId: learningProfile.rolesByFactId,
+    semanticMap,
     mode,
-    modeProfile.sectionLimit,
-  );
+    topicLimit: modeProfile.topicLimit,
+    pointsPerTopic: modeProfile.pointsPerTopic,
+    documentTitle: profile?.title.value ?? fallbackTitle,
+  });
 
-  const overviewFacts = selectDiverseFacts(
-    uniqueSupportedFacts.filter(isNarrativeFact),
-    ["objective", "claim", "relationship", "definition"],
+  const overviewFacts = selectTopicOverviewFacts(
+    summaryTopics,
+    uniqueSupportedFacts,
     modeProfile.overviewLimit,
+    learningProfile.rolesByFactId,
+    semanticMap,
   );
-  const keyPointPredicate = mode === "exam"
-    ? isExamFocusFact
-    : isKeyPointFact;
-  const keyPointPriority: AtomicFact["type"][] = mode === "exam"
-    ? [
-        "definition",
-        "objective",
-        "rule",
-        "condition",
-        "formula",
-        "number",
-        "result",
-        "relationship",
-        "warning",
-        "common_mistake",
-        "claim",
-      ]
-    : ["rule", "condition", "result", "relationship", "claim", "number"];
-  const keyPointFacts = selectDiverseFacts(
-    uniqueSupportedFacts.filter(keyPointPredicate),
-    keyPointPriority,
-    modeProfile.keyPointLimit,
-  );
+  const topicFacts = summaryTopics.flatMap((topic) => [
+    topic.explanation,
+    ...topic.keyPoints,
+  ]);
   const reservedTakeawayKeys = new Set(
-    [...overviewFacts, ...keyPointFacts].map((fact) => normalise(fact.content)),
+    [...overviewFacts, ...topicFacts].map((fact) => normalise(fact.content)),
   );
   const takeawayFacts = selectTakeawayFacts(
     uniqueSupportedFacts.filter(
@@ -141,54 +174,72 @@ export function buildGroundedStudyNotes(
         isTakeawayFact(fact),
     ),
     modeProfile.takeawayLimit,
+    semanticMap,
   );
   const numberFacts = selectFacts(
-    uniqueSupportedFacts.filter((fact) =>
-      ["number", "result", "formula"].includes(fact.type),
-    ),
+    uniqueSupportedFacts.filter(isMeaningfulSummaryNumberFact),
     ["result", "formula", "number"],
     modeProfile.numberLimit,
   );
+  const sectionHeadingById = new Map(
+    grounding.sections.map((section) => [section.sectionId, section.heading]),
+  );
   const warningFacts = selectFacts(
-    uniqueSupportedFacts.filter((fact) =>
-      ["warning", "common_mistake", "limitation"].includes(fact.type),
-    ),
+    uniqueSupportedFacts
+      .filter((fact) =>
+        isExplicitCautionFact(fact) ||
+        cautionSectionIds.has(fact.sourceSectionId),
+      )
+      .map((fact) =>
+        cautionSectionIds.has(fact.sourceSectionId) &&
+          !isExplicitCautionFact(fact)
+          ? { ...fact, type: "common_mistake" as const }
+          : fact,
+      )
+      .filter((fact) =>
+        isActionableSummaryWarningFact(
+          fact,
+          sectionHeadingById.get(fact.sourceSectionId) ?? "",
+        ),
+      ),
     ["limitation", "warning", "common_mistake"],
     modeProfile.warningLimit,
   );
-  const importantConcepts = grounding.concepts
-    .slice(0, modeProfile.conceptLimit)
-    .map((concept) => concept.name);
+  const summaryConcepts = selectSummaryConcepts(
+    learningProfile.concepts,
+    modeProfile.conceptLimit,
+  );
+  const importantConcepts = summaryConcepts.map((concept) => concept.name);
+  const summaryKeyTerms = selectSummaryKeyTerms(
+    learningProfile.keyTerms,
+    modeProfile.keyTermLimit,
+  );
   const title = cleanHeading(profile?.title.value ?? fallbackTitle);
 
   const render = (options: BuildMarkdownOptions): string => {
-    const sectionNotes = visibleSections
-      .map((section) => renderSection(section, factsById, options))
-      .filter(Boolean)
-      .join("\n\n");
+    const renderedTopics = renderLearningTopics(
+      summaryTopics,
+      options.factsPerSection,
+      options.compactSections,
+    );
 
     return [
       `# ${title}`,
       getStudyNotesVersionMarker(mode),
       "## Overview",
-      renderOverview(overviewFacts, title),
-      keyPointFacts.length > 0 ? "## Key Points" : "",
-      renderFactList(keyPointFacts),
-      importantConcepts.length > 0 ? "## Main Concepts" : "",
-      importantConcepts.map((concept) => `- ${concept}`).join("\n"),
-      grounding.keyTerms.length > 0 ? "## Key Terms" : "",
-      grounding.keyTerms
-        .slice(0, modeProfile.keyTermLimit)
+      renderOverviewList(overviewFacts, title),
+      renderedTopics ? "## Study Topics" : "",
+      renderedTopics,
+      summaryKeyTerms.length > 0 ? "## Key Terms" : "",
+      summaryKeyTerms
         .map((term) =>
           `- **${term.term}:** ${term.definition}${pageLabel(term.evidence[0]?.pageNumber)}`,
         )
         .join("\n"),
       numberFacts.length > 0 ? "## Important Numbers, Formulas and Results" : "",
       renderFactList(numberFacts),
-      warningFacts.length > 0 ? "## Limitations, Warnings and Common Mistakes" : "",
-      renderFactList(warningFacts),
-      sectionNotes ? "## Section Notes" : "",
-      sectionNotes,
+      warningFacts.length > 0 ? "## Important Warnings and Notes" : "",
+      renderWarningList(warningFacts),
       takeawayFacts.length > 0 ? "## Key Takeaways" : "",
       renderTakeawayList(takeawayFacts),
     ]
@@ -220,9 +271,17 @@ export function buildGroundedStudyNotes(
     );
   }
 
+  const compatibilityKeyPoints = uniqueFacts(
+    topicFacts.filter(
+      (fact) =>
+        !isExplicitCautionFact(fact) &&
+        !cautionSectionIds.has(fact.sourceSectionId),
+    ),
+  ).map((fact) => fact.content);
+
   return {
     summary,
-    keyPoints: keyPointFacts.map((fact) => fact.content),
+    keyPoints: compatibilityKeyPoints,
     importantConcepts,
     confidence: grounding.quality.score,
     status: grounding.quality.passed ? "ready" : "partial",
@@ -230,41 +289,82 @@ export function buildGroundedStudyNotes(
   };
 }
 
-function renderSection(
-  section: SectionCoverage,
-  factsById: Map<string, AtomicFact>,
-  options: BuildMarkdownOptions,
-): string {
-  const facts = section.factIds
-    .map((id) => factsById.get(id))
-    .filter((fact): fact is AtomicFact => Boolean(fact))
-    .slice(0, options.factsPerSection);
+function selectTopicOverviewFacts(
+  topics: SummaryLearningTopic[],
+  fallbackFacts: AtomicFact[],
+  limit: number,
+  rolesByFactId: Map<string, LearningEvidenceRole>,
+  semanticMap: ReturnType<typeof buildSemanticEvidenceMap>,
+): AtomicFact[] {
+  const topicExplanations = [...topics]
+    .sort((left, right) => right.score - left.score)
+    .map((topic) => topic.explanation)
+    .filter((fact) =>
+      isSummaryHeadlineTextEligible(fact.content) &&
+      isSummaryTopicPointUseful(fact.content) &&
+      !/^(?:my|our|your|i|we|you|they|someone|there|this|that|these|those)\b/iu.test(
+        fact.content.trim(),
+      ),
+    );
 
-  if (facts.length === 0) {
-    return section.status === "no_extractable_knowledge"
-      ? `### ${cleanHeading(section.heading)}${formatPageRange(section.pageStart, section.pageEnd)}`
-      : "";
+  if (topicExplanations.length > 0) {
+    return uniqueFacts(topicExplanations).slice(0, limit);
   }
 
-  const pageRange = formatPageRange(section.pageStart, section.pageEnd);
-  const heading = `### ${cleanHeading(section.heading)}${pageRange}`;
-
-  if (!options.compactSections) {
-    return `${heading}\n${renderSectionFactList(facts)}`;
-  }
-
-  const compactFact = shorten(facts[0].content, 190);
-  return `${heading}\n- ${compactFact}`;
+  return selectLearningDiverseFacts(
+    fallbackFacts.filter((fact) => {
+      const unit = semanticMap.unitsByFactId.get(fact.id);
+      return Boolean(
+        unit?.explanationEligible &&
+        !["metadata", "narrative", "transition", "exercise", "example"].includes(unit.role) &&
+        !["procedure_step", "number", "warning", "common_mistake", "limitation"].includes(fact.type) &&
+        isSummaryHeadlineTextEligible(fact.content)
+      );
+    }),
+    limit,
+    rolesByFactId,
+  );
 }
 
-function renderOverview(facts: AtomicFact[], title: string): string {
+function renderOverviewList(facts: AtomicFact[], title: string): string {
   if (facts.length === 0) {
-    return `These notes organise the verified knowledge extracted from ${title}.`;
+    return `- Focus: verified learning topics from ${title}.`;
   }
 
   return facts
-    .map((fact) => formatOverviewFact(fact.content))
-    .join(" ");
+    .map((fact) => `- ${formatOverviewFact(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`)
+    .join("\n");
+}
+
+function renderLearningTopics(
+  topics: SummaryLearningTopic[],
+  pointsPerTopic: number,
+  compact: boolean,
+): string {
+  return topics
+    .map((topic) => {
+      const explanation = shorten(
+        stripTrailingListPunctuation(topic.explanation.content),
+        compact ? 150 : 220,
+      );
+      const points = topic.keyPoints
+        .slice(0, pointsPerTopic)
+        .map((fact) =>
+          `- ${stripTrailingListPunctuation(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`,
+        )
+        .join("\n");
+      const explanationPage = pageLabel(topic.explanation.evidence[0]?.pageNumber);
+
+      return [
+        `### ${topic.heading}`,
+        `**Simple explanation:** ${explanation}${explanationPage}`,
+        "**Important key points:**",
+        points,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
 }
 
 function formatOverviewFact(value: string): string {
@@ -291,38 +391,22 @@ function renderFactList(
     .join("\n");
 }
 
-function renderSectionFactList(facts: AtomicFact[]): string {
-  let hasOpenParent = false;
-
-  return facts
-    .map((fact) => {
-      const content = fact.content.trim();
-
-      if (content.endsWith(":")) {
-        hasOpenParent = true;
-        return `- ${content}`;
-      }
-
-      if (hasOpenParent && isListLikeChild(content)) {
-        return `  - ${content}`;
-      }
-
-      hasOpenParent = false;
-      return `- ${content}`;
-    })
-    .join("\n");
-}
-
-function isListLikeChild(value: string): boolean {
-  return value.endsWith("?") ||
-    (!/[.!]$/.test(value) && value.length <= 140);
-}
-
 function renderTakeawayList(facts: AtomicFact[]): string {
   return facts
     .map((fact) =>
       `- ${formatTakeaway(fact)}${pageLabel(fact.evidence[0]?.pageNumber)}`,
     )
+    .join("\n");
+}
+
+function renderWarningList(facts: AtomicFact[]): string {
+  return facts
+    .map((fact) => {
+      const content = fact.type === "common_mistake"
+        ? formatTakeaway(fact)
+        : stripTrailingListPunctuation(fact.content);
+      return `- ${content}${pageLabel(fact.evidence[0]?.pageNumber)}`;
+    })
     .join("\n");
 }
 
@@ -406,71 +490,77 @@ function selectDiverseFacts(
   return selected;
 }
 
+function selectLearningDiverseFacts(
+  facts: AtomicFact[],
+  limit: number,
+  rolesByFactId: Map<string, LearningEvidenceRole>,
+  typePriority: AtomicFact["type"][] = [
+    "definition",
+    "relationship",
+    "objective",
+    "rule",
+    "condition",
+    "result",
+    "formula",
+    "claim",
+    "number",
+  ],
+): AtomicFact[] {
+  const priority = new Map(typePriority.map((type, index) => [type, index]));
+  const ranked = [...facts]
+    .filter((fact) => priority.has(fact.type))
+    .sort((left, right) => {
+      const leftRole = rolesByFactId.get(left.id) ?? "supporting";
+      const rightRole = rolesByFactId.get(right.id) ?? "supporting";
+      return (
+        factLearningUtilityScore(right, rightRole) - factLearningUtilityScore(left, leftRole) ||
+        (priority.get(left.type) ?? 99) - (priority.get(right.type) ?? 99)
+      );
+    });
+  const selected: AtomicFact[] = [];
+  const sectionCounts = new Map<string, number>();
+
+  for (const fact of ranked) {
+    if ((sectionCounts.get(fact.sourceSectionId) ?? 0) >= 1) continue;
+    selected.push(fact);
+    sectionCounts.set(fact.sourceSectionId, 1);
+    if (selected.length >= limit) return selected;
+  }
+  for (const fact of ranked) {
+    if (selected.some((item) => item.id === fact.id)) continue;
+    if ((sectionCounts.get(fact.sourceSectionId) ?? 0) >= 2) continue;
+    selected.push(fact);
+    sectionCounts.set(fact.sourceSectionId, (sectionCounts.get(fact.sourceSectionId) ?? 0) + 1);
+    if (selected.length >= limit) break;
+  }
+  return selected;
+}
+
 function selectTakeawayFacts(
   facts: AtomicFact[],
   limit: number,
+  semanticMap: ReturnType<typeof buildSemanticEvidenceMap>,
 ): AtomicFact[] {
-  const ranked = selectDiverseFacts(
-    facts,
+  return selectDiverseFacts(
+    facts.filter((fact) => {
+      const unit = semanticMap.unitsByFactId.get(fact.id);
+      return Boolean(
+        unit?.pointEligible &&
+        !["metadata", "narrative", "transition", "exercise", "example"].includes(unit.role) &&
+        isTakeawayFact(fact)
+      );
+    }),
     [
       "objective",
+      "rule",
       "relationship",
-      "procedure_step",
       "condition",
-      "common_mistake",
-      "warning",
-      "limitation",
+      "result",
+      "definition",
       "claim",
     ],
-    facts.length,
+    limit,
   );
-  const isCaution = (fact: AtomicFact): boolean =>
-    ["warning", "common_mistake", "limitation"].includes(fact.type);
-  const caution = ranked.find(isCaution);
-  const selected = caution ? [caution] : [];
-
-  for (const fact of ranked) {
-    if (isCaution(fact)) continue;
-
-    selected.push(fact);
-    if (selected.length >= limit) break;
-  }
-
-  const order = new Map(ranked.map((fact, index) => [fact.id, index]));
-  return selected.sort(
-    (left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0),
-  );
-}
-
-function selectModeSections(
-  sections: SectionCoverage[],
-  factsById: Map<string, AtomicFact>,
-  mode: SummaryMode,
-  limit: number,
-): SectionCoverage[] {
-  if (!Number.isFinite(limit) || sections.length <= limit) return sections;
-
-  const candidates = mode === "exam"
-    ? sections.filter((section) =>
-        section.factIds.some((id) => {
-          const fact = factsById.get(id);
-          return fact ? isExamFocusFact(fact) : false;
-        }),
-      )
-    : sections;
-  const source = candidates.length > 0 ? candidates : sections;
-
-  if (source.length <= limit) return source;
-  if (limit <= 1) return [source[0]];
-
-  const selectedIndexes = new Set<number>();
-  for (let index = 0; index < limit; index += 1) {
-    selectedIndexes.add(
-      Math.round((index * (source.length - 1)) / (limit - 1)),
-    );
-  }
-
-  return source.filter((_, index) => selectedIndexes.has(index));
 }
 
 function uniqueFacts(facts: AtomicFact[]): AtomicFact[] {
@@ -483,88 +573,35 @@ function uniqueFacts(facts: AtomicFact[]): AtomicFact[] {
   });
 }
 
-function isNarrativeFact(fact: AtomicFact): boolean {
-  const value = fact.content.trim();
-  if (value.length < 28) return false;
-  if (/^(?:project name|team members|course:|date|system purpose|problem summary|stakeholders|system scope)$/i.test(value)) {
-    return false;
-  }
-
-  return /\b(?:is|are|was|were|must|should|needs?|allows?|ensures?|explains?|shows?|confirms?|demonstrates?|transforms?|reflects?|represents?|includes?|contains?|provides?|requires?|communicates?)\b/i.test(value) ||
-    /[.!?]$/.test(value);
-}
-
-function isKeyPointFact(fact: AtomicFact): boolean {
-  const value = fact.content.trim();
-  if (value.length < 22 || value.endsWith(":") || value.endsWith("?")) return false;
-  if (/^[“”"']/.test(value)) return false;
-  if (/^(?:key\s+)?(?:functional requirements|non-functional requirements|business rules|constraints|assumptions|project name|team members|system purpose|purpose of the system)$/i.test(value)) {
-    return false;
-  }
-
-  return isNarrativeFact(fact) ||
-    ["result", "rule", "condition", "relationship"].includes(fact.type);
-}
-
-function isExamFocusFact(fact: AtomicFact): boolean {
-  const value = fact.content.trim();
+function isTakeawayFact(fact: AtomicFact): boolean {
+  const value = fact.content.normalize("NFKC").replace(/\s+/gu, " ").trim();
 
   if (
-    value.length < 18 ||
+    value.length < 28 ||
     value.endsWith(":") ||
-    /^(?:project name|team members|course:|date|system purpose|problem summary|stakeholders|system scope)$/i.test(
-      value,
-    )
+    value.endsWith("?") ||
+    ["warning", "common_mistake", "limitation", "procedure_step", "example"].includes(fact.type)
   ) {
     return false;
   }
 
+  if (
+    /^(?:i|we|my|our|you|your|they|someone|there|this\s+book|the\s+goal|the\s+questions?|let(?:'|’)s|now|then|later|eventually|notice|try|imagine|suppose)\b/iu.test(value)
+  ) {
+    return false;
+  }
+
+  if (!isSummaryTopicPointUseful(value)) return false;
+
   return [
-    "definition",
     "objective",
     "rule",
+    "relationship",
     "condition",
-    "formula",
-    "number",
     "result",
-    "relationship",
-    "warning",
-    "common_mistake",
-    "limitation",
-  ].includes(fact.type) || isNarrativeFact(fact);
-}
-
-function isTakeawayFact(fact: AtomicFact): boolean {
-  const value = fact.content.trim();
-
-  if (value.endsWith(":") || value.endsWith("?")) return false;
-
-  if (
-    /^(?:purpose of the system|system purpose|use case list|use case diagram|domain model|project name|problem summary|stakeholders|system scope)$/i.test(
-      value,
-    )
-  ) {
-    return false;
-  }
-
-  if (fact.type === "common_mistake") {
-    return value.length >= 18;
-  }
-
-  if (value.length < 32 || !isNarrativeFact(fact)) return false;
-
-  return [
-    "objective",
-    "procedure_step",
-    "warning",
-    "common_mistake",
-    "limitation",
-    "condition",
-    "relationship",
+    "definition",
   ].includes(fact.type) ||
-    /\b(?:must|should|ensure|avoid|confirm|validate|invite|demonstrate|communicate|align|prevent|explain|show)\b/i.test(
-      value,
-    );
+    (fact.type === "claim" && fact.importanceScore >= 0.9);
 }
 
 function cleanHeading(value: string): string {
@@ -591,12 +628,6 @@ function uppercaseFirst(value: string): string {
   return value.length > 0
     ? `${value[0].toLocaleUpperCase()}${value.slice(1)}`
     : value;
-}
-
-function formatPageRange(start?: number, end?: number): string {
-  if (!start) return "";
-  if (!end || start === end) return ` (p. ${start})`;
-  return ` (pp. ${start}-${end})`;
 }
 
 function pageLabel(page?: number): string {

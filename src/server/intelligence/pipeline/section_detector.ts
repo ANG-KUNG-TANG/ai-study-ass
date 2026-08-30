@@ -5,6 +5,10 @@ import type {
   SectionTitle,
   SemanticSectionRole,
 } from "./types";
+import {
+  cleanStudyAnalysisText,
+  normaliseStudySections,
+} from "./source-hygiene";
 
 interface HeadingCandidate {
   line: string;
@@ -29,7 +33,10 @@ export function detectSections(doc: CleanedDocument): SectionedDocument {
       rawHeading: "Document",
       level: 1,
       body: doc.displayText,
-      analysisBody: doc.analysisText,
+      analysisBody:
+        cleanStudyAnalysisText(
+          doc.analysisText,
+        ),
       startOffset: 0,
       endOffset: doc.displayText.length,
       ...estimatePages(doc, 0, doc.displayText.length),
@@ -46,7 +53,12 @@ export function detectSections(doc: CleanedDocument): SectionedDocument {
           rawHeading: "Preamble",
           level: 1,
           body: preamble,
-          analysisBody: stripCitationNoise(preamble),
+          analysisBody:
+            cleanStudyAnalysisText(
+              stripCitationNoise(
+                preamble,
+              ),
+            ),
           startOffset: 0,
           endOffset: first.startOffset,
           ...estimatePages(doc, 0, first.startOffset),
@@ -70,7 +82,12 @@ export function detectSections(doc: CleanedDocument): SectionedDocument {
         headingNumber: candidate.number,
         level: candidate.level,
         body,
-        analysisBody: stripCitationNoise(body),
+        analysisBody:
+          cleanStudyAnalysisText(
+            stripCitationNoise(
+              body,
+            ),
+          ),
         startOffset: candidate.startOffset,
         endOffset: bodyEnd,
         ...estimatePages(doc, candidate.startOffset, bodyEnd),
@@ -78,13 +95,30 @@ export function detectSections(doc: CleanedDocument): SectionedDocument {
     });
   }
 
+  const studySections =
+    normaliseStudySections(
+      sections,
+    );
+
   return {
     ...doc,
-    sections,
-    hasAbstract: sections.some((section) => section.title === "abstract"),
-    hasMethodology: sections.some((section) =>
-      ["methodology", "experiments"].includes(section.title),
-    ),
+    sections: studySections,
+    hasAbstract:
+      studySections.some(
+        (section) =>
+          section.title ===
+          "abstract",
+      ),
+    hasMethodology:
+      studySections.some(
+        (section) =>
+          [
+            "methodology",
+            "experiments",
+          ].includes(
+            section.title,
+          ),
+      ),
   };
 }
 

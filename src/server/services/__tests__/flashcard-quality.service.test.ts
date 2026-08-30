@@ -199,6 +199,7 @@ describe("flashcard grounded quality validation", () => {
     ], grounding());
 
     expect(result.rejected).toHaveLength(0);
+    expect(result.contract.hardGatePassed).toBe(true);
     expect(result.accepted).toHaveLength(1);
   });
 

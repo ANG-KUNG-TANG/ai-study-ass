@@ -196,6 +196,7 @@ describe("quiz grounded quality validation", () => {
     });
 
     expect(result.rejected).toHaveLength(0);
+    expect(result.contract.hardGatePassed).toBe(true);
     expect(result.accepted[0]?.explanation).toBe(
       "The answer is supported by verified evidence on page 1.",
     );

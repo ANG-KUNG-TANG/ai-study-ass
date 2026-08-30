@@ -5,6 +5,11 @@ import type {
   StudyConcept,
 } from "./types";
 import { normaliseLine } from "./text-quality";
+import {
+  canonicalStudyConceptKey,
+  isStudyNoiseLine,
+  looksLikePersonName,
+} from "../pipeline/source-hygiene";
 
 const INVALID_CONCEPTS = new Set([
   "future",
@@ -32,6 +37,22 @@ const INVALID_CONCEPTS = new Set([
   "key points",
   "main concepts",
   "key takeaways",
+  "there",
+  "name",
+  "address",
+  "what",
+  "when",
+  "where",
+  "why",
+  "how",
+  "step 1",
+  "step 2",
+  "step 3",
+  "step 4",
+  "stage 1",
+  "stage 2",
+  "test 1",
+  "test 2",
 ]);
 
 const DOMAIN_CONCEPTS: Record<string, string[]> = {
@@ -86,7 +107,27 @@ const DOMAIN_CONCEPTS: Record<string, string[]> = {
   ],
 };
 
+const EXAMPLE_ONLY_EVIDENCE_RE =
+  /(?:^(?:for example|for instance)\b|\b(?:used (?:here )?only as an example|is (?:used )?(?:here )?only as an example|is (?:only )?an example of|serves? as an example|example only)\b)/iu;
+
+const KNOWN_TECHNICAL_ACRONYMS = new Set([
+  "ai", "api", "cpu", "css", "csv", "dbms", "dhcp", "dns", "ftp",
+  "gpu", "html", "http", "https", "ip", "irr", "json", "lan", "ml",
+  "nlp", "npv", "ooad", "ooa", "ood", "os", "pdf", "ram", "rdbms",
+  "roc", "rom", "sql", "srs", "ssh", "ssl", "stp", "tcp", "tls",
+  "udp", "ui", "uml", "url", "ux", "vlan", "vpn", "wan", "xml",
+]);
+
 const ALIASES = new Map<string, string>([
+  ["ooad", "Object-Oriented Analysis and Design (OOAD)"],
+  ["ooa", "Object-Oriented Analysis (OOA)"],
+  ["objectoriented analysis", "Object-Oriented Analysis (OOA)"],
+  ["object oriented analysis", "Object-Oriented Analysis (OOA)"],
+  ["object-oriented analysis", "Object-Oriented Analysis (OOA)"],
+  ["ood", "Object-Oriented Design (OOD)"],
+  ["objectoriented design", "Object-Oriented Design (OOD)"],
+  ["object oriented design", "Object-Oriented Design (OOD)"],
+  ["object-oriented design", "Object-Oriented Design (OOD)"],
   ["npv", "Net Present Value (NPV)"],
   ["net present value", "Net Present Value (NPV)"],
   ["irr", "Internal Rate of Return (IRR)"],
@@ -108,17 +149,34 @@ function normalizeConcept(value: string): string {
 
 function canonicalConcept(value: string): string {
   const cleaned = normalizeConcept(value);
-  const alias = ALIASES.get(cleaned.toLowerCase());
+  const normalizedAliasKey = cleaned
+    .toLowerCase()
+    .replace(/\s*\((?:ooa|ood|npv|irr|roc)\)\s*$/i, "");
+  const alias = ALIASES.get(cleaned.toLowerCase()) ??
+    ALIASES.get(normalizedAliasKey);
   if (alias) return alias;
 
+  // Outside explicit aliases, preserve the source's meaningful casing.
+  // This avoids damaging product/technology names such as MongoDB and
+  // avoids changing natural labels such as "Redis queue" into title case.
   return cleaned
     .split(/\s+/)
-    .map((word) => {
-      if (/^(ai|ml|nlp|sql|api|tpr|fpr|ooad|srs|uml)$/i.test(word)) return word.toUpperCase();
-      if (/^(and|of|in|for|to|with)$/i.test(word)) return word.toLowerCase();
-      return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`;
-    })
+    .map((word) =>
+      KNOWN_TECHNICAL_ACRONYMS.has(word.toLowerCase()) || /^(tpr|fpr)$/i.test(word)
+        ? word.toUpperCase()
+        : word,
+    )
     .join(" ");
+}
+
+export function canonicalizeStudyConceptLabel(value: string): string {
+  return canonicalConcept(value);
+}
+
+export function isExampleOnlyConceptEvidence(value: string): boolean {
+  return EXAMPLE_ONLY_EVIDENCE_RE.test(
+    value.normalize("NFKC").replace(/\s+/gu, " ").trim(),
+  );
 }
 
 export function hasWeakReference(text: string): boolean {
@@ -132,15 +190,25 @@ export function isValidConcept(term: string): boolean {
   const words = normalized.split(/\s+/).filter(Boolean);
 
   return (
-    normalized.length >= 4 &&
+    (normalized.length >= 4 || KNOWN_TECHNICAL_ACRONYMS.has(normalized)) &&
     normalized.length <= 85 &&
     words.length <= 7 &&
     !INVALID_CONCEPTS.has(normalized) &&
     !hasWeakReference(normalized) &&
+    !isStudyNoiseLine(normalized) &&
+    !/^(?:figure\s+shows?|following\s+figure|example)$/i.test(normalized) &&
+    !/^in\s+(?:oop|object[- ]oriented\s+programming)\b/i.test(normalized) &&
+    !/\b(?:for example|for instance|example of|example only)\b/i.test(normalized) &&
+    !/[,;]/.test(normalized) &&
     !/^\d+(?:\.\d+)?%?$/.test(normalized) &&
     !/[.!?]/.test(normalized) &&
     !/^(year|page|table|figure)\s+\d+$/i.test(normalized) &&
     !/^slide\s+\d+/i.test(normalized) &&
+    !/^(?:step|stage|test|phase|part)\s*\d+(?:\b|\s*[:\-])/i.test(normalized) &&
+    !/^(?:there|name|address|value|item|details?|information|data|content|notes?|what|when|where|why|how)$/i.test(normalized) &&
+    !/^["“”'‘’]/u.test(normalized) &&
+    !/^the\s+.+\b(?:is|are|uses?|translates?|converts?|connects?|sends?|receives?|shows?|explains?|provides?)\b/i.test(normalized) &&
+    !(words.length >= 3 && /\b(?:is|are|was|were|has|have|does|do|uses?|translates?|converts?|connects?|sends?|receives?|shows?|explains?|provides?|contains?|includes?|requires?|allows?|ensures?|prevents?|represents?|displays?)\b/i.test(normalized)) &&
     !/\b(?:insert|placeholder)\b/i.test(normalized) &&
     !/\bdiagram\s+insert\s+diagram\b/i.test(normalized) &&
     /[a-z]/i.test(normalized)
@@ -223,7 +291,13 @@ export function extractValidatedConcepts(
     if (
       candidate.source !== "domain" &&
       candidate.evidence &&
-      /(?:@|orcid|university|institute|received:|accepted:|communicated by|telephone|tel\.?)/i.test(candidate.evidence)
+      (
+        /(?:@|orcid|university|institute|received:|accepted:|communicated by|telephone|tel\.?)/i.test(candidate.evidence) ||
+        (
+          isExampleOnlyConceptEvidence(candidate.evidence) &&
+          phraseFrequency(text, candidate.term) <= 2
+        )
+      )
     ) {
       continue;
     }
@@ -231,14 +305,34 @@ export function extractValidatedConcepts(
     const rawWords = normalizeConcept(candidate.term).split(/\s+/).filter(Boolean);
     if (candidate.source === "keyword" && rawWords.length === 1) continue;
 
-    const term = canonicalConcept(candidate.term);
-    const normalized = term
-      .toLowerCase()
-      .replace(/\([^)]*\)/g, "")
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
+    const term =
+      canonicalConcept(
+        candidate.term,
+      );
+    const normalized =
+      canonicalStudyConceptKey(
+        term,
+      );
 
-    if (!normalized || seen.has(normalized)) continue;
+    if (
+      candidate.source !==
+        "domain" &&
+      looksLikePersonName(term) &&
+      phraseFrequency(
+        text,
+        term,
+      ) < 2
+    ) {
+      continue;
+    }
+
+    if (
+      !normalized ||
+      seen.has(normalized)
+    ) {
+      continue;
+    }
+
     seen.add(normalized);
 
     output.push({
@@ -285,7 +379,14 @@ export function extractValidatedKeyTerms(
     const rawTerm = normalizeConcept(match[1]);
     const definition = cleanDefinition(match[2]);
 
-    if (!isValidConcept(rawTerm) || hasWeakReference(definition)) continue;
+    if (
+      !isValidConcept(rawTerm) ||
+      hasWeakReference(definition) ||
+      isExampleOnlyConceptEvidence(definition) ||
+      isExampleOnlyConceptEvidence(sentence)
+    ) {
+      continue;
+    }
     if (definition.split(/\s+/).length < 4) continue;
 
     const term = canonicalConcept(rawTerm);

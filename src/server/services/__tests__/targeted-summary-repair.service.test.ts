@@ -7,6 +7,7 @@ import {
   validateSummaryRepairPatch,
 } from "@/server/services/summary/summary-targeted-repair.service";
 import type { SummaryQualityReport } from "@/server/services/summary/summary-quality.service";
+import { buildFeatureQualityReport } from "@/server/services/quality/feature-quality.contract";
 
 function groundingFixture(): GroundedKnowledge {
   return {
@@ -154,8 +155,21 @@ function groundingFixture(): GroundedKnowledge {
 }
 
 function qualityFixture(overrides: Partial<SummaryQualityReport> = {}): SummaryQualityReport {
+  const contract = buildFeatureQualityReport({
+    feature: "summary",
+    dimensions: [
+      { key: "coverage", label: "Coverage", weight: 1, ratio: 0.7 },
+    ],
+    hardGates: [
+      { code: "GROUNDING", message: "Grounded", passed: true },
+    ],
+  });
+
   return {
     status: "failed",
+    scoreOutOf10: contract.scoreOutOf10,
+    contractPassed: contract.passed,
+    contract,
     faithful: true,
     coverageSufficient: false,
     issues: [
@@ -244,12 +258,16 @@ describe("targeted summary repair", () => {
       {
         summary: [
           "# Study Notes",
+          "<!-- intelligence-engine:v2.12;mode:comprehensive -->",
           "## Overview",
-          "MongoDB stores application documents in collections.",
-          "## Key Points",
           "- MongoDB stores application documents in collections.",
-          "## Main Concepts",
-          "- MongoDB",
+          "## Study Topics",
+          "### Document Storage",
+          "**Simple explanation:** MongoDB stores application documents in collections.",
+          "**Important key points:**",
+          "- MongoDB stores application documents in collections.",
+          "## Key Takeaways",
+          "- MongoDB stores application documents in collections.",
         ].join("\n\n"),
         keyPoints: ["MongoDB stores application documents in collections."],
         importantConcepts: ["MongoDB"],
@@ -266,6 +284,8 @@ describe("targeted summary repair", () => {
 
     expect(repaired.summary).toContain("MongoDB stores application documents");
     expect(repaired.summary).toContain("Redis is used as the queue backend");
+    expect(repaired.summary).toContain("## Key Takeaways");
+    expect(repaired.summary).not.toContain("## Main Concepts");
     expect(repaired.importantConcepts).toContain("Redis queue");
   });
 

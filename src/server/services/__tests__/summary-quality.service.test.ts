@@ -220,6 +220,60 @@ describe("summary quality validation", () => {
     expect(report.metrics.unsupportedFactualUnitCount).toBe(0);
   });
 
+  it("separates grounded evidence support from learner-topic eligibility", () => {
+    const source = makeGrounding();
+    const resultFact = makeFact({
+      id: "result-abstract",
+      sectionId: "abstract",
+      content:
+        "The industrial validation found 95% correlation between actual and predicted defects.",
+      type: "result",
+      importance: 0.99,
+      page: 8,
+    });
+    const warningFact = makeFact({
+      id: "warning-source",
+      sectionId: "warnings",
+      content:
+        "Do not interpret a low observed defect count as proof that development quality was high.",
+      type: "warning",
+      importance: 0.95,
+      page: 2,
+    });
+
+    source.facts.push(resultFact, warningFact);
+    source.sections.push(
+      makeSection("abstract", "Abstract", [resultFact.id]),
+      makeSection("warnings", "Important Warnings", [warningFact.id]),
+    );
+
+    const report = assessSummaryQuality({
+      artifact: {
+        summary: [
+          "# Defect Prediction",
+          "<!-- intelligence-engine:v3.0;mode:comprehensive -->",
+          "## Overview",
+          `- ${resultFact.content} (p. 8)`,
+          "## Study Topics",
+          "### Spanning Tree Protocol",
+          "**Simple explanation:** Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+          "**Important key points:**",
+          "- The root bridge is selected using the lowest bridge identifier.",
+          "## Important Warnings and Notes",
+          `- ${warningFact.content} (p. 2)`,
+        ].join("\n\n"),
+        keyPoints: [resultFact.content, warningFact.content],
+        importantConcepts: [],
+      },
+      grounding: source,
+      mode: "comprehensive",
+    });
+
+    expect(report.faithful).toBe(true);
+    expect(report.metrics.unsupportedFactualUnitCount).toBe(0);
+    expect(report.metrics.unsupportedNumericUnitCount).toBe(0);
+  });
+
   it("fails an unsupported numeric statement", () => {
     const artifact = goodArtifact();
     artifact.summary +=
@@ -346,7 +400,7 @@ describe("summary quality validation", () => {
       mode: "concise",
     });
 
-    expect(report.metrics.requiredSectionCount).toBe(8);
+    expect(report.metrics.requiredSectionCount).toBe(5);
     expect(
       report.issues.some(
         (issue) =>
@@ -371,4 +425,195 @@ describe("summary quality validation", () => {
 
     expect(report.metrics.unsupportedFactualUnitCount).toBe(0);
   });
+});
+
+it("fails the semantic-topic hard gate when every sentence is grounded but the topic labels and explanations do not match", () => {
+  const grounding = makeGrounding();
+  const artifact = {
+    summary: [
+      "# STP Study Notes",
+      "<!-- intelligence-engine:v2.14;mode:comprehensive -->",
+      "## Overview",
+      "- Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+      "## Study Topics",
+      "### Spanning Tree Protocol",
+      "**Simple explanation:** The default STP bridge priority is 32768.",
+      "**Important key points:**",
+      "- The root bridge is selected using the lowest bridge identifier.",
+      "### Root Bridge",
+      "**Simple explanation:** BPDU Guard disables a protected edge port when an unexpected BPDU is received.",
+      "**Important key points:**",
+      "- A lower path cost is preferred when STP selects the best route toward the root bridge.",
+      "### → move before 12",
+      "**Simple explanation:** PortFast should be enabled only on access ports connected to end devices.",
+      "**Important key points:**",
+      "- Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+    ].join("\n"),
+    keyPoints: [
+      "The root bridge is selected using the lowest bridge identifier.",
+      "A lower path cost is preferred when STP selects the best route toward the root bridge.",
+      "Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+    ],
+    importantConcepts: [
+      "Spanning Tree Protocol",
+      "Root Bridge",
+      "PortFast",
+      "BPDU Guard",
+    ],
+  };
+
+  const report = assessSummaryQuality({
+    artifact,
+    grounding,
+    mode: "comprehensive",
+  });
+
+  expect(report.faithful).toBe(true);
+  expect(report.contractPassed).toBe(false);
+  expect(report.contract.hardGates).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        code: "TOPIC_SEMANTIC_COHERENCE",
+        passed: false,
+      }),
+    ]),
+  );
+  expect(report.scoreOutOf10).toBeLessThan(9.5);
+});
+
+it("v3 hard-fails a grounded explanation that does not explain its published topic", () => {
+  const grounding = makeGrounding();
+  const artifact = {
+    summary: [
+      "# STP Study Notes",
+      "<!-- intelligence-engine:v3.0;mode:comprehensive -->",
+      "## Overview",
+      "- Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+      "## Study Topics",
+      "### Spanning Tree Protocol",
+      "**Simple explanation:** Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+      "**Important key points:**",
+      "- The root bridge is selected using the lowest bridge identifier.",
+      "### PortFast",
+      "**Simple explanation:** The root bridge is selected using the lowest bridge identifier.",
+      "**Important key points:**",
+      "- PortFast should be enabled only on access ports connected to end devices.",
+      "### BPDU Guard",
+      "**Simple explanation:** BPDU Guard disables a protected edge port when an unexpected BPDU is received.",
+      "**Important key points:**",
+      "- PortFast should be enabled only on access ports connected to end devices.",
+      "## Key Takeaways",
+      "- A lower path cost is preferred when STP selects the best route toward the root bridge.",
+    ].join("\n"),
+    keyPoints: [
+      "The root bridge is selected using the lowest bridge identifier.",
+      "PortFast should be enabled only on access ports connected to end devices.",
+      "A lower path cost is preferred when STP selects the best route toward the root bridge.",
+    ],
+    importantConcepts: [
+      "Spanning Tree Protocol",
+      "Root Bridge",
+      "PortFast",
+      "BPDU Guard",
+    ],
+  };
+
+  const report = assessSummaryQuality({ artifact, grounding, mode: "comprehensive" });
+
+  expect(report.faithful).toBe(true);
+  expect(report.contractPassed).toBe(false);
+  expect(report.contract.hardGates).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        code: "TOPIC_EXPLANATION_ALIGNMENT",
+        passed: false,
+      }),
+    ]),
+  );
+});
+
+it("v3 hard-fails source-structure labels used as learner topics", () => {
+  const grounding = makeGrounding();
+  const artifact = {
+    summary: [
+      "# STP Study Notes",
+      "<!-- intelligence-engine:v3.0;mode:comprehensive -->",
+      "## Overview",
+      "- Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+      "## Study Topics",
+      "### Abstract",
+      "**Simple explanation:** Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+      "**Important key points:**",
+      "- The root bridge is selected using the lowest bridge identifier.",
+      "### Edge Port Protection",
+      "**Simple explanation:** BPDU Guard disables a protected edge port when an unexpected BPDU is received.",
+      "**Important key points:**",
+      "- PortFast should be enabled only on access ports connected to end devices.",
+      "### Path Selection",
+      "**Simple explanation:** A lower path cost is preferred when STP selects the best route toward the root bridge.",
+      "**Important key points:**",
+      "- The default STP bridge priority is 32768.",
+    ].join("\n"),
+    keyPoints: [
+      "The root bridge is selected using the lowest bridge identifier.",
+      "PortFast should be enabled only on access ports connected to end devices.",
+      "The default STP bridge priority is 32768.",
+    ],
+    importantConcepts: ["Spanning Tree Protocol", "Root Bridge", "PortFast", "BPDU Guard"],
+  };
+
+  const report = assessSummaryQuality({ artifact, grounding, mode: "comprehensive" });
+
+  expect(report.faithful).toBe(true);
+  expect(report.contract.hardGates).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        code: "SOURCE_STRUCTURE_SEPARATION",
+        passed: false,
+      }),
+    ]),
+  );
+});
+
+it("v3 treats even one unsupported factual unit as a faithfulness failure", () => {
+  const grounding = makeGrounding();
+  const artifact = {
+    summary: [
+      "# STP Study Notes",
+      "<!-- intelligence-engine:v3.0;mode:comprehensive -->",
+      "## Overview",
+      "- Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+      "## Study Topics",
+      "### Spanning Tree Protocol",
+      "**Simple explanation:** Spanning Tree Protocol prevents Layer 2 switching loops in redundant Ethernet topologies.",
+      "**Important key points:**",
+      "- The root bridge is selected using the lowest bridge identifier.",
+      "### Edge Port Protection",
+      "**Simple explanation:** BPDU Guard disables a protected edge port when an unexpected BPDU is received.",
+      "**Important key points:**",
+      "- PortFast should be enabled only on access ports connected to end devices.",
+      "### Path Selection",
+      "**Simple explanation:** A lower path cost is preferred when STP selects the best route toward the root bridge.",
+      "**Important key points:**",
+      "- The default STP bridge priority is 32768.",
+      "## Key Takeaways",
+      "- STP encrypts every Ethernet frame automatically.",
+    ].join("\n"),
+    keyPoints: [
+      "The root bridge is selected using the lowest bridge identifier.",
+      "PortFast should be enabled only on access ports connected to end devices.",
+      "The default STP bridge priority is 32768.",
+    ],
+    importantConcepts: ["Spanning Tree Protocol", "Root Bridge", "PortFast", "BPDU Guard"],
+  };
+
+  const report = assessSummaryQuality({ artifact, grounding, mode: "comprehensive" });
+
+  expect(report.faithful).toBe(false);
+  expect(report.status).toBe("failed");
+  expect(report.contract.hardGates).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ code: "NO_UNSUPPORTED_FACTS", passed: false }),
+    ]),
+  );
 });

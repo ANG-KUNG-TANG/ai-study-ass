@@ -11,9 +11,17 @@ import type {
 } from "../pipeline/types";
 import { splitTextUnits, type TextUnit } from "../pipeline/text-units";
 import {
+  canonicalStudyConceptKey,
+  isStudyEligibleUnit,
+  isStudyNoiseLine,
+  looksLikePersonName,
+} from "../pipeline/source-hygiene";
+import {
   getReliableProfile,
 } from "../reliability/profile";
 import {
+  canonicalizeStudyConceptLabel,
+  isExampleOnlyConceptEvidence,
   isValidConcept,
 } from "../reliability/concept-validator";
 import type {
@@ -68,8 +76,29 @@ export function buildGroundedKnowledge(
       continue;
     }
 
-    const units = splitTextUnits(section.analysisBody)
-      .filter((unit) => isMeaningfulUnit(unit.text));
+    const sectionUnits =
+      splitTextUnits(
+        section.analysisBody,
+      );
+
+    const units =
+      sectionUnits.filter(
+        (unit, index) =>
+          isMeaningfulUnit(
+            unit.text,
+          ) &&
+          (
+            isStudyEligibleUnit(
+              unit.text,
+              unit.kind,
+            ) ||
+            isStructuredListParent(
+              unit,
+              index,
+              sectionUnits,
+            )
+          ),
+      );
     const sectionFacts = extractSectionFacts(section, units, input.document);
     facts.push(...sectionFacts);
 
@@ -97,7 +126,17 @@ export function buildGroundedKnowledge(
   const claims = input.core.claims.filter(
     (claim) => claim.validationStatus === "valid",
   );
-  const keyTerms = qualifyTerms(input.document, input.core, claims);
+  const keyTerms = mergeQualifiedTerms(
+    qualifyTerms(
+      input.document,
+      input.core,
+      claims,
+    ),
+    deriveQualifiedTermsFromFacts(
+      facts,
+    ),
+    12,
+  );
   const concepts = buildImportantConcepts(input.document, input.core, keyTerms);
   const quality = evaluateGroundingQuality(facts, keyTerms, sections);
 
@@ -139,15 +178,64 @@ function classifySection(section: DocumentSection): {
     return { excluded: true, reason: "The opening document title is metadata rather than study content." };
   }
 
-  const units = splitTextUnits(section.analysisBody)
-    .map((unit) => unit.text)
-    .filter(Boolean);
+  const units =
+    splitTextUnits(
+      section.analysisBody,
+    )
+      .filter(
+        (unit) =>
+          isStudyEligibleUnit(
+            unit.text,
+            unit.kind,
+          ),
+      )
+      .map(
+        (unit) => unit.text,
+      )
+      .filter(Boolean);
 
-  if (units.length > 0 && units.every(isPlaceholderOrArtifact)) {
+  // Empty sections that survived section normalization are intentional
+  // structural parents (for example "4. Principles..." above 4.1-4.6).
+  // Keep them as no_extractable_knowledge so Comprehensive notes retain the
+  // meaningful document hierarchy. Empty noise headings were already removed
+  // by normaliseStudySections().
+  if (
+    units.length > 0 &&
+    units.every(isPlaceholderOrArtifact)
+  ) {
     return { excluded: true, reason: "The section contains only placeholders or processing artifacts." };
   }
 
   return { excluded: false };
+}
+
+function isStructuredListParent(
+  unit: TextUnit,
+  index: number,
+  units: TextUnit[],
+): boolean {
+  const text = unit.text.trim();
+
+  if (
+    !/[:：]$/u.test(text) ||
+    isStudyNoiseLine(text)
+  ) {
+    return false;
+  }
+
+  const next = units[index + 1];
+
+  return Boolean(
+    next &&
+    (
+      next.kind === "bullet" ||
+      next.kind === "numbered"
+    ) &&
+    isStudyEligibleUnit(
+      next.text,
+      next.kind,
+    ),
+  );
 }
 
 function extractSectionFacts(
@@ -292,6 +380,114 @@ function evidenceIsPresent(
   );
 }
 
+function deriveQualifiedTermsFromFacts(
+  facts: AtomicFact[],
+): QualifiedTerm[] {
+  const output: QualifiedTerm[] = [];
+  const seen = new Set<string>();
+
+  for (const fact of facts) {
+    if (
+      fact.type !== "definition" ||
+      fact.verificationStatus !== "supported"
+    ) {
+      continue;
+    }
+
+    const match = fact.content.match(
+      /^(.{2,80}?)(?:\s*[:：]\s*|\s+(?:is|are|means|refers to)\s+)(.{12,})$/i,
+    );
+
+    if (!match) continue;
+
+    const term = cleanTerm(match[1]);
+    const definition =
+      normaliseText(match[2]);
+
+    if (
+      isExampleOnlyConceptEvidence(definition) ||
+      fact.evidence.some((item) => isExampleOnlyConceptEvidence(item.text))
+    ) {
+      continue;
+    }
+
+    const key =
+      canonicalStudyConceptKey(term) ||
+      normaliseForMatching(term);
+
+    if (
+      !key ||
+      seen.has(key) ||
+      !isQualifiedTermLabel(term) ||
+      isStudyNoiseLine(term)
+    ) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push({
+      term,
+      definition,
+      sourceSectionId:
+        fact.sourceSectionId,
+      evidence:
+        fact.evidence,
+      qualification:
+        "explicit_definition",
+      confidence:
+        Math.min(
+          0.98,
+          Math.max(
+            0.82,
+            fact.confidence,
+          ),
+        ),
+    });
+  }
+
+  return output;
+}
+
+function mergeQualifiedTerms(
+  primary: QualifiedTerm[],
+  fallback: QualifiedTerm[],
+  limit: number,
+): QualifiedTerm[] {
+  const output: QualifiedTerm[] = [];
+  const seen = new Set<string>();
+
+  for (const term of [
+    ...primary,
+    ...fallback,
+  ]) {
+    const key =
+      canonicalStudyConceptKey(
+        term.term,
+      ) ||
+      normaliseForMatching(
+        term.term,
+      );
+
+    if (
+      !key ||
+      seen.has(key)
+    ) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push(term);
+
+    if (
+      output.length >= limit
+    ) {
+      break;
+    }
+  }
+
+  return output;
+}
+
 function qualifyTerms(
   document: SectionedDocument,
   core: KnowledgeCore,
@@ -340,7 +536,14 @@ function qualifyTerms(
   for (const candidate of candidates.sort((a, b) => b.confidence - a.confidence)) {
     const term = cleanTerm(candidate.term);
     const normalized = normaliseForMatching(term);
-    if (!isQualifiedTermLabel(term) || seen.has(normalized)) continue;
+    if (
+      !isQualifiedTermLabel(term) ||
+      seen.has(normalized) ||
+      isExampleOnlyConceptEvidence(candidate.definition) ||
+      isExampleOnlyConceptEvidence(candidate.evidenceText)
+    ) {
+      continue;
+    }
 
     const located = locateEvidence(document, candidate.evidenceText, term);
     if (!located) continue;
@@ -387,37 +590,79 @@ function buildImportantConcepts(
   ];
 
   const termDefinitions = new Map(
-    terms.map((term) => [normaliseForMatching(term.term), term.definition]),
+    terms.map((term) => [
+      canonicalStudyConceptKey(term.term) || normaliseForMatching(term.term),
+      term.definition,
+    ]),
   );
   const output: ImportantConcept[] = [];
   const seen = new Set<string>();
 
-  for (const candidate of candidates.sort((a, b) => b.confidence - a.confidence)) {
-    const name = cleanTerm(candidate.term);
-    const normalizedName = normaliseForMatching(name);
+  for (
+    const candidate of candidates.sort(
+      (a, b) =>
+        conceptCandidatePriority(
+          document,
+          b.term,
+          b.confidence,
+          b.evidence,
+          termDefinitions,
+        ) -
+        conceptCandidatePriority(
+          document,
+          a.term,
+          a.confidence,
+          a.evidence,
+          termDefinitions,
+        ),
+    )
+  ) {
+    const rawName = cleanTerm(candidate.term);
+    const name = canonicalizeStudyConceptLabel(rawName);
+    const canonicalKey = canonicalStudyConceptKey(name);
+    const normalizedName = canonicalKey || normaliseForMatching(name);
+    const weakPersonName =
+      looksLikePersonName(name) &&
+      !termDefinitions.has(canonicalKey) &&
+      phraseFrequency(document.analysisText, rawName) < 2;
+    const explicitExampleOnly =
+      Boolean(candidate.evidence) &&
+      isExampleOnlyConceptEvidence(candidate.evidence ?? "");
+
     if (
       candidate.confidence < 0.62 ||
       !isValidConcept(name) ||
       !isQualifiedConceptLabel(name) ||
-      seen.has(normalizedName)
+      isStudyNoiseLine(name) ||
+      weakPersonName ||
+      explicitExampleOnly ||
+      !canonicalKey ||
+      seen.has(canonicalKey)
     ) {
       continue;
     }
 
-    const located = locateEvidence(document, candidate.evidence ?? "", name);
+    const located = locateEvidence(
+      document,
+      candidate.evidence ?? "",
+      rawName,
+    );
     if (!located) continue;
+    if (isExampleOnlyConceptEvidence(located.evidence.text)) continue;
 
-    seen.add(normalizedName);
+    seen.add(canonicalKey);
     output.push({
       name,
       normalizedName,
-      explanation: termDefinitions.get(normalizedName) ?? null,
+      explanation: termDefinitions.get(canonicalKey) ?? null,
       sourceSectionIds: [located.section.id],
       evidence: [located.evidence],
-      importanceScore: Math.min(
-        1,
-        candidate.confidence * 0.72 +
-          Math.min(phraseFrequency(document.analysisText, name) / 4, 1) * 0.28,
+      importanceScore: conceptCandidatePriority(
+        document,
+        rawName,
+        candidate.confidence,
+        located.evidence.text,
+        termDefinitions,
       ),
     });
 
@@ -425,11 +670,26 @@ function buildImportantConcepts(
   }
 
   for (const term of terms) {
-    const normalizedName = normaliseForMatching(term.term);
-    if (seen.has(normalizedName)) continue;
-    seen.add(normalizedName);
+    const name = canonicalizeStudyConceptLabel(term.term);
+    const canonicalKey = canonicalStudyConceptKey(name);
+    const normalizedName = canonicalKey || normaliseForMatching(name);
+    const exampleOnly =
+      isExampleOnlyConceptEvidence(term.definition) ||
+      (term.evidence.length > 0 &&
+        term.evidence.every((item) => isExampleOnlyConceptEvidence(item.text)));
+
+    if (
+      !canonicalKey ||
+      seen.has(canonicalKey) ||
+      exampleOnly ||
+      !isValidConcept(name)
+    ) {
+      continue;
+    }
+
+    seen.add(canonicalKey);
     output.push({
-      name: term.term,
+      name,
       normalizedName,
       explanation: term.definition,
       sourceSectionIds: [term.sourceSectionId],
@@ -441,6 +701,34 @@ function buildImportantConcepts(
   return output
     .sort((a, b) => b.importanceScore - a.importanceScore)
     .slice(0, 16);
+}
+
+function conceptCandidatePriority(
+  document: SectionedDocument,
+  name: string,
+  confidence: number,
+  evidenceText: string | undefined,
+  termDefinitions: Map<string, string>,
+): number {
+  const canonical = canonicalStudyConceptKey(name);
+  const frequency = phraseFrequency(document.analysisText, name);
+  const hasDefinition = termDefinitions.has(canonical);
+  const isSectionHeading = document.sections.some(
+    (section) => canonicalStudyConceptKey(section.rawHeading) === canonical,
+  );
+  const exampleOnly = isExampleOnlyConceptEvidence(evidenceText ?? "");
+
+  let score =
+    confidence * 0.45 +
+    Math.min(frequency / 4, 1) * 0.25 +
+    (hasDefinition ? 0.2 : 0) +
+    (isSectionHeading ? 0.1 : 0);
+
+  if (exampleOnly) {
+    score *= 0.25;
+  }
+
+  return clamp(score);
 }
 
 function locateEvidence(
@@ -629,6 +917,7 @@ export function isQualifiedTermLabel(value: string): boolean {
   const term = cleanTerm(value);
   const words = term.split(/\s+/).filter(Boolean);
   return isValidConcept(term) &&
+    !isStudyNoiseLine(term) &&
     words.length <= 7 &&
     !SUBORDINATE_TERM_RE.test(term) &&
     !TERM_VERB_RE.test(term) &&
@@ -642,6 +931,8 @@ function isQualifiedConceptLabel(value: string): boolean {
   const words = normalized.split(/\s+/).filter(Boolean);
   return words.length <= 7 &&
     !SUBORDINATE_TERM_RE.test(value) &&
+    !isStudyNoiseLine(value) &&
+    !/^(?:figure\s+shows?|following\s+figure|example)$/i.test(value) &&
     !/\b(?:insert|placeholder|complete\s+domain|requirements\s+business\s+rules)\b/i.test(value) &&
     !hasRepeatedWord(words);
 }

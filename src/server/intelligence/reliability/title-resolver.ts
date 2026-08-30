@@ -5,6 +5,10 @@ import {
   greekCharacterRatio,
   normaliseLine,
 } from "./text-quality";
+import {
+  isStudyNoiseLine,
+  looksLikeNavigationCluster,
+} from "../pipeline/source-hygiene";
 
 const SECTION_HEADINGS = new Set([
   "abstract",
@@ -38,7 +42,7 @@ function titleCase(value: string): string {
     .split(/\s+/)
     .filter(Boolean)
     .map((word) => {
-      if (/^(NPV|IRR|AI|ML|NLP|SQL|API)$/i.test(word)) return word.toUpperCase();
+      if (/^(NPV|IRR|AI|ML|NLP|SQL|API|OOAD|OOA|OOD|OOP|UML|DFD|SRS)$/i.test(word)) return word.toUpperCase();
       return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`;
     })
     .join(" ");
@@ -105,6 +109,19 @@ function rejectReason(value: string): string | null {
 
   const lower = cleaned.toLowerCase();
   if (SECTION_HEADINGS.has(lower)) return "is a section heading";
+  if (
+    /^(?:(?:a\s+)?brief\s+history|history|example|examples|quick\s+example|worked\s+example)$/i.test(
+      cleaned,
+    )
+  ) {
+    return "is a generic subsection title";
+  }
+  if (
+    isStudyNoiseLine(cleaned) ||
+    looksLikeNavigationCluster(cleaned)
+  ) {
+    return "looks like navigation, promotion, or document chrome";
+  }
 
   const meaningfulWords = lower
     .split(/\s+/)
@@ -220,16 +237,16 @@ export function resolveDocumentTitle(
     ...(metadataTitle
       ? [{ value: metadataTitle, source: "metadata" as const, confidence: 0.98 }]
       : []),
-    ...firstHeadingCandidates(doc).map((value, index) => ({
-      value,
-      source: "heading" as const,
-      confidence: Math.max(0.72, 0.94 - index * 0.04),
-    })),
     {
       value: filenameTitle(raw.fileName),
       source: "filename",
-      confidence: 0.62,
+      confidence: 0.86,
     },
+    ...firstHeadingCandidates(doc).map((value, index) => ({
+      value,
+      source: "heading" as const,
+      confidence: Math.max(0.72, 0.84 - index * 0.03),
+    })),
   ];
 
   for (const candidate of candidates) {

@@ -7,6 +7,9 @@ import type {
 } from "../types";
 import type { SectionedDocument } from "./types";
 import { splitTextUnits } from "./text-units";
+import {
+  isStudyEligibleUnit,
+} from "./source-hygiene";
 
 const STOP_WORDS = new Set([
   "a", "an", "the", "and", "or", "but", "if", "then", "than", "to", "of", "in", "on", "for",
@@ -91,9 +94,21 @@ export function runNLPPipeline(doc: SectionedDocument): NLPResult {
 
   for (const section of doc.sections) {
     if (section.semanticRole === "references") continue;
-    const rawSentences = splitTextUnits(section.analysisBody)
-      .map((unit) => unit.text)
-      .filter((text) => text.length >= 8);
+    const rawSentences =
+      splitTextUnits(
+        section.analysisBody,
+      )
+        .filter(
+          (unit) =>
+            unit.text.length >= 8 &&
+            isStudyEligibleUnit(
+              unit.text,
+              unit.kind,
+            ),
+        )
+        .map(
+          (unit) => unit.text,
+        );
 
     rawSentences.forEach((text, index) => {
       const tokens = tokeniseAndTag(text);

@@ -11,6 +11,9 @@ import {
   normaliseLine,
   normaliseRepeatedLineKey,
 } from "../reliability/text-quality";
+import {
+  cleanStudyAnalysisText,
+} from "./source-hygiene";
 
 const REFERENCES_HEADINGS = [
   /^references$/i,
@@ -227,7 +230,9 @@ export function cleanDocument(
       reliableDisplay.text;
 
     const analysisText =
-      reliableAnalysis.text;
+      cleanStudyAnalysisText(
+        reliableAnalysis.text,
+      );
 
     const startOffset =
       globalOffset;
