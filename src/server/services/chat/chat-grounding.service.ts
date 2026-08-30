@@ -1,6 +1,7 @@
 import type {
   GroundedKnowledge,
 } from "@/server/intelligence/grounding";
+import { toLearningGrounding } from "@/server/services/quality/learning-evidence.service";
 
 export type ChatAnswerability =
   | "ANSWERABLE"
@@ -434,6 +435,7 @@ export function chatGroundingLogContext(
 function buildEvidenceCandidates(
   grounding: GroundedKnowledge,
 ): EvidenceCandidate[] {
+  grounding = toLearningGrounding(grounding);
   const headings =
     new Map(
       grounding.sections.map(

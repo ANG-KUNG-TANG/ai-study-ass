@@ -37,6 +37,8 @@ import type {
   GenerationMetadata,
 } from "@/server/types/generation";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
+import { assessChatQualityContract } from "@/server/services/chat/chat-quality.service";
+import { qualityLogContext } from "@/server/services/quality/feature-quality.contract";
 
 async function requireOwnedNote(
   noteId: string,
@@ -99,6 +101,11 @@ async function answerQuestion(
       decision.answerability ===
       "NOT_ANSWERABLE"
     ) {
+      const quality = assessChatQualityContract({
+        answer: groundedFallback,
+        decision,
+      });
+      logger.info("Grounded chat quality contract", { noteId, ...qualityLogContext(quality) });
       return {
         text: groundedFallback,
         provider: "symbolic",
@@ -114,6 +121,11 @@ async function answerQuestion(
         "ANSWERABLE" &&
       decision.confidence >= 0.82
     ) {
+      const quality = assessChatQualityContract({
+        answer: groundedFallback,
+        decision,
+      });
+      logger.info("Grounded chat quality contract", { noteId, ...qualityLogContext(quality) });
       return {
         text: groundedFallback,
         provider: "symbolic",
@@ -173,6 +185,12 @@ async function answerQuestion(
           },
         );
 
+        const quality = assessChatQualityContract({
+          answer: groundedFallback,
+          decision,
+        });
+        logger.info("Grounded chat quality contract", { noteId, ...qualityLogContext(quality) });
+
         return {
           text: groundedFallback,
           provider: "symbolic",
@@ -183,6 +201,13 @@ async function answerQuestion(
             decision.answerability,
         };
       }
+
+      const quality = assessChatQualityContract({
+        answer: aiResult.text,
+        decision,
+        validation,
+      });
+      logger.info("Grounded chat quality contract", { noteId, ...qualityLogContext(quality) });
 
       return {
         text: aiResult.text,
@@ -208,6 +233,12 @@ async function answerQuestion(
           ),
         },
       );
+
+      const quality = assessChatQualityContract({
+        answer: groundedFallback,
+        decision,
+      });
+      logger.info("Grounded chat quality contract", { noteId, ...qualityLogContext(quality) });
 
       return {
         text: groundedFallback,

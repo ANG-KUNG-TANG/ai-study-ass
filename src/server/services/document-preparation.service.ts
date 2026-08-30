@@ -1,6 +1,7 @@
 import * as noteRepo from "@/server/repositories/note.repo";
 import * as generationRepo from "@/server/repositories/study-generation.repo";
 import * as intelligenceService from "@/server/services/intelligence.service";
+import * as summaryService from "@/server/services/summary/summary.service";
 import { NotFoundError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type { StudyGenerationState } from "@/server/types/generation";
@@ -29,12 +30,94 @@ function intelligenceHasFailed(value: unknown): boolean {
   return false;
 }
 
+function safeMessage(
+  error: unknown,
+): string {
+  return error instanceof Error
+    ? error.message.slice(0, 500)
+    : String(error).slice(0, 500);
+}
+
+async function generateAutomaticSummary(
+  input: PrepareDocumentInput,
+): Promise<void> {
+  await generationRepo.updateFeature(
+    input.noteId,
+    "summary",
+    {
+      status: "generating",
+      error: null,
+    },
+  );
+
+  try {
+    const summary =
+      await summaryService.generateSummary(
+        input.noteId,
+        {
+          force: input.force,
+          mode: "comprehensive",
+        },
+      );
+
+    await generationRepo.updateFeature(
+      input.noteId,
+      "summary",
+      {
+        status: summary.status,
+        source: summary.source,
+        confidence:
+          summary.confidence,
+        aiFallbackUsed:
+          summary.aiFallbackUsed,
+        itemCount:
+          summary.itemCount ?? 1,
+        error: null,
+      },
+    );
+
+    logger.info(
+      "Automatic comprehensive Summary generated after document preparation",
+      {
+        noteId: input.noteId,
+        userId: input.userId,
+        source: summary.source,
+        aiFallbackUsed:
+          summary.aiFallbackUsed,
+        tokensUsed:
+          summary.tokensUsed ?? 0,
+      },
+    );
+  } catch (error) {
+    await generationRepo.updateFeature(
+      input.noteId,
+      "summary",
+      {
+        status: "failed",
+        error:
+          safeMessage(error),
+      },
+    );
+
+    logger.warn(
+      "Automatic Summary generation failed; document remains available for retry",
+      {
+        noteId: input.noteId,
+        userId: input.userId,
+        error:
+          safeMessage(error),
+      },
+    );
+  }
+}
+
 /**
- * Eager work after upload is intentionally provider-free:
+ * Eager work after upload stays cheap:
  * extraction -> deterministic intelligence -> persisted GroundedKnowledge.
  *
- * Summary, quiz, flashcards and chat generation remain pending until the
- * learner actually opens/requests those features.
+ * A comprehensive Summary is then generated automatically. Summary may trigger
+ * targeted Intelligence repair or one bounded learner-quality refinement when
+ * needed. Quiz, flashcards and chat remain pending until requested.
  */
 export async function prepareDocumentForStudy(
   input: PrepareDocumentInput,
@@ -86,8 +169,12 @@ export async function prepareDocumentForStudy(
     );
   }
 
-  // `complete` now means background document preparation is complete.
-  // Individual feature states intentionally remain `pending` until requested.
+  await generateAutomaticSummary(
+    input,
+  );
+
+  // `complete` means document preparation plus the automatic Summary attempt
+  // has finished. Quiz, flashcards and chat intentionally remain on demand.
   await generationRepo.updateStage(
     input.noteId,
     "complete",
@@ -105,7 +192,7 @@ export async function prepareDocumentForStudy(
   }
 
   logger.info(
-    "Document prepared for lazy study generation",
+    "Document prepared and automatic Summary generation finished",
     {
       noteId: input.noteId,
       userId: input.userId,

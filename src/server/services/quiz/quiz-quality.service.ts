@@ -5,6 +5,15 @@ import type {
   QuizQuestionInput,
   QuestionType,
 } from "@/server/entities/quiz.entity";
+import {
+  buildFeatureQualityReport,
+  qualityRatio,
+  type FeatureQualityContractReport,
+} from "@/server/services/quality/feature-quality.contract";
+import {
+  selectLearningConcepts,
+  toLearningGrounding,
+} from "@/server/services/quality/learning-evidence.service";
 
 export type QuizQualityIssueCode =
   | "ANSWER_NOT_GROUNDED"
@@ -24,6 +33,7 @@ export interface QuizQualityRejection {
 export interface QuizQualityResult {
   accepted: QuizQuestionInput[];
   rejected: QuizQualityRejection[];
+  contract: FeatureQualityContractReport;
 }
 
 interface SupportSource {
@@ -81,7 +91,121 @@ export function validateGroundedQuizQuestions(
     });
   }
 
-  return { accepted, rejected };
+  const contract = assessQuizQualityContract(accepted, grounding);
+  return { accepted, rejected, contract };
+}
+
+export function assessQuizQualityContract(
+  questions: QuizQuestionInput[],
+  grounding: GroundedKnowledge,
+): FeatureQualityContractReport {
+  const total = questions.length;
+  const concepts = selectLearningConcepts(grounding.concepts, Math.max(4, Math.min(10, total)));
+  const corpus = questions.map((question) => `${question.question} ${question.answer}`).join(" ");
+  const conceptCoverage = qualityRatio(
+    concepts.filter((concept) => textRepresents(corpus, concept.name)).length,
+    concepts.length,
+    1,
+  );
+  const clarity = qualityRatio(
+    questions.filter((question) => isClearQuestion(question.question)).length,
+    total,
+    1,
+  );
+  const mcq = questions.filter((question) => question.questionType === "multiple_choice");
+  const distractorQuality = qualityRatio(
+    mcq.filter(hasCleanDistractors).length,
+    mcq.length,
+    1,
+  );
+  const explanationQuality = qualityRatio(
+    questions.filter((question) => Boolean(question.explanation?.trim()) && /supported|evidence|because|therefore|page\s+\d+/iu.test(question.explanation ?? "")).length,
+    total,
+    1,
+  );
+  const citationQuality = qualityRatio(
+    questions.filter((question) => /page\s+\d+|verified\s+(?:document\s+)?evidence/iu.test(question.explanation ?? "")).length,
+    total,
+    1,
+  );
+  const duplicateRatio = nearDuplicateQuestionRatio(questions);
+  const variety = cognitiveVarietyRatio(questions);
+  const grounded = qualityRatio(
+    questions.filter((question) => questionHasGroundedAnswer(question, grounding)).length,
+    total,
+    1,
+  );
+
+  return buildFeatureQualityReport({
+    feature: "quiz",
+    dimensions: [
+      { key: "grounding", label: "Grounding", weight: 2.0, ratio: grounded },
+      { key: "answerCorrectness", label: "Answer correctness", weight: 2.0, ratio: grounded },
+      { key: "questionClarity", label: "Question clarity", weight: 1.5, ratio: clarity },
+      { key: "distractorQuality", label: "Distractor quality", weight: 1.0, ratio: distractorQuality },
+      { key: "coverage", label: "Concept coverage", weight: 1.0, ratio: conceptCoverage },
+      { key: "difficultyValidity", label: "Difficulty/cognitive variety", weight: 0.75, ratio: variety },
+      { key: "nonDuplication", label: "Non-duplication", weight: 0.5, ratio: 1 - duplicateRatio },
+      { key: "explanations", label: "Explanations", weight: 0.75, ratio: explanationQuality },
+      { key: "citations", label: "Evidence citations", weight: 0.5, ratio: citationQuality },
+    ],
+    hardGates: [
+      {
+        code: "NON_EMPTY_QUIZ",
+        message: "A quality-scored quiz must contain at least one validated question.",
+        passed: total > 0,
+      },
+      {
+        code: "ALL_ANSWERS_GROUNDED",
+        message: "Every persisted quiz answer must be supported by document evidence.",
+        passed: grounded === 1,
+      },
+      {
+        code: "UNAMBIGUOUS_SINGLE_ANSWER",
+        message: "Every single-answer multiple-choice question must have exactly one defensible answer.",
+        passed: mcq.every(hasCleanDistractors),
+      },
+    ],
+  });
+}
+
+export function selectHighestQualityQuizSet(
+  questions: QuizQuestionInput[],
+  grounding: GroundedKnowledge,
+  limit: number,
+): QuizQuestionInput[] {
+  const target = Math.max(1, Math.floor(limit));
+  if (questions.length <= target) return [...questions];
+
+  const remaining = [...questions];
+  const selected: QuizQuestionInput[] = [];
+
+  while (remaining.length > 0 && selected.length < target) {
+    let bestIndex = 0;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    for (let index = 0; index < remaining.length; index += 1) {
+      const candidate = remaining[index];
+      if (!candidate) continue;
+      const report = assessQuizQualityContract(
+        [...selected, candidate],
+        grounding,
+      );
+      const score =
+        report.scoreOutOf10 +
+        (report.hardGatePassed ? 0.05 : 0) +
+        (report.passed ? 0.1 : 0);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    }
+
+    const [best] = remaining.splice(bestIndex, 1);
+    if (best) selected.push(best);
+  }
+
+  return selected;
 }
 
 export function quizQualityLogContext(
@@ -99,6 +223,9 @@ export function quizQualityLogContext(
     acceptedCount: result.accepted.length,
     rejectedCount: result.rejected.length,
     rejectionReasonCounts: reasonCounts,
+    qualityScoreOutOf10: result.contract.scoreOutOf10,
+    qualityPassed: result.contract.passed,
+    failedHardGates: result.contract.hardGates.filter((gate) => !gate.passed).map((gate) => gate.code),
   };
 }
 
@@ -285,9 +412,79 @@ function validateShortAnswer(
   return [];
 }
 
+function isClearQuestion(value: string): boolean {
+  const question = value.trim();
+  if (question.length < 12 || question.length > 260) return false;
+  if (/^(?:it|this|that|these|those)\b/iu.test(question)) return false;
+  if (/\b(?:something|anything|stuff)\b/iu.test(question)) return false;
+  return /[?]$/u.test(question) || /^true\s+or\s+false\s*:/iu.test(question);
+}
+
+function hasCleanDistractors(question: QuizQuestionInput): boolean {
+  if (question.questionType !== "multiple_choice") return true;
+  const options = question.options.map(normalise);
+  const answer = normalise(question.answer);
+  return (
+    options.length >= 2 &&
+    new Set(options).size === options.length &&
+    options.filter((option) => option === answer).length === 1
+  );
+}
+
+function questionHasGroundedAnswer(
+  question: QuizQuestionInput,
+  grounding: GroundedKnowledge,
+): boolean {
+  const sources = buildSupportSources(grounding);
+  if (question.questionType === "true_false") {
+    return validateTrueFalse(question, sources).length === 0;
+  }
+  if (question.questionType === "multiple_choice") {
+    return validateMultipleChoice(question, grounding, sources).length === 0;
+  }
+  return validateShortAnswer(question, grounding, sources).length === 0;
+}
+
+function cognitiveVarietyRatio(questions: QuizQuestionInput[]): number {
+  if (questions.length <= 3) return 1;
+  const types = new Set(questions.map((question) => question.questionType));
+  if (types.size >= 3) return 1;
+  if (types.size === 2) return 0.96;
+  const longAnswers = questions.filter((question) => question.answer.split(/\s+/u).length >= 8).length;
+  return longAnswers > 0 ? 0.9 : 0.8;
+}
+
+function nearDuplicateQuestionRatio(questions: QuizQuestionInput[]): number {
+  if (questions.length <= 1) return 0;
+  let duplicates = 0;
+  for (let i = 0; i < questions.length; i += 1) {
+    const left = meaningfulTokens(questions[i]!.question);
+    for (let j = 0; j < i; j += 1) {
+      const right = meaningfulTokens(questions[j]!.question);
+      const union = new Set([...left, ...right]);
+      let intersection = 0;
+      for (const token of left) if (right.has(token)) intersection += 1;
+      if (union.size > 0 && intersection / union.size >= 0.82) {
+        duplicates += 1;
+        break;
+      }
+    }
+  }
+  return duplicates / questions.length;
+}
+
+function textRepresents(source: string, target: string): boolean {
+  const left = normalise(source);
+  const right = normalise(target);
+  if (!left || !right) return false;
+  if (left.includes(right)) return true;
+  return setCoverage(meaningfulTokens(right), meaningfulTokens(left)) >= 0.8;
+}
+
 function buildSupportSources(
   grounding: GroundedKnowledge,
 ): SupportSource[] {
+  grounding = toLearningGrounding(grounding);
   const sources: SupportSource[] = [];
 
   for (const fact of grounding.facts) {

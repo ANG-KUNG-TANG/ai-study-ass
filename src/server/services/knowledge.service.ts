@@ -22,6 +22,9 @@ import type { GroundedKnowledge } from "@/server/intelligence/grounding";
 import { buildGroundedConceptMap } from "@/server/services/grounded-concept-map.service";
 import { buildGroundedKnowledgeGraphResult } from "@/server/services/grounded-knowledge-graph.service";
 import { buildGroundedKnowledgeTree } from "@/server/services/knowledge/knowledge-tree.service";
+import { assessKnowledgeQualityContract } from "@/server/services/knowledge/knowledge-quality.service";
+import type { FeatureQualityContractReport } from "@/server/services/quality/feature-quality.contract";
+import { toLearningGrounding } from "@/server/services/quality/learning-evidence.service";
 
 export type KnowledgeStatus = "not_generated" | "ready" | "partial" | "failed";
 
@@ -31,6 +34,7 @@ export interface KnowledgeView extends KnowledgeProps {
   conceptMap: GraphData | null;
   tree: KnowledgeTreeData | null;
   graphQuality: KnowledgeGraphQuality | null;
+  qualityContract: FeatureQualityContractReport | null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -157,6 +161,8 @@ function emptyKnowledge(noteId: string): KnowledgeView {
 
     graphQuality: null,
 
+    qualityContract: null,
+
     conceptMap: null,
 
     tree: null,
@@ -212,16 +218,19 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
   const grounding = normalizeGrounding(
     raw.grounding,
   );
+  const learningGrounding = grounding
+    ? toLearningGrounding(grounding)
+    : null;
 
-  const groundedGraphResult = grounding
+  const groundedGraphResult = learningGrounding
     ? buildGroundedKnowledgeGraphResult(
-        grounding,
+        learningGrounding,
       )
     : null;
 
-  const conceptMap = grounding
+  const conceptMap = learningGrounding
     ? buildGroundedConceptMap(
-        grounding,
+        learningGrounding,
       )
     : normalizeGraph(raw.graph);
 
@@ -262,19 +271,37 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
     processedAt,
   };
 
+  const tree = learningGrounding
+    ? buildGroundedKnowledgeTree(learningGrounding)
+    : null;
+  const qualityContract =
+    learningGrounding && groundedGraphResult && tree
+      ? assessKnowledgeQualityContract({
+          grounding: learningGrounding,
+          graph: groundedGraphResult.graph,
+          graphQuality: groundedGraphResult.quality,
+          tree,
+        })
+      : null;
+
+  const qualityAwareStatus: KnowledgeStatus =
+    status === "ready" && qualityContract && !qualityContract.passed
+      ? "partial"
+      : status;
+
   return {
     ...props,
 
     conceptMap,
 
-    tree: grounding
-      ? buildGroundedKnowledgeTree(grounding)
-      : null,
+    tree,
 
     graphQuality:
       groundedGraphResult?.quality ?? null,
 
-    status,
+    qualityContract,
+
+    status: qualityAwareStatus,
 
     mode:
       confidence === undefined
