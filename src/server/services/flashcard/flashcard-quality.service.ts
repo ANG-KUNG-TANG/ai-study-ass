@@ -4,6 +4,15 @@ import type {
 import type {
   FlashcardDifficulty,
 } from "@/server/entities/flashcard.entity";
+import {
+  buildFeatureQualityReport,
+  qualityRatio,
+  type FeatureQualityContractReport,
+} from "@/server/services/quality/feature-quality.contract";
+import {
+  selectLearningConcepts,
+  toLearningGrounding,
+} from "@/server/services/quality/learning-evidence.service";
 
 export interface FlashcardQualityDraft {
   front: string;
@@ -26,6 +35,7 @@ export interface FlashcardQualityRejection {
 export interface FlashcardQualityResult {
   accepted: FlashcardQualityDraft[];
   rejected: FlashcardQualityRejection[];
+  contract: FeatureQualityContractReport;
 }
 
 interface SupportSource {
@@ -92,7 +102,126 @@ export function validateGroundedFlashcards(
     });
   }
 
-  return { accepted, rejected };
+  const contract = assessFlashcardQualityContract(accepted, grounding);
+  return { accepted, rejected, contract };
+}
+
+export function assessFlashcardQualityContract(
+  cards: FlashcardQualityDraft[],
+  grounding: GroundedKnowledge,
+): FeatureQualityContractReport {
+  const sources = buildSupportSources(grounding);
+  const total = cards.length;
+  const matches = cards.map((card) => ({
+    card,
+    match: bestSupportMatch(card.back, card.front, sources),
+  }));
+  const groundedCount = matches.filter(({ card, match }) =>
+    Boolean(match && isSupportStrong(card.back, match)),
+  ).length;
+  const atomicCount = matches.filter(({ card, match }) =>
+    Boolean(match && isAtomic(card.back, match, sources)),
+  ).length;
+  const usefulCount = matches.filter(({ card, match }) =>
+    Boolean(
+      match &&
+      isFrontAnswerable(card.front, card.back, grounding, match, sources) &&
+      hasStudyValue(card, match),
+    ),
+  ).length;
+  const clarityCount = cards.filter((card) => isClearCard(card)).length;
+  const concepts = selectLearningConcepts(grounding.concepts, Math.max(4, Math.min(12, total)));
+  const deckText = cards.map((card) => `${card.front} ${card.back}`).join(" ");
+  const coverage = qualityRatio(
+    concepts.filter((concept) => textRepresents(deckText, concept.name)).length,
+    concepts.length,
+    1,
+  );
+  const importance = average(
+    matches
+      .map(({ match }) => match?.source.importance ?? 0)
+      .map((value) => Math.min(1, value / 0.8)),
+    1,
+  );
+  const duplicateRatio = nearDuplicateDeckRatio(cards);
+  const difficultyBalance = flashcardDifficultyBalance(cards);
+  const leakageFree = cards.every((card) => !leaksAnswer(card.front, card.back));
+
+  return buildFeatureQualityReport({
+    feature: "flashcards",
+    dimensions: [
+      { key: "grounding", label: "Grounding", weight: 2.0, ratio: qualityRatio(groundedCount, total, 1) },
+      { key: "atomicity", label: "Atomicity", weight: 1.5, ratio: qualityRatio(atomicCount, total, 1) },
+      { key: "recallUsefulness", label: "Recall usefulness", weight: 1.5, ratio: qualityRatio(usefulCount, total, 1) },
+      { key: "conceptImportance", label: "Concept importance", weight: 1.5, ratio: importance },
+      { key: "clarity", label: "Front/back clarity", weight: 1.0, ratio: qualityRatio(clarityCount, total, 1) },
+      { key: "coverage", label: "Concept coverage", weight: 1.0, ratio: coverage },
+      { key: "duplicateControl", label: "Duplicate control", weight: 0.75, ratio: 1 - duplicateRatio },
+      { key: "evidenceTraceability", label: "Evidence traceability", weight: 0.5, ratio: qualityRatio(groundedCount, total, 1) },
+      { key: "deckBalance", label: "Deck balance", weight: 0.25, ratio: difficultyBalance },
+    ],
+    hardGates: [
+      {
+        code: "NON_EMPTY_DECK",
+        message: "A quality-scored flashcard deck must contain at least one validated card.",
+        passed: total > 0,
+      },
+      {
+        code: "ALL_BACKS_GROUNDED",
+        message: "Every flashcard answer must be supported by document evidence.",
+        passed: groundedCount === total,
+      },
+      {
+        code: "ATOMIC_RECALL",
+        message: "Every persisted flashcard must test one primary recall unit.",
+        passed: atomicCount === total,
+      },
+      {
+        code: "NO_ANSWER_LEAKAGE",
+        message: "Flashcard fronts must not reveal their answers.",
+        passed: leakageFree,
+      },
+    ],
+  });
+}
+
+export function selectHighestQualityFlashcardSet(
+  cards: FlashcardQualityDraft[],
+  grounding: GroundedKnowledge,
+  limit: number,
+): FlashcardQualityDraft[] {
+  const target = Math.max(1, Math.floor(limit));
+  if (cards.length <= target) return [...cards];
+
+  const remaining = [...cards];
+  const selected: FlashcardQualityDraft[] = [];
+
+  while (remaining.length > 0 && selected.length < target) {
+    let bestIndex = 0;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    for (let index = 0; index < remaining.length; index += 1) {
+      const candidate = remaining[index];
+      if (!candidate) continue;
+      const report = assessFlashcardQualityContract(
+        [...selected, candidate],
+        grounding,
+      );
+      const score =
+        report.scoreOutOf10 +
+        (report.hardGatePassed ? 0.05 : 0) +
+        (report.passed ? 0.1 : 0);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    }
+
+    const [best] = remaining.splice(bestIndex, 1);
+    if (best) selected.push(best);
+  }
+
+  return selected;
 }
 
 export function flashcardQualityLogContext(
@@ -111,7 +240,50 @@ export function flashcardQualityLogContext(
     acceptedCount: result.accepted.length,
     rejectedCount: result.rejected.length,
     rejectionReasonCounts,
+    qualityScoreOutOf10: result.contract.scoreOutOf10,
+    qualityPassed: result.contract.passed,
+    failedHardGates: result.contract.hardGates.filter((gate) => !gate.passed).map((gate) => gate.code),
   };
+}
+
+function isClearCard(card: FlashcardQualityDraft): boolean {
+  const front = card.front.trim();
+  const back = card.back.trim();
+  if (front.length < 6 || front.length > 220 || back.length < 2 || back.length > 450) return false;
+  if (/^(?:it|this|that|these|those)\b/iu.test(front)) return false;
+  return true;
+}
+
+function flashcardDifficultyBalance(cards: FlashcardQualityDraft[]): number {
+  if (cards.length <= 4) return 1;
+  const levels = new Set(cards.map((card) => card.difficulty));
+  if (levels.size >= 3) return 1;
+  if (levels.size === 2) return 0.97;
+  return 0.9;
+}
+
+function nearDuplicateDeckRatio(cards: FlashcardQualityDraft[]): number {
+  if (cards.length <= 1) return 0;
+  let duplicates = 0;
+  const accepted: FlashcardQualityDraft[] = [];
+  for (const card of cards) {
+    if (isNearDuplicate(card, accepted)) duplicates += 1;
+    else accepted.push(card);
+  }
+  return duplicates / cards.length;
+}
+
+function textRepresents(source: string, target: string): boolean {
+  const left = normalise(source);
+  const right = normalise(target);
+  if (!left || !right) return false;
+  if (left.includes(right)) return true;
+  return setCoverage(meaningfulTokens(right), meaningfulTokens(left)) >= 0.8;
+}
+
+function average(values: number[], emptyValue: number): number {
+  if (values.length === 0) return emptyValue;
+  return Math.max(0, Math.min(1, values.reduce((sum, value) => sum + value, 0) / values.length));
 }
 
 function validateCard(
@@ -169,6 +341,7 @@ function validateCard(
 function buildSupportSources(
   grounding: GroundedKnowledge,
 ): SupportSource[] {
+  grounding = toLearningGrounding(grounding);
   const headings = new Map(
     grounding.sections.map(
       (section) => [section.sectionId, section.heading],

@@ -4,6 +4,7 @@ import type {
 } from "@/server/intelligence/grounding";
 import type { QuizQuestionInput } from "@/server/entities/quiz.entity";
 import type { FlashcardDifficulty } from "@/server/entities/flashcard.entity";
+import { toLearningGrounding } from "@/server/services/quality/learning-evidence.service";
 
 const QUERY_STOP_WORDS = new Set([
   "about", "after", "also", "and", "are", "can", "does", "for", "from",
@@ -28,6 +29,7 @@ export function buildQuestionsFromGrounding(
   count: number,
   allowedTypes: readonly string[],
 ): QuizQuestionInput[] {
+  grounding = toLearningGrounding(grounding);
   const questions: QuizQuestionInput[] = [];
   const concepts = grounding.concepts.map((concept) => concept.name);
 
@@ -108,6 +110,7 @@ export function buildFlashcardsFromGrounding(
   grounding: GroundedKnowledge,
   count: number,
 ): GroundedFlashcardDraft[] {
+  grounding = toLearningGrounding(grounding);
   const cards: GroundedFlashcardDraft[] = grounding.keyTerms.map((term) => ({
     front: `What does "${term.term}" mean?`,
     back: shorten(term.definition, 350),
@@ -137,6 +140,7 @@ export function answerFromGrounding(
   question: string,
   limit = 3,
 ): GroundedChatAnswer {
+  grounding = toLearningGrounding(grounding);
   const query = new Set(tokenise(question));
   const sectionHeadings = new Map(
     grounding.sections.map((section) => [section.sectionId, section.heading]),
@@ -189,6 +193,7 @@ export function buildGroundedPromptSource(
   grounding: GroundedKnowledge,
   maxCharacters = 28_000,
 ): string {
+  grounding = toLearningGrounding(grounding);
   const covered = grounding.sections.filter(
     (section) => section.status === "covered",
   );

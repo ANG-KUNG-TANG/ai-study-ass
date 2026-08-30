@@ -36,7 +36,9 @@ import type {
   GroundedKnowledge,
 } from "@/server/intelligence/grounding";
 import {
+  assessFlashcardQualityContract,
   flashcardQualityLogContext,
+  selectHighestQualityFlashcardSet,
   validateGroundedFlashcards,
 } from "@/server/services/flashcard/flashcard-quality.service";
 import {
@@ -48,6 +50,9 @@ import {
 import {
   recordRepairTelemetry,
 } from "@/server/services/repair-telemetry.service";
+import {
+  isFeatureQualityImprovement,
+} from "@/server/services/quality/feature-quality.contract";
 
 interface FlashcardPair {
   front: string;
@@ -325,13 +330,17 @@ export async function generateFlashcardsWithMetadata(
     grounding,
   );
 
+  const initialFlashcardQuality = grounding
+    ? assessFlashcardQualityContract(pairs, grounding)
+    : null;
+
   const symbolicCount = pairs.length;
   let source: GenerationSource = "symbolic";
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
   const repairStrategyVersion =
-    "flashcard-sufficiency-v1";
+    "flashcard-quality-v2";
   let repairAttempted = false;
   let repairCacheHit = false;
   let repairAccepted = false;
@@ -342,7 +351,9 @@ export async function generateFlashcardsWithMetadata(
       targetCount: count,
       acceptedCount: pairs.length,
       qualityValidated:
-        Boolean(grounding),
+        Boolean(grounding && initialFlashcardQuality?.passed),
+      qualityRepairNeeded:
+        Boolean(grounding && initialFlashcardQuality && !initialFlashcardQuality.passed),
     });
 
   if (
@@ -471,25 +482,49 @@ export async function generateFlashcardsWithMetadata(
                 deduplicateCards([
                   ...pairs,
                   ...cachedCards,
-                ]).slice(
-                  0,
-                  count,
-                );
+                ]);
               const validatedPairs =
                 validateGroundedCards(
                   noteId,
                   combinedPairs,
                   grounding,
                 );
+              const candidatePairs = grounding
+                ? selectHighestQualityFlashcardSet(
+                    validatedPairs,
+                    grounding,
+                    count,
+                  )
+                : validatedPairs.slice(0, count);
+              const currentQuality = grounding
+                ? assessFlashcardQualityContract(
+                    pairs,
+                    grounding,
+                  )
+                : null;
+              const candidateQuality = grounding
+                ? assessFlashcardQualityContract(
+                    candidatePairs,
+                    grounding,
+                  )
+                : null;
+              const qualityImproved =
+                currentQuality && candidateQuality
+                  ? isFeatureQualityImprovement(
+                      currentQuality,
+                      candidateQuality,
+                    )
+                  : false;
 
               if (
-                validatedPairs.length >
-                  pairs.length &&
-                validatedPairs.length >=
+                (candidatePairs.length >
+                  pairs.length ||
+                  qualityImproved) &&
+                candidatePairs.length >=
                   sufficiency.minimumAcceptableCount
               ) {
                 pairs =
-                  validatedPairs;
+                  candidatePairs;
                 source =
                   symbolicCount > 0
                     ? "hybrid"
@@ -552,21 +587,50 @@ export async function generateFlashcardsWithMetadata(
             deduplicateCards([
               ...pairs,
               ...ai.cards,
-            ]).slice(0, count);
+            ]);
           const validatedPairs =
             validateGroundedCards(
               noteId,
               combinedPairs,
               grounding,
             );
+          const candidatePairs = grounding
+            ? selectHighestQualityFlashcardSet(
+                validatedPairs,
+                grounding,
+                count,
+              )
+            : validatedPairs.slice(0, count);
+          const currentQuality = grounding
+            ? assessFlashcardQualityContract(
+                pairs,
+                grounding,
+              )
+            : null;
+          const candidateQuality = grounding
+            ? assessFlashcardQualityContract(
+                candidatePairs,
+                grounding,
+              )
+            : null;
+          const qualityImproved =
+            currentQuality && candidateQuality
+              ? isFeatureQualityImprovement(
+                  currentQuality,
+                  candidateQuality,
+                )
+              : false;
           const acceptedAIContent =
-            validatedPairs.length >
-            pairs.length;
+            candidatePairs.length >
+              pairs.length ||
+            qualityImproved;
           const repairReachedMinimum =
-            validatedPairs.length >=
+            candidatePairs.length >=
             sufficiency.minimumAcceptableCount;
 
-          pairs = validatedPairs;
+          if (acceptedAIContent) {
+            pairs = candidatePairs;
+          }
           tokensUsed = ai.tokensUsed;
 
           if (acceptedAIContent) {
@@ -617,6 +681,16 @@ export async function generateFlashcardsWithMetadata(
     }
   }
 
+  pairs = validateGroundedCards(
+    noteId,
+    pairs,
+    grounding,
+  );
+
+  const finalFlashcardQuality = grounding
+    ? assessFlashcardQualityContract(pairs, grounding)
+    : null;
+
   if (pairs.length === 0) {
     throw new BadRequestError(
       "Not enough document content was available to generate flashcards.",
@@ -642,14 +716,15 @@ export async function generateFlashcardsWithMetadata(
 
   const confidence = Math.min(
     1,
-    0.35 +
-      (entities.length / count) * 0.45 +
-      (intelligence?.confidence ?? 0) * 0.2,
+    0.30 +
+      (entities.length / count) * 0.30 +
+      (intelligence?.confidence ?? 0) * 0.15 +
+      (finalFlashcardQuality?.scoreOutOf10 ?? 10) / 10 * 0.25,
   );
 
   const status =
-    entities.length >=
-      sufficiency.minimumAcceptableCount
+    entities.length >= sufficiency.minimumAcceptableCount &&
+    (!finalFlashcardQuality || finalFlashcardQuality.passed)
       ? "ready"
       : "partial";
 
@@ -697,6 +772,13 @@ export async function generateFlashcardsWithMetadata(
     source,
     aiFallbackUsed,
     tokensUsed,
+    ...(finalFlashcardQuality
+      ? {
+          qualityScoreOutOf10: finalFlashcardQuality.scoreOutOf10,
+          qualityPassed: finalFlashcardQuality.passed,
+          failedHardGates: finalFlashcardQuality.hardGates.filter((gate) => !gate.passed).map((gate) => gate.code),
+        }
+      : {}),
   });
 
   return {
@@ -708,6 +790,8 @@ export async function generateFlashcardsWithMetadata(
       status,
       itemCount: entities.length,
       tokensUsed,
+      qualityScoreOutOf10: finalFlashcardQuality?.scoreOutOf10,
+      qualityPassed: finalFlashcardQuality?.passed,
     },
   };
 }

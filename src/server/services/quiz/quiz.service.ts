@@ -37,7 +37,9 @@ import {
 import { z } from "zod";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
 import {
+  assessQuizQualityContract,
   quizQualityLogContext,
+  selectHighestQualityQuizSet,
   validateGroundedQuizQuestions,
 } from "@/server/services/quiz/quiz-quality.service";
 import type {
@@ -52,6 +54,9 @@ import {
 import {
   recordRepairTelemetry,
 } from "@/server/services/repair-telemetry.service";
+import {
+  isFeatureQualityImprovement,
+} from "@/server/services/quality/feature-quality.contract";
 
 const quizResponseSchema = z.object({
   questions: z.array(z.object({
@@ -204,7 +209,7 @@ function validateQuestions(
 ): QuizQuestionInput[] {
   return questions.filter((question) => {
     try {
-       
+
       new QuizEntity({
         id: "validation-only",
         noteId,
@@ -342,13 +347,17 @@ export async function generateQuizWithMetadata(
     grounding,
   );
 
+  const initialQuizQuality = grounding
+    ? assessQuizQualityContract(questions, grounding)
+    : null;
+
   const symbolicCount = questions.length;
   let source: GenerationSource = "symbolic";
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
   const repairStrategyVersion =
-    "quiz-sufficiency-v1";
+    "quiz-quality-v2";
   let repairAttempted = false;
   let repairCacheHit = false;
   let repairAccepted = false;
@@ -359,7 +368,9 @@ export async function generateQuizWithMetadata(
       targetCount: count,
       acceptedCount: questions.length,
       qualityValidated:
-        Boolean(grounding),
+        Boolean(grounding && initialQuizQuality?.passed),
+      qualityRepairNeeded:
+        Boolean(grounding && initialQuizQuality && !initialQuizQuality.passed),
     });
 
   if (
@@ -493,10 +504,7 @@ export async function generateQuizWithMetadata(
                 deduplicateQuestions([
                   ...questions,
                   ...cachedQuestions,
-                ]).slice(
-                  0,
-                  count,
-                );
+                ]);
               const structurallyValid =
                 validateQuestions(
                   noteId,
@@ -509,15 +517,42 @@ export async function generateQuizWithMetadata(
                   structurallyValid,
                   grounding,
                 );
+              const candidate = grounding
+                ? selectHighestQualityQuizSet(
+                    validated,
+                    grounding,
+                    count,
+                  )
+                : validated.slice(0, count);
+              const currentQuality = grounding
+                ? assessQuizQualityContract(
+                    questions,
+                    grounding,
+                  )
+                : null;
+              const candidateQuality = grounding
+                ? assessQuizQualityContract(
+                    candidate,
+                    grounding,
+                  )
+                : null;
+              const qualityImproved =
+                currentQuality && candidateQuality
+                  ? isFeatureQualityImprovement(
+                      currentQuality,
+                      candidateQuality,
+                    )
+                  : false;
 
               if (
-                validated.length >
-                  questions.length &&
-                validated.length >=
+                (candidate.length >
+                  questions.length ||
+                  qualityImproved) &&
+                candidate.length >=
                   sufficiency.minimumAcceptableCount
               ) {
                 questions =
-                  validated;
+                  candidate;
                 source =
                   symbolicCount > 0
                     ? "hybrid"
@@ -599,7 +634,7 @@ export async function generateQuizWithMetadata(
             deduplicateQuestions([
               ...questions,
               ...aiQuestions,
-            ]).slice(0, count);
+            ]);
           const structurallyValid =
             validateQuestions(
               noteId,
@@ -612,14 +647,43 @@ export async function generateQuizWithMetadata(
               structurallyValid,
               grounding,
             );
+          const candidate = grounding
+            ? selectHighestQualityQuizSet(
+                validated,
+                grounding,
+                count,
+              )
+            : validated.slice(0, count);
+          const currentQuality = grounding
+            ? assessQuizQualityContract(
+                questions,
+                grounding,
+              )
+            : null;
+          const candidateQuality = grounding
+            ? assessQuizQualityContract(
+                candidate,
+                grounding,
+              )
+            : null;
+          const qualityImproved =
+            currentQuality && candidateQuality
+              ? isFeatureQualityImprovement(
+                  currentQuality,
+                  candidateQuality,
+                )
+              : false;
           const acceptedAIContent =
-            validated.length >
-            questions.length;
+            candidate.length >
+              questions.length ||
+            qualityImproved;
           const repairReachedMinimum =
-            validated.length >=
+            candidate.length >=
             sufficiency.minimumAcceptableCount;
 
-          questions = validated;
+          if (acceptedAIContent) {
+            questions = candidate;
+          }
           tokensUsed =
             aiResult.tokensUsed;
 
@@ -682,6 +746,10 @@ export async function generateQuizWithMetadata(
     grounding,
   );
 
+  const finalQuizQuality = grounding
+    ? assessQuizQualityContract(questions, grounding)
+    : null;
+
   if (questions.length === 0) {
     throw new ValidationError(
       "No valid quiz questions could be generated from this document.",
@@ -700,14 +768,15 @@ export async function generateQuizWithMetadata(
 
   const confidence = Math.min(
     1,
-    0.35 +
-      (questions.length / count) * 0.45 +
-      (intelligence?.confidence ?? 0) * 0.2,
+    0.30 +
+      (questions.length / count) * 0.30 +
+      (intelligence?.confidence ?? 0) * 0.15 +
+      (finalQuizQuality?.scoreOutOf10 ?? 10) / 10 * 0.25,
   );
 
   const status =
-    questions.length >=
-      sufficiency.minimumAcceptableCount
+    questions.length >= sufficiency.minimumAcceptableCount &&
+    (!finalQuizQuality || finalQuizQuality.passed)
       ? "ready"
       : "partial";
 
@@ -754,6 +823,13 @@ export async function generateQuizWithMetadata(
     source,
     aiFallbackUsed,
     tokensUsed,
+    ...(finalQuizQuality
+      ? {
+          qualityScoreOutOf10: finalQuizQuality.scoreOutOf10,
+          qualityPassed: finalQuizQuality.passed,
+          failedHardGates: finalQuizQuality.hardGates.filter((gate) => !gate.passed).map((gate) => gate.code),
+        }
+      : {}),
   });
 
   return {
@@ -765,6 +841,8 @@ export async function generateQuizWithMetadata(
       status,
       itemCount: questions.length,
       tokensUsed,
+      qualityScoreOutOf10: finalQuizQuality?.scoreOutOf10,
+      qualityPassed: finalQuizQuality?.passed,
     },
   };
 }

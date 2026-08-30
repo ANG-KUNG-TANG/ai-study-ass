@@ -37,6 +37,8 @@ export interface GenerationMetadata {
   status: "ready" | "partial";
   itemCount?: number;
   tokensUsed?: number;
+  qualityScoreOutOf10?: number;
+  qualityPassed?: boolean;
 }
 
 export interface FeatureGenerationState {

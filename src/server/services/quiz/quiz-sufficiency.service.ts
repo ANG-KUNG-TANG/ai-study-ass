@@ -8,6 +8,9 @@ import {
   retrieveGroundedEvidence,
   type GroundedEvidenceResult,
 } from "@/server/services/evidence-retriever.service";
+import {
+  toLearningGrounding,
+} from "@/server/services/quality/learning-evidence.service";
 
 export interface QuizSufficiencyPlan {
   targetCount: number;
@@ -50,6 +53,7 @@ export function buildQuizSufficiencyPlan(
     targetCount: number;
     acceptedCount: number;
     qualityValidated: boolean;
+    qualityRepairNeeded?: boolean;
   },
 ): QuizSufficiencyPlan {
   const targetCount = Math.max(
@@ -74,11 +78,26 @@ export function buildQuizSufficiencyPlan(
       ? minimumAcceptableCount
       : targetCount;
 
-  const requestedAIAdditions =
+  const countRepairAdditions =
     Math.max(
       0,
       desiredFinalCount -
         acceptedCount,
+    );
+  const qualityRepairAdditions =
+    input.qualityRepairNeeded
+      ? Math.min(
+          4,
+          Math.max(
+            2,
+            Math.ceil(targetCount * 0.25),
+          ),
+        )
+      : 0;
+  const requestedAIAdditions =
+    Math.max(
+      countRepairAdditions,
+      qualityRepairAdditions,
     );
 
   return {
@@ -103,8 +122,10 @@ export function retrieveQuizRepairEvidence(
     readonly QuizQuestionInput[],
   requestedAdditions: number,
 ): GroundedEvidenceResult {
+  const learningGrounding =
+    toLearningGrounding(grounding);
   const supportedFacts =
-    grounding.facts
+    learningGrounding.facts
       .filter(
         (fact) =>
           fact.verificationStatus ===
@@ -168,7 +189,7 @@ export function retrieveQuizRepairEvidence(
     );
 
   const conceptNames =
-    grounding.concepts
+    learningGrounding.concepts
       .filter(
         (concept) =>
           concept.evidence.length >
@@ -224,7 +245,7 @@ export function retrieveQuizRepairEvidence(
     );
 
   return retrieveGroundedEvidence(
-    grounding,
+    learningGrounding,
     {
       factIds,
       sectionIds,

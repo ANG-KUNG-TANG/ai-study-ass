@@ -8,6 +8,9 @@ import {
   retrieveGroundedEvidence,
   type GroundedEvidenceResult,
 } from "@/server/services/evidence-retriever.service";
+import {
+  toLearningGrounding,
+} from "@/server/services/quality/learning-evidence.service";
 
 export interface FlashcardSufficiencyDraft {
   front: string;
@@ -56,6 +59,7 @@ export function buildFlashcardSufficiencyPlan(
     targetCount: number;
     acceptedCount: number;
     qualityValidated: boolean;
+    qualityRepairNeeded?: boolean;
   },
 ): FlashcardSufficiencyPlan {
   const targetCount = Math.max(
@@ -79,11 +83,26 @@ export function buildFlashcardSufficiencyPlan(
     input.qualityValidated
       ? minimumAcceptableCount
       : targetCount;
-  const requestedAIAdditions =
+  const countRepairAdditions =
     Math.max(
       0,
       desiredFinalCount -
         acceptedCount,
+    );
+  const qualityRepairAdditions =
+    input.qualityRepairNeeded
+      ? Math.min(
+          5,
+          Math.max(
+            2,
+            Math.ceil(targetCount * 0.25),
+          ),
+        )
+      : 0;
+  const requestedAIAdditions =
+    Math.max(
+      countRepairAdditions,
+      qualityRepairAdditions,
     );
 
   return {
@@ -108,8 +127,10 @@ export function retrieveFlashcardRepairEvidence(
     readonly FlashcardSufficiencyDraft[],
   requestedAdditions: number,
 ): GroundedEvidenceResult {
+  const learningGrounding =
+    toLearningGrounding(grounding);
   const supportedFacts =
-    grounding.facts
+    learningGrounding.facts
       .filter(
         (fact) =>
           fact.verificationStatus ===
@@ -176,7 +197,7 @@ export function retrieveFlashcardRepairEvidence(
       .join(" ");
 
   const conceptNames =
-    grounding.concepts
+    learningGrounding.concepts
       .filter(
         (concept) =>
           concept.evidence.length >
@@ -232,7 +253,7 @@ export function retrieveFlashcardRepairEvidence(
     );
 
   return retrieveGroundedEvidence(
-    grounding,
+    learningGrounding,
     {
       factIds,
       sectionIds,
