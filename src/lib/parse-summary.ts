@@ -16,25 +16,33 @@ export interface ParsedSummarySection {
   subsections: ParsedSummarySubsection[];
 }
 
+export interface ParsedSummaryTopic {
+  heading: string;
+  explanation: string;
+  keyPoints: ParsedSummaryListItem[];
+}
+
 export interface ParsedSummary {
-  version: "legacy" | "v2";
+  version: "legacy" | "v2" | "v3";
   mode: SummaryMode;
   title: string | null;
   prose: string;
+  overviewPoints: string[];
   keyPoints: string[];
   importantConcepts: string[];
+  topics: ParsedSummaryTopic[];
   sections: ParsedSummarySection[];
 }
 
 const KEY_POINTS_MARKER = "\n\n**Key Points:**\n";
 const CONCEPTS_MARKER = "\n\n**Important Concepts:** ";
-const V2_MARKER_RE =
-  /<!--\s*intelligence-engine:v2(?:\.\d+)?(?:;\s*mode:(concise|comprehensive|exam))?\s*-->/i;
+const STRUCTURED_MARKER_RE =
+  /<!--\s*intelligence-engine:(v2(?:\.\d+)?|v3(?:\.\d+)?)(?:;\s*mode:(concise|comprehensive|exam))?\s*-->/i;
 const PAGE_ARTIFACT_RE =
   /^(?:(?:[-–—]{1,2}\s*)?(?:page\s*)?\d+(?:\s+(?:of|\/)\s+\d+)(?:\s*[-–—]{1,2})?)$/i;
 
 export function parseSummary(value: string): ParsedSummary {
-  if (V2_MARKER_RE.test(value) || /^##\s+/m.test(value)) {
+  if (STRUCTURED_MARKER_RE.test(value) || /^##\s+/m.test(value)) {
     return parseStructuredSummary(value);
   }
 
@@ -79,14 +87,17 @@ function parseLegacySummary(flattened: string): ParsedSummary {
     mode: "comprehensive",
     title: null,
     prose,
+    overviewPoints: prose ? [prose] : [],
     keyPoints,
     importantConcepts,
+    topics: [],
     sections: [],
   };
 }
 
 function parseStructuredSummary(markdown: string): ParsedSummary {
-  const markerMode = markdown.match(V2_MARKER_RE)?.[1];
+  const marker = markdown.match(STRUCTURED_MARKER_RE);
+  const markerMode = marker?.[2];
   const mode: SummaryMode = SUMMARY_MODES.includes(markerMode as SummaryMode)
     ? markerMode as SummaryMode
     : "comprehensive";
@@ -169,27 +180,48 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
   const overview = findSection(sections, "overview");
   const keyPoints = findSection(sections, "key points");
   const concepts = findSection(sections, "main concepts");
+  const studyTopics = findSection(sections, "study topics");
+  const overviewPoints = unique([
+    ...(overview?.paragraphs ?? []),
+    ...flattenListItems(overview?.items ?? []),
+  ]);
+  const topics = (studyTopics?.subsections ?? []).map((subsection) => ({
+    heading: subsection.heading,
+    explanation: extractTopicExplanation(subsection.paragraphs),
+    keyPoints: subsection.items,
+  }));
   const reserved = new Set(
-    [overview, keyPoints, concepts].filter(
+    [overview, keyPoints, concepts, studyTopics].filter(
       (section): section is ParsedSummarySection => Boolean(section),
     ),
   );
 
   return {
-    version: "v2",
+    version: marker?.[1]?.toLocaleLowerCase().startsWith("v3") ? "v3" : "v2",
     mode,
     title,
-    prose: [
-      ...preamble,
-      ...(overview?.paragraphs ?? []),
-      ...flattenListItems(overview?.items ?? []),
-    ]
+    prose: [...preamble, ...overviewPoints]
       .join("\n\n")
       .trim(),
+    overviewPoints,
     keyPoints: unique(flattenListItems(keyPoints?.items ?? [])),
     importantConcepts: unique(flattenListItems(concepts?.items ?? [])),
+    topics,
     sections: sections.filter((section) => !reserved.has(section)),
   };
+}
+
+function extractTopicExplanation(paragraphs: string[]): string {
+  const explicit = paragraphs.find((paragraph) =>
+    /^simple explanation\s*:/iu.test(paragraph),
+  );
+  if (explicit) {
+    return explicit.replace(/^simple explanation\s*:\s*/iu, "").trim();
+  }
+
+  return paragraphs.find((paragraph) =>
+    !/^important key points\s*:?$/iu.test(paragraph),
+  ) ?? "";
 }
 
 function addListItem(
@@ -234,7 +266,7 @@ function isArtifact(value: string): boolean {
 
   return (
     !normalized ||
-    V2_MARKER_RE.test(normalized) ||
+    STRUCTURED_MARKER_RE.test(normalized) ||
     PAGE_ARTIFACT_RE.test(normalized) ||
     /^(?:svg\s*regenerate|regenerate\s+svg|generated\s+study\s+notes)$/i.test(
       normalized,

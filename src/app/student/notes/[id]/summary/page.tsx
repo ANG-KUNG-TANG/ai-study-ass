@@ -8,6 +8,7 @@ import { parseSummary } from "@/lib/parse-summary";
 import type {
   ParsedSummaryListItem,
   ParsedSummarySection,
+  ParsedSummaryTopic,
 } from "@/lib/parse-summary";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
@@ -149,36 +150,84 @@ export default function SummaryPage() {
             </p>
           </section>
 
-          <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.overview")}</h4>
-          <p className="whitespace-pre-wrap text-[13px] leading-7 text-ink-soft">{parsed.prose}</p>
-
-          {parsed.keyPoints.length > 0 && (
-            <section className="mt-6">
-              <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.keyPoints")}</h4>
-              <ol className="list-decimal space-y-2 pl-5 marker:text-ink-faint">
-                {parsed.keyPoints.map((point, index) => (
+          <section>
+            <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+              {t("summary.overview")}
+            </h4>
+            {parsed.overviewPoints.length > 0 ? (
+              <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {parsed.overviewPoints.map((point, index) => (
                   <li
                     key={`${point}-${index}`}
-                    className="pl-1 text-[13px] leading-relaxed text-ink-soft"
+                    className="border-l-2 border-yellow bg-paper px-3 py-2.5 text-[13px] leading-6 text-ink-soft"
                   >
                     {point}
                   </li>
                 ))}
-              </ol>
-            </section>
-          )}
-
-          {parsed.importantConcepts.length > 0 && (
-            <section className="mt-6">
-              <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.concepts")}</h4>
-              <ul className="flex flex-wrap gap-1.5">
-                {parsed.importantConcepts.map((concept) => (
-                  <li key={concept}>
-                    <Chip tone="violet">{concept}</Chip>
-                  </li>
-                ))}
               </ul>
+            ) : (
+              <p className="text-[13px] leading-7 text-ink-soft">{parsed.prose}</p>
+            )}
+          </section>
+
+          {parsed.topics.length > 0 ? (
+            <section className="mt-7 border-t border-line pt-6">
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                    {t("summary.studyTopics")}
+                  </p>
+                  <h4 className="mt-1 font-serif text-[18px] font-semibold text-ink">
+                    {t("summary.studyTopicsDescription")}
+                  </h4>
+                </div>
+                <p className="text-[12px] text-ink-faint">
+                  {t("summary.focusedTopics", { count: parsed.topics.length })}
+                </p>
+              </div>
+              <div className="grid gap-4 xl:grid-cols-2">
+                {parsed.topics.map((topic, index) => (
+                  <SummaryTopicCard
+                    key={`${topic.heading}-${index}`}
+                    topic={topic}
+                    index={index}
+                    explanationLabel={t("summary.simpleExplanation")}
+                    keyPointsLabel={t("summary.importantKeyPoints")}
+                  />
+                ))}
+              </div>
             </section>
+          ) : (
+            <>
+              {parsed.keyPoints.length > 0 && (
+                <section className="mt-6">
+                  <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.keyPoints")}</h4>
+                  <ol className="list-decimal space-y-2 pl-5 marker:text-ink-faint">
+                    {parsed.keyPoints.map((point, index) => (
+                      <li
+                        key={`${point}-${index}`}
+                        className="pl-1 text-[13px] leading-relaxed text-ink-soft"
+                      >
+                        {point}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+
+              {parsed.importantConcepts.length > 0 && (
+                <section className="mt-6">
+                  <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.concepts")}</h4>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {parsed.importantConcepts.map((concept) => (
+                      <li key={concept}>
+                        <Chip tone="violet">{concept}</Chip>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </>
           )}
 
           {parsed.sections.map((section, index) => (
@@ -193,6 +242,53 @@ export default function SummaryPage() {
       {error && <Card className="border-coral/30"><p className="text-[13px] text-coral">{error}</p></Card>}
 
     </div>
+  );
+}
+
+function SummaryTopicCard({
+  topic,
+  index,
+  explanationLabel,
+  keyPointsLabel,
+}: {
+  topic: ParsedSummaryTopic;
+  index: number;
+  explanationLabel: string;
+  keyPointsLabel: string;
+}) {
+  return (
+    <article className="border border-line bg-paper-raised p-4 sm:p-5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-line-soft px-2 text-[11px] font-semibold text-ink-soft">
+          {index + 1}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h5 className="font-serif text-[16px] font-semibold leading-6 text-ink">
+            {topic.heading}
+          </h5>
+
+          {topic.explanation && (
+            <div className="mt-3 border-l-2 border-yellow bg-paper px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+                {explanationLabel}
+              </p>
+              <p className="mt-1 text-[13px] leading-6 text-ink-soft">
+                {topic.explanation}
+              </p>
+            </div>
+          )}
+
+          {topic.keyPoints.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+                {keyPointsLabel}
+              </p>
+              <SummaryList items={topic.keyPoints} className="text-[13px]" />
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
 

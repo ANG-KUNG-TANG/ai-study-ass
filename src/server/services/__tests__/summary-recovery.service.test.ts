@@ -213,7 +213,7 @@ describe(
     );
 
     it(
-      "covers every supported source section in comprehensive recovery",
+      "preserves supported recovery evidence without requiring raw source-layout topics",
       () => {
         const recovered =
           buildGroundedSummaryRecovery(
@@ -223,26 +223,94 @@ describe(
             "comprehensive",
           );
 
-        expect(
-          recovered.summary,
-        ).toContain(
-          "### Rain Detection",
+        expect(recovered.summary).toMatch(/rain sensor/i);
+        expect(recovered.summary).toMatch(/closes the window automatically/i);
+        expect(recovered.summary).toMatch(/smart door/i);
+        expect(recovered.summary).toContain("5 volt");
+        expect(recovered.summary).toContain("## Study Topics");
+      },
+    );
+
+    it(
+      "does not reintroduce title metadata or structural headings during v3 recovery",
+      () => {
+        const source = grounding();
+        const author = fact(
+          "meta-1",
+          "title",
+          "Martin Neil and Norman Fenton (Agena Ltd and Queen Mary, University of London).",
+          0.99,
         );
-        expect(
-          recovered.summary,
-        ).toContain(
-          "### Window Automation",
+        const finding = fact(
+          "result-1",
+          "abstract",
+          "We have found 95% correlation between actual and predicted defects.",
+          0.99,
         );
-        expect(
-          recovered.summary,
-        ).toContain(
-          "### Smart Door",
+        const causal = fact(
+          "cause-1",
+          "intro",
+          "Causal models allow conflicting evidence to be taken into account when predicting software defects.",
+          0.95,
         );
-        expect(
-          recovered.summary,
-        ).toContain(
-          "### Power Requirement",
+        const method = fact(
+          "method-1",
+          "build",
+          "The defect model was built using a mixture of project data and expert judgements.",
+          0.96,
         );
+
+        source.facts = [author, finding, causal, method];
+        source.sections = [
+          {
+            sectionId: "title",
+            heading: "Improved Software Defect Prediction",
+            status: "covered",
+            factIds: [author.id],
+            sourceUnitCount: 1,
+            omittedUnitCount: 0,
+          },
+          {
+            sectionId: "abstract",
+            heading: "Abstract",
+            status: "covered",
+            factIds: [finding.id],
+            sourceUnitCount: 1,
+            omittedUnitCount: 0,
+          },
+          {
+            sectionId: "intro",
+            heading: "1. INTRODUCTION",
+            status: "covered",
+            factIds: [causal.id],
+            sourceUnitCount: 1,
+            omittedUnitCount: 0,
+          },
+          {
+            sectionId: "build",
+            heading: "2.2 Building the BN Model",
+            status: "covered",
+            factIds: [method.id],
+            sourceUnitCount: 1,
+            omittedUnitCount: 0,
+          },
+        ];
+        source.concepts = [];
+        source.keyTerms = [];
+
+        const recovered = buildGroundedSummaryRecovery(
+          source,
+          null,
+          "Improved Software Defect Prediction",
+          "comprehensive",
+        );
+
+        expect(recovered.summary).not.toMatch(/^###\s+Abstract$/gmu);
+        expect(recovered.summary).not.toMatch(/^###\s+1\.\s*INTRODUCTION$/gmu);
+        expect(recovered.summary).not.toMatch(/^###\s+Improved Software Defect Prediction$/gmu);
+        expect(recovered.summary).not.toContain("Martin Neil and Norman Fenton");
+        expect(recovered.summary).toMatch(/Results and Findings|95% correlation/i);
+        expect(recovered.summary).toMatch(/Building the BN Model|Method and Approach/i);
       },
     );
 

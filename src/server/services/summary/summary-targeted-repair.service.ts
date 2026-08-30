@@ -4,7 +4,16 @@ import type {
   GroundedKnowledge,
 } from "@/server/intelligence/grounding";
 import { NOTE_RULES } from "@/server/entities/note.entity";
-import { isValidConcept } from "@/server/intelligence/reliability/concept-validator";
+import {
+  canonicalizeStudyConceptLabel,
+  isValidConcept,
+} from "@/server/intelligence/reliability/concept-validator";
+import {
+  isExampleOnlyConceptInText,
+  isSummaryCandidateTextEligible,
+  selectSummaryConcepts,
+  selectSummarySections,
+} from "@/server/services/summary/summary-learning-structure.service";
 import type { ReliableSymbolicSummary } from "@/server/services/summary/reliable-summary.service";
 import type {
   SummaryArtifactForValidation,
@@ -70,9 +79,19 @@ export function buildSummaryRepairPlan(input: {
     ...artifact.importantConcepts,
   ].join("\n");
 
-  const supportedFacts = grounding.facts
-    .filter((fact) => fact.verificationStatus === "supported")
+  const allSupportedFacts = grounding.facts
+    .filter((fact) => fact.verificationStatus === "supported");
+  const learningSections = selectSummarySections(
+    grounding.sections,
+    new Map(allSupportedFacts.map((fact) => [fact.id, fact])),
+  );
+  const learningFactIds = new Set(
+    learningSections.flatMap((section) => section.factIds),
+  );
+  const supportedFacts = allSupportedFacts
+    .filter((fact) => learningFactIds.has(fact.id))
     .sort((left, right) => right.importanceScore - left.importanceScore);
+  const learningConcepts = selectSummaryConcepts(grounding.concepts, 16);
 
   const factIds = issueCodes.has("LOW_MAJOR_FACT_COVERAGE")
     ? supportedFacts
@@ -82,7 +101,7 @@ export function buildSummaryRepairPlan(input: {
     : [];
 
   const sectionIds = issueCodes.has("LOW_SECTION_COVERAGE")
-    ? grounding.sections
+    ? learningSections
         .filter((section) => section.status === "covered")
         .filter((section) => {
           const sectionFacts = section.factIds
@@ -95,7 +114,7 @@ export function buildSummaryRepairPlan(input: {
     : [];
 
   const conceptNames = issueCodes.has("LOW_CONCEPT_COVERAGE")
-    ? grounding.concepts
+    ? learningConcepts
         .filter((concept) => !conceptIsRepresented(concept.name, artifactText))
         .slice(0, 8)
         .map((concept) => concept.name)
@@ -131,6 +150,7 @@ export function validateSummaryRepairPatch(
     patch.overviewAdditions.filter((item) =>
       item.trim().length >= 30 &&
       item.trim().length <= 500 &&
+      isSummaryCandidateTextEligible(item) &&
       isGroundedText(item, evidenceText)
     ),
     3,
@@ -139,15 +159,19 @@ export function validateSummaryRepairPatch(
     patch.keyPoints.filter((item) =>
       item.trim().length >= 18 &&
       item.trim().length <= 420 &&
+      isSummaryCandidateTextEligible(item) &&
       isGroundedText(item, evidenceText)
     ),
     6,
   );
   const importantConcepts = unique(
-    patch.importantConcepts.filter((concept) =>
-      isValidConcept(concept) &&
-      conceptIsRepresented(concept, evidenceText)
-    ),
+    patch.importantConcepts
+      .map(canonicalizeStudyConceptLabel)
+      .filter((concept) =>
+        isValidConcept(concept) &&
+        conceptIsRepresented(concept, evidenceText) &&
+        !isExampleOnlyConceptInText(concept, evidenceText)
+      ),
     6,
   );
 
@@ -171,25 +195,24 @@ export function applySummaryRepairPatch(
   for (const addition of patch.overviewAdditions) {
     summary = applyIfFits(
       summary,
-      (value) => appendOverview(value, addition),
+      (value) => appendBulletToSection(value, "Overview", addition),
     );
   }
   for (const point of patch.keyPoints) {
     summary = applyIfFits(
       summary,
-      (value) => appendBulletToSection(value, "Key Points", point),
+      (value) => appendBulletToSection(value, "Key Takeaways", point),
     );
   }
-  for (const concept of patch.importantConcepts) {
-    summary = applyIfFits(
-      summary,
-      (value) => appendBulletToSection(value, "Main Concepts", concept),
-    );
-  }
+  // Concepts remain validation metadata for the deterministic topic model.
+  // AI repair must not create a second global concept cloud or bypass the
+  // topic eligibility rules used by the student-facing summary.
 
   const keyPoints = unique([...symbolic.keyPoints, ...patch.keyPoints], 14);
   const importantConcepts = unique(
-    [...symbolic.importantConcepts, ...patch.importantConcepts].filter(isValidConcept),
+    [...symbolic.importantConcepts, ...patch.importantConcepts]
+      .map(canonicalizeStudyConceptLabel)
+      .filter(isValidConcept),
     18,
   );
   const confidence = Math.min(0.97, symbolic.confidence + 0.02);
@@ -211,8 +234,16 @@ export function isSummaryRepairImprovement(
   before: SummaryQualityReport,
   after: SummaryQualityReport,
 ): boolean {
-  if (!after.faithful) return false;
+  if (!after.faithful || !after.contract.hardGatePassed) return false;
+  if (after.contractPassed && !before.contractPassed) return true;
   if (after.coverageSufficient && !before.coverageSufficient) return true;
+  if (
+    after.scoreOutOf10 > before.scoreOutOf10 + 0.05 &&
+    after.metrics.unsupportedFactualUnitCount <= before.metrics.unsupportedFactualUnitCount &&
+    after.metrics.unsupportedNumericUnitCount <= before.metrics.unsupportedNumericUnitCount
+  ) {
+    return true;
+  }
 
   return coverageMissingCount(after) < coverageMissingCount(before) &&
     after.metrics.unsupportedFactualUnitCount <=
@@ -275,16 +306,6 @@ function extractNumericTokens(value: string): Set<string> {
   return new Set(
     (value.match(/[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu) ?? [])
       .map((item) => item.replace(/\s+/gu, "").replace(/,(?=\d{3}(?:\D|$))/gu, "")),
-  );
-}
-
-function appendOverview(markdown: string, addition: string): string {
-  const expression = /(## Overview\s*\n+)([\s\S]*?)(?=\n\n## |$)/u;
-  if (!expression.test(markdown)) return markdown;
-  return markdown.replace(
-    expression,
-    (_match, heading: string, body: string) =>
-      `${heading}${body.trim()} ${addition.trim()}`,
   );
 }
 

@@ -31,7 +31,10 @@ import {
   validateSummaryRepairPatch,
 } from "@/server/services/summary/summary-targeted-repair.service";
 import { getReliableProfile } from "@/server/intelligence/reliability/profile";
-import { NotFoundError } from "@/server/utils/errors";
+import {
+  NotFoundError,
+  ValidationError,
+} from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type {
   GenerationMetadata,
@@ -49,6 +52,9 @@ import {
 import {
   recordRepairTelemetry,
 } from "@/server/services/repair-telemetry.service";
+import {
+  isSummaryCandidatePreferred,
+} from "@/server/services/summary/summary-candidate-arbitration.service";
 
 export interface SummaryResult extends GenerationMetadata {
   summary: string;
@@ -203,7 +209,7 @@ export async function generateSummary(
   let tokensUsed = 0;
 
   const repairStrategyVersion =
-    "summary-targeted-v1";
+    "summary-targeted-v3.0.2-semantic-ownership";
   const repairNeeded =
     Boolean(
       grounding &&
@@ -303,6 +309,7 @@ export async function generateSummary(
                       deterministicQuality,
                       candidateQuality,
                     ) &&
+                    candidateQuality.contract.hardGatePassed &&
                     candidateQuality.status !==
                       "failed"
                   ) {
@@ -401,7 +408,8 @@ export async function generateSummary(
 
                 if (
                   candidateQuality.status !==
-                  "failed"
+                  "failed" &&
+                  candidateQuality.contract.hardGatePassed
                 ) {
                   await saveCachedRepair(
                     cacheDescriptor,
@@ -484,7 +492,8 @@ export async function generateSummary(
     : null;
 
   if (
-    summaryQuality?.status === "failed" &&
+    (summaryQuality?.status === "failed" ||
+      summaryQuality?.contract.hardGatePassed === false) &&
     source === "hybrid" &&
     grounding
   ) {
@@ -512,7 +521,8 @@ export async function generateSummary(
   }
 
   if (
-    summaryQuality?.status === "failed" &&
+    (summaryQuality?.status === "failed" ||
+      summaryQuality?.contract.hardGatePassed === false) &&
     grounding
   ) {
     const recovery =
@@ -536,7 +546,7 @@ export async function generateSummary(
       });
 
     logger.warn(
-      "Grounded summary failed validation; evaluated strict source-extractive recovery",
+      "Grounded summary failed validation; evaluated semantic-safe recovery",
       {
         noteId,
         original:
@@ -550,29 +560,47 @@ export async function generateSummary(
       },
     );
 
-    if (recoveryQuality.faithful) {
+    if (
+      summaryQuality &&
+      isSummaryCandidatePreferred(recoveryQuality, summaryQuality)
+    ) {
       result = recovery;
       source = "symbolic";
       aiFallbackUsed = false;
-      summaryQuality =
-        recoveryQuality;
+      summaryQuality = recoveryQuality;
       recoveryUsed = true;
+    } else {
+      logger.info(
+        "Kept the stronger faithful grounded summary instead of degrading to recovery",
+        {
+          noteId,
+          selected: summaryQuality
+            ? summaryQualityLogContext(summaryQuality)
+            : null,
+          rejectedRecovery: summaryQualityLogContext(recoveryQuality),
+        },
+      );
     }
   }
 
   if (
-    summaryQuality?.status === "failed" &&
+    (summaryQuality?.status === "failed" ||
+      summaryQuality?.contract.hardGatePassed === false) &&
     !summaryQuality.faithful
   ) {
     logger.error(
-      "Grounded summary failed faithfulness validation after strict recovery",
+      "Grounded summary failed faithfulness validation after semantic recovery",
       {
         noteId,
         ...summaryQualityLogContext(summaryQuality),
       },
     );
-    throw new Error(
-      "Grounded summary failed faithfulness validation",
+    throw new ValidationError(
+      "Summary could not be generated safely from the grounded source evidence.",
+      {
+        summary:
+          "Generation was stopped because one or more factual statements could not be verified against the uploaded source.",
+      },
     );
   }
 
@@ -592,6 +620,16 @@ export async function generateSummary(
   if (summaryQuality?.status === "warning") {
     logger.warn(
       "Grounded summary passed with quality warnings",
+      {
+        noteId,
+        ...summaryQualityLogContext(summaryQuality),
+      },
+    );
+  }
+
+  if (summaryQuality && !summaryQuality.contractPassed) {
+    logger.warn(
+      "Grounded summary is safe but below the feature quality target",
       {
         noteId,
         ...summaryQualityLogContext(summaryQuality),
@@ -637,10 +675,14 @@ export async function generateSummary(
     source,
     confidence: result.confidence,
     aiFallbackUsed,
-    status: result.status,
+    status:
+      summaryQuality && !summaryQuality.contractPassed
+        ? "partial"
+        : result.status,
     tokensUsed,
     itemCount: 1,
     qualityScoreOutOf10:
+      summaryQuality?.scoreOutOf10 ??
       grounding?.quality.scoreOutOf10 ??
       result.profile?.qualityScoreOutOf10,
     warnings: [
@@ -651,7 +693,7 @@ export async function generateSummary(
         : []),
       ...(recoveryUsed
         ? [
-            "A strict source-extractive recovery summary was used because the normal grounded summary could not be returned safely.",
+            "A semantic-safe recovery summary was used because the normal grounded summary could not be returned safely.",
           ]
         : []),
     ],

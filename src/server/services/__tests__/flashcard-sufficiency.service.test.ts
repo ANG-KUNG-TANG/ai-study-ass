@@ -245,6 +245,24 @@ describe(
     );
 
     it(
+      "requests bounded quality repair even when the target deck size is already full",
+      () => {
+        const plan =
+          buildFlashcardSufficiencyPlan({
+            targetCount: 15,
+            acceptedCount: 15,
+            qualityValidated: false,
+            qualityRepairNeeded: true,
+          });
+
+        expect(plan.targetShortfall).toBe(0);
+        expect(plan.requestedAIAdditions).toBeGreaterThanOrEqual(2);
+        expect(plan.requestedAIAdditions).toBeLessThanOrEqual(5);
+        expect(plan.needsAI).toBe(true);
+      },
+    );
+
+    it(
       "targets important evidence not already represented by accepted cards",
       () => {
         const source =

@@ -367,16 +367,21 @@ const en = {
   "summary.overview": "Overview",
   "summary.keyPoints": "Key points",
   "summary.concepts": "Important concepts",
+  "summary.studyTopics": "Study topics",
+  "summary.studyTopicsDescription": "Understand the document topic by topic",
+  "summary.focusedTopics": "{count} focused topics",
+  "summary.simpleExplanation": "Simple explanation",
+  "summary.importantKeyPoints": "Important key points",
   "summary.mode.label": "Study mode",
   "summary.mode.concise": "Concise",
   "summary.mode.comprehensive": "Comprehensive",
   "summary.mode.exam": "Exam revision",
   "summary.mode.conciseDescription":
-    "A shorter overview with essential concepts and section highlights.",
+    "3–5 most important topics with 2–4 key points each.",
   "summary.mode.comprehensiveDescription":
-    "Complete document coverage with detailed, source-grounded section notes.",
+    "6–10 important topics with a simple explanation and 3–6 grounded key points each.",
   "summary.mode.examDescription":
-    "Prioritises definitions, rules, results, warnings, and likely review points.",
+    "5–8 exam-relevant topics with a simple explanation and 3–6 review points each.",
 
   "quiz.loading": "Loading quiz…",
   "quiz.generateDescription":
@@ -1286,16 +1291,21 @@ const my: Record<TranslationKey, string> = {
   "summary.overview": "ခြုံငုံသုံးသပ်ချက်",
   "summary.keyPoints": "အဓိကအချက်များ",
   "summary.concepts": "အရေးကြီးသော သဘောတရားများ",
+  "summary.studyTopics": "လေ့လာရန် အကြောင်းအရာများ",
+  "summary.studyTopicsDescription": "စာတမ်းကို အကြောင်းအရာတစ်ခုချင်းစီအလိုက် နားလည်ပါ",
+  "summary.focusedTopics": "အဓိကအကြောင်းအရာ {count} ခု",
+  "summary.simpleExplanation": "ရိုးရှင်းသော ရှင်းလင်းချက်",
+  "summary.importantKeyPoints": "အရေးကြီးသော အဓိကအချက်များ",
   "summary.mode.label": "လေ့လာမှုပုံစံ",
   "summary.mode.concise": "အကျဉ်း",
   "summary.mode.comprehensive": "အသေးစိတ်",
   "summary.mode.exam": "စာမေးပွဲ ပြန်လေ့လာမှု",
   "summary.mode.conciseDescription":
-    "အဓိကသဘောတရားများနှင့် ကဏ္ဍအနှစ်ချုပ်များပါသော အကျဉ်းချုံးပုံစံ။",
+    "အရေးကြီးဆုံး အကြောင်းအရာ 3–5 ခု၊ တစ်ခုစီတွင် အဓိကအချက် 2–4 ခု။",
   "summary.mode.comprehensiveDescription":
-    "မူရင်းအထောက်အထားနှင့်တကွ စာတမ်းတစ်ခုလုံးကို အသေးစိတ် ဖော်ပြသောပုံစံ။",
+    "အရေးကြီးသော အကြောင်းအရာ 6–10 ခု၊ ရိုးရှင်းသောရှင်းလင်းချက်နှင့် မူရင်းအထောက်အထားရှိ အဓိကအချက် 3–6 ခုစီ။",
   "summary.mode.examDescription":
-    "အဓိပ္ပာယ်ဖွင့်ဆိုချက်၊ စည်းမျဉ်း၊ ရလဒ်၊ သတိပေးချက်နှင့် ပြန်လေ့လာရန် အချက်များကို ဦးစားပေးသည်။",
+    "စာမေးပွဲအတွက် အရေးကြီးသော အကြောင်းအရာ 5–8 ခု၊ ရိုးရှင်းသောရှင်းလင်းချက်နှင့် ပြန်လေ့လာရန် အချက် 3–6 ခုစီ။",
 
   "quiz.loading": "မေးခွန်းများ ဖွင့်နေသည်…",
   "quiz.generateDescription":

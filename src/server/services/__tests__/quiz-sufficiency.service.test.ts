@@ -138,6 +138,20 @@ describe("quiz sufficiency", () => {
     expect(plan.needsAI).toBe(true);
   });
 
+  it("requests bounded quality repair even when the target count is already full", () => {
+    const plan = buildQuizSufficiencyPlan({
+      targetCount: 10,
+      acceptedCount: 10,
+      qualityValidated: false,
+      qualityRepairNeeded: true,
+    });
+
+    expect(plan.targetShortfall).toBe(0);
+    expect(plan.requestedAIAdditions).toBeGreaterThanOrEqual(2);
+    expect(plan.requestedAIAdditions).toBeLessThanOrEqual(4);
+    expect(plan.needsAI).toBe(true);
+  });
+
   it("targets important evidence not already represented by accepted questions", () => {
     const evidence = retrieveQuizRepairEvidence(
       grounding(),
