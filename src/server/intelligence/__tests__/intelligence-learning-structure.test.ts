@@ -80,7 +80,7 @@ Slide 12 — Q&A
 Invite stakeholder feedback.
 `;
 
-describe("Intelligence learning structure v3.0 semantic topics", () => {
+describe("Intelligence learning structure v3.2 learner topics", () => {
   const result = runPipeline({
     rawText: OOAD_STRUCTURE_SOURCE,
     fileName: "OOAD_Quick_Guide.pdf",
@@ -158,7 +158,7 @@ describe("Intelligence learning structure v3.0 semantic topics", () => {
     expect(encapsulation.length).toBeLessThanOrEqual(1);
     expect(sequence.length).toBeLessThanOrEqual(1);
     expect(stateMachine.length).toBeLessThanOrEqual(1);
-    expect(notes.summary).toContain("## Study Topics");
+    expect(notes.summary).toContain("## Detailed Study Notes");
   });
 
   it("does not promote obviously mismatched source headings into Section Notes", () => {
@@ -174,7 +174,7 @@ describe("Intelligence learning structure v3.0 semantic topics", () => {
 
   it("keeps common mistakes as useful grounded warnings without promoting source debris", () => {
     expect(notes.summary).toContain(
-      "## Important Warnings and Notes",
+      "## Warnings / Common Mistakes",
     );
     expect(notes.summary).toMatch(
       /Avoid presenting diagrams without explanation\./i,
@@ -226,7 +226,7 @@ Course: DTI 312 OOAD
     expect(overview).not.toMatch(/Are all .*\?/i);
   });
 
-  it("keeps the familiar v2 summary contract for every study mode", () => {
+  it("keeps the v3.2 learner-output contract for every study mode", () => {
     const concise = buildGroundedStudyNotes(
       result.grounding,
       result.reliabilityProfile,
@@ -242,21 +242,22 @@ Course: DTI 312 OOAD
 
     for (const summary of [concise.summary, exam.summary]) {
       expect(summary).toContain("## Overview");
-      expect(summary).toContain("## Study Topics");
+      expect(summary).toContain("## Detailed Study Notes");
       expect(summary).toContain("**Simple explanation:**");
-      expect(summary).toContain("**Important key points:**");
-      expect(summary).not.toContain("## Key Points");
+        expect(summary).toContain("## Key Points");
+      expect(summary).toContain("## Key Concepts");
+      expect(summary).toContain("## Key Terms");
       expect(summary).not.toContain("## Main Concepts");
       expect(summary).not.toContain("## Section Notes");
-      expect(summary).not.toContain("## Detailed Study Notes");
-      expect(summary).not.toContain("## Practical Reference");
+      expect(summary).not.toContain("## Study Topics");
+      expect(summary).not.toContain("## Key Takeaways");
     }
   });
 
-  it("marks regenerated grounding and study notes with the semantic-topic v3.0 versions", () => {
+  it("marks regenerated grounding and study notes with the learner-output v3.2 versions", () => {
     expect(result.grounding.pipelineVersion).toBe("intelligence-v2.7");
     expect(notes.summary).toContain(
-      "<!-- intelligence-engine:v3.0;mode:comprehensive -->",
+      "<!-- intelligence-engine:v3.2;mode:comprehensive -->",
     );
   });
 });

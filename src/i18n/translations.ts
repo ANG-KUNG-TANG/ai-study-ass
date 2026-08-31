@@ -367,21 +367,21 @@ const en = {
   "summary.overview": "Overview",
   "summary.keyPoints": "Key points",
   "summary.concepts": "Important concepts",
-  "summary.studyTopics": "Study topics",
-  "summary.studyTopicsDescription": "Understand the document topic by topic",
-  "summary.focusedTopics": "{count} focused topics",
+  "summary.studyTopics": "Detailed study notes",
+  "summary.studyTopicsDescription": "Learn the strongest source-grounded topics with clear explanations and useful details",
+  "summary.focusedTopics": "{count} learning topics",
   "summary.simpleExplanation": "Simple explanation",
-  "summary.importantKeyPoints": "Important key points",
+  "summary.importantKeyPoints": "Important details",
   "summary.mode.label": "Study mode",
   "summary.mode.concise": "Concise",
   "summary.mode.comprehensive": "Comprehensive",
   "summary.mode.exam": "Exam revision",
   "summary.mode.conciseDescription":
-    "3–5 most important topics with 2–4 key points each.",
+    "A short learner-first summary with only the strongest topics and evidence.",
   "summary.mode.comprehensiveDescription":
-    "6–10 important topics with a simple explanation and 3–6 grounded key points each.",
+    "A fuller learner-first summary that keeps only strong topics instead of filling a fixed topic count.",
   "summary.mode.examDescription":
-    "5–8 exam-relevant topics with a simple explanation and 3–6 review points each.",
+    "Exam-focused concepts, rules, results, formulas, warnings, and high-value review points.",
 
   "quiz.loading": "Loading quiz…",
   "quiz.generateDescription":
@@ -1291,21 +1291,21 @@ const my: Record<TranslationKey, string> = {
   "summary.overview": "ခြုံငုံသုံးသပ်ချက်",
   "summary.keyPoints": "အဓိကအချက်များ",
   "summary.concepts": "အရေးကြီးသော သဘောတရားများ",
-  "summary.studyTopics": "လေ့လာရန် အကြောင်းအရာများ",
-  "summary.studyTopicsDescription": "စာတမ်းကို အကြောင်းအရာတစ်ခုချင်းစီအလိုက် နားလည်ပါ",
-  "summary.focusedTopics": "အဓိကအကြောင်းအရာ {count} ခု",
+  "summary.studyTopics": "အသေးစိတ် လေ့လာမှတ်စုများ",
+  "summary.studyTopicsDescription": "အရင်းအမြစ်အထောက်အထားရှိသော အဓိကအကြောင်းအရာများကို ရှင်းလင်းချက်နှင့် အသုံးဝင်သောအသေးစိတ်အချက်များဖြင့် လေ့လာပါ",
+  "summary.focusedTopics": "လေ့လာရန် အကြောင်းအရာ {count} ခု",
   "summary.simpleExplanation": "ရိုးရှင်းသော ရှင်းလင်းချက်",
-  "summary.importantKeyPoints": "အရေးကြီးသော အဓိကအချက်များ",
+  "summary.importantKeyPoints": "အရေးကြီးသော အသေးစိတ်အချက်များ",
   "summary.mode.label": "လေ့လာမှုပုံစံ",
   "summary.mode.concise": "အကျဉ်း",
   "summary.mode.comprehensive": "အသေးစိတ်",
   "summary.mode.exam": "စာမေးပွဲ ပြန်လေ့လာမှု",
   "summary.mode.conciseDescription":
-    "အရေးကြီးဆုံး အကြောင်းအရာ 3–5 ခု၊ တစ်ခုစီတွင် အဓိကအချက် 2–4 ခု။",
+    "အရေးကြီးဆုံး အကြောင်းအရာနှင့် အထောက်အထားများကိုသာ ထည့်သွင်းထားသော တိုတောင်းသည့် လေ့လာသူဦးစားပေး အနှစ်ချုပ်။",
   "summary.mode.comprehensiveDescription":
-    "အရေးကြီးသော အကြောင်းအရာ 6–10 ခု၊ ရိုးရှင်းသောရှင်းလင်းချက်နှင့် မူရင်းအထောက်အထားရှိ အဓိကအချက် 3–6 ခုစီ။",
+    "သတ်မှတ်အရေအတွက်ပြည့်အောင် အကြောင်းအရာမဖြည့်ဘဲ အရေးကြီးသောအကြောင်းအရာများကိုသာ ထည့်သွင်းထားသည့် ပိုပြည့်စုံသော လေ့လာသူဦးစားပေး အနှစ်ချုပ်။",
   "summary.mode.examDescription":
-    "စာမေးပွဲအတွက် အရေးကြီးသော အကြောင်းအရာ 5–8 ခု၊ ရိုးရှင်းသောရှင်းလင်းချက်နှင့် ပြန်လေ့လာရန် အချက် 3–6 ခုစီ။",
+    "စာမေးပွဲအတွက် အဓိကအယူအဆများ၊ စည်းမျဉ်းများ၊ ရလဒ်များ၊ ဖော်မြူလာများ၊ သတိပေးချက်များနှင့် တန်ဖိုးမြင့် ပြန်လည်လေ့လာရန်အချက်များ။",
 
   "quiz.loading": "မေးခွန်းများ ဖွင့်နေသည်…",
   "quiz.generateDescription":

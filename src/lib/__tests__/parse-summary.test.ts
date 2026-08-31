@@ -157,6 +157,57 @@ The goal is to communicate understanding.
     expect(parsed.sections.map((section) => section.heading)).toEqual(["Key Takeaways"]);
   });
 
+  it("parses v3.1 learner-output summaries without falling back to the old Study Topics contract", () => {
+    const parsed = parseSummary(`# Resolver Study Guide
+
+<!-- intelligence-engine:v3.2;mode:comprehensive -->
+
+## Overview
+- Name resolution maps readable names to network addresses. _(p. 1)_
+
+## Key Points
+- Clients use the resolved address to reach the server. _(p. 1)_
+
+## Key Concepts
+- **Name Resolution**: Maps readable names to network addresses. _(p. 1)_
+
+## Key Terms
+- **Resolver:** A service that performs name resolution. _(p. 1)_
+
+## Detailed Study Notes
+
+### Name Resolution
+**Simple explanation:** Name resolution maps readable names to network addresses. _(p. 1)_
+**Important details:**
+- Clients use the resolved address to reach the server. _(p. 1)_
+
+## Warnings / Common Mistakes
+- Do not use a reserved identifier for a host. _(p. 2)_`);
+
+    expect(parsed.version).toBe("v3");
+    expect(parsed.mode).toBe("comprehensive");
+    expect(parsed.keyPoints).toEqual([
+      "Clients use the resolved address to reach the server. (p. 1)",
+    ]);
+    expect(parsed.importantConcepts).toEqual(["Name Resolution"]);
+    expect(parsed.topics).toEqual([
+      {
+        heading: "Name Resolution",
+        explanation: "Name resolution maps readable names to network addresses. (p. 1)",
+        keyPoints: [
+          {
+            text: "Clients use the resolved address to reach the server. (p. 1)",
+            children: [],
+          },
+        ],
+      },
+    ]);
+    expect(parsed.sections.map((section) => section.heading)).toEqual([
+      "Key Terms",
+      "Warnings / Common Mistakes",
+    ]);
+  });
+
   it("keeps legacy summaries backwards compatible", () => {
     const parsed = parseSummary(
       "A concise overview.\n\n**Key Points:**\n- First point\n- Second point\n\n**Important Concepts:** SRS, UML",

@@ -179,8 +179,12 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
 
   const overview = findSection(sections, "overview");
   const keyPoints = findSection(sections, "key points");
-  const concepts = findSection(sections, "main concepts");
-  const studyTopics = findSection(sections, "study topics");
+  const concepts =
+    findSection(sections, "key concepts") ??
+    findSection(sections, "main concepts");
+  const studyTopics =
+    findSection(sections, "detailed study notes") ??
+    findSection(sections, "study topics");
   const overviewPoints = unique([
     ...(overview?.paragraphs ?? []),
     ...flattenListItems(overview?.items ?? []),
@@ -205,7 +209,9 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
       .trim(),
     overviewPoints,
     keyPoints: unique(flattenListItems(keyPoints?.items ?? [])),
-    importantConcepts: unique(flattenListItems(concepts?.items ?? [])),
+    importantConcepts: unique(
+      flattenListItems(concepts?.items ?? []).map(extractConceptLabel),
+    ),
     topics,
     sections: sections.filter((section) => !reserved.has(section)),
   };
@@ -248,6 +254,11 @@ function findSection(
   return sections.find(
     (section) => section.heading.toLowerCase() === heading,
   );
+}
+
+function extractConceptLabel(value: string): string {
+  const label = value.split(/:\s+/u, 1)[0]?.trim() ?? value.trim();
+  return label || value.trim();
 }
 
 function cleanDisplayText(value: string): string {

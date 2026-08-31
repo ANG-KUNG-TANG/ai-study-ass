@@ -97,8 +97,8 @@ describe("summary semantic learning consolidation", () => {
   it("turns source steps into one learner procedure section instead of one section per source step", () => {
     const notes = buildGroundedStudyNotes(fixture(), null, "Resolver Lab", { mode: "comprehensive" });
 
-    expect(notes.summary).toContain("## Study Topics");
-    expect(notes.summary).toContain("### Process and Procedure");
+    expect(notes.summary).toContain("## Processes / Steps");
+    expect(notes.summary).not.toContain("### Process and Procedure");
     expect(notes.summary).toContain("Configure the client with the resolver address.");
     expect(notes.summary).toContain("Add the identifier-to-address record to the resolver.");
     expect(notes.summary).not.toMatch(/^###\s+Step\s+1\b/gm);
@@ -114,7 +114,7 @@ describe("summary semantic learning consolidation", () => {
   it("keeps an important warning distinct from ordinary key points", () => {
     const notes = buildGroundedStudyNotes(fixture(), null, "Resolver Lab", { mode: "comprehensive" });
 
-    expect(notes.summary).toContain("## Important Warnings and Notes");
+    expect(notes.summary).toContain("## Warnings / Common Mistakes");
     expect(notes.summary).toContain("Do not assign a reserved network identifier to a host interface.");
     expect(notes.keyPoints).not.toContain("Do not assign a reserved network identifier to a host interface.");
   });
@@ -122,11 +122,13 @@ describe("summary semantic learning consolidation", () => {
   it("renders learner topics with a short explanation and local key points instead of global source-layout lists", () => {
     const notes = buildGroundedStudyNotes(fixture(), null, "Resolver Lab", { mode: "comprehensive" });
 
-    expect(notes.summary).toContain("## Study Topics");
+    expect(notes.summary).toContain("## Detailed Study Notes");
     expect(notes.summary).toContain("**Simple explanation:**");
-    expect(notes.summary).toContain("**Important key points:**");
-    expect(notes.summary).not.toContain("## Key Points");
-    expect(notes.summary).not.toContain("## Main Concepts");
+    expect(notes.summary).toContain("## Key Points");
+    expect(notes.summary).toContain("## Key Concepts");
+    expect(notes.summary).toContain("## Key Terms");
+    expect(notes.summary).not.toContain("## Study Topics");
+    expect(notes.summary).not.toContain("## Key Takeaways");
     expect(notes.summary).not.toContain("## Section Notes");
   });
 
@@ -138,7 +140,7 @@ describe("summary semantic learning consolidation", () => {
   });
 });
 
-describe("summary v3.0 semantic evidence topic eligibility", () => {
+describe("summary v3.1 semantic evidence topic eligibility", () => {
   it("uses semantic concepts instead of example/task headings when the heading and facts do not describe the same learning topic", () => {
     const facts = [
       fact({
@@ -322,11 +324,11 @@ describe("summary v3.0 semantic evidence topic eligibility", () => {
       mode: "comprehensive",
     });
 
-    expect(notes.summary).not.toContain("## Important Warnings and Notes");
+    expect(notes.summary).not.toContain("## Warnings / Common Mistakes");
   });
 });
 
-describe("summary v3.0 source-structure separation", () => {
+describe("summary v3.1 source-structure separation", () => {
   it("does not use a highly important but unrelated fact as a topic explanation", () => {
     const facts = [
       fact({

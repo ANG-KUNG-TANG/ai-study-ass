@@ -225,9 +225,11 @@ describe(
 
         expect(recovered.summary).toMatch(/rain sensor/i);
         expect(recovered.summary).toMatch(/closes the window automatically/i);
-        expect(recovered.summary).toMatch(/smart door/i);
+        expect(recovered.summary).not.toMatch(/^###\s+Smart Door\b/gimu);
         expect(recovered.summary).toContain("5 volt");
-        expect(recovered.summary).toContain("## Study Topics");
+        expect(recovered.summary).toContain("## Detailed Study Notes");
+        expect(recovered.summary).toContain("## Key Points");
+        expect(recovered.summary).toContain("## Key Concepts");
       },
     );
 
