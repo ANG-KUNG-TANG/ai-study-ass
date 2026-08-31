@@ -41,6 +41,12 @@ export default function SummaryPage() {
   const parsed = note?.summary ? parseSummary(note.summary) : null;
   const activeMode = parsed?.mode ?? "comprehensive";
   const selectedMode = pendingMode ?? activeMode;
+  const keyTermSections = parsed?.sections.filter(
+    (section) => section.heading.toLocaleLowerCase() === "key terms",
+  ) ?? [];
+  const remainingSections = parsed?.sections.filter(
+    (section) => section.heading.toLocaleLowerCase() !== "key terms",
+  ) ?? [];
 
   const handleGenerate = useCallback(async (
     force: boolean,
@@ -170,7 +176,47 @@ export default function SummaryPage() {
             )}
           </section>
 
-          {parsed.topics.length > 0 ? (
+          {parsed.keyPoints.length > 0 && (
+            <section className="mt-7 border-t border-line pt-6">
+              <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                {t("summary.keyPoints")}
+              </h4>
+              <ol className="grid gap-2 pl-5 marker:text-ink-faint lg:grid-cols-2">
+                {parsed.keyPoints.map((point, index) => (
+                  <li
+                    key={`${point}-${index}`}
+                    className="list-decimal pl-1 text-[13px] leading-6 text-ink-soft"
+                  >
+                    {point}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {parsed.importantConcepts.length > 0 && (
+            <section className="mt-7 border-t border-line pt-6">
+              <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                {t("summary.concepts")}
+              </h4>
+              <ul className="flex flex-wrap gap-1.5">
+                {parsed.importantConcepts.map((concept) => (
+                  <li key={concept}>
+                    <Chip tone="violet">{concept}</Chip>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {keyTermSections.map((section, index) => (
+            <SummarySection
+              key={`key-term-${section.heading}-${index}`}
+              section={section}
+            />
+          ))}
+
+          {parsed.topics.length > 0 && (
             <section className="mt-7 border-t border-line pt-6">
               <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
                 <div>
@@ -197,40 +243,9 @@ export default function SummaryPage() {
                 ))}
               </div>
             </section>
-          ) : (
-            <>
-              {parsed.keyPoints.length > 0 && (
-                <section className="mt-6">
-                  <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.keyPoints")}</h4>
-                  <ol className="list-decimal space-y-2 pl-5 marker:text-ink-faint">
-                    {parsed.keyPoints.map((point, index) => (
-                      <li
-                        key={`${point}-${index}`}
-                        className="pl-1 text-[13px] leading-relaxed text-ink-soft"
-                      >
-                        {point}
-                      </li>
-                    ))}
-                  </ol>
-                </section>
-              )}
-
-              {parsed.importantConcepts.length > 0 && (
-                <section className="mt-6">
-                  <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("summary.concepts")}</h4>
-                  <ul className="flex flex-wrap gap-1.5">
-                    {parsed.importantConcepts.map((concept) => (
-                      <li key={concept}>
-                        <Chip tone="violet">{concept}</Chip>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </>
           )}
 
-          {parsed.sections.map((section, index) => (
+          {remainingSections.map((section, index) => (
             <SummarySection
               key={`${section.heading}-${index}`}
               section={section}

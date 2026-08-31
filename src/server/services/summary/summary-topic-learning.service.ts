@@ -92,6 +92,8 @@ const FRAGMENT_HEADING_RE = /^(?:[-–—>→↓]+\s*)|(?:\b(?:move|place|put|go
 const DISCOURSE_HEADING_RE = /^(?:although|however|therefore|thus|even\s+in|even\s+when|instead|otherwise|meanwhile|because|since|while|when|then|next|finally|also|moreover|furthermore)\b/iu;
 const INCOMPLETE_HEADING_TAIL_RE = /\b(?:it|this|that|these|those|a|an|the|of|to|for|with|by|from|in|on|and|or|but)\s*$/iu;
 const SENTENCE_LIKE_HEADING_RE = /^(?:every|all|most|many|some|few|there|this|that|these|those)\b.*\b(?:is|are|was|were|has|have|contains?|begins?|includes?|shows?|means?|allows?|requires?|uses?)\b/iu;
+const LOW_VALUE_SOURCE_TOPIC_RE = /^(?:data\s+from\b|many\s+of\b|some\s+of\b|a\s+number\s+of\b|toolset\s+provided\s+by\b|contents?\s+of\b|remainder\s+of\b|.+\s+in\s+(?:figure|table|chart|diagram)\s*\d+\b|(?:one|two|three|several|many|few)\s+(?:probabilit(?:y|ies)|values?|things?|items?|forms?|types?|ways?|steps?)\b)/iu;
+const SOURCE_NAVIGATION_POINT_RE = /^(?:the\s+contents?\s+of\s+(?:the\s+)?(?:remainder|rest)|the\s+remainder\s+of\s+the\s+(?:paper|chapter)|in\s+(?:section|chapter)\s+\d+)\b/iu;
 const PREDICATE_RE = /\b(?:is|are|means?|refers?\s+to|uses?|needs?|requires?|allows?|prevents?|contains?|includes?|represents?|stores?|changes?|repeats?|returns?|receives?|performs?|guides?|helps?|explains?|shows?|connects?|translates?|converts?|selects?|compares?|solves?|provides?|organizes?|organises?)\b/iu;
 const STRONG_FACT_TYPES = new Set<AtomicFact["type"]>([
   "definition",
@@ -625,12 +627,8 @@ function allocateDraftFactsToBestTopics(
   for (const [factId, owners] of ownersByFactId) {
     if (owners.length <= 1) continue;
     owners.sort((left, right) => right.score - left.score);
-    const best = owners[0]?.score ?? 0;
     const allowed = new Set(
-      owners
-        .filter((owner, index) => index === 0 || (owner.score >= 0.46 && best - owner.score <= 0.06))
-        .slice(0, 2)
-        .map((owner) => owner.draft),
+      owners.slice(0, 1).map((owner) => owner.draft),
     );
     for (const owner of owners) {
       if (allowed.has(owner.draft)) continue;
@@ -725,23 +723,17 @@ function chooseTopicHeading(
       STRONG_FACT_TYPES.has(fact.type) &&
       summaryTopicTextAlignment(cleaned, fact.content) >= 0.45,
     );
-    const sourceSemanticFit = facts.some((fact) => {
-      const unit = semanticMap.unitsByFactId.get(fact.id);
-      if (!unit) return false;
-      return semanticEvidenceExplanationFit({
-        heading: cleaned,
-        unit,
-        kind: "topic",
-      }).passed;
-    });
     const frameworkOrProcedure = /\b(?:framework|process|procedure|workflow|method)\b/iu.test(cleaned);
 
-    if (sourceBacked || strongAlignedFact || sourceSemanticFit || frameworkOrProcedure) {
+    if (
+      !LOW_VALUE_SOURCE_TOPIC_RE.test(cleaned) &&
+      (sourceBacked || strongAlignedFact || frameworkOrProcedure)
+    ) {
       candidates.push({
         value: cleaned,
         kind: "source",
         anchorScore: alignment + (sourceBacked ? 0.22 : 0) +
-          (strongAlignedFact ? 0.16 : 0) + (sourceSemanticFit ? 0.18 : 0),
+          (strongAlignedFact ? 0.16 : 0),
       });
     } else {
       // A clean pedagogical source heading may express the learner-facing
@@ -838,6 +830,7 @@ export function isSummaryTopicHeadingEligible(value: string): boolean {
   if (DISCOURSE_HEADING_RE.test(heading)) return false;
   if (INCOMPLETE_HEADING_TAIL_RE.test(heading)) return false;
   if (SENTENCE_LIKE_HEADING_RE.test(heading)) return false;
+  if (LOW_VALUE_SOURCE_TOPIC_RE.test(heading)) return false;
   if (STRUCTURAL_HEADING_RE.test(heading) || PRACTICE_HEADING_RE.test(heading)) return false;
   if (NON_TOPIC_LABEL_RE.test(heading)) return false;
   if (/^q\s*[:;]/iu.test(heading) || /[.!:]$/u.test(heading)) return false;
@@ -855,6 +848,7 @@ export function isSummaryTopicPointUseful(
   if (!text || text.length < 18 || text.endsWith(":")) return false;
   if (!isSummaryCandidateTextEligible(text)) return false;
   if (QUESTION_OR_PROMPT_RE.test(text)) return false;
+  if (SOURCE_NAVIGATION_POINT_RE.test(text)) return false;
   if (FIRST_PERSON_NARRATIVE_RE.test(text)) return false;
   if (PRONOUN_FRAGMENT_RE.test(text)) return false;
   if (LOW_VALUE_POINT_START_RE.test(text)) {

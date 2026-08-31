@@ -187,18 +187,18 @@ describe("Intelligence Engine V2 grounding", () => {
 
   it("builds clean grounded notes without presentation-template pollution", () => {
     expect(notes.summary).toContain(
-      "<!-- intelligence-engine:v3.0;mode:comprehensive -->",
+      "<!-- intelligence-engine:v3.2;mode:comprehensive -->",
     );
-    expect(notes.summary).toContain("## Study Topics");
+    expect(notes.summary).toContain("## Detailed Study Notes");
     expect(notes.summary).toMatch(/Know Your Audience|Show Traceability/);
-    expect(notes.summary).toContain("## Important Warnings and Notes");
+    expect(notes.summary).toContain("## Warnings / Common Mistakes");
     expect(notes.summary).toMatch(/Presenting diagrams without explanation/i);
     expect(notes.summary).not.toMatch(/^###\s+Slide\s+\d+\b/gm);
     expect(notes.summary).not.toContain("Course: DTI 312 OOAD");
     expect(notes.summary).not.toMatch(/insert diagram|svg\s*regenerate/i);
     expect(notes.summary).not.toContain("1 of 6");
 
-    const takeaways = sectionBullets(notes.summary, "Key Takeaways");
+    const takeaways = sectionBullets(notes.summary, "Key Points");
     expect(takeaways.every((takeaway) => takeaway.length >= 18)).toBe(true);
     expect(takeaways).not.toEqual(
       expect.arrayContaining([
@@ -208,7 +208,8 @@ describe("Intelligence Engine V2 grounding", () => {
         "Use case diagram",
       ]),
     );
-    expect(notes.summary).not.toContain("## Key Points");
+    expect(notes.summary).toContain("## Key Points");
+    expect(notes.summary).toContain("## Key Concepts");
     expect(notes.summary).not.toContain("## Main Concepts");
     expect(notes.summary).not.toContain("## Section Notes");
   });
@@ -311,7 +312,7 @@ describe("Intelligence Engine V2 grounding", () => {
       result.reliabilityProfile,
       "Lecture Note",
     );
-    const takeaways = sectionBullets(labelNotes.summary, "Key Takeaways");
+    const takeaways = sectionBullets(labelNotes.summary, "Key Points");
 
     expect(takeaways).not.toEqual(expect.arrayContaining(labels));
   });
@@ -347,7 +348,7 @@ describe("Intelligence Engine V2 grounding", () => {
       result.reliabilityProfile,
       "Lecture Note",
     );
-    const warnings = sectionBullets(actionableNotes.summary, "Important Warnings and Notes");
+    const warnings = sectionBullets(actionableNotes.summary, "Warnings / Common Mistakes");
 
     expect(warnings).toContain("Avoid overloading slides with text.");
   });
@@ -367,10 +368,10 @@ describe("Intelligence Engine V2 grounding", () => {
     );
 
     expect(concise.summary).toContain(
-      "<!-- intelligence-engine:v3.0;mode:concise -->",
+      "<!-- intelligence-engine:v3.2;mode:concise -->",
     );
     expect(exam.summary).toContain(
-      "<!-- intelligence-engine:v3.0;mode:exam -->",
+      "<!-- intelligence-engine:v3.2;mode:exam -->",
     );
     expect(concise.summary.length).toBeLessThan(notes.summary.length);
     expect(studyTopicCount(concise.summary)).toBeGreaterThan(0);
@@ -378,7 +379,7 @@ describe("Intelligence Engine V2 grounding", () => {
     expect(studyTopicCount(exam.summary)).toBeGreaterThan(0);
     expect(studyTopicCount(exam.summary)).toBeLessThanOrEqual(8);
     expect(exam.importantConcepts.length).toBeLessThanOrEqual(12);
-    expect(exam.summary).toMatch(/Important Warnings and Notes/);
+    expect(exam.summary).toContain("## Warnings / Common Mistakes");
   });
 
   it("builds each learning-path section from its own grounded facts", () => {
@@ -478,7 +479,7 @@ function sectionBullets(markdown: string, heading: string): string[] {
 
 function studyTopicCount(summary: string): number {
   const match = summary.match(
-    /## Study Topics\s*\n([\s\S]*?)(?=\n\n## |$)/u,
+    /## Detailed Study Notes\s*\n([\s\S]*?)(?=\n\n## |$)/u,
   );
 
   return match?.[1]?.match(/^###\s+/gmu)?.length ?? 0;

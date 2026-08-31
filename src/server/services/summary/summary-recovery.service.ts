@@ -1,6 +1,8 @@
 import type {
   AtomicFact,
   GroundedKnowledge,
+  ImportantConcept,
+  QualifiedTerm,
 } from "@/server/intelligence/grounding";
 import type {
   ReliableDocumentProfile,
@@ -17,6 +19,7 @@ import {
 } from "@/server/services/summary/grounded-study-notes.service";
 import {
   isActionableSummaryWarningFact,
+  isMeaningfulSummaryNumberFact,
   selectSummaryConcepts,
   selectSummaryKeyTerms,
 } from "@/server/services/summary/summary-learning-structure.service";
@@ -33,42 +36,57 @@ import type {
 interface RecoveryPolicy {
   topicLimit: number;
   pointsPerTopic: number;
+  keyPointLimit: number;
   conceptLimit: number;
   keyTermLimit: number;
+  procedureLimit: number;
+  exampleLimit: number;
+  warningLimit: number;
+  numberLimit: number;
 }
 
 const RECOVERY_POLICIES: Record<SummaryMode, RecoveryPolicy> = {
   concise: {
     topicLimit: 4,
     pointsPerTopic: 3,
+    keyPointLimit: 5,
     conceptLimit: 8,
     keyTermLimit: 5,
+    procedureLimit: 4,
+    exampleLimit: 2,
+    warningLimit: 3,
+    numberLimit: 3,
   },
   comprehensive: {
     topicLimit: 10,
     pointsPerTopic: 4,
+    keyPointLimit: 8,
     conceptLimit: 14,
     keyTermLimit: 10,
+    procedureLimit: 8,
+    exampleLimit: 5,
+    warningLimit: 6,
+    numberLimit: 6,
   },
   exam: {
     topicLimit: 6,
     pointsPerTopic: 4,
+    keyPointLimit: 8,
     conceptLimit: 10,
     keyTermLimit: 8,
+    procedureLimit: 6,
+    exampleLimit: 3,
+    warningLimit: 6,
+    numberLimit: 6,
   },
 };
 
 /**
- * Conservative recovery for Summary v3.
+ * Conservative recovery for Summary v3.2.
  *
- * Recovery is allowed to be more extractive than the primary Summary path,
- * but it must not fall back to raw source layout. In particular, structural
- * headings (title, Abstract, Introduction, Results, etc.) and metadata cannot
- * become learner topics merely because they preserve source coverage.
- *
- * The recovery path therefore reuses the same semantic-evidence map and topic
- * contracts as normal generation. Coverage that does not belong in a topic
- * can still be preserved in the dedicated important-results block.
+ * Recovery remains more extractive than the primary Summary path, but it now
+ * preserves the same learner-facing section contract. Structural source labels
+ * still cannot become learner topics simply to increase source coverage.
  */
 export function buildGroundedSummaryRecovery(
   grounding: GroundedKnowledge,
@@ -85,27 +103,36 @@ export function buildGroundedSummaryRecovery(
       learningProfile.rolesByFactId.get(fact.id) !== "example"
     ),
   );
-  const factsById = new Map(facts.map((fact) => [fact.id, fact]));
-  const recoverySections = learningProfile.sections.filter(
-    (section) => !/^(?:common\s+mistakes?|warnings?|pitfalls?|limitations?|important\s+(?:practical\s+)?note)$/iu.test(
-      cleanHeading(section.heading),
-    ),
+  const procedureFacts = uniqueFacts(learningProfile.procedureFacts)
+    .sort(bySourceOrder(grounding))
+    .slice(0, policy.procedureLimit);
+  const procedureIds = new Set(procedureFacts.map((fact) => fact.id));
+  const topicFacts = facts.filter((fact) =>
+    !procedureIds.has(fact.id) &&
+    !["warning", "common_mistake", "limitation", "formula", "number"].includes(fact.type)
   );
-  const recoveryFactIds = new Set(
-    recoverySections.flatMap((section) => section.factIds),
-  );
+  const factsById = new Map(topicFacts.map((fact) => [fact.id, fact]));
+  const visibleFactIds = new Set(topicFacts.map((fact) => fact.id));
+  const recoverySections = learningProfile.sections
+    .filter(
+      (section) => !/^(?:common\s+mistakes?|warnings?|pitfalls?|limitations?|important\s+(?:practical\s+)?note)$/iu.test(
+        cleanHeading(section.heading),
+      ),
+    )
+    .map((section) => ({
+      ...section,
+      factIds: section.factIds.filter((id) => visibleFactIds.has(id)),
+    }))
+    .filter((section) => section.factIds.length > 0);
   const title = cleanHeading(profile?.title.value ?? fallbackTitle) || "Study Notes";
   const semanticMap = buildSemanticEvidenceMap({
     sections: recoverySections,
-    facts,
+    facts: topicFacts,
     concepts: learningProfile.concepts,
     keyTerms: learningProfile.keyTerms,
     documentTitle: title,
   });
 
-  // v3 recovery intentionally does not reconstruct one card per source
-  // section. It uses the same semantic topic builder as normal generation so
-  // source structure cannot bypass topic/explanation alignment contracts.
   const topics = buildSummaryLearningTopics({
     sections: recoverySections,
     factsById,
@@ -123,32 +150,34 @@ export function buildGroundedSummaryRecovery(
     learningProfile.keyTerms,
     policy.keyTermLimit,
   );
+  const concepts = selectSummaryConcepts(
+    learningProfile.concepts,
+    policy.conceptLimit,
+  );
+  const importantConcepts = concepts.map((concept) => concept.name.trim());
   const sectionHeadingById = new Map(
     grounding.sections.map((section) => [section.sectionId, section.heading]),
   );
-  const warnings = learningProfile.warningFacts
-    .filter((fact) => factsById.has(fact.id) && recoveryFactIds.has(fact.id))
-    .filter((fact) => {
-      const unit = semanticMap.unitsByFactId.get(fact.id);
-      return Boolean(
-        unit &&
-        ["warning", "limitation"].includes(unit.role) &&
-        isActionableSummaryWarningFact(
-          fact,
-          sectionHeadingById.get(fact.sourceSectionId) ?? "",
-        )
-      );
-    })
+  const warnings = uniqueFacts(learningProfile.warningFacts)
+    .filter((fact) =>
+      isActionableSummaryWarningFact(
+        fact,
+        sectionHeadingById.get(fact.sourceSectionId) ?? "",
+      ),
+    )
     .sort((left, right) => right.importanceScore - left.importanceScore)
-    .slice(0, mode === "concise" ? 3 : 6);
-  const importantConcepts = selectSummaryConcepts(
-    learningProfile.concepts,
-    policy.conceptLimit,
-  ).map((concept) => concept.name.trim());
+    .slice(0, policy.warningLimit);
   const importantResultFacts = selectImportantRecoveryResults(
     facts,
-    semanticMap,
-    mode === "concise" ? 3 : 6,
+    policy.numberLimit,
+  );
+  const examples = uniqueFacts(learningProfile.exampleFacts)
+    .filter((fact) => isUsefulExample(fact.content))
+    .sort((left, right) => right.importanceScore - left.importanceScore)
+    .slice(0, policy.exampleLimit);
+  const keyPointFacts = selectRecoveryKeyPoints(
+    topics.flatMap((topic) => [topic.explanation, ...topic.keyPoints]),
+    policy.keyPointLimit,
   );
 
   const render = (topicLimit: number, pointsPerTopic: number): string => {
@@ -167,43 +196,33 @@ export function buildGroundedSummaryRecovery(
         return [
           `### ${topic.heading}`,
           `**Simple explanation:** ${sentence(topic.explanation.content)}${pageLabel(topic.explanation.evidence[0]?.pageNumber)}`,
-          "**Important key points:**",
+          points ? "**Important details:**" : "",
           points,
         ].filter(Boolean).join("\n");
       })
       .join("\n\n");
-    const termBlock = keyTerms
-      .map((term) => `- **${term.term}:** ${term.definition}${pageLabel(term.evidence[0]?.pageNumber)}`)
-      .join("\n");
-    const importantResultBlock = importantResultFacts
-      .map((fact) => `- ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`)
-      .join("\n");
-    const warningBlock = warnings
-      .map((fact) => `- ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`)
-      .join("\n");
-    const takeaways = uniqueFacts([
-      ...visibleTopics.map((topic) => topic.explanation),
-      ...importantResultFacts,
-    ])
-      .slice(-Math.min(5, visibleTopics.length + importantResultFacts.length))
-      .map((fact) => `- ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`)
-      .join("\n");
 
     return [
       `# ${title}`,
       getStudyNotesVersionMarker(mode),
       "## Overview",
       overview || `- Focus: verified learning topics from ${title}.`,
-      topicBlocks ? "## Study Topics" : "",
-      topicBlocks,
-      termBlock ? "## Key Terms" : "",
-      termBlock,
-      importantResultBlock ? "## Important Numbers, Formulas and Results" : "",
-      importantResultBlock,
-      warningBlock ? "## Important Warnings and Notes" : "",
-      warningBlock,
-      takeaways ? "## Key Takeaways" : "",
-      takeaways,
+      "## Key Points",
+      renderFactList(keyPointFacts),
+      "## Key Concepts",
+      renderConceptList(concepts),
+      "## Key Terms",
+      renderKeyTermList(keyTerms),
+      "## Detailed Study Notes",
+      topicBlocks || renderFactList(keyPointFacts),
+      procedureFacts.length > 0 ? "## Processes / Steps" : "",
+      renderNumberedList(procedureFacts),
+      examples.length > 0 ? "## Examples" : "",
+      renderFactList(examples),
+      warnings.length > 0 ? "## Warnings / Common Mistakes" : "",
+      renderFactList(warnings),
+      importantResultFacts.length > 0 ? "## Important Numbers / Formulas" : "",
+      renderFactList(importantResultFacts),
     ].filter(Boolean).join("\n\n").trim();
   };
 
@@ -218,14 +237,9 @@ export function buildGroundedSummaryRecovery(
     summary = summary.slice(0, NOTE_RULES.SUMMARY_MAX).replace(/\s+\S*$/u, "").trim();
   }
 
-  const keyPoints = uniqueFacts([
-    ...topics.flatMap((topic) => [topic.explanation, ...topic.keyPoints]),
-    ...importantResultFacts,
-  ]).map((fact) => fact.content.trim());
-
   return {
     summary,
-    keyPoints,
+    keyPoints: keyPointFacts.map((fact) => fact.content.trim()),
     importantConcepts,
     confidence: Math.min(grounding.quality.score, 0.84),
     status: "partial",
@@ -235,29 +249,89 @@ export function buildGroundedSummaryRecovery(
 
 function selectImportantRecoveryResults(
   facts: AtomicFact[],
-  semanticMap: ReturnType<typeof buildSemanticEvidenceMap>,
   limit: number,
 ): AtomicFact[] {
-  return facts
+  return uniqueFacts(facts)
     .filter((fact) => {
-      const unit = semanticMap.unitsByFactId.get(fact.id);
-      if (!unit || !unit.pointEligible) return false;
-      if (["metadata", "narrative", "transition", "exercise", "example"].includes(unit.role)) {
-        return false;
+      if (fact.type === "formula") return true;
+      const meaningfulNumericText =
+        /\b\d+(?:\.\d+)?\s*%/u.test(fact.content) ||
+        /\b\d+(?:\.\d+)?\s*(?:percent|volt|volts|v\b|ms\b|s\b|seconds?|minutes?|hours?|projects?|samples?|cases?|users?|items?)\b/iu.test(fact.content) ||
+        /[=<>±×÷]/u.test(fact.content);
+      if (fact.type === "number") return isMeaningfulSummaryNumberFact(fact);
+      if (fact.type === "result") {
+        return isMeaningfulSummaryNumberFact(fact) &&
+          (fact.numericTokens.length > 0 || meaningfulNumericText);
       }
-      return Boolean(
-        unit.role === "finding" ||
-        unit.role === "formula" ||
-        fact.type === "result" ||
-        fact.type === "number" ||
-        /\b\d+(?:\.\d+)?\s*(?:%|percent|volt|volts|v\b|ms\b|s\b|seconds?|minutes?|hours?|projects?|samples?|cases?|users?|items?)\b/iu.test(fact.content)
-      );
+      return meaningfulNumericText;
     })
     .sort((left, right) =>
       right.importanceScore - left.importanceScore ||
       right.confidence - left.confidence,
     )
     .slice(0, limit);
+}
+
+function selectRecoveryKeyPoints(
+  facts: AtomicFact[],
+  limit: number,
+): AtomicFact[] {
+  return uniqueFacts(facts)
+    .filter((fact) =>
+      !["procedure_step", "example", "warning", "common_mistake", "limitation", "formula", "number"].includes(fact.type)
+    )
+    .sort((left, right) => right.importanceScore - left.importanceScore)
+    .slice(0, limit);
+}
+
+function renderConceptList(concepts: ImportantConcept[]): string {
+  if (concepts.length === 0) return "";
+  return concepts
+    .map((concept) => {
+      const explanation = concept.explanation?.trim();
+      return `- **${concept.name}**${explanation ? `: ${sentence(explanation)}` : ""}${pageLabel(concept.evidence[0]?.pageNumber)}`;
+    })
+    .join("\n");
+}
+
+function renderKeyTermList(terms: QualifiedTerm[]): string {
+  if (terms.length === 0) return "";
+  return terms
+    .map((term) => `- **${term.term}:** ${sentence(term.definition)}${pageLabel(term.evidence[0]?.pageNumber)}`)
+    .join("\n");
+}
+
+function renderFactList(facts: AtomicFact[]): string {
+  if (facts.length === 0) return "";
+  return facts
+    .map((fact) => `- ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`)
+    .join("\n");
+}
+
+function renderNumberedList(facts: AtomicFact[]): string {
+  return facts
+    .map((fact, index) => `${index + 1}. ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`)
+    .join("\n");
+}
+
+function isUsefulExample(value: string): boolean {
+  const text = value.replace(/\s+/gu, " ").trim();
+  return (
+    text.length >= 24 &&
+    text.length <= 420 &&
+    !text.endsWith("?") &&
+    !/^(?:i|we|you|my|our|let(?:'|’)s|imagine|suppose|write|answer)\b/iu.test(text)
+  );
+}
+
+function bySourceOrder(grounding: GroundedKnowledge) {
+  const order = new Map(
+    grounding.sections.map((section, index) => [section.sectionId, index]),
+  );
+  return (left: AtomicFact, right: AtomicFact): number =>
+    (order.get(left.sourceSectionId) ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(right.sourceSectionId) ?? Number.MAX_SAFE_INTEGER) ||
+    right.importanceScore - left.importanceScore;
 }
 
 function uniqueFacts(facts: AtomicFact[]): AtomicFact[] {

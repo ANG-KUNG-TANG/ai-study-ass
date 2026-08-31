@@ -175,8 +175,11 @@ export function assessSummaryQuality(input: {
     documentTitle: extractSummaryTitle(artifact.summary) ?? undefined,
   });
 
-  const allSupportedFacts = learningProfile.facts.filter(
-    (fact) => fact.verificationStatus === "supported",
+  const allSupportedFacts = grounding.facts.filter(
+    (fact) =>
+      fact.verificationStatus === "supported" &&
+      fact.evidence.length > 0 &&
+      !learningProfile.suppressedFactIds.has(fact.id),
   );
   const sourceFactsById = new Map(
     allSupportedFacts.map((fact) => [fact.id, fact]),
@@ -291,7 +294,7 @@ export function assessSummaryQuality(input: {
     });
   }
 
-  const strictSemanticSafety = /<!--\s*intelligence-engine:v3\.0;/iu.test(artifact.summary);
+  const strictSemanticSafety = /<!--\s*intelligence-engine:v3\.(?:0|1|2);/iu.test(artifact.summary);
   if (strictSemanticSafety && unsupportedUnits.length > 0) {
     issues.push({
       code: "UNSUPPORTED_FACTUAL_CONTENT",
@@ -448,16 +451,23 @@ export function assessSummaryQuality(input: {
     parsedTopics.length,
     1,
   );
-  const warningItems = extractSectionBullets(artifact.summary, "Important Warnings and Notes");
+  const warningItems = [
+    ...extractSectionBullets(artifact.summary, "Warnings / Common Mistakes"),
+    ...extractSectionBullets(artifact.summary, "Important Warnings and Notes"),
+  ];
   const warningPrecision = qualityRatio(
     warningItems.filter(isActionableSummaryWarningText).length,
     warningItems.length,
     1,
   );
-  const takeawayItems = extractSectionBullets(artifact.summary, "Key Takeaways");
-  const takeawayUtility = qualityRatio(
-    takeawayItems.filter((item) => isSummaryTopicPointUseful(item)).length,
-    takeawayItems.length,
+  const globalKeyPointItems = extractSectionBullets(artifact.summary, "Key Points");
+  const legacyTakeawayItems = extractSectionBullets(artifact.summary, "Key Takeaways");
+  const globalLearningPointItems = globalKeyPointItems.length > 0
+    ? globalKeyPointItems
+    : legacyTakeawayItems;
+  const globalLearningPointUtility = qualityRatio(
+    globalLearningPointItems.filter((item) => isSummaryTopicPointUseful(item)).length,
+    globalLearningPointItems.length,
     1,
   );
   const publishedSectionHeadings = extractSectionNoteHeadings(artifact.summary);
@@ -480,22 +490,49 @@ export function assessSummaryQuality(input: {
         1,
       );
   const topicRange = TOPIC_COUNT_RANGES[mode];
-  const topicContractRequired = /<!--\s*intelligence-engine:(?:v2\.(?:12|13|14)|v3\.0);/iu.test(artifact.summary);
-  const semanticEvidenceContractRequired = /<!--\s*intelligence-engine:v3\.0;/iu.test(artifact.summary);
-  const minimumTopicCount = Math.min(
-    topicRange.min,
-    Math.max(1, requiredSections.length),
-  );
+  const legacyTopicContractRequired = /<!--\s*intelligence-engine:(?:v2\.(?:12|13|14)|v3\.0);/iu.test(artifact.summary);
+  const learnerOutputContractRequired = /<!--\s*intelligence-engine:v3\.(?:1|2);/iu.test(artifact.summary);
+  const topicContractRequired = legacyTopicContractRequired || learnerOutputContractRequired;
+  const semanticEvidenceContractRequired = /<!--\s*intelligence-engine:v3\.(?:0|1|2);/iu.test(artifact.summary);
+  const detailedTopicTargetSectionCount = requiredSections.filter((section) =>
+    section.factIds.some((id) => {
+      const fact = sourceFactsById.get(id);
+      return Boolean(
+        fact &&
+        !["procedure_step", "warning", "common_mistake", "limitation", "example", "number", "formula"].includes(fact.type)
+      );
+    })
+  ).length;
+  const minimumTopicCount = learnerOutputContractRequired
+    ? Math.min(
+        mode === "concise" ? 2 : 3,
+        detailedTopicTargetSectionCount,
+      )
+    : Math.min(
+        topicRange.min,
+        Math.max(1, requiredSections.length),
+      );
   const topicCountQuality = publishedTopicBlocks.length === 0
-    ? (topicContractRequired ? 0 : 1)
+    ? (topicContractRequired && minimumTopicCount > 0 ? 0 : 1)
     : publishedTopicBlocks.length > topicRange.max
       ? topicRange.max / publishedTopicBlocks.length
-      : Math.min(1, publishedTopicBlocks.length / minimumTopicCount);
-  const hasLegacyGlobalStudySections = /^(?:##\s+(?:Key Points|Main Concepts|Section Notes))\s*$/gimu.test(artifact.summary);
+      : minimumTopicCount === 0
+        ? 1
+        : Math.min(1, publishedTopicBlocks.length / minimumTopicCount);
+  const hasLegacyTopicFirstSections = /^(?:##\s+(?:Key Points|Main Concepts|Section Notes))\s*$/gimu.test(artifact.summary);
+  const hasOldSummaryLayoutSections = /^(?:##\s+(?:Study Topics|Main Concepts|Section Notes|Key Takeaways))\s*$/gimu.test(artifact.summary);
+  const hasLearnerCoreSections = [
+    "Overview",
+    "Key Points",
+    "Key Concepts",
+    "Key Terms",
+    "Detailed Study Notes",
+  ].every((heading) => hasSectionHeading(artifact.summary, heading));
   const topicStructurePassed = !topicContractRequired || (
     publishedTopicBlocks.length >= minimumTopicCount &&
     publishedTopicBlocks.length <= topicRange.max &&
-    !hasLegacyGlobalStudySections
+    (!legacyTopicContractRequired || !hasLegacyTopicFirstSections) &&
+    (!learnerOutputContractRequired || (hasLearnerCoreSections && !hasOldSummaryLayoutSections))
   );
   const topicSemanticPassed = !topicContractRequired || (
     topicHeadingQuality >= 0.95 &&
@@ -506,7 +543,7 @@ export function assessSummaryQuality(input: {
     keyPointQuality,
     topicPointUtility,
     topicPointAlignment,
-    takeawayUtility,
+    globalLearningPointUtility,
   );
   const warningPrecisionPassed = warningItems.length === 0 || warningPrecision >= 0.8;
   const summaryTitle = extractSummaryTitle(artifact.summary);
@@ -539,7 +576,7 @@ export function assessSummaryQuality(input: {
     hardGates: [
       {
         code: "TOPIC_FIRST_STRUCTURE",
-        message: "Topic-first summaries must use the mode-specific topic budget and must not recreate global Key Points, Main Concepts, or Section Notes.",
+        message: "Summary structure must follow its versioned learner-output contract while keeping detailed topics within the mode-specific topic budget.",
         passed: topicStructurePassed,
       },
       {
@@ -564,11 +601,11 @@ export function assessSummaryQuality(input: {
       },
       {
         code: "LEARNING_POINT_UTILITY",
-        message: "Topic key points and takeaways must be standalone learning statements rather than prompts, narrative transitions, or exercise fragments.",
+        message: "Global key points and detailed-topic points must be standalone learning statements rather than prompts, narrative transitions, or exercise fragments.",
         passed: !topicContractRequired || (
           topicPointUtility >= 0.85 &&
           topicPointAlignment >= 0.78 &&
-          takeawayUtility >= 0.8
+          globalLearningPointUtility >= 0.8
         ),
       },
       {
@@ -764,6 +801,11 @@ function extractFactualUnits(
       continue;
     }
 
+    if (/^\d+[.)]\s+/u.test(line)) {
+      addUnit(units, line.replace(/^\d+[.)]\s+/u, ""));
+      continue;
+    }
+
     if (/^\|\s*.+\|\s*$/u.test(line)) {
       const cells = line
         .split("|")
@@ -780,6 +822,7 @@ function extractFactualUnits(
 
     if (
       /^overview$/i.test(activeSection) ||
+      /^key points$/i.test(activeSection) ||
       /^key takeaways$/i.test(activeSection)
     ) {
       for (const sentence of splitSentences(line)) {
@@ -1139,7 +1182,7 @@ function parseQualityTopicBlock(
       explanation = stripPresentation(simple[1]);
       continue;
     }
-    if (/^\*\*Important key points:\*\*$/iu.test(line)) {
+    if (/^\*\*(?:Important key points|Important details):\*\*$/iu.test(line)) {
       inKeyPoints = true;
       continue;
     }
@@ -1320,6 +1363,11 @@ function averageQuality(values: number[], emptyValue: number): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function hasSectionHeading(summary: string, heading: string): boolean {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  return new RegExp(`^##\\s+${escaped}\\s*$`, "imu").test(summary);
+}
+
 function extractSectionBullets(summary: string, heading: string): string[] {
   const lines = summary.split(/\r?\n/u);
   const escaped = heading.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
@@ -1361,7 +1409,7 @@ function extractStudyTopicBlocks(summary: string): Array<{ heading: string; body
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (/^##\s+Study Topics\s*$/iu.test(trimmed)) {
+    if (/^##\s+(?:Study Topics|Detailed Study Notes)\s*$/iu.test(trimmed)) {
       inTopics = true;
       continue;
     }
