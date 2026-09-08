@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen } from "lucide-react";
 
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useLanguage } from "@/context/LanguageContext";
@@ -17,10 +16,12 @@ export function PublicHeader() {
           className="group flex items-center gap-3 text-ink"
           aria-label={t("common.brand")}
         >
-          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] bg-ink text-paper-raised transition-transform group-hover:-translate-y-0.5">
-            <BookOpen size={19} strokeWidth={1.8} aria-hidden="true" />
-            <span className="absolute bottom-1.5 h-0.5 w-4 bg-yellow" />
-          </span>
+          <img
+            src="/studymind-icon.svg"
+            alt=""
+            className="h-10 w-10 shrink-0 rounded-[9px] transition-transform group-hover:-translate-y-0.5"
+            aria-hidden="true"
+          />
           <span className="text-[17px] font-bold tracking-[-0.035em] sm:text-[19px]">
             {t("common.brand")}
           </span>
