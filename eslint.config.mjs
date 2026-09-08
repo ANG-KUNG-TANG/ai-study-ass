@@ -42,12 +42,13 @@ const eslintConfig = defineConfig([
   // initial loading-state update as synchronous even though the actual data
   // updates occur in promise callbacks. Keep the exception narrow.
   {
-    files: asyncEffectFiles,
+    files: ["jest.config.cjs", "jest.env-setup.cjs"],
     rules: {
-      "react-hooks/set-state-in-effect": "off",
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 
+  ,
   // Mongoose Mixed fields and lean-document adapters are runtime boundaries.
   // They remain isolated here instead of weakening strict typing application-wide.
   {

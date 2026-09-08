@@ -1,28 +1,24 @@
-//Argument Nodejs.Process so process.env keys are typed throughout the project
-//Actual runtime validaiton happens in src/server/config/env.ts - this is IDE support only
-
+// Argument NodeJS.Process so process.env keys are typed throughout the project.
+// Actual runtime validation happens in src/server/config/env.ts — this is IDE
+// support only. Prefer importing the validated `env` object over raw
+// process.env wherever possible; these types exist for the rare cases that
+// read process.env directly before validation runs.
 
 declare namespace NodeJS {
   interface ProcessEnv {
-    NODE_ENV: 'development' | 'production' | 'test';
+    NODE_ENV: "development" | "production" | "test";
     MONGODB_URI: string;
-    GEMINI_API_KEY: string;
-    OPENAI_API_KEY: string;
-    AI_PROVIDER: 'openai' | 'gemini';
-    CORS_ORIGIN: string;
-    COOKIE_DOMAIN: string;
 
-    JWT_ACCESS_SECRET:string;
-    JWT_REFRESH_SECRET:string;
-    JWT_ACCESS_EXPIRES_IN?:string;
-    JWT_REFRESH_EXPIRES_IN?:string;
+    JWT_ACCESS_SECRET: string;
+    JWT_REFRESH_SECRET: string;
+    JWT_ACCESS_EXPIRY?: string;
+    JWT_REFRESH_EXPIRY?: string;
 
+    AI_PROVIDER?: "openai" | "gemini";
     OPENAI_API_KEY?: string;
     GEMINI_API_KEY?: string;
-    AI_PROVIDER?: "openai" | "gemini";
     INTELLIGENCE_V2_ENABLED?: string;
 
-    CORS_ORIGIN?: string;
-    COOKIE_SECRET: string;
+    COOKIE_DOMAIN?: string;
   }
 }
