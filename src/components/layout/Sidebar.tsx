@@ -145,29 +145,12 @@ export function Sidebar({
           ].join(" ")}
         >
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="relative flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md bg-ink">
-              <span className="absolute bottom-[7px] left-[9px] h-[2px] w-3 rounded-full bg-yellow" />
-
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                className="h-[15px] w-[15px] text-paper"
-                aria-hidden="true"
-              >
-                <path
-                  d="M4 4h16v16H4z"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                />
-
-                <path
-                  d="M8 9h8M8 13h5"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
+            <img
+              src="/studymind-icon.svg"
+              alt=""
+              className="h-[30px] w-[30px] shrink-0 rounded-md"
+              aria-hidden="true"
+            />
 
             {!collapsed && (
               <span className="truncate font-serif text-[16px] font-semibold tracking-[-0.01em]">
@@ -281,10 +264,12 @@ export function Sidebar({
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-paper-raised/95 px-4 py-3 backdrop-blur md:hidden">
         <div className="flex items-center gap-2.5">
-          <div className="relative flex h-7 w-7 items-center justify-center rounded-md bg-ink text-paper">
-            <FileText size={14} strokeWidth={1.7} />
-            <span className="absolute bottom-1.5 left-2 h-0.5 w-3 bg-yellow" />
-          </div>
+          <img
+            src="/studymind-icon.svg"
+            alt=""
+            className="h-7 w-7 shrink-0 rounded-md"
+            aria-hidden="true"
+          />
           <span className="font-serif text-[16px] font-semibold">
             {t("common.brand")}
           </span>
