@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+
 import {
   usePathname,
 } from "next/navigation";
@@ -145,7 +147,7 @@ export function Sidebar({
           ].join(" ")}
         >
           <div className="flex min-w-0 items-center gap-2.5">
-            <img
+            <Image
               src="/studymind-icon.svg"
               alt=""
               className="h-[30px] w-[30px] shrink-0 rounded-md"
@@ -264,9 +266,11 @@ export function Sidebar({
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-paper-raised/95 px-4 py-3 backdrop-blur md:hidden">
         <div className="flex items-center gap-2.5">
-          <img
+          <Image
             src="/studymind-icon.svg"
-            alt=""
+            alt="AI Study Assistant"
+            width={28}
+            height={28}
             className="h-7 w-7 shrink-0 rounded-md"
             aria-hidden="true"
           />

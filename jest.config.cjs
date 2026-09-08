@@ -11,7 +11,6 @@ const customJestConfig = {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   testEnvironment: "node",
-  setupFiles: ["<rootDir>/jest.env-setup.cjs"],
   modulePathIgnorePatterns: ["<rootDir>/.next/"],
   testPathIgnorePatterns: [
     "<rootDir>/node_modules/",

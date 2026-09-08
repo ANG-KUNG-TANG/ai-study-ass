@@ -18,7 +18,6 @@ const mongooseBoundaryFiles = [
   "src/server/repositories/intelligence.repo.ts",
   "src/server/repositories/user.repo.ts",
 ];
-
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -37,24 +36,10 @@ const eslintConfig = defineConfig([
     },
   },
 
-  // These components intentionally hydrate persisted UI state or start
-  // asynchronous API reads from effects. The rule treats the called helper's
-  // initial loading-state update as synchronous even though the actual data
-  // updates occur in promise callbacks. Keep the exception narrow.
   {
-    files: ["jest.config.cjs", "jest.env-setup.cjs"],
+    files: asyncEffectFiles,
     rules: {
-      "@typescript-eslint/no-require-imports": "off",
-    },
-  },
-
-  ,
-  // Mongoose Mixed fields and lean-document adapters are runtime boundaries.
-  // They remain isolated here instead of weakening strict typing application-wide.
-  {
-    files: mongooseBoundaryFiles,
-    rules: {
-      "@typescript-eslint/no-explicit-any": "off",
+      "react-hooks/set-state-in-effect": "off",
     },
   },
 
@@ -62,6 +47,13 @@ const eslintConfig = defineConfig([
     files: ["jest.config.cjs"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+
+  {
+    files: mongooseBoundaryFiles,
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
 

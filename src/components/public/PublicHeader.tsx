@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useLanguage } from "@/context/LanguageContext";
@@ -16,10 +17,12 @@ export function PublicHeader() {
           className="group flex items-center gap-3 text-ink"
           aria-label={t("common.brand")}
         >
-          <img
+          <Image
             src="/studymind-icon.svg"
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-[9px] transition-transform group-hover:-translate-y-0.5"
+            alt="AI Study Assistant"
+            width={40}
+            height={40}
+            className="shrink-0 rounded-[9px] transition-transform group-hover:-translate-y-0.5"
             aria-hidden="true"
           />
           <span className="text-[17px] font-bold tracking-[-0.035em] sm:text-[19px]">
