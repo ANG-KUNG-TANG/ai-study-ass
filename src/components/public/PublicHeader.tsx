@@ -22,6 +22,7 @@ export function PublicHeader() {
             alt="AI Study Assistant"
             width={40}
             height={40}
+            unoptimized
             className="shrink-0 rounded-[9px] transition-transform group-hover:-translate-y-0.5"
             aria-hidden="true"
           />

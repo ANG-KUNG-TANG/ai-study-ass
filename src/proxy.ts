@@ -27,13 +27,14 @@ const PUBLIC_API_ROUTES = [
   "/api/auth/resend-verification",
   "/api/auth/google",
   "/api/health",
-  '/api/telegram/webhook', // Telegram bot webhook
+  "/api/telegram/webhook", // Telegram bot webhook
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const isPublicPage = (p: string) => PUBLIC_ROUTES.some((r) => p.startsWith(r));
-const isPublicApi = (p: string) => PUBLIC_API_ROUTES.some((r) => p.startsWith(r));
+const isPublicApi = (p: string) =>
+  PUBLIC_API_ROUTES.some((r) => p.startsWith(r));
 const isApiRoute = (p: string) => p.startsWith("/api/");
 
 async function verifyAccessToken(token: string): Promise<boolean> {
@@ -63,17 +64,32 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  const isStaticAsset =
+    !pathname.startsWith("/api/") &&
+    /\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|css|js|map)$/.test(
+      pathname,
+    );
+
+  if (isStaticAsset) {
+    return NextResponse.next();
+  }
+
   // ── API routes ───────────────────────────────────────────────────────────────
   if (isApiRoute(pathname)) {
     if (isPublicApi(pathname)) return NextResponse.next();
 
     const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : null;
 
     if (!token || !(await verifyAccessToken(token))) {
       return NextResponse.json(
-        { success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } },
-        { status: 401 }
+        {
+          success: false,
+          error: { code: "UNAUTHORIZED", message: "Authentication required" },
+        },
+        { status: 401 },
       );
     }
     return NextResponse.next();
@@ -87,7 +103,8 @@ export async function proxy(req: NextRequest) {
 
   if (session && isPublicPageRoute) {
     const url = req.nextUrl.clone();
-    url.pathname = session.role === "admin" ? "/admin/overview" : "/student/dashboard";
+    url.pathname =
+      session.role === "admin" ? "/admin/overview" : "/student/dashboard";
     return NextResponse.redirect(url);
   }
 
@@ -108,5 +125,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|public/|.well-known/).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|public/|.well-known/).*)",
+  ],
 };
