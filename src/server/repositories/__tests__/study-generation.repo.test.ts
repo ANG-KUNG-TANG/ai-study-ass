@@ -52,7 +52,8 @@ describe("study-generation.repo timestamps", () => {
   it("leaves top-level upsert timestamps to the Mongoose timestamps plugin", async () => {
     await initialise("note-1", "user-1");
 
-    const update = jest.mocked(StudyGeneration.findOneAndUpdate).mock.calls[0]?.[1];
+    const update = jest.mocked(StudyGeneration.findOneAndUpdate).mock
+      .calls[0]?.[1];
 
     expect(update?.$setOnInsert).not.toHaveProperty("createdAt");
     expect(update?.$setOnInsert).not.toHaveProperty("updatedAt");
@@ -62,15 +63,17 @@ describe("study-generation.repo timestamps", () => {
     await updateStage("note-1", "generating");
     await updateFeature("note-1", "summary", { status: "generating" });
 
-    const stageUpdate = jest.mocked(StudyGeneration.updateOne)
-      .mock.calls[0]?.[1] as UpdateQuery<IStudyGeneration> | undefined;
-    const featureUpdate = jest.mocked(StudyGeneration.updateOne)
-      .mock.calls[1]?.[1] as UpdateQuery<IStudyGeneration> | undefined;
+    const stageUpdate = jest.mocked(StudyGeneration.updateOne).mock
+      .calls[0]?.[1] as UpdateQuery<IStudyGeneration> | undefined;
+    const featureUpdate = jest.mocked(StudyGeneration.updateOne).mock
+      .calls[1]?.[1] as UpdateQuery<IStudyGeneration> | undefined;
 
     expect(stageUpdate?.$set).not.toHaveProperty("updatedAt");
     expect(featureUpdate?.$set).not.toHaveProperty("updatedAt");
-    expect(featureUpdate?.$set).toEqual(expect.objectContaining({
-      "features.summary.updatedAt": expect.any(Date),
-    }));
+    expect(featureUpdate?.$set).toEqual(
+      expect.objectContaining({
+        "features.summary.updatedAt": expect.any(Date),
+      }),
+    );
   });
 });

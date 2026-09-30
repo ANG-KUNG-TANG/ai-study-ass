@@ -23,11 +23,7 @@ function ResetPasswordForm() {
   const [error, setError] = useState("");
 
   if (!token) {
-    return (
-      <p className="text-[13px] text-coral">
-        {t("reset.missingToken")}
-      </p>
-    );
+    return <p className="text-[13px] text-coral">{t("reset.missingToken")}</p>;
   }
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -83,16 +79,16 @@ function ResetPasswordForm() {
             onClick={() => setShowPassword((current) => !current)}
             className="absolute right-3 top-[34px] text-ink-faint hover:text-ink-soft"
             aria-label={
-              showPassword
-                ? t("common.hidePassword")
-                : t("common.showPassword")
+              showPassword ? t("common.hidePassword") : t("common.showPassword")
             }
           >
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
 
-        <p className="-mt-2 text-[11px] text-ink-soft">{t("register.passwordHelp")}</p>
+        <p className="-mt-2 text-[11px] text-ink-soft">
+          {t("register.passwordHelp")}
+        </p>
 
         <Input
           label={t("reset.confirmPassword")}
@@ -126,9 +122,7 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <p className="text-[13px] text-ink-soft">
-          {t("common.loading")}
-        </p>
+        <p className="text-[13px] text-ink-soft">{t("common.loading")}</p>
       }
     >
       <ResetPasswordForm />

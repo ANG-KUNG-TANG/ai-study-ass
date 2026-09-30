@@ -22,5 +22,6 @@ const userAIPolicySchema = new Schema<UserAIPolicyPersistence>(
 );
 
 export const UserAIPolicy: Model<UserAIPolicyPersistence> =
-  (mongoose.models.UserAIPolicy as Model<UserAIPolicyPersistence> | undefined) ??
+  (mongoose.models.UserAIPolicy as
+    Model<UserAIPolicyPersistence> | undefined) ??
   mongoose.model<UserAIPolicyPersistence>("UserAIPolicy", userAIPolicySchema);

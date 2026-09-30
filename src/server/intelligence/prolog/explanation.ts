@@ -19,8 +19,8 @@
 // of crashing the explanation layer.
 // =============================================================================
 
-import type { PrologAnswer, PrologFact } from '../types';
-import { ontologyCache } from '../ontology/ontology.cache';
+import type { PrologAnswer, PrologFact } from "../types";
+import { ontologyCache } from "../ontology/ontology.cache";
 
 // ─── Label lookup ──────────────────────────────────────────────────────────────
 // Facts store raw conceptIds ('cnn', 'deep_learning') as args — never the
@@ -30,7 +30,9 @@ import { ontologyCache } from '../ontology/ontology.cache';
 // entry for it (e.g. a noteId, or an 'unknown:' sentinel concept).
 
 function label(id: string): string {
-  const concept = ontologyCache.isLoaded() ? ontologyCache.getById(id) : undefined;
+  const concept = ontologyCache.isLoaded()
+    ? ontologyCache.getById(id)
+    : undefined;
   return concept?.label ?? id;
 }
 
@@ -40,9 +42,9 @@ function domainLabel(domain: string): string {
   // no ontology lookup needed since OntologyDomain is a closed string union,
   // not a concept id.
   return domain
-    .split('_')
+    .split("_")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+    .join(" ");
 }
 
 // ─── Fact → sentence templates ─────────────────────────────────────────────────
@@ -61,10 +63,13 @@ const TEMPLATES: Record<string, SentenceTemplate> = {
   accuracy: ([, value]) => `the paper reports ${value}% accuracy`,
   problem: ([, conceptId]) => `the paper addresses ${label(conceptId)}`,
   tool: ([, toolId]) => `the paper uses the tool ${label(toolId)}`,
-  sample: ([, sampleId, count]) => `the evaluation uses ${count === 'unknown' ? '' : count + ' '}${label(sampleId)}`,
+  sample: ([, sampleId, count]) =>
+    `the evaluation uses ${count === "unknown" ? "" : count + " "}${label(sampleId)}`,
   metric: ([, metricId]) => `the evaluation reports ${label(metricId)}`,
-  result: ([, resultId, value, metric]) => `the paper reports ${label(resultId)} (${value} ${metric})`,
-  claim: ([, claimType, claimId]) => `the document contains a validated ${claimType} claim (${label(claimId)})`,
+  result: ([, resultId, value, metric]) =>
+    `the paper reports ${label(resultId)} (${value} ${metric})`,
+  claim: ([, claimType, claimId]) =>
+    `the document contains a validated ${claimType} claim (${label(claimId)})`,
   // FIX (audit #5): new functor for the renamed paper→concept edge (was
   // related_to, now mentions — see graph.engine.ts). Paper-level, so this
   // reads naturally alongside method/dataset/problem above.
@@ -96,7 +101,8 @@ const TEMPLATES: Record<string, SentenceTemplate> = {
   outperforms: () => `this paper outperforms the comparison paper`,
   same_domain: () => `both papers fall under the same domain`,
   same_dataset: () => `both papers use the same dataset`,
-  recommended_baseline: ([, baseline]) => `${label(baseline)} is a related baseline worth comparing against`,
+  recommended_baseline: ([, baseline]) =>
+    `${label(baseline)} is a related baseline worth comparing against`,
   key_fact: ([, fieldType, value]) => `${fieldType}: ${value}`,
 };
 
@@ -116,7 +122,7 @@ function factToSentence(fact: PrologFact): string {
       // to the generic rendering below rather than propagating.
     }
   }
-  return `${fact.functor}(${fact.args.join(', ')})`;
+  return `${fact.functor}(${fact.args.join(", ")})`;
 }
 
 // ─── Evidence ordering ──────────────────────────────────────────────────────────
@@ -131,16 +137,34 @@ function factToSentence(fact: PrologFact): string {
 // cs.rules.pl independently reference it (e.g. both belongs_to/2 and
 // computer_vision_paper/1 may both cite the same is_a fact).
 
-const DIRECT_FUNCTORS = new Set(['method', 'dataset', 'accuracy', 'problem', 'tool', 'sample', 'metric', 'result', 'claim', 'mentions']);
+const DIRECT_FUNCTORS = new Set([
+  "method",
+  "dataset",
+  "accuracy",
+  "problem",
+  "tool",
+  "sample",
+  "metric",
+  "result",
+  "claim",
+  "mentions",
+]);
 const ONTOLOGY_FUNCTORS = new Set([
-  'is_a', 'part_of', 'uses', 'solves', 'concept_solves', 'related_to', 'achieves', 'trained_on',
+  "is_a",
+  "part_of",
+  "uses",
+  "solves",
+  "concept_solves",
+  "related_to",
+  "achieves",
+  "trained_on",
 ]);
 // Everything not in the two sets above (belongs_to, high_accuracy,
 // computer_vision_paper, outperforms, etc.) is treated as a derived/
 // conclusion-tier fact and sorted last.
 
 function factKey(fact: PrologFact): string {
-  return `${fact.functor}(${fact.args.join(',')})`;
+  return `${fact.functor}(${fact.args.join(",")})`;
 }
 
 function orderEvidenceChain(evidence: PrologFact[]): PrologFact[] {
@@ -149,7 +173,7 @@ function orderEvidenceChain(evidence: PrologFact[]): PrologFact[] {
     // The bare paper(noteId) fact is uninformative in an explanation chain —
     // every other fact already implies the paper exists — and previously had
     // no template, leaking through as a raw "Paper(507f...)." fallback line.
-    if (fact.functor === 'paper') return false;
+    if (fact.functor === "paper") return false;
     const key = factKey(fact);
     if (seen.has(key)) return false;
     seen.add(key);
@@ -174,16 +198,16 @@ function orderEvidenceChain(evidence: PrologFact[]): PrologFact[] {
 //   'CNN is_a DeepLearning (from ontology) → paper belongs to DeepLearning domain'
 
 function joinSentences(ordered: PrologFact[]): string {
-  if (ordered.length === 0) return 'No supporting evidence was found.';
+  if (ordered.length === 0) return "No supporting evidence was found.";
 
   const direct = ordered.filter((f) => DIRECT_FUNCTORS.has(f.functor));
   const reasoning = ordered.filter((f) => !DIRECT_FUNCTORS.has(f.functor));
 
   const directText = direct
     .map((f) => capitalise(factToSentence(f)))
-    .join('. ');
+    .join(". ");
 
-  const reasoningText = reasoning.map((f) => factToSentence(f)).join(' → ');
+  const reasoningText = reasoning.map((f) => factToSentence(f)).join(" → ");
 
   if (directText && reasoningText) {
     return `${directText}. ${capitalise(reasoningText)}.`;
@@ -222,14 +246,14 @@ export function explainAnswer(answer: PrologAnswer): string {
  */
 export function explainAllAnswers(answers: PrologAnswer[]): string {
   if (answers.length === 0) {
-    return 'No answers were found for this query.';
+    return "No answers were found for this query.";
   }
   if (answers.length === 1) {
     return explainAnswer(answers[0]);
   }
   return answers
     .map((answer, i) => `(${i + 1}) ${explainAnswer(answer)}`)
-    .join(' ');
+    .join(" ");
 }
 
 /**
@@ -240,6 +264,6 @@ export function explainAllAnswers(answers: PrologAnswer[]): string {
  */
 export function evidenceToFactStrings(evidence: PrologFact[]): string[] {
   return orderEvidenceChain(evidence).map(
-    (f) => `${f.functor}(${f.args.join(', ')})`,
+    (f) => `${f.functor}(${f.args.join(", ")})`,
   );
 }

@@ -1,15 +1,11 @@
 import type { KnowledgeCore } from "@/server/intelligence/types";
-import {
-  getReliableProfile,
-} from "@/server/intelligence/reliability/profile";
+import { getReliableProfile } from "@/server/intelligence/reliability/profile";
 import {
   cleanTextReliably,
   corruptedCharacterRatio,
   greekCharacterRatio,
 } from "@/server/intelligence/reliability/text-quality";
-import {
-  isValidConcept,
-} from "@/server/intelligence/reliability/concept-validator";
+import { isValidConcept } from "@/server/intelligence/reliability/concept-validator";
 import type {
   FinancialInput,
   ReliableDocumentProfile,
@@ -17,7 +13,8 @@ import type {
 } from "@/server/intelligence/reliability/types";
 
 const MAX_SUMMARY_CHARS = 24_000;
-export const LEGACY_STUDY_NOTES_VERSION_MARKER = "<!-- intelligence-engine:reliable-v1 -->";
+export const LEGACY_STUDY_NOTES_VERSION_MARKER =
+  "<!-- intelligence-engine:reliable-v1 -->";
 
 export interface ReliableSymbolicSummary {
   summary: string;
@@ -91,13 +88,15 @@ function caseOverview(profile: ReliableDocumentProfile): string {
   const caseStudy = profile.caseStudy;
   if (!caseStudy) return "";
 
-  const actorText = caseStudy.actors.length > 0
-    ? `${caseStudy.actors.join(" and ")} must evaluate the proposed investment.`
-    : "The case requires an investment decision.";
+  const actorText =
+    caseStudy.actors.length > 0
+      ? `${caseStudy.actors.join(" and ")} must evaluate the proposed investment.`
+      : "The case requires an investment decision.";
 
   return [
     actorText,
-    caseStudy.decisionProblem ?? "The central question is whether the proposed project creates financial value.",
+    caseStudy.decisionProblem ??
+      "The central question is whether the proposed project creates financial value.",
     "The analysis must use incremental project cash flows and compare alternative scenarios before making a recommendation.",
   ].join(" ");
 }
@@ -119,9 +118,12 @@ function buildCaseStudySummary(
   const keyPoints = unique(
     [
       caseStudy.decisionProblem ?? "",
-      ...caseStudy.requiredCalculations.map((item) => `Required analysis: ${item}.`),
+      ...caseStudy.requiredCalculations.map(
+        (item) => `Required analysis: ${item}.`,
+      ),
       ...calculations.map(
-        (item) => `${item.label}: ${formatFinancialValue(item)} (${item.formula ?? "derived"}).`,
+        (item) =>
+          `${item.label}: ${formatFinancialValue(item)} (${item.formula ?? "derived"}).`,
       ),
       ...caseStudy.unresolvedAssumptions,
     ],
@@ -139,7 +141,8 @@ function buildCaseStudySummary(
     "## Overview",
     caseOverview(profile),
     "## Decision Problem",
-    caseStudy.decisionProblem ?? "The decision problem could not be extracted confidently.",
+    caseStudy.decisionProblem ??
+      "The decision problem could not be extracted confidently.",
     "## Analysis Method",
     caseStudy.method,
     initial.length > 0 ? "## Initial Project Investment" : "",
@@ -180,7 +183,9 @@ function buildCaseStudySummary(
           .map((term) => `- **${term.term}:** ${term.definition}`)
           .join("\n")
       : "",
-    caseStudy.unresolvedAssumptions.length > 0 ? "## Unresolved Assumptions" : "",
+    caseStudy.unresolvedAssumptions.length > 0
+      ? "## Unresolved Assumptions"
+      : "",
     caseStudy.unresolvedAssumptions.length > 0
       ? caseStudy.unresolvedAssumptions.map((item) => `- ${item}`).join("\n")
       : "",
@@ -223,7 +228,8 @@ function buildGeneralSummary(
     .map((sentence) => sentence.replace(/\s+/g, " ").trim())
     .filter((sentence) => sentence.length >= 45 && sentence.length <= 420);
   const title = profile?.title.value ?? fallbackTitle;
-  const overview = core?.problem ?? sentences[0] ?? `This document discusses ${title}.`;
+  const overview =
+    core?.problem ?? sentences[0] ?? `This document discusses ${title}.`;
   const concepts = unique(
     [
       ...(profile?.concepts.map((concept) => concept.term) ?? []),
@@ -234,7 +240,8 @@ function buildGeneralSummary(
   );
   const keyPoints = unique(
     [
-      ...(core?.keyPoints.map((point) => `${point.label}: ${point.value}`) ?? []),
+      ...(core?.keyPoints.map((point) => `${point.label}: ${point.value}`) ??
+        []),
       ...(core?.contributions ?? []),
       ...sentences.slice(1, 8),
     ],
@@ -264,14 +271,19 @@ function buildGeneralSummary(
     concepts.map((concept) => `- ${concept}`).join("\n"),
     profile?.keyTerms.length ? "## Key Terms" : "",
     profile?.keyTerms.length
-      ? profile.keyTerms.map((term) => `- **${term.term}:** ${term.definition}`).join("\n")
+      ? profile.keyTerms
+          .map((term) => `- **${term.term}:** ${term.definition}`)
+          .join("\n")
       : "",
     core?.extras?.limitations ? "## Limitations" : "",
     core?.extras?.limitations ?? "",
     core?.extras?.futureWork ? "## Future Work" : "",
     core?.extras?.futureWork ?? "",
     "## Key Takeaways",
-    sentences.slice(0, 5).map((sentence) => `- ${sentence}`).join("\n"),
+    sentences
+      .slice(0, 5)
+      .map((sentence) => `- ${sentence}`)
+      .join("\n"),
   ];
 
   const summary = sections
@@ -279,7 +291,9 @@ function buildGeneralSummary(
     .join("\n\n")
     .slice(0, MAX_SUMMARY_CHARS)
     .trim();
-  const confidence = profile?.qualityScore ?? Math.min(0.72, 0.35 + keyPoints.length * 0.045 + concepts.length * 0.02);
+  const confidence =
+    profile?.qualityScore ??
+    Math.min(0.72, 0.35 + keyPoints.length * 0.045 + concepts.length * 0.02);
 
   return {
     summary,
@@ -310,7 +324,19 @@ function meaningfulTokenSet(text: string): Set<string> {
     text
       .toLowerCase()
       .match(/[a-z][a-z0-9-]{3,}/g)
-      ?.filter((token) => !["this", "that", "these", "those", "with", "from", "have", "will"].includes(token)) ?? [],
+      ?.filter(
+        (token) =>
+          ![
+            "this",
+            "that",
+            "these",
+            "those",
+            "with",
+            "from",
+            "have",
+            "will",
+          ].includes(token),
+      ) ?? [],
   );
 }
 
@@ -318,7 +344,9 @@ export function groundingRatio(candidate: string, sourceText: string): number {
   const candidateTokens = meaningfulTokenSet(candidate);
   if (candidateTokens.size === 0) return 0;
   const sourceTokens = meaningfulTokenSet(sourceText);
-  const grounded = [...candidateTokens].filter((token) => sourceTokens.has(token)).length;
+  const grounded = [...candidateTokens].filter((token) =>
+    sourceTokens.has(token),
+  ).length;
   return grounded / candidateTokens.size;
 }
 
@@ -328,7 +356,11 @@ export function validateAIDraft(
 ): AIStudyNotesDraft | null {
   const overview = draft.overview?.trim();
   if (!overview || overview.length < 80 || overview.length > 1_500) return null;
-  if (corruptedCharacterRatio(overview) > 0.03 || greekCharacterRatio(overview) > 0.12) return null;
+  if (
+    corruptedCharacterRatio(overview) > 0.03 ||
+    greekCharacterRatio(overview) > 0.12
+  )
+    return null;
   if (groundingRatio(overview, sourceText) < 0.36) return null;
 
   const keyPoints = unique(
@@ -364,7 +396,9 @@ export function mergeAIDraft(
 ): ReliableSymbolicSummary {
   const keyPoints = unique([...symbolic.keyPoints, ...draft.keyPoints], 14);
   const importantConcepts = unique(
-    [...symbolic.importantConcepts, ...draft.importantConcepts].filter(isValidConcept),
+    [...symbolic.importantConcepts, ...draft.importantConcepts].filter(
+      isValidConcept,
+    ),
     18,
   );
 
@@ -373,7 +407,8 @@ export function mergeAIDraft(
     `## Overview\n\n${draft.overview}`,
   );
 
-  const profileStatus: ReliabilityStatus = symbolic.profile?.status ?? "partial";
+  const profileStatus: ReliabilityStatus =
+    symbolic.profile?.status ?? "partial";
   const confidence = Math.min(
     0.97,
     symbolic.confidence + (profileStatus === "ready" ? 0.035 : 0.015),
@@ -385,7 +420,8 @@ export function mergeAIDraft(
     keyPoints,
     importantConcepts,
     confidence,
-    status: confidence >= 0.85 && profileStatus !== "rejected" ? "ready" : "partial",
+    status:
+      confidence >= 0.85 && profileStatus !== "rejected" ? "ready" : "partial",
   };
 }
 
@@ -393,8 +429,14 @@ export function isReliableCachedSummary(summary: string): boolean {
   const trimmed = summary.trim();
   if (!trimmed.includes(LEGACY_STUDY_NOTES_VERSION_MARKER)) return false;
   if (trimmed.length < 350) return false;
-  if (corruptedCharacterRatio(trimmed) > 0.035 || greekCharacterRatio(trimmed) > 0.12) return false;
+  if (
+    corruptedCharacterRatio(trimmed) > 0.035 ||
+    greekCharacterRatio(trimmed) > 0.12
+  )
+    return false;
   if (/Case Study Series\s+Case Study Series/i.test(trimmed)) return false;
   if (/^#?\s*(untitled|case|study)\s*$/im.test(trimmed)) return false;
-  return /##\s+(Overview|Decision Problem|Key Points|Main Concepts)/i.test(trimmed);
+  return /##\s+(Overview|Decision Problem|Key Points|Main Concepts)/i.test(
+    trimmed,
+  );
 }

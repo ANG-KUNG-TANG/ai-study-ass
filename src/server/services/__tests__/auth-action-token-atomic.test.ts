@@ -1,14 +1,8 @@
 import bcrypt from "bcryptjs";
-import {
-  UserEntity,
-  type UserProps,
-} from "@/server/entities/user.entity";
+import { UserEntity, type UserProps } from "@/server/entities/user.entity";
 import * as userRepo from "@/server/repositories/user.repo";
 import { revokeAllUserTokens } from "@/server/utils/jwt";
-import {
-  resetPassword,
-  verifyEmail,
-} from "@/server/services/auth.service";
+import { resetPassword, verifyEmail } from "@/server/services/auth.service";
 import { hashActionToken } from "@/server/utils/action-token";
 
 jest.mock("@/server/repositories/user.repo", () => ({
@@ -36,14 +30,11 @@ const mockConsumePasswordReset =
   userRepo.consumePasswordResetToken as jest.MockedFunction<
     typeof userRepo.consumePasswordResetToken
   >;
-const mockRevokeAll =
-  revokeAllUserTokens as jest.MockedFunction<
-    typeof revokeAllUserTokens
-  >;
+const mockRevokeAll = revokeAllUserTokens as jest.MockedFunction<
+  typeof revokeAllUserTokens
+>;
 
-function user(
-  overrides: Partial<UserProps> = {},
-): UserEntity {
+function user(overrides: Partial<UserProps> = {}): UserEntity {
   const now = new Date();
 
   return UserEntity.fromPersistence({
@@ -73,9 +64,7 @@ describe("atomic account action tokens", () => {
   it("verifies email through one atomic consume call", async () => {
     mockConsumeVerification.mockResolvedValue(user());
 
-    await expect(
-      verifyEmail("raw-verification-token"),
-    ).resolves.toEqual({
+    await expect(verifyEmail("raw-verification-token")).resolves.toEqual({
       message: "Email verified — you can now log in",
     });
 
@@ -88,9 +77,9 @@ describe("atomic account action tokens", () => {
   it("rejects a verification token when atomic consume fails", async () => {
     mockConsumeVerification.mockResolvedValue(null);
 
-    await expect(
-      verifyEmail("already-consumed-token"),
-    ).rejects.toThrow("Invalid or expired verification token");
+    await expect(verifyEmail("already-consumed-token")).rejects.toThrow(
+      "Invalid or expired verification token",
+    );
   });
 
   it("resets password only when atomic consume succeeds", async () => {
@@ -99,7 +88,8 @@ describe("atomic account action tokens", () => {
     await expect(
       resetPassword("raw-reset-token", "StrongPassword1!"),
     ).resolves.toEqual({
-      message: "Password reset successful — please log in with your new password",
+      message:
+        "Password reset successful — please log in with your new password",
     });
 
     expect(mockConsumePasswordReset).toHaveBeenCalledWith(

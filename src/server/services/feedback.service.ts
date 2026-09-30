@@ -66,9 +66,7 @@ export async function reviewFeedback(
 }
 
 function safeCsvValue(value: unknown): string {
-  let text = value === undefined || value === null
-    ? ""
-    : String(value);
+  let text = value === undefined || value === null ? "" : String(value);
 
   // Prevent spreadsheet applications from executing user-controlled formulas.
   if (/^[=+\-@\t\r]/.test(text)) {
@@ -100,21 +98,25 @@ export async function exportFeedbackCsv(query: {
     "reviewedAt",
   ];
 
-  const rows = entries.map((entry) => [
-    entry.id,
-    entry.createdAt.toISOString(),
-    entry.updatedAt.toISOString(),
-    entry.userEmail,
-    entry.type,
-    entry.title,
-    entry.message,
-    entry.rating,
-    entry.sourcePath,
-    entry.status,
-    entry.adminNote,
-    entry.reviewedBy,
-    entry.reviewedAt?.toISOString() ?? "",
-  ].map(safeCsvValue).join(","));
+  const rows = entries.map((entry) =>
+    [
+      entry.id,
+      entry.createdAt.toISOString(),
+      entry.updatedAt.toISOString(),
+      entry.userEmail,
+      entry.type,
+      entry.title,
+      entry.message,
+      entry.rating,
+      entry.sourcePath,
+      entry.status,
+      entry.adminNote,
+      entry.reviewedBy,
+      entry.reviewedAt?.toISOString() ?? "",
+    ]
+      .map(safeCsvValue)
+      .join(","),
+  );
 
   return [header.map(safeCsvValue).join(","), ...rows].join("\n");
 }

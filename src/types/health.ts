@@ -38,10 +38,7 @@ export interface TelegramHealth {
 }
 
 export interface HealthCheck {
-  status:
-    | "healthy"
-    | "degraded"
-    | "unhealthy";
+  status: "healthy" | "degraded" | "unhealthy";
 
   timestamp: string;
   uptime: number;
@@ -82,8 +79,7 @@ export interface HealthCheck {
     provider: string;
     model: string;
 
-    checkMode:
-      "configuration_and_telemetry";
+    checkMode: "configuration_and_telemetry";
 
     requestsToday: number;
     successesToday: number;

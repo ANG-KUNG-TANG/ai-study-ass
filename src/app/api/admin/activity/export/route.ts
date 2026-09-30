@@ -5,5 +5,9 @@ import { apiLimiter } from "@/server/middleware/rate_limiter.middleware";
 
 export const GET = withRole("admin")(async (req, _context, auth) => {
   await apiLimiter(req, `admin:${auth.userId}:activity:export`);
-  return exportActivity(req as NextRequest, { params: Promise.resolve({}) }, auth);
+  return exportActivity(
+    req as NextRequest,
+    { params: Promise.resolve({}) },
+    auth,
+  );
 });

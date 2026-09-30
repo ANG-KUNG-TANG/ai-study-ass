@@ -26,14 +26,24 @@ export function useAdminUsers(params?: AdminUserQuery) {
           setMeta(result.meta);
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load users");
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Failed to load users");
       } finally {
         if (!cancelled) setIsLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refetchIndex, params?.page, params?.limit, params?.search, params?.role, params?.isActive]);
+  }, [
+    refetchIndex,
+    params?.page,
+    params?.limit,
+    params?.search,
+    params?.role,
+    params?.isActive,
+  ]);
 
   return { users, meta, isLoading, error, refetch };
 }

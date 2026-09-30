@@ -26,9 +26,7 @@ describe("symbolic-content.service", () => {
 
     expect(definitions.length).toBeGreaterThan(0);
     expect(
-      definitions.some((item) =>
-        item.term.toLowerCase().includes("smote"),
-      ),
+      definitions.some((item) => item.term.toLowerCase().includes("smote")),
     ).toBe(true);
   });
 
@@ -39,35 +37,27 @@ describe("symbolic-content.service", () => {
       "Software Defect Prediction",
     );
 
-    expect(result.summary).toContain(
-      "Software Defect Prediction",
-    );
+    expect(result.summary).toContain("Software Defect Prediction");
     expect(result.keyPoints.length).toBeGreaterThan(0);
     expect(result.confidence).toBeGreaterThan(0);
   });
 
   it("builds quiz questions from source text", () => {
-    const questions = buildQuestionsFromSource(
-      SOURCE,
-      5,
-      ["short_answer", "true_false"],
-    );
+    const questions = buildQuestionsFromSource(SOURCE, 5, [
+      "short_answer",
+      "true_false",
+    ]);
 
     expect(questions.length).toBeGreaterThan(0);
     expect(
       questions.every((question) =>
-        ["short_answer", "true_false"].includes(
-          question.questionType,
-        ),
+        ["short_answer", "true_false"].includes(question.questionType),
       ),
     ).toBe(true);
   });
 
   it("builds flashcards from source text", () => {
-    const cards = buildFlashcardsFromSource(
-      SOURCE,
-      5,
-    );
+    const cards = buildFlashcardsFromSource(SOURCE, 5);
 
     expect(cards.length).toBeGreaterThan(0);
     expect(cards[0].front).toBeTruthy();

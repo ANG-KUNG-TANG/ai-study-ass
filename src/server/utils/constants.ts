@@ -1,11 +1,11 @@
 //fle upload
 
 export const ALLOWED_MIME_TYPES = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ] as const;
 
-export const ALLOWED_EXTENSIONS = ['.pdf', '.docx'] as const;
+export const ALLOWED_EXTENSIONS = [".pdf", ".docx"] as const;
 
 //10 mb in bytes
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -24,7 +24,6 @@ export const MAX_PDF_PAGES = 200;
 export const MAX_DOCX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 export const MAX_DOCX_ZIP_ENTRIES = 2_000;
 
-
 //pagination
 export const DEFAULT_PAGE = 1;
 export const DEFAULT_LIMIT = 10;
@@ -35,10 +34,8 @@ export const MAX_LIMIT = 50;
 export const MAX_QUIZ_QUESTIONS = 20;
 export const DEFAULT_QUIZ_QUESTIONS = 10;
 
-
 export const MAX_FLASHCARDS = 30;
 export const DEFAULT_FLASHCARDS = 15;
-
 
 //number of past chat messages to include as context
 export const CHAT_HISTORY_LIMIT = 10;
@@ -55,12 +52,10 @@ export const COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 //Rate Limits
 
-
 //These mirror the Rate Limiter Block ()
-export const RATE_LIMIT_AUTH = {max: 10, windowMs: 15 * 60 * 1000}
-export const RATE_LIMIT_API = {max: 100, windowMs: 60 * 1000}
-export const RATE_LIMIT_AI = {max: 20, windowMs: 60 * 1000} 
-
+export const RATE_LIMIT_AUTH = { max: 10, windowMs: 15 * 60 * 1000 };
+export const RATE_LIMIT_API = { max: 100, windowMs: 60 * 1000 };
+export const RATE_LIMIT_AI = { max: 20, windowMs: 60 * 1000 };
 
 //AI retry
 

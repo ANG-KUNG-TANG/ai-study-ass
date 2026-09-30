@@ -103,7 +103,11 @@ export async function exportFeedback(
   _context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const { page: _page, limit: _limit, ...filters } = parseAdminFeedbackQuery(req);
+  const {
+    page: _page,
+    limit: _limit,
+    ...filters
+  } = parseAdminFeedbackQuery(req);
   const csv = await feedbackService.exportFeedbackCsv(filters);
 
   await logActivity({

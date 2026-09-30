@@ -45,13 +45,15 @@ describe("FeedbackEntity", () => {
   });
 
   it("rejects invalid ratings and short messages", () => {
-    expect(() => FeedbackEntity.create({
-      userId: "user-1",
-      userEmail: "student@example.com",
-      type: "general",
-      title: "Good app",
-      message: "Too short",
-      rating: 6,
-    })).toThrow("Validation failed");
+    expect(() =>
+      FeedbackEntity.create({
+        userId: "user-1",
+        userEmail: "student@example.com",
+        type: "general",
+        title: "Good app",
+        message: "Too short",
+        rating: 6,
+      }),
+    ).toThrow("Validation failed");
   });
 });

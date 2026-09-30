@@ -46,9 +46,7 @@ export function readGoogleOAuthCookies(
   };
 }
 
-export function clearGoogleOAuthCookies(
-  response: NextResponse,
-): NextResponse {
+export function clearGoogleOAuthCookies(response: NextResponse): NextResponse {
   const options = cookieOptions(0);
   response.cookies.set(COOKIE_STATE, "", options);
   response.cookies.set(COOKIE_NONCE, "", options);

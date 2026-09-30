@@ -1,9 +1,6 @@
 import mongoose from "mongoose";
 import { connectDb } from "@/server/config/database";
-import {
-  UserEntity,
-  type UserProps,
-} from "@/server/entities/user.entity";
+import { UserEntity, type UserProps } from "@/server/entities/user.entity";
 import * as userRepo from "@/server/repositories/user.repo";
 import {
   areAllUserTokensRevoked,
@@ -28,18 +25,14 @@ const mockConnectDb = connectDb as jest.MockedFunction<typeof connectDb>;
 const mockFindById = userRepo.findById as jest.MockedFunction<
   typeof userRepo.findById
 >;
-const mockAreAllRevoked =
-  areAllUserTokensRevoked as jest.MockedFunction<
-    typeof areAllUserTokensRevoked
-  >;
-const mockVerifyRefresh =
-  verifyRefreshToken as jest.MockedFunction<
-    typeof verifyRefreshToken
-  >;
+const mockAreAllRevoked = areAllUserTokensRevoked as jest.MockedFunction<
+  typeof areAllUserTokensRevoked
+>;
+const mockVerifyRefresh = verifyRefreshToken as jest.MockedFunction<
+  typeof verifyRefreshToken
+>;
 
-function activeUser(
-  overrides: Partial<UserProps> = {},
-): UserEntity {
+function activeUser(overrides: Partial<UserProps> = {}): UserEntity {
   const now = new Date();
 
   return UserEntity.fromPersistence({
@@ -81,13 +74,13 @@ describe("verifyBrowserSession", () => {
   });
 
   it("returns current database identity and role, not stale JWT claims", async () => {
-    await expect(
-      verifyBrowserSession("signed-refresh-token"),
-    ).resolves.toEqual({
-      userId: "user-1",
-      email: "user@example.com",
-      role: "user",
-    });
+    await expect(verifyBrowserSession("signed-refresh-token")).resolves.toEqual(
+      {
+        userId: "user-1",
+        email: "user@example.com",
+        role: "user",
+      },
+    );
 
     expect(mockFindById).toHaveBeenCalledWith("user-1", {
       withRefreshTokenId: true,

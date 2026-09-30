@@ -25,10 +25,7 @@ async function requireOwnedNote(
   noteId: string,
   userId: string,
 ): Promise<NoteEntity> {
-  const note = await noteRepo.findByIdAndUserId(
-    noteId,
-    userId,
-  );
+  const note = await noteRepo.findByIdAndUserId(noteId, userId);
 
   if (!note) {
     // Missing and foreign notes intentionally look identical to callers.
@@ -93,10 +90,7 @@ export async function createNote(
       {
         noteId: saved.id,
         userId,
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
+        error: error instanceof Error ? error.message : String(error),
       },
     );
   }
@@ -108,10 +102,7 @@ export async function getNoteById(
   noteId: string,
   userId: string,
 ): Promise<ReturnType<NoteEntity["toPublic"]>> {
-  const note = await requireOwnedNote(
-    noteId,
-    userId,
-  );
+  const note = await requireOwnedNote(noteId, userId);
 
   return note.toPublic();
 }
@@ -132,10 +123,7 @@ export async function deleteNote(
   noteId: string,
   userId: string,
 ): Promise<void> {
-  await requireOwnedNote(
-    noteId,
-    userId,
-  );
+  await requireOwnedNote(noteId, userId);
 
   await Promise.all([
     noteRepo.deleteById(noteId),
@@ -157,10 +145,7 @@ export async function updateNoteSummary(
   userId: string,
   summary: string,
 ): Promise<void> {
-  const note = await requireOwnedNote(
-    noteId,
-    userId,
-  );
+  const note = await requireOwnedNote(noteId, userId);
 
   note.updateSummary(summary);
   await noteRepo.updateSummary(noteId, note.summary!);
@@ -173,10 +158,7 @@ export async function getNoteContent(
   content: string;
   title: string;
 }> {
-  const note = await requireOwnedNote(
-    noteId,
-    userId,
-  );
+  const note = await requireOwnedNote(noteId, userId);
 
   return {
     content: note.content,
@@ -191,10 +173,7 @@ export async function getGeneratedNotes(
   summary: string | null;
   title: string;
 }> {
-  const note = await requireOwnedNote(
-    noteId,
-    userId,
-  );
+  const note = await requireOwnedNote(noteId, userId);
 
   return {
     summary: note.summary,

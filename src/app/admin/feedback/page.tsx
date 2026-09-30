@@ -92,7 +92,9 @@ function ReviewCard({
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line-soft pb-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-2.5 py-1 text-[9.5px] font-bold ${typeTone[entry.type]}`}>
+            <span
+              className={`rounded-full px-2.5 py-1 text-[9.5px] font-bold ${typeTone[entry.type]}`}
+            >
               {t(typeKeys[entry.type])}
             </span>
             <span className="text-[10px] text-ink-faint">
@@ -118,7 +120,10 @@ function ReviewCard({
       </p>
 
       {entry.sourcePath && (
-        <div className="mb-4 truncate rounded-[7px] bg-paper px-3 py-2 text-[10px] text-ink-faint" title={entry.sourcePath}>
+        <div
+          className="mb-4 truncate rounded-[7px] bg-paper px-3 py-2 text-[10px] text-ink-faint"
+          title={entry.sourcePath}
+        >
           {t("feedback.contextLabel")}: {entry.sourcePath}
         </div>
       )}
@@ -130,11 +135,15 @@ function ReviewCard({
           </span>
           <select
             value={reviewStatus}
-            onChange={(event) => setReviewStatus(event.target.value as FeedbackStatus)}
+            onChange={(event) =>
+              setReviewStatus(event.target.value as FeedbackStatus)
+            }
             className="h-10 w-full rounded-[8px] border border-line bg-paper px-3 text-[12px] text-ink outline-none focus:border-yellow"
           >
             {(Object.keys(statusKeys) as FeedbackStatus[]).map((status) => (
-              <option key={status} value={status}>{t(statusKeys[status])}</option>
+              <option key={status} value={status}>
+                {t(statusKeys[status])}
+              </option>
             ))}
           </select>
         </label>
@@ -165,7 +174,9 @@ function ReviewCard({
       </div>
 
       {message && (
-        <p className="mt-2 text-[10.5px] text-ink-soft" role="status">{message}</p>
+        <p className="mt-2 text-[10.5px] text-ink-soft" role="status">
+          {message}
+        </p>
       )}
     </article>
   );
@@ -182,30 +193,33 @@ export default function AdminFeedbackPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (requestedPage: number) => {
-    setIsLoading(true);
-    setError(null);
+  const load = useCallback(
+    async (requestedPage: number) => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const result = await listAdminFeedback({
-        page: requestedPage,
-        limit: PAGE_SIZE,
-        search: search.trim() || undefined,
-        type: type || undefined,
-        status: status || undefined,
-      });
-      setData(result.data);
-      setMeta(result.meta);
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : t("admin.feedback.loadFailed"),
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [search, status, t, type]);
+      try {
+        const result = await listAdminFeedback({
+          page: requestedPage,
+          limit: PAGE_SIZE,
+          search: search.trim() || undefined,
+          type: type || undefined,
+          status: status || undefined,
+        });
+        setData(result.data);
+        setMeta(result.meta);
+      } catch (cause) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : t("admin.feedback.loadFailed"),
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [search, status, t, type],
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(page), 180);
@@ -235,7 +249,7 @@ export default function AdminFeedbackPage() {
         eyebrow={t("admin.eyebrow")}
         title={t("admin.feedback.title")}
         description={t("admin.feedback.description")}
-        actions={(
+        actions={
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -251,62 +265,89 @@ export default function AdminFeedbackPage() {
               disabled={isLoading}
               className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-line px-3 text-[11px] font-semibold text-ink-soft hover:bg-line-soft disabled:opacity-50"
             >
-              <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+              <RefreshCw
+                size={14}
+                className={isLoading ? "animate-spin" : ""}
+              />
               {t("admin.feedback.refresh")}
             </button>
           </div>
-        )}
+        }
       />
 
       <div className="mb-4 grid gap-2 border-y border-line py-3 sm:grid-cols-3">
         <input
           value={search}
-          onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
           placeholder={t("admin.feedback.searchPlaceholder")}
           className="h-10 rounded-[8px] border border-line bg-paper-raised px-3 text-[12px] outline-none focus:border-yellow"
         />
         <select
           value={type}
-          onChange={(event) => { setType(event.target.value as typeof type); setPage(1); }}
+          onChange={(event) => {
+            setType(event.target.value as typeof type);
+            setPage(1);
+          }}
           className="h-10 rounded-[8px] border border-line bg-paper-raised px-3 text-[12px] outline-none focus:border-yellow"
         >
           <option value="">{t("admin.feedback.allTypes")}</option>
           {(Object.keys(typeKeys) as FeedbackType[]).map((value) => (
-            <option key={value} value={value}>{t(typeKeys[value])}</option>
+            <option key={value} value={value}>
+              {t(typeKeys[value])}
+            </option>
           ))}
         </select>
         <select
           value={status}
-          onChange={(event) => { setStatus(event.target.value as typeof status); setPage(1); }}
+          onChange={(event) => {
+            setStatus(event.target.value as typeof status);
+            setPage(1);
+          }}
           className="h-10 rounded-[8px] border border-line bg-paper-raised px-3 text-[12px] outline-none focus:border-yellow"
         >
           <option value="">{t("admin.feedback.allStatuses")}</option>
           {(Object.keys(statusKeys) as FeedbackStatus[]).map((value) => (
-            <option key={value} value={value}>{t(statusKeys[value])}</option>
+            <option key={value} value={value}>
+              {t(statusKeys[value])}
+            </option>
           ))}
         </select>
       </div>
 
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="text-[10.5px] text-ink-faint">
-          {meta ? t("admin.feedback.total", { count: meta.total.toLocaleString(locale) }) : ""}
+          {meta
+            ? t("admin.feedback.total", {
+                count: meta.total.toLocaleString(locale),
+              })
+            : ""}
         </p>
       </div>
 
       {error && (
-        <p className="mb-4 rounded-[8px] bg-coral-soft px-3 py-2.5 text-[12px] text-coral" role="alert">
+        <p
+          className="mb-4 rounded-[8px] bg-coral-soft px-3 py-2.5 text-[12px] text-coral"
+          role="alert"
+        >
           {error}
         </p>
       )}
 
       {isLoading && data.length === 0 ? (
-        <p className="py-12 text-center text-[12px] text-ink-faint">{t("common.loading")}</p>
+        <p className="py-12 text-center text-[12px] text-ink-faint">
+          {t("common.loading")}
+        </p>
       ) : data.length === 0 ? (
         <p className="rounded-[10px] border border-line bg-paper-raised px-4 py-12 text-center text-[12px] text-ink-soft">
           {t("admin.feedback.empty")}
         </p>
       ) : (
-        <div className={`space-y-3 transition-opacity ${isLoading ? "opacity-60" : "opacity-100"}`}>
+        <div
+          className={`space-y-3 transition-opacity ${isLoading ? "opacity-60" : "opacity-100"}`}
+        >
           {data.map((entry) => (
             <ReviewCard
               key={entry.id}
@@ -314,7 +355,11 @@ export default function AdminFeedbackPage() {
               locale={locale}
               t={t}
               onUpdated={(updated) => {
-                setData((current) => current.map((item) => item.id === updated.id ? updated : item));
+                setData((current) =>
+                  current.map((item) =>
+                    item.id === updated.id ? updated : item,
+                  ),
+                );
               }}
             />
           ))}
@@ -332,7 +377,9 @@ export default function AdminFeedbackPage() {
             <ChevronLeft size={14} />
             {t("common.previous")}
           </button>
-          <span className="text-[10.5px] text-ink-faint">{meta.page} / {meta.totalPages}</span>
+          <span className="text-[10.5px] text-ink-faint">
+            {meta.page} / {meta.totalPages}
+          </span>
           <button
             type="button"
             disabled={!meta.hasNext || isLoading}

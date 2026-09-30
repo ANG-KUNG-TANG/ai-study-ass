@@ -16,10 +16,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/context/LanguageContext";
 import { setAccessToken } from "@/lib/auth-token-store";
-import {
-  changePassword,
-  logoutAllSessions,
-} from "@/services/auth.service";
+import { changePassword, logoutAllSessions } from "@/services/auth.service";
 import { deleteAccount, getProfile } from "@/services/user.service";
 import type { AccountProfile } from "@/types/user";
 
@@ -217,7 +214,10 @@ export default function StudentSettingsPage() {
               )}
 
               {profile?.passwordConfigured && (
-                <form onSubmit={handleChangePassword} className="mt-5 grid gap-3 lg:max-w-xl">
+                <form
+                  onSubmit={handleChangePassword}
+                  className="mt-5 grid gap-3 lg:max-w-xl"
+                >
                   <Input
                     id="current-password"
                     label={t("settings.currentPassword")}
@@ -225,7 +225,10 @@ export default function StudentSettingsPage() {
                     autoComplete="current-password"
                     value={passwords.currentPassword}
                     onChange={(event) =>
-                      setPasswords({ ...passwords, currentPassword: event.target.value })
+                      setPasswords({
+                        ...passwords,
+                        currentPassword: event.target.value,
+                      })
                     }
                     required
                   />
@@ -237,7 +240,10 @@ export default function StudentSettingsPage() {
                       autoComplete="new-password"
                       value={passwords.newPassword}
                       onChange={(event) =>
-                        setPasswords({ ...passwords, newPassword: event.target.value })
+                        setPasswords({
+                          ...passwords,
+                          newPassword: event.target.value,
+                        })
                       }
                       required
                     />
@@ -248,7 +254,10 @@ export default function StudentSettingsPage() {
                       autoComplete="new-password"
                       value={passwords.confirmPassword}
                       onChange={(event) =>
-                        setPasswords({ ...passwords, confirmPassword: event.target.value })
+                        setPasswords({
+                          ...passwords,
+                          confirmPassword: event.target.value,
+                        })
                       }
                       required
                     />
@@ -257,7 +266,10 @@ export default function StudentSettingsPage() {
                     {t("register.passwordHelp")}
                   </p>
                   {passwordError && (
-                    <p className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+                    <p
+                      className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral"
+                      role="alert"
+                    >
                       {passwordError}
                     </p>
                   )}
@@ -299,7 +311,10 @@ export default function StudentSettingsPage() {
             </Button>
           </div>
           {sessionError && (
-            <p className="mt-3 rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+            <p
+              className="mt-3 rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral"
+              role="alert"
+            >
               {sessionError}
             </p>
           )}
@@ -326,7 +341,10 @@ export default function StudentSettingsPage() {
                   <p>{t("settings.deleteNeedsPassword")}</p>
                 </div>
               ) : (
-                <form onSubmit={handleDelete} className="mt-4 max-w-xl space-y-3">
+                <form
+                  onSubmit={handleDelete}
+                  className="mt-4 max-w-xl space-y-3"
+                >
                   <Input
                     id="delete-password"
                     label={t("settings.confirmWithPassword")}
@@ -340,13 +358,18 @@ export default function StudentSettingsPage() {
                     <input
                       type="checkbox"
                       checked={deleteConfirmed}
-                      onChange={(event) => setDeleteConfirmed(event.target.checked)}
+                      onChange={(event) =>
+                        setDeleteConfirmed(event.target.checked)
+                      }
                       className="mt-0.5 h-4 w-4 rounded border-line accent-coral"
                     />
                     {t("settings.deleteConfirmation")}
                   </label>
                   {deleteError && (
-                    <p className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+                    <p
+                      className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral"
+                      role="alert"
+                    >
                       {deleteError}
                     </p>
                   )}
@@ -356,7 +379,9 @@ export default function StudentSettingsPage() {
                     disabled={deleting || !deleteConfirmed || !deletePassword}
                     className="border-coral/40 text-coral hover:bg-coral-soft"
                   >
-                    {deleting ? t("common.deleting") : t("settings.deleteAccount")}
+                    {deleting
+                      ? t("common.deleting")
+                      : t("settings.deleteAccount")}
                   </Button>
                 </form>
               )}

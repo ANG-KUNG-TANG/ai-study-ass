@@ -7,8 +7,12 @@
 // arbitrary fileType/sortBy strings) reach note.repo.ts before failing.
 // =============================================================================
 
-import { z } from 'zod';
-import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from '@/server/utils/constants';
+import { z } from "zod";
+import {
+  DEFAULT_PAGE,
+  DEFAULT_LIMIT,
+  MAX_LIMIT,
+} from "@/server/utils/constants";
 
 // z.coerce.number() on an empty/missing search param yields NaN, so each
 // field is optional at the string level and only coerced+defaulted when
@@ -18,18 +22,23 @@ export const noteQuerySchema = z.object({
   page: z
     .string()
     .optional()
-    .transform((v) => (v === undefined || v === '' ? DEFAULT_PAGE : Number(v)))
-    .pipe(z.number({ error: 'page must be a number' }).int('page must be an integer').positive('page must be positive')),
+    .transform((v) => (v === undefined || v === "" ? DEFAULT_PAGE : Number(v)))
+    .pipe(
+      z
+        .number({ error: "page must be a number" })
+        .int("page must be an integer")
+        .positive("page must be positive"),
+    ),
 
   limit: z
     .string()
     .optional()
-    .transform((v) => (v === undefined || v === '' ? DEFAULT_LIMIT : Number(v)))
+    .transform((v) => (v === undefined || v === "" ? DEFAULT_LIMIT : Number(v)))
     .pipe(
       z
-        .number({ error: 'limit must be a number' })
-        .int('limit must be an integer')
-        .positive('limit must be positive')
+        .number({ error: "limit must be a number" })
+        .int("limit must be an integer")
+        .positive("limit must be positive")
         .max(MAX_LIMIT, `limit cannot exceed ${MAX_LIMIT}`),
     ),
 
@@ -41,11 +50,17 @@ export const noteQuerySchema = z.object({
       return trimmed && trimmed.length > 0 ? trimmed : undefined;
     }),
 
-  fileType: z.enum(['pdf', 'docx'], { error: 'fileType must be "pdf" or "docx"' }).optional(),
+  fileType: z
+    .enum(["pdf", "docx"], { error: 'fileType must be "pdf" or "docx"' })
+    .optional(),
 
-  sortBy: z.enum(['createdAt', 'title', 'fileSize'], { error: 'invalid sortBy value' }).optional(),
+  sortBy: z
+    .enum(["createdAt", "title", "fileSize"], { error: "invalid sortBy value" })
+    .optional(),
 
-  sortOrder: z.enum(['asc', 'desc'], { error: 'sortOrder must be "asc" or "desc"' }).optional(),
+  sortOrder: z
+    .enum(["asc", "desc"], { error: 'sortOrder must be "asc" or "desc"' })
+    .optional(),
 });
 
 export type NoteQueryInput = z.infer<typeof noteQuerySchema>;
@@ -60,11 +75,11 @@ export type NoteQueryInput = z.infer<typeof noteQuerySchema>;
 export function parseNoteQuery(req: Request): NoteQueryInput {
   const params = new URL(req.url).searchParams;
   return noteQuerySchema.parse({
-    page: params.get('page') ?? undefined,
-    limit: params.get('limit') ?? undefined,
-    search: params.get('search') ?? undefined,
-    fileType: params.get('fileType') ?? undefined,
-    sortBy: params.get('sortBy') ?? undefined,
-    sortOrder: params.get('sortOrder') ?? undefined,
+    page: params.get("page") ?? undefined,
+    limit: params.get("limit") ?? undefined,
+    search: params.get("search") ?? undefined,
+    fileType: params.get("fileType") ?? undefined,
+    sortBy: params.get("sortBy") ?? undefined,
+    sortOrder: params.get("sortOrder") ?? undefined,
   });
 }

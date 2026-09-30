@@ -3,7 +3,10 @@
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { ALLOWED_EXTENSIONS, MAX_FILE_SIZE_BYTES } from "@/server/utils/constants";
+import {
+  ALLOWED_EXTENSIONS,
+  MAX_FILE_SIZE_BYTES,
+} from "@/server/utils/constants";
 import { apiFetch } from "@/lib/api";
 import type { Note } from "@/types/notes";
 import { useLanguage } from "@/context/LanguageContext";
@@ -18,7 +21,9 @@ function validateFile(
   t: (key: TranslationKey, values?: TranslationValues) => string,
 ): string | null {
   const ext = "." + file.name.split(".").pop()?.toLowerCase();
-  if (!ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])) {
+  if (
+    !ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])
+  ) {
     return t("upload.unsupported", { types: ALLOWED_EXTENSIONS.join(", ") });
   }
   if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -111,7 +116,12 @@ export function UploadZone({ onUploaded }: UploadZoneProps) {
         onChange={handleBrowse}
         className="hidden"
       />
-      <Button className="shrink-0" variant="outline" onClick={() => inputRef.current?.click()} disabled={isUploading}>
+      <Button
+        className="shrink-0"
+        variant="outline"
+        onClick={() => inputRef.current?.click()}
+        disabled={isUploading}
+      >
         {isUploading ? t("upload.uploading") : t("upload.browse")}
       </Button>
     </div>

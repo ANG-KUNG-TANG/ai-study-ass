@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   CheckCircle2,
@@ -15,17 +11,11 @@ import {
   XCircle,
 } from "lucide-react";
 
-import {
-  Topbar,
-} from "@/components/layout/Topbar";
+import { Topbar } from "@/components/layout/Topbar";
 
-import {
-  getStudentAIUsage,
-} from "@/services/ai-usage.service";
+import { getStudentAIUsage } from "@/services/ai-usage.service";
 
-import type {
-  StudentAIUsage,
-} from "@/types/ai-usage";
+import type { StudentAIUsage } from "@/types/ai-usage";
 import { useLanguage } from "@/context/LanguageContext";
 import type {
   Locale,
@@ -33,18 +23,10 @@ import type {
   TranslationValues,
 } from "@/i18n/translations";
 
-type Translate = (
-  key: TranslationKey,
-  values?: TranslationValues,
-) => string;
+type Translate = (key: TranslationKey, values?: TranslationValues) => string;
 
-function formatLatency(
-  value: number,
-): string {
-  if (
-    !Number.isFinite(value) ||
-    value <= 0
-  ) {
+function formatLatency(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
     return "—";
   }
 
@@ -53,18 +35,10 @@ function formatLatency(
     : `${Math.round(value)}ms`;
 }
 
-function formatTime(
-  value: string,
-  locale: Locale,
-): string {
-  const date =
-    new Date(value);
+function formatTime(value: string, locale: Locale): string {
+  const date = new Date(value);
 
-  return Number.isNaN(
-    date.getTime(),
-  )
-    ? "—"
-    : date.toLocaleString(locale);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString(locale);
 }
 
 function quotaValue(
@@ -79,92 +53,58 @@ function quotaValue(
 } {
   if (limit === null) {
     return {
-      main:
-        used.toLocaleString(locale),
+      main: used.toLocaleString(locale),
 
-      detail:
-        t("student.ai.unlimited"),
+      detail: t("student.ai.unlimited"),
     };
   }
 
   return {
-    main:
-      `${used.toLocaleString(locale)} / ${limit.toLocaleString(locale)}`,
+    main: `${used.toLocaleString(locale)} / ${limit.toLocaleString(locale)}`,
 
-    detail:
-      t("student.ai.remaining", {
-        count: (remaining ?? 0).toLocaleString(locale),
-      }),
+    detail: t("student.ai.remaining", {
+      count: (remaining ?? 0).toLocaleString(locale),
+    }),
   };
 }
 
 export default function StudentAIUsagePage() {
   const { locale, t } = useLanguage();
-  const [
-    data,
-    setData,
-  ] =
-    useState<StudentAIUsage | null>(
-      null,
-    );
+  const [data, setData] = useState<StudentAIUsage | null>(null);
 
-  const [
-    error,
-    setError,
-  ] =
-    useState<string | null>(
-      null,
-    );
+  const [error, setError] = useState<string | null>(null);
 
-  const [
-    refreshing,
-    setRefreshing,
-  ] =
-    useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load =
-    useCallback(
-      async () => {
-        try {
-          const result =
-            await getStudentAIUsage();
+  const load = useCallback(async () => {
+    try {
+      const result = await getStudentAIUsage();
 
-          setData(result);
-          setError(null);
-        } catch (cause) {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : t("student.ai.unavailable"),
-          );
-        } finally {
-          setRefreshing(false);
-        }
-      },
-      [t],
-    );
+      setData(result);
+      setError(null);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : t("student.ai.unavailable"),
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }, [t]);
 
   useEffect(() => {
-    const timer =
-      window.setTimeout(
-        () => {
-          void load();
-        },
-        0,
-      );
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
 
     return () => {
-      window.clearTimeout(
-        timer,
-      );
+      window.clearTimeout(timer);
     };
   }, [load]);
 
-  const refresh =
-    useCallback(() => {
-      setRefreshing(true);
-      void load();
-    }, [load]);
+  const refresh = useCallback(() => {
+    setRefreshing(true);
+    void load();
+  }, [load]);
 
   return (
     <>
@@ -181,14 +121,7 @@ export default function StudentAIUsagePage() {
           onClick={refresh}
           className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] text-ink-soft disabled:opacity-50"
         >
-          <RefreshCw
-            size={14}
-            className={
-              refreshing
-                ? "animate-spin"
-                : ""
-            }
-          />
+          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
           {t("common.refresh")}
         </button>
       </div>
@@ -211,10 +144,7 @@ export default function StudentAIUsagePage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <ShieldCheck
-                    size={17}
-                    className="text-ink-faint"
-                  />
+                  <ShieldCheck size={17} className="text-ink-faint" />
 
                   <h2 className="font-serif text-[16px] font-semibold text-ink">
                     {t("student.ai.allowance")}
@@ -246,8 +176,7 @@ export default function StudentAIUsagePage() {
             <div className="mt-4 grid grid-cols-1 border-l border-t border-line md:grid-cols-3">
               {[
                 {
-                  label:
-                    t("student.ai.providerRequests"),
+                  label: t("student.ai.providerRequests"),
                   ...quotaValue(
                     data.quota.requestsUsed,
                     data.quota.requestLimit,
@@ -257,8 +186,7 @@ export default function StudentAIUsagePage() {
                   ),
                 },
                 {
-                  label:
-                    t("student.ai.providerTokens"),
+                  label: t("student.ai.providerTokens"),
                   ...quotaValue(
                     data.quota.tokensUsed,
                     data.quota.tokenLimit,
@@ -275,26 +203,22 @@ export default function StudentAIUsagePage() {
                       ? "Your administrator configured a custom AI policy."
                       : "Using the system AI policy.",
                 },
-              ].map(
-                (item) => (
-                  <div
-                    key={item.label}
-                    className="border-b border-r border-line p-4"
-                  >
-                    <p className="text-[11px] text-ink-faint">
-                      {item.label}
-                    </p>
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="border-b border-r border-line p-4"
+                >
+                  <p className="text-[11px] text-ink-faint">{item.label}</p>
 
-                    <p className="mt-2 font-mono text-[18px] font-semibold text-ink">
-                      {item.main}
-                    </p>
+                  <p className="mt-2 font-mono text-[18px] font-semibold text-ink">
+                    {item.main}
+                  </p>
 
-                    <p className="mt-1 text-[10px] text-ink-faint">
-                      {item.detail}
-                    </p>
-                  </div>
-                ),
-              )}
+                  <p className="mt-1 text-[10px] text-ink-faint">
+                    {item.detail}
+                  </p>
+                </div>
+              ))}
             </div>
 
             <p className="mt-3 text-[10px] text-ink-faint">
@@ -328,30 +252,21 @@ export default function StudentAIUsagePage() {
               ],
               [
                 t("admin.ai.averageLatency"),
-                formatLatency(
-                  data.summary.averageLatencyMs,
-                ),
+                formatLatency(data.summary.averageLatencyMs),
               ],
               [
                 "Estimated cost",
                 `$${data.summary.estimatedCostToday.toFixed(4)}`,
               ],
-            ].map(
-              ([label, value]) => (
-                <div
-                  key={label}
-                  className="border-b border-r border-line p-4"
-                >
-                  <p className="text-[11px] text-ink-faint">
-                    {label}
-                  </p>
+            ].map(([label, value]) => (
+              <div key={label} className="border-b border-r border-line p-4">
+                <p className="text-[11px] text-ink-faint">{label}</p>
 
-                  <p className="mt-2 font-serif text-2xl font-semibold text-ink">
-                    {value}
-                  </p>
-                </div>
-              ),
-            )}
+                <p className="mt-2 font-serif text-2xl font-semibold text-ink">
+                  {value}
+                </p>
+              </div>
+            ))}
           </section>
 
           <section className="mb-5 grid grid-cols-1 border-y border-line lg:grid-cols-2">
@@ -361,41 +276,37 @@ export default function StudentAIUsagePage() {
               </h2>
 
               <div className="mt-4 divide-y divide-line-soft">
-                {data.lastSevenDays.map(
-                  (day) => (
-                    <div
-                      key={day.date}
-                      className="flex items-center justify-between py-3 text-[12px]"
-                    >
-                      <div>
-                        <p className="text-ink">
-                          {day.label}
-                        </p>
+                {data.lastSevenDays.map((day) => (
+                  <div
+                    key={day.date}
+                    className="flex items-center justify-between py-3 text-[12px]"
+                  >
+                    <div>
+                      <p className="text-ink">{day.label}</p>
 
-                        <p className="mt-0.5 text-[10px] text-ink-faint">
-                          {day.date}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="font-mono text-ink">
-                          {t(
-                            day.requests === 1
-                              ? "student.ai.requestCountOne"
-                              : "student.ai.requestCount",
-                            { count: day.requests },
-                          )}
-                        </p>
-
-                        <p className="mt-0.5 font-mono text-[10px] text-ink-faint">
-                          {t("student.ai.tokenCount", {
-                            count: day.tokens.toLocaleString(locale),
-                          })}
-                        </p>
-                      </div>
+                      <p className="mt-0.5 text-[10px] text-ink-faint">
+                        {day.date}
+                      </p>
                     </div>
-                  ),
-                )}
+
+                    <div className="text-right">
+                      <p className="font-mono text-ink">
+                        {t(
+                          day.requests === 1
+                            ? "student.ai.requestCountOne"
+                            : "student.ai.requestCount",
+                          { count: day.requests },
+                        )}
+                      </p>
+
+                      <p className="mt-0.5 font-mono text-[10px] text-ink-faint">
+                        {t("student.ai.tokenCount", {
+                          count: day.tokens.toLocaleString(locale),
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -405,55 +316,49 @@ export default function StudentAIUsagePage() {
               </h2>
 
               <div className="mt-4 space-y-3">
-                {data.providers.map(
-                  (provider) => (
-                    <div
-                      key={provider.provider}
-                      className="border-b border-line-soft py-3 last:border-b-0"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="capitalize text-[12px] font-medium text-ink">
-                          {provider.provider}
-                        </span>
+                {data.providers.map((provider) => (
+                  <div
+                    key={provider.provider}
+                    className="border-b border-line-soft py-3 last:border-b-0"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="capitalize text-[12px] font-medium text-ink">
+                        {provider.provider}
+                      </span>
 
-                        <span className="font-mono text-[11px] text-ink-soft">
-                          {t("student.ai.requestCount", {
-                            count: provider.requests,
-                          })}
-                        </span>
+                      <span className="font-mono text-[11px] text-ink-soft">
+                        {t("student.ai.requestCount", {
+                          count: provider.requests,
+                        })}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-3 gap-3 text-[10px]">
+                      <div>
+                        <p className="text-ink-faint">{t("admin.ai.tokens")}</p>
+                        <p className="mt-1 font-mono text-ink">
+                          {provider.tokens.toLocaleString(locale)}
+                        </p>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-3 gap-3 text-[10px]">
-                        <div>
-                          <p className="text-ink-faint">
-                            {t("admin.ai.tokens")}
-                          </p>
-                          <p className="mt-1 font-mono text-ink">
-                            {provider.tokens.toLocaleString(locale)}
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-ink-faint">
+                          {t("admin.ai.success")}
+                        </p>
+                        <p className="mt-1 font-mono text-ink">
+                          {provider.successes}
+                        </p>
+                      </div>
 
-                        <div>
-                          <p className="text-ink-faint">
-                            {t("admin.ai.success")}
-                          </p>
-                          <p className="mt-1 font-mono text-ink">
-                            {provider.successes}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-ink-faint">
-                            {t("admin.ai.failed")}
-                          </p>
-                          <p className="mt-1 font-mono text-ink">
-                            {provider.failures}
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-ink-faint">{t("admin.ai.failed")}</p>
+                        <p className="mt-1 font-mono text-ink">
+                          {provider.failures}
+                        </p>
                       </div>
                     </div>
-                  ),
-                )}
+                  </div>
+                ))}
               </div>
             </div>
           </section>
@@ -467,39 +372,47 @@ export default function StudentAIUsagePage() {
               <table className="w-full min-w-[620px] text-left text-[12px]">
                 <thead className="text-ink-faint">
                   <tr>
-                    <th className="px-3 py-2 font-medium">{t("student.ai.feature")}</th>
-                    <th className="px-3 py-2 font-medium">{t("admin.ai.requests")}</th>
-                    <th className="px-3 py-2 font-medium">{t("admin.ai.success")}</th>
-                    <th className="px-3 py-2 font-medium">{t("admin.ai.failed")}</th>
-                    <th className="px-3 py-2 font-medium">{t("admin.ai.tokens")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("student.ai.feature")}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.ai.requests")}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.ai.success")}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.ai.failed")}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.ai.tokens")}
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {data.features.map(
-                    (feature) => (
-                      <tr
-                        key={feature.label}
-                        className="border-t border-line-soft"
-                      >
-                        <td className="px-3 py-3 font-medium text-ink">
-                          {feature.label}
-                        </td>
-                        <td className="px-3 py-3 font-mono text-ink-soft">
-                          {feature.requests}
-                        </td>
-                        <td className="px-3 py-3 font-mono text-ink-soft">
-                          {feature.successes}
-                        </td>
-                        <td className="px-3 py-3 font-mono text-ink-soft">
-                          {feature.failures}
-                        </td>
-                        <td className="px-3 py-3 font-mono text-ink-soft">
-                          {feature.tokens.toLocaleString(locale)}
-                        </td>
-                      </tr>
-                    ),
-                  )}
+                  {data.features.map((feature) => (
+                    <tr
+                      key={feature.label}
+                      className="border-t border-line-soft"
+                    >
+                      <td className="px-3 py-3 font-medium text-ink">
+                        {feature.label}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-ink-soft">
+                        {feature.requests}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-ink-soft">
+                        {feature.successes}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-ink-soft">
+                        {feature.failures}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-ink-soft">
+                        {feature.tokens.toLocaleString(locale)}
+                      </td>
+                    </tr>
+                  ))}
 
                   {data.features.length === 0 && (
                     <tr>
@@ -518,10 +431,7 @@ export default function StudentAIUsagePage() {
 
           <section className="border-y border-line py-5">
             <div className="mb-4 flex items-center gap-2">
-              <Sparkles
-                size={16}
-                className="text-ink-faint"
-              />
+              <Sparkles size={16} className="text-ink-faint" />
 
               <h2 className="font-serif text-[16px] font-semibold text-ink">
                 {t("admin.ai.recentActivity")}
@@ -532,71 +442,74 @@ export default function StudentAIUsagePage() {
               <table className="w-full min-w-[760px] text-left text-[12px]">
                 <thead className="text-ink-faint">
                   <tr>
-                    <th className="px-3 py-2 font-medium">{t("admin.ai.result")}</th>
-                    <th className="px-3 py-2 font-medium">{t("student.ai.feature")}</th>
-                    <th className="px-3 py-2 font-medium">{t("admin.ai.provider")}</th>
-                    <th className="px-3 py-2 font-medium">{t("admin.ai.tokens")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.ai.result")}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("student.ai.feature")}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.ai.provider")}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.ai.tokens")}
+                    </th>
                     <th className="px-3 py-2 font-medium">Cost</th>
-                    <th className="px-3 py-2 font-medium">{t("admin.ai.latency")}</th>
-                    <th className="px-3 py-2 font-medium">{t("admin.ai.time")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.ai.latency")}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.ai.time")}
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {data.recentActivity.map(
-                    (item) => (
-                      <tr
-                        key={item.id}
-                        className="border-t border-line-soft"
-                      >
-                        <td className="px-3 py-3">
-                          {item.success ? (
-                            <span className="inline-flex items-center gap-1 text-sage">
-                              <CheckCircle2 size={12} />
-                              {t("admin.ai.success")}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-coral">
-                              <XCircle size={12} />
-                              {t("admin.ai.failed")}
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-3 py-3 text-ink">
-                          {item.usageLabel}
-                        </td>
-
-                        <td className="px-3 py-3">
-                          <p className="capitalize text-ink">
-                            {item.provider}
-                          </p>
-                          <p className="mt-0.5 font-mono text-[10px] text-ink-faint">
-                            {item.model}
-                          </p>
-                        </td>
-
-                        <td className="px-3 py-3 font-mono text-ink-soft">
-                          {item.tokensUsed.toLocaleString(locale)}
-                        </td>
-
-                        <td className="px-3 py-3 font-mono text-ink-soft">
-                          ${item.estimatedCostUsd.toFixed(6)}
-                        </td>
-
-                        <td className="px-3 py-3 font-mono text-ink-soft">
-                          <span className="inline-flex items-center gap-1">
-                            <Clock3 size={11} />
-                            {formatLatency(item.latencyMs)}
+                  {data.recentActivity.map((item) => (
+                    <tr key={item.id} className="border-t border-line-soft">
+                      <td className="px-3 py-3">
+                        {item.success ? (
+                          <span className="inline-flex items-center gap-1 text-sage">
+                            <CheckCircle2 size={12} />
+                            {t("admin.ai.success")}
                           </span>
-                        </td>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-coral">
+                            <XCircle size={12} />
+                            {t("admin.ai.failed")}
+                          </span>
+                        )}
+                      </td>
 
-                        <td className="px-3 py-3 whitespace-nowrap text-ink-faint">
-                          {formatTime(item.createdAt, locale)}
-                        </td>
-                      </tr>
-                    ),
-                  )}
+                      <td className="px-3 py-3 text-ink">{item.usageLabel}</td>
+
+                      <td className="px-3 py-3">
+                        <p className="capitalize text-ink">{item.provider}</p>
+                        <p className="mt-0.5 font-mono text-[10px] text-ink-faint">
+                          {item.model}
+                        </p>
+                      </td>
+
+                      <td className="px-3 py-3 font-mono text-ink-soft">
+                        {item.tokensUsed.toLocaleString(locale)}
+                      </td>
+
+                      <td className="px-3 py-3 font-mono text-ink-soft">
+                        ${item.estimatedCostUsd.toFixed(6)}
+                      </td>
+
+                      <td className="px-3 py-3 font-mono text-ink-soft">
+                        <span className="inline-flex items-center gap-1">
+                          <Clock3 size={11} />
+                          {formatLatency(item.latencyMs)}
+                        </span>
+                      </td>
+
+                      <td className="px-3 py-3 whitespace-nowrap text-ink-faint">
+                        {formatTime(item.createdAt, locale)}
+                      </td>
+                    </tr>
+                  ))}
 
                   {data.recentActivity.length === 0 && (
                     <tr>

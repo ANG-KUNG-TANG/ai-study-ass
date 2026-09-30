@@ -3,10 +3,7 @@ jest.mock("@/server/repositories/flashcard.repo");
 
 import * as quizRepo from "@/server/repositories/quiz.repo";
 import * as flashcardRepo from "@/server/repositories/flashcard.repo";
-import {
-  deleteQuiz,
-  getQuiz,
-} from "@/server/services/quiz/quiz.service";
+import { deleteQuiz, getQuiz } from "@/server/services/quiz/quiz.service";
 import { updateReview } from "@/server/services/flashcard.service";
 
 describe("child resource ownership scoping", () => {
@@ -18,22 +15,15 @@ describe("child resource ownership scoping", () => {
     const quiz = {} as never;
     jest.mocked(quizRepo.findByIdAndUserId).mockResolvedValue(quiz);
 
-    await expect(
-      getQuiz("quiz-1", "user-1"),
-    ).resolves.toBe(quiz);
+    await expect(getQuiz("quiz-1", "user-1")).resolves.toBe(quiz);
 
-    expect(quizRepo.findByIdAndUserId).toHaveBeenCalledWith(
-      "quiz-1",
-      "user-1",
-    );
+    expect(quizRepo.findByIdAndUserId).toHaveBeenCalledWith("quiz-1", "user-1");
   });
 
   it("returns NOT_FOUND for an inaccessible quiz", async () => {
     jest.mocked(quizRepo.findByIdAndUserId).mockResolvedValue(null);
 
-    await expect(
-      getQuiz("foreign-quiz", "user-1"),
-    ).rejects.toMatchObject({
+    await expect(getQuiz("foreign-quiz", "user-1")).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
     });
@@ -54,9 +44,7 @@ describe("child resource ownership scoping", () => {
   it("returns NOT_FOUND when owner-scoped quiz deletion matches nothing", async () => {
     jest.mocked(quizRepo.deleteByIdAndUserId).mockResolvedValue(false);
 
-    await expect(
-      deleteQuiz("foreign-quiz", "user-1"),
-    ).rejects.toMatchObject({
+    await expect(deleteQuiz("foreign-quiz", "user-1")).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
     });
@@ -70,20 +58,14 @@ describe("child resource ownership scoping", () => {
       }),
     } as never;
 
-    jest.mocked(
-      flashcardRepo.updateReviewForUser,
-    ).mockResolvedValue(flashcard);
+    jest.mocked(flashcardRepo.updateReviewForUser).mockResolvedValue(flashcard);
 
-    await expect(
-      updateReview("card-1", "user-1", "hard"),
-    ).resolves.toEqual({
+    await expect(updateReview("card-1", "user-1", "hard")).resolves.toEqual({
       id: "card-1",
       difficulty: "hard",
     });
 
-    expect(
-      flashcardRepo.updateReviewForUser,
-    ).toHaveBeenCalledWith(
+    expect(flashcardRepo.updateReviewForUser).toHaveBeenCalledWith(
       "card-1",
       "user-1",
       "hard",
@@ -91,9 +73,7 @@ describe("child resource ownership scoping", () => {
   });
 
   it("returns NOT_FOUND for an inaccessible flashcard review", async () => {
-    jest.mocked(
-      flashcardRepo.updateReviewForUser,
-    ).mockResolvedValue(null);
+    jest.mocked(flashcardRepo.updateReviewForUser).mockResolvedValue(null);
 
     await expect(
       updateReview("foreign-card", "user-1", "easy"),

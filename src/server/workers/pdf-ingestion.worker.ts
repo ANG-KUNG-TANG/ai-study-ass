@@ -40,7 +40,8 @@ async function processPdfJob(
 
   const { noteId, userId, storageKey, telegramChatId } = job.data;
   const note = await noteRepo.findByIdAndUserId(noteId, userId);
-  if (!note) throw new Error("PDF ingestion note is missing or not owned by the user");
+  if (!note)
+    throw new Error("PDF ingestion note is missing or not owned by the user");
 
   logger.info("[pdf-worker] extraction started", {
     jobId: job.id,
@@ -83,9 +84,7 @@ async function processPdfJob(
       jobId: job.id,
       noteId,
       score: processed.extractionQuality.score,
-      reasons: processed.extractionQuality.reasons.map(
-        (reason) => reason.code,
-      ),
+      reasons: processed.extractionQuality.reasons.map((reason) => reason.code),
     });
   }
 
@@ -108,10 +107,7 @@ async function processPdfJob(
       {
         noteId,
         userId,
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
+        error: error instanceof Error ? error.message : String(error),
       },
     );
   }
@@ -131,18 +127,15 @@ async function processPdfJob(
     noteId,
     pageCount: processed.pageCount ?? 0,
     charCount: processed.charCount,
-    ocrUsed:
-      processed.ocrUsed ?? false,
-    ocrPageCount:
-      processed.ocrPageNumbers?.length ?? 0,
+    ocrUsed: processed.ocrUsed ?? false,
+    ocrPageCount: processed.ocrPageNumbers?.length ?? 0,
   });
 
   return {
     noteId,
     pageCount: processed.pageCount ?? 0,
     charCount: processed.charCount,
-    visionUsed:
-      processed.ocrUsed ?? false,
+    visionUsed: processed.ocrUsed ?? false,
   };
 }
 
@@ -177,7 +170,8 @@ async function main(): Promise<void> {
       error: error.message,
     });
 
-    const attempts = typeof job?.opts.attempts === "number" ? job.opts.attempts : 1;
+    const attempts =
+      typeof job?.opts.attempts === "number" ? job.opts.attempts : 1;
     const unrecoverable =
       error instanceof UnrecoverableError ||
       error.name === "UnrecoverableError";

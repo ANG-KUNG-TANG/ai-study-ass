@@ -99,28 +99,22 @@ describe("telegram.service /myfiles", () => {
 
     await processUpdate(MY_FILES_UPDATE);
 
-    expect(
-      telegramIntegrationRepo.findByTelegramUserId,
-    ).toHaveBeenCalledWith(123);
-
-    expect(
-      telegramIntegrationRepo.updateLastActive,
-    ).toHaveBeenCalledWith(123);
-
-    expect(noteRepo.findManyByUser).toHaveBeenCalledWith(
-      "user-1",
-      {
-        page: 1,
-        limit: 5,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      },
+    expect(telegramIntegrationRepo.findByTelegramUserId).toHaveBeenCalledWith(
+      123,
     );
+
+    expect(telegramIntegrationRepo.updateLastActive).toHaveBeenCalledWith(123);
+
+    expect(noteRepo.findManyByUser).toHaveBeenCalledWith("user-1", {
+      page: 1,
+      limit: 5,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
 
-    const [chatId, text, options] =
-      jest.mocked(sendMessage).mock.calls[0];
+    const [chatId, text, options] = jest.mocked(sendMessage).mock.calls[0];
 
     expect(chatId).toBe(456);
 
@@ -134,15 +128,13 @@ describe("telegram.service /myfiles", () => {
         [
           {
             text: "📖 Software Defect Prediction",
-            url:
-              "https://study.example.com/student/notes/note-1/summary",
+            url: "https://study.example.com/student/notes/note-1/summary",
           },
         ],
         [
           {
             text: "📖 Networking Chapter 5",
-            url:
-              "https://study.example.com/student/notes/note-2/summary",
+            url: "https://study.example.com/student/notes/note-2/summary",
           },
         ],
       ]),
@@ -185,9 +177,7 @@ describe("telegram.service /myfiles", () => {
 
     expect(sendMessage).toHaveBeenCalledWith(
       456,
-      expect.stringContaining(
-        "You have not uploaded any documents yet.",
-      ),
+      expect.stringContaining("You have not uploaded any documents yet."),
       expect.objectContaining({
         buttons: expect.any(Array),
       }),
@@ -248,24 +238,18 @@ describe("telegram.service /status", () => {
 
     await processUpdate(STATUS_UPDATE);
 
-    expect(noteRepo.findManyByUser).toHaveBeenCalledWith(
-      "user-1",
-      {
-        page: 1,
-        limit: 1,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      },
-    );
+    expect(noteRepo.findManyByUser).toHaveBeenCalledWith("user-1", {
+      page: 1,
+      limit: 1,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
 
-    expect(
-      generationRepo.findByNoteId,
-    ).toHaveBeenCalledWith("note-1");
+    expect(generationRepo.findByNoteId).toHaveBeenCalledWith("note-1");
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
 
-    const [chatId, text] =
-      jest.mocked(sendMessage).mock.calls[0];
+    const [chatId, text] = jest.mocked(sendMessage).mock.calls[0];
 
     expect(chatId).toBe(456);
 
@@ -331,17 +315,14 @@ describe("telegram.service /status", () => {
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
 
-    const [, text] =
-      jest.mocked(sendMessage).mock.calls[0];
+    const [, text] = jest.mocked(sendMessage).mock.calls[0];
 
     expect(text).toContain("Networking Chapter 5");
     expect(text).toContain("✅ Summary");
     expect(text).toContain("🔄 Quiz");
     expect(text).toContain("⏳ Flashcards");
 
-    expect(text).toContain(
-      "Overall: Generating study materials",
-    );
+    expect(text).toContain("Overall: Generating study materials");
   });
 
   it("shows waiting state when no generation record exists", async () => {
@@ -363,21 +344,15 @@ describe("telegram.service /status", () => {
       limit: 1,
     } as never);
 
-    jest
-      .mocked(generationRepo.findByNoteId)
-      .mockResolvedValue(null);
+    jest.mocked(generationRepo.findByNoteId).mockResolvedValue(null);
 
     await processUpdate(STATUS_UPDATE);
 
-    expect(
-      generationRepo.findByNoteId,
-    ).toHaveBeenCalledWith("note-1");
+    expect(generationRepo.findByNoteId).toHaveBeenCalledWith("note-1");
 
     expect(sendMessage).toHaveBeenCalledWith(
       456,
-      expect.stringContaining(
-        "Generation is waiting to start",
-      ),
+      expect.stringContaining("Generation is waiting to start"),
       expect.any(Object),
     );
   });
@@ -398,15 +373,11 @@ describe("telegram.service /status", () => {
 
     await processUpdate(STATUS_UPDATE);
 
-    expect(
-      generationRepo.findByNoteId,
-    ).not.toHaveBeenCalled();
+    expect(generationRepo.findByNoteId).not.toHaveBeenCalled();
 
     expect(sendMessage).toHaveBeenCalledWith(
       456,
-      expect.stringContaining(
-        "You do not have any uploaded documents yet.",
-      ),
+      expect.stringContaining("You do not have any uploaded documents yet."),
       expect.any(Object),
     );
   });
@@ -418,19 +389,13 @@ describe("telegram.service /status", () => {
 
     await processUpdate(STATUS_UPDATE);
 
-    expect(
-      noteRepo.findManyByUser,
-    ).not.toHaveBeenCalled();
+    expect(noteRepo.findManyByUser).not.toHaveBeenCalled();
 
-    expect(
-      generationRepo.findByNoteId,
-    ).not.toHaveBeenCalled();
+    expect(generationRepo.findByNoteId).not.toHaveBeenCalled();
 
     expect(sendMessage).toHaveBeenCalledWith(
       456,
-      expect.stringContaining(
-        "Telegram is not connected",
-      ),
+      expect.stringContaining("Telegram is not connected"),
       expect.any(Object),
     );
   });

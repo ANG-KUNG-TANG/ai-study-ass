@@ -22,7 +22,7 @@ function shouldSkip(pathname: string): boolean {
 
 export async function logRequest(
   req: Request,
-  handler: () => Promise<Response>
+  handler: () => Promise<Response>,
 ): Promise<Response> {
   const url = new URL(req.url);
 

@@ -10,10 +10,9 @@ import { runAndPersistPipeline } from "@/server/services/intelligence.service";
 
 describe("intelligence symbolic fallback", () => {
   it("retries without AI when the AI-enabled run fails", async () => {
-    jest.mocked(runPipeline)
-      .mockRejectedValueOnce(
-        new Error("AI quota exceeded"),
-      )
+    jest
+      .mocked(runPipeline)
+      .mockRejectedValueOnce(new Error("AI quota exceeded"))
       .mockResolvedValueOnce({
         noteId: "note-1",
         stage: "complete",
@@ -39,24 +38,19 @@ describe("intelligence symbolic fallback", () => {
       id: "note-1",
     } as never);
 
-    jest.mocked(
-      intelligenceRepo.upsert,
-    ).mockResolvedValue(undefined as never);
+    jest.mocked(intelligenceRepo.upsert).mockResolvedValue(undefined as never);
 
-    const result = await runAndPersistPipeline(
-      "note-1",
-      {
-        rawText: "Document",
-        fileName: "file.pdf",
-        mimeType: "application/pdf",
-        fileSize: 100,
-      },
-    );
+    const result = await runAndPersistPipeline("note-1", {
+      rawText: "Document",
+      fileName: "file.pdf",
+      mimeType: "application/pdf",
+      fileSize: 100,
+    });
 
     expect(runPipeline).toHaveBeenCalledTimes(2);
-    expect(
-      jest.mocked(runPipeline).mock.calls[1][0],
-    ).not.toHaveProperty("aiGenerate");
+    expect(jest.mocked(runPipeline).mock.calls[1][0]).not.toHaveProperty(
+      "aiGenerate",
+    );
     expect(result).not.toBeNull();
   });
 });

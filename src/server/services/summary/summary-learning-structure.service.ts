@@ -8,9 +8,7 @@ import {
   canonicalStudyConceptKey,
   isStudyNoiseLine,
 } from "@/server/intelligence/pipeline/source-hygiene";
-import {
-  isExampleOnlyConceptEvidence,
-} from "@/server/intelligence/reliability/concept-validator";
+import { isExampleOnlyConceptEvidence } from "@/server/intelligence/reliability/concept-validator";
 import {
   isCautionHeading,
   isProcedureHeading,
@@ -19,9 +17,12 @@ import {
   selectLearningKeyTerms,
 } from "@/server/services/quality/learning-evidence.service";
 
-const REFERENCE_HEADING_RE = /^(?:student\s+presentation\s+template|slide\s+\d+\b.*)$/iu;
-const CAUTION_HEADING_RE = /^(?:common\s+mistakes?(?:\s+students?\s+make)?|warnings?|pitfalls?|limitations?)$/iu;
-const STRUCTURAL_HEADING_RE = /^(?:a\s+brief\s+history|history|background|introduction|overview|objectives?|principles?|common\s+mistakes?(?:\s+students?\s+make)?|conclusion|summary|methodology|methods?|results?|discussion|limitations?|recommendations?|validation\s+points?|interaction\s+models?)$/iu;
+const REFERENCE_HEADING_RE =
+  /^(?:student\s+presentation\s+template|slide\s+\d+\b.*)$/iu;
+const CAUTION_HEADING_RE =
+  /^(?:common\s+mistakes?(?:\s+students?\s+make)?|warnings?|pitfalls?|limitations?)$/iu;
+const STRUCTURAL_HEADING_RE =
+  /^(?:a\s+brief\s+history|history|background|introduction|overview|objectives?|principles?|common\s+mistakes?(?:\s+students?\s+make)?|conclusion|summary|methodology|methods?|results?|discussion|limitations?|recommendations?|validation\s+points?|interaction\s+models?)$/iu;
 const GENERIC_DETAIL_TAILS = new Set([
   "details",
   "detail",
@@ -45,17 +46,27 @@ const HEADING_STOP_WORDS = new Set([
   "with",
   "presentation",
 ]);
-const SHORT_METADATA_LABEL_RE = /^(?:project\s+name|team\s+members?|course(?:\s+code)?|date|student(?:\s+(?:name|id))?|section|class|lecturer|instructor|teacher)$/iu;
-const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/iu;
-const DATE_VALUE_RE = /^(?:mon|tue|wed|thu|fri|sat|sun)?\s*\d{4}-\d{2}-\d{2}(?:\s*[:\-]\s*\d+(?:\.\d+)?)?$/iu;
-const STATUS_VALUE_RE = /^(?:complete|completed|configured|enabled|disabled|healthy|ready|success|successful|failed|failure|pending|running|stopped|online|offline|available|unavailable|none|n\/?a|yes|no)$/iu;
-const STATUS_LABEL_RE = /^(?:last\s+success|last\s+updated|tabs?|configured|document\s+processing|provider\s+quota|generation\s+status|worker\s+status|queue\s+status|system\s+status)$/iu;
-const NAVIGATION_DEFINITION_RE = /^(?:is\s+)?(?:described|discussed|shown|presented|covered|introduced|explained)\s+(?:in|by)\s+(?:section|chapter|figure|table|page)\b/iu;
+const SHORT_METADATA_LABEL_RE =
+  /^(?:project\s+name|team\s+members?|course(?:\s+code)?|date|student(?:\s+(?:name|id))?|section|class|lecturer|instructor|teacher)$/iu;
+const ISO_TIMESTAMP_RE =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/iu;
+const DATE_VALUE_RE =
+  /^(?:mon|tue|wed|thu|fri|sat|sun)?\s*\d{4}-\d{2}-\d{2}(?:\s*[:\-]\s*\d+(?:\.\d+)?)?$/iu;
+const STATUS_VALUE_RE =
+  /^(?:complete|completed|configured|enabled|disabled|healthy|ready|success|successful|failed|failure|pending|running|stopped|online|offline|available|unavailable|none|n\/?a|yes|no)$/iu;
+const STATUS_LABEL_RE =
+  /^(?:last\s+success|last\s+updated|tabs?|configured|document\s+processing|provider\s+quota|generation\s+status|worker\s+status|queue\s+status|system\s+status)$/iu;
+const NAVIGATION_DEFINITION_RE =
+  /^(?:is\s+)?(?:described|discussed|shown|presented|covered|introduced|explained)\s+(?:in|by)\s+(?:section|chapter|figure|table|page)\b/iu;
 
-const WARNING_DIRECTIVE_RE = /^(?:avoid\b|do\s+not\b|don[’']?t\b|never\b|remember\s+to\b|ensure\b|use\b.+\binstead\b|forgetting\s+to\b|ignoring\b|overloading\b|using\s+too\s+much\b|presenting\b.+\bwithout\b)/iu;
-const WARNING_CORRECTION_RE = /\b(?:should\s+not|must\s+not|cannot|can[’']?t|incorrect|invalid|pitfall|warning|recommended|instead\s+of|rather\s+than|reserved\s+(?:address|identifier)|not\s+valid)\b/iu;
-const LIMITATION_RE = /\b(?:limitation|limited\s+to|does\s+not\s+support|unsupported|cannot\s+(?:handle|support|represent|process))\b/iu;
-const WARNING_NARRATIVE_RE = /^(?:i|we|you[’']?ll|they|someone|my|our|this\s+book|the\s+questions?)\b/iu;
+const WARNING_DIRECTIVE_RE =
+  /^(?:avoid\b|do\s+not\b|don[’']?t\b|never\b|remember\s+to\b|ensure\b|use\b.+\binstead\b|forgetting\s+to\b|ignoring\b|overloading\b|using\s+too\s+much\b|presenting\b.+\bwithout\b)/iu;
+const WARNING_CORRECTION_RE =
+  /\b(?:should\s+not|must\s+not|cannot|can[’']?t|incorrect|invalid|pitfall|warning|recommended|instead\s+of|rather\s+than|reserved\s+(?:address|identifier)|not\s+valid)\b/iu;
+const LIMITATION_RE =
+  /\b(?:limitation|limited\s+to|does\s+not\s+support|unsupported|cannot\s+(?:handle|support|represent|process))\b/iu;
+const WARNING_NARRATIVE_RE =
+  /^(?:i|we|you[’']?ll|they|someone|my|our|this\s+book|the\s+questions?)\b/iu;
 
 export function isSummaryReferenceHeading(value: string): boolean {
   const heading = cleanHeading(value);
@@ -63,9 +74,10 @@ export function isSummaryReferenceHeading(value: string): boolean {
 }
 
 export function isSummaryCautionHeading(value: string): boolean {
-  return CAUTION_HEADING_RE.test(cleanHeading(value)) || isCautionHeading(value);
+  return (
+    CAUTION_HEADING_RE.test(cleanHeading(value)) || isCautionHeading(value)
+  );
 }
-
 
 export function isActionableSummaryWarningFact(
   fact: AtomicFact,
@@ -80,8 +92,12 @@ export function isActionableSummaryWarningFact(
   }
 
   if (fact.type === "common_mistake") {
-    return WARNING_DIRECTIVE_RE.test(text) ||
-      /^(?:failing\s+to|forgetting\s+to|ignoring\b|overloading\b|using\b.+\bwithout\b|presenting\b.+\bwithout\b)/iu.test(text);
+    return (
+      WARNING_DIRECTIVE_RE.test(text) ||
+      /^(?:failing\s+to|forgetting\s+to|ignoring\b|overloading\b|using\b.+\bwithout\b|presenting\b.+\bwithout\b)/iu.test(
+        text,
+      )
+    );
   }
 
   if (fact.type === "warning") {
@@ -89,7 +105,11 @@ export function isActionableSummaryWarningFact(
   }
 
   if (isSummaryCautionHeading(sectionHeading)) {
-    return WARNING_DIRECTIVE_RE.test(text) || WARNING_CORRECTION_RE.test(text) || LIMITATION_RE.test(text);
+    return (
+      WARNING_DIRECTIVE_RE.test(text) ||
+      WARNING_CORRECTION_RE.test(text) ||
+      LIMITATION_RE.test(text)
+    );
   }
 
   return false;
@@ -97,8 +117,13 @@ export function isActionableSummaryWarningFact(
 
 export function isActionableSummaryWarningText(value: string): boolean {
   const text = value.normalize("NFKC").replace(/\s+/gu, " ").trim();
-  if (!text || text.endsWith("?") || WARNING_NARRATIVE_RE.test(text)) return false;
-  return WARNING_DIRECTIVE_RE.test(text) || WARNING_CORRECTION_RE.test(text) || LIMITATION_RE.test(text);
+  if (!text || text.endsWith("?") || WARNING_NARRATIVE_RE.test(text))
+    return false;
+  return (
+    WARNING_DIRECTIVE_RE.test(text) ||
+    WARNING_CORRECTION_RE.test(text) ||
+    LIMITATION_RE.test(text)
+  );
 }
 
 export function isSummaryCandidateTextEligible(value: string): boolean {
@@ -179,7 +204,9 @@ export function selectSummarySections(
       continue;
     }
 
-    const key = canonicalSectionKey(section.heading) || cleanHeading(section.heading).toLocaleLowerCase();
+    const key =
+      canonicalSectionKey(section.heading) ||
+      cleanHeading(section.heading).toLocaleLowerCase();
     let target = byKey.get(key);
 
     if (!target) {
@@ -229,7 +256,11 @@ export function selectSummaryKeyTerms(
 
   for (const term of selectLearningKeyTerms(terms)) {
     const rawTerm = term.term.trim();
-    if (/^(?:my|our|your|their|both|since|continue|every|these|those|this|that|the\s+(?:questions?|emphasis|strategy|goal)|q\s*[:;])\b/iu.test(rawTerm)) {
+    if (
+      /^(?:my|our|your|their|both|since|continue|every|these|those|this|that|the\s+(?:questions?|emphasis|strategy|goal)|q\s*[:;])\b/iu.test(
+        rawTerm,
+      )
+    ) {
       continue;
     }
 
@@ -245,13 +276,23 @@ export function selectSummaryKeyTerms(
       seen.has(key) ||
       words.length === 0 ||
       words.length > 5 ||
-      /^(?:my|our|your|their|both|since|continue|every|these|those|this|that|q\s*[:;])\b/iu.test(displayTerm) ||
-      /^(?:goal|questions?|emphasis|strategy|book|idea|thoughts?)$/iu.test(displayTerm) ||
-      /^(?:data\s+from|toolset\s+provided\s+by|some\s+of|one\s+of|any\s+of)\b/iu.test(displayTerm) ||
-      /^(?:one|two|three|several|many|few)\s+(?:probabilit|values?|things?|items?|forms?|types?|ways?|steps?)\b/iu.test(displayTerm) ||
+      /^(?:my|our|your|their|both|since|continue|every|these|those|this|that|q\s*[:;])\b/iu.test(
+        displayTerm,
+      ) ||
+      /^(?:goal|questions?|emphasis|strategy|book|idea|thoughts?)$/iu.test(
+        displayTerm,
+      ) ||
+      /^(?:data\s+from|toolset\s+provided\s+by|some\s+of|one\s+of|any\s+of)\b/iu.test(
+        displayTerm,
+      ) ||
+      /^(?:one|two|three|several|many|few)\s+(?:probabilit|values?|things?|items?|forms?|types?|ways?|steps?)\b/iu.test(
+        displayTerm,
+      ) ||
       /\b(?:figure|table|section|page)\s*\d+\b/iu.test(displayTerm) ||
       /[?!]$/u.test(displayTerm) ||
-      /\b(?:begins?|contains?|includes?|shows?|explains?|uses?|allows?|requires?)\b/iu.test(displayTerm) ||
+      /\b(?:begins?|contains?|includes?|shows?|explains?|uses?|allows?|requires?)\b/iu.test(
+        displayTerm,
+      ) ||
       term.definition.trim().split(/\s+/u).length < 4 ||
       NAVIGATION_DEFINITION_RE.test(term.definition.trim())
     ) {
@@ -273,11 +314,17 @@ export function isMeaningfulSummaryNumberFact(fact: AtomicFact): boolean {
   const text = fact.content.trim();
   if (!isSummaryCandidateTextEligible(text)) return false;
   if (ISO_TIMESTAMP_RE.test(text) || DATE_VALUE_RE.test(text)) return false;
-  if (/\b(?:last\s+success|last\s+updated|requests?|waiting\s+to\s+start|telemetry|queue\s+depth|configured)\b/iu.test(text)) {
+  if (
+    /\b(?:last\s+success|last\s+updated|requests?|waiting\s+to\s+start|telemetry|queue\s+depth|configured)\b/iu.test(
+      text,
+    )
+  ) {
     return false;
   }
 
-  return /\b(?:is|are|was|were|equals?|uses?|requires?|supports?|contains?|includes?|has|have|represents?|measures?|achieved|reported|improved|default|threshold|limit|sample|accuracy|precision|recall|rate|score|probability|cost|time|memory|complexity|priority|port)\b/iu.test(text);
+  return /\b(?:is|are|was|were|equals?|uses?|requires?|supports?|contains?|includes?|has|have|represents?|measures?|achieved|reported|improved|default|threshold|limit|sample|accuracy|precision|recall|rate|score|probability|cost|time|memory|complexity|priority|port)\b/iu.test(
+    text,
+  );
 }
 
 export function isExampleOnlyConceptInText(
@@ -293,7 +340,10 @@ export function isExampleOnlyConceptInText(
     .filter(Boolean)
     .filter((item) => {
       const itemKey = canonicalStudyConceptKey(item);
-      return item.toLocaleLowerCase().includes(concept.toLocaleLowerCase()) || itemKey.includes(key);
+      return (
+        item.toLocaleLowerCase().includes(concept.toLocaleLowerCase()) ||
+        itemKey.includes(key)
+      );
     });
 
   return contexts.length > 0 && contexts.every(isExampleOnlyConceptEvidence);
@@ -309,8 +359,14 @@ function isThinLearningSection(
   const fact = facts[0];
   const wordCount = heading.split(/\s+/u).filter(Boolean).length;
   const strongFact =
-    ["definition", "rule", "result", "formula", "warning", "limitation"].includes(fact.type) ||
-    fact.importanceScore >= 0.9;
+    [
+      "definition",
+      "rule",
+      "result",
+      "formula",
+      "warning",
+      "limitation",
+    ].includes(fact.type) || fact.importanceScore >= 0.9;
 
   if (strongFact) return false;
   // Thin source-layout fragments are not learning topics. Keep this rule
@@ -325,7 +381,11 @@ function isLikelyHeadingFactMismatch(
 ): boolean {
   const heading = cleanHeading(headingValue);
   if (!heading || STRUCTURAL_HEADING_RE.test(heading)) return false;
-  if (/^(?:know|tell|use|be|invite|show|explain|present|review|validate|confirm)\b/iu.test(heading)) {
+  if (
+    /^(?:know|tell|use|be|invite|show|explain|present|review|validate|confirm)\b/iu.test(
+      heading,
+    )
+  ) {
     return false;
   }
 
@@ -364,15 +424,19 @@ function cleanHeading(value: string): string {
 }
 
 function headingTokens(value: string): string[] {
-  return [...textTokens(value)].filter((token) => !HEADING_STOP_WORDS.has(token));
+  return [...textTokens(value)].filter(
+    (token) => !HEADING_STOP_WORDS.has(token),
+  );
 }
 
 function textTokens(value: string): Set<string> {
   return new Set(
-    (value
-      .normalize("NFKC")
-      .toLocaleLowerCase()
-      .match(/[\p{L}\p{N}][\p{L}\p{N}-]*/gu) ?? [])
+    (
+      value
+        .normalize("NFKC")
+        .toLocaleLowerCase()
+        .match(/[\p{L}\p{N}][\p{L}\p{N}-]*/gu) ?? []
+    )
       .map((token) => token.replace(/s$/u, ""))
       .filter((token) => token.length >= 2),
   );

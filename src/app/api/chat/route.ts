@@ -1,9 +1,9 @@
 // app/api/notes/[noteId]/chat/route.ts
 import { withAuth } from "@/server/middleware/auth.middleware";
 import {
-askQuestion,
-getChatHistory,
-clearChatHistory
+  askQuestion,
+  getChatHistory,
+  clearChatHistory,
 } from "@/server/controller/chat.controller";
 
 export const POST = withAuth(askQuestion);

@@ -9,7 +9,9 @@ import { sectionForRole } from "@/utils/auth-routing";
 
 // Single source of truth for "where does this user land after login".
 function resolveHomeRoute(user: User): string {
-  return sectionForRole(user.role) === "admin" ? "/admin/dashboard" : "/student/dashboard";
+  return sectionForRole(user.role) === "admin"
+    ? "/admin/dashboard"
+    : "/student/dashboard";
 }
 
 export function useAuth() {
@@ -21,7 +23,7 @@ export function useAuth() {
       const user = await ctx.login(email, password);
       router.push(resolveHomeRoute(user));
     },
-    [ctx, router]
+    [ctx, router],
   );
 
   const logoutAndRedirect = useCallback(async () => {

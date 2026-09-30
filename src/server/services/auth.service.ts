@@ -9,7 +9,7 @@ import {
   areAllUserTokensRevoked,
   type TokenPair,
 } from "@/server/utils/jwt";
-import * as userRepo from "@/server/repositories/user.repo"
+import * as userRepo from "@/server/repositories/user.repo";
 import { UserEntity } from "@/server/entities/user.entity";
 import { USER_RULES } from "@/server/entities/user.entity";
 import {
@@ -46,9 +46,9 @@ const GENERIC_REGISTRATION_MESSAGE =
 function isDuplicateKeyError(error: unknown): boolean {
   return Boolean(
     error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error as { code?: unknown }).code === 11000,
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: unknown }).code === 11000,
   );
 }
 
@@ -71,7 +71,7 @@ async function issueSession(user: UserEntity): Promise<AuthResult> {
 
 export async function register(
   input: RegisterInput,
-  sendVerificationEmail: (email: string, token: string) => Promise<void>
+  sendVerificationEmail: (email: string, token: string) => Promise<void>,
 ): Promise<{ message: string }> {
   // Perform the expensive password hash before the account-existence
   // decision so the easiest registration timing signal is reduced.
@@ -136,10 +136,7 @@ export async function register(
 export async function verifyEmail(token: string): Promise<{ message: string }> {
   const tokenHash = hashActionToken(token);
 
-  const user = await userRepo.consumeVerificationToken(
-    tokenHash,
-    new Date(),
-  );
+  const user = await userRepo.consumeVerificationToken(tokenHash, new Date());
 
   if (!user) {
     throw new BadRequestError("Invalid or expired verification token");
@@ -162,12 +159,13 @@ export async function verifyEmail(token: string): Promise<{ message: string }> {
 
 export async function resendVerification(
   email: string,
-  sendVerificationEmail: (email: string, token: string) => Promise<void>
+  sendVerificationEmail: (email: string, token: string) => Promise<void>,
 ): Promise<{ message: string }> {
   const user = await userRepo.findByEmail(email, {
     withVerificationToken: true,
   });
-  const genericMessage = "If that email is registered and unverified, a new link has been sent";
+  const genericMessage =
+    "If that email is registered and unverified, a new link has been sent";
 
   if (!user) return { message: genericMessage };
   if (user.emailVerified) return { message: genericMessage };
@@ -181,7 +179,9 @@ export async function resendVerification(
 
   const newToken = generateActionToken();
   const newTokenHash = hashActionToken(newToken);
-  const expires = new Date(Date.now() + USER_RULES.emailVerification.expiresInMs);
+  const expires = new Date(
+    Date.now() + USER_RULES.emailVerification.expiresInMs,
+  );
 
   await userRepo.updateVerificationToken(user.id, newTokenHash, expires);
 
@@ -267,7 +267,9 @@ export async function login(input: LoginInput): Promise<AuthResult> {
 // ─── Google OAuth login and registration ──────────────────────────────────────
 
 function googleControlsEmail(identity: GoogleIdentity): boolean {
-  return identity.email.endsWith("@gmail.com") || Boolean(identity.hostedDomain);
+  return (
+    identity.email.endsWith("@gmail.com") || Boolean(identity.hostedDomain)
+  );
 }
 
 export async function loginWithGoogle(
@@ -304,9 +306,7 @@ export async function loginWithGoogle(
       // Automatic linking is blocked for other domains so a provider account
       // cannot silently take over an existing password account.
       if (!googleControlsEmail(identity)) {
-        throw new ConflictError(
-          "This email already uses password sign-in",
-        );
+        throw new ConflictError("This email already uses password sign-in");
       }
 
       if (!existingUser.googleSubject) {
@@ -368,9 +368,12 @@ export async function loginWithGoogle(
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
 
-export async function logout(userId: string, accessToken?: string): Promise<void> {
-  if (accessToken){
-    await revokeToken(accessToken, env.JWT_ACCESS_SECRET)
+export async function logout(
+  userId: string,
+  accessToken?: string,
+): Promise<void> {
+  if (accessToken) {
+    await revokeToken(accessToken, env.JWT_ACCESS_SECRET);
   }
   await userRepo.updateRefreshTokenId(userId, null);
   logger.info("User logged out", { userId });
@@ -378,7 +381,9 @@ export async function logout(userId: string, accessToken?: string): Promise<void
 
 // ─── Refresh tokens ───────────────────────────────────────────────────────────
 
-export async function refreshTokens(incomingRefreshToken: string): Promise<TokenPair> {
+export async function refreshTokens(
+  incomingRefreshToken: string,
+): Promise<TokenPair> {
   // Verify signature + expiry first (no DB)
   const payload = verifyRefreshToken(incomingRefreshToken);
 
@@ -440,9 +445,12 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
   if (!rotated) {
     await revokeAllUserTokens(payload.userId);
 
-    logger.warn("Concurrent refresh token reuse detected — all tokens revoked", {
-      userId: payload.userId,
-    });
+    logger.warn(
+      "Concurrent refresh token reuse detected — all tokens revoked",
+      {
+        userId: payload.userId,
+      },
+    );
 
     await logActivity({
       actorId: user.id,
@@ -463,7 +471,9 @@ export async function refreshTokens(incomingRefreshToken: string): Promise<Token
 
 // ─── Get current user ─────────────────────────────────────────────────────────
 
-export async function getMe(userId: string): Promise<ReturnType<UserEntity["toPublic"]>> {
+export async function getMe(
+  userId: string,
+): Promise<ReturnType<UserEntity["toPublic"]>> {
   const user = await userRepo.findById(userId, { withGoogleSubject: true });
   if (!user) throw new NotFoundError("User");
   return user.toPublic();
@@ -473,7 +483,7 @@ export async function getMe(userId: string): Promise<ReturnType<UserEntity["toPu
 
 export async function changePassword(
   userId: string,
-  input: ChangePasswordInput
+  input: ChangePasswordInput,
 ): Promise<void> {
   const user = await userRepo.findById(userId, { withPassword: true });
   if (!user) throw new NotFoundError("User");
@@ -526,9 +536,10 @@ export async function logoutAll(userId: string): Promise<void> {
 
 export async function forgotPassword(
   email: string,
-  sendResetEmail: (email: string, token: string) => Promise<void>
+  sendResetEmail: (email: string, token: string) => Promise<void>,
 ): Promise<{ message: string }> {
-  const genericMessage = "If that email is registered, a password reset link has been sent";
+  const genericMessage =
+    "If that email is registered, a password reset link has been sent";
 
   const user = await userRepo.findByEmail(email);
   if (!user) return { message: genericMessage };
@@ -558,7 +569,7 @@ export async function forgotPassword(
 
 export async function resetPassword(
   token: string,
-  newPassword: string
+  newPassword: string,
 ): Promise<{ message: string }> {
   const tokenHash = hashActionToken(token);
   const passwordHash = await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS);

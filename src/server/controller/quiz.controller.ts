@@ -44,9 +44,7 @@ async function readJsonBody(req: Request): Promise<unknown> {
   }
 }
 
-async function getNoteIdFromContext(
-  context: RouteContext,
-): Promise<string> {
+async function getNoteIdFromContext(context: RouteContext): Promise<string> {
   const params = await context.params;
   const noteId = params.noteId ?? params.noteid ?? params.id;
 
@@ -57,14 +55,8 @@ async function getNoteIdFromContext(
   return noteId;
 }
 
-async function assertOwnsNote(
-  noteId: string,
-  userId: string,
-): Promise<void> {
-  const note = await findNoteByIdAndUserId(
-    noteId,
-    userId,
-  );
+async function assertOwnsNote(noteId: string, userId: string): Promise<void> {
+  const note = await findNoteByIdAndUserId(noteId, userId);
 
   if (!note) {
     throw new NotFoundError("Note");
@@ -112,10 +104,7 @@ export async function getQuizController(
     throw new NotFoundError("Quiz");
   }
 
-  const quiz = await getQuiz(
-    id,
-    auth.userId,
-  );
+  const quiz = await getQuiz(id, auth.userId);
 
   return successResponse(quiz.toJSON());
 }

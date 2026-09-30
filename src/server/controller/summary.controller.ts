@@ -6,10 +6,7 @@ import type {
 import { successResponse } from "@/server/utils/response";
 import { generateSummary } from "@/server/services/summary/summary.service";
 import { findByIdAndUserId as findNoteByIdAndUserId } from "@/server/repositories/note.repo";
-import {
-  NotFoundError,
-  ValidationError,
-} from "@/server/utils/errors";
+import { NotFoundError, ValidationError } from "@/server/utils/errors";
 import { logActivity } from "@/server/services/auditLog.service";
 import { SUMMARY_MODES } from "@/types/summary";
 
@@ -35,10 +32,7 @@ export async function postSummary(
   auth: AuthContext,
 ) {
   const { noteId, force, mode } = bodySchema.parse(await readJsonBody(req));
-  const note = await findNoteByIdAndUserId(
-    noteId,
-    auth.userId,
-  );
+  const note = await findNoteByIdAndUserId(noteId, auth.userId);
 
   if (!note) {
     throw new NotFoundError("Note");

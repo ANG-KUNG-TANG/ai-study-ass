@@ -104,38 +104,23 @@ function hasZipEndOfCentralDirectory(buffer: Buffer): boolean {
   );
 
   return (
-    buffer.indexOf(
-      Buffer.from([0x50, 0x4b, 0x05, 0x06]),
-      searchStart,
-    ) !== -1
+    buffer.indexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]), searchStart) !== -1
   );
 }
 
 function hasDocxRequiredEntries(buffer: Buffer): boolean {
-  const contentTypes = Buffer.from(
-    "[Content_Types].xml",
-    "ascii",
-  );
-  const documentXml = Buffer.from(
-    "word/document.xml",
-    "ascii",
-  );
+  const contentTypes = Buffer.from("[Content_Types].xml", "ascii");
+  const documentXml = Buffer.from("word/document.xml", "ascii");
 
   return (
-    buffer.indexOf(contentTypes) !== -1 &&
-    buffer.indexOf(documentXml) !== -1
+    buffer.indexOf(contentTypes) !== -1 && buffer.indexOf(documentXml) !== -1
   );
 }
 
-function validateFileSignature(
-  file: UploadedFile,
-  ext: string,
-): void {
+function validateFileSignature(file: UploadedFile, ext: string): void {
   if (ext === ".pdf") {
     if (!hasPdfSignature(file.buffer)) {
-      throw new FileError(
-        "Invalid PDF file signature",
-      );
+      throw new FileError("Invalid PDF file signature");
     }
 
     return;
@@ -147,9 +132,7 @@ function validateFileSignature(
       !hasZipEndOfCentralDirectory(file.buffer) ||
       !hasDocxRequiredEntries(file.buffer)
     ) {
-      throw new FileError(
-        "Invalid DOCX file structure",
-      );
+      throw new FileError("Invalid DOCX file structure");
     }
   }
 }
@@ -183,9 +166,7 @@ function validateFile(
   const fileType = ext === ".pdf" ? "pdf" : ext === ".docx" ? "docx" : null;
 
   if (
-    !ALLOWED_EXTENSIONS.includes(
-      ext as (typeof ALLOWED_EXTENSIONS)[number],
-    )
+    !ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])
   ) {
     throw new FileError(
       `File extension "${ext}" is not supported. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`,
@@ -246,114 +227,74 @@ export async function processUpload(
     const parsed = await parsePDF(file.buffer);
     let content = parsed.text;
     let pages = parsed.pages;
-    let extractionQuality =
-      assessExtractionQuality({
-        fileType: "pdf",
-        content,
-        pageCount: parsed.pageCount,
-        pages,
-      });
+    let extractionQuality = assessExtractionQuality({
+      fileType: "pdf",
+      content,
+      pageCount: parsed.pageCount,
+      pages,
+    });
     let ocrUsed = false;
     let ocrPageNumbers: number[] = [];
 
-    const ocrPlan =
-      buildSelectiveOcrPlan({
-        report: extractionQuality,
-        pages,
-        pageCount:
-          parsed.pageCount,
-      });
+    const ocrPlan = buildSelectiveOcrPlan({
+      report: extractionQuality,
+      pages,
+      pageCount: parsed.pageCount,
+    });
 
     if (ocrPlan.action === "ocr") {
-      logger.info(
-        "Selective OCR recovery started",
-        {
-          fileType: "pdf",
-          nativeQualityScore:
-            extractionQuality.score,
-          requestedPages:
-            ocrPlan.pageNumbers,
-          requestedPageCount:
-            ocrPlan.pageNumbers.length,
-          ocrPlanReason:
-            ocrPlan.reason,
-        },
-      );
+      logger.info("Selective OCR recovery started", {
+        fileType: "pdf",
+        nativeQualityScore: extractionQuality.score,
+        requestedPages: ocrPlan.pageNumbers,
+        requestedPageCount: ocrPlan.pageNumbers.length,
+        ocrPlanReason: ocrPlan.reason,
+      });
 
       try {
-        const recovery =
-          await recoverPdfPagesWithSelectiveOcr({
-            buffer: file.buffer,
-            nativePages: pages,
-            pageNumbers:
-              ocrPlan.pageNumbers,
-          });
-        const bounded =
-          limitExtractedPages(
-            recovery.pages,
-          );
-        const recoveredQuality =
-          assessExtractionQuality({
-            fileType: "pdf",
-            content:
-              bounded.text,
-            pageCount:
-              parsed.pageCount,
-            pages:
-              bounded.pages,
-          });
-        const improved =
-          shouldAcceptSelectiveOcrRecovery({
-            nativeReport:
-              extractionQuality,
-            recoveredReport:
-              recoveredQuality,
-            improvedPageNumbers:
-              recovery.improvedPageNumbers,
-          });
+        const recovery = await recoverPdfPagesWithSelectiveOcr({
+          buffer: file.buffer,
+          nativePages: pages,
+          pageNumbers: ocrPlan.pageNumbers,
+        });
+        const bounded = limitExtractedPages(recovery.pages);
+        const recoveredQuality = assessExtractionQuality({
+          fileType: "pdf",
+          content: bounded.text,
+          pageCount: parsed.pageCount,
+          pages: bounded.pages,
+        });
+        const improved = shouldAcceptSelectiveOcrRecovery({
+          nativeReport: extractionQuality,
+          recoveredReport: recoveredQuality,
+          improvedPageNumbers: recovery.improvedPageNumbers,
+        });
 
         if (improved) {
-          content =
-            bounded.text;
-          pages =
-            bounded.pages;
-          extractionQuality =
-            recoveredQuality;
+          content = bounded.text;
+          pages = bounded.pages;
+          extractionQuality = recoveredQuality;
           ocrUsed = true;
-          ocrPageNumbers =
-            recovery.recoveredPageNumbers;
+          ocrPageNumbers = recovery.recoveredPageNumbers;
 
-          logger.info(
-            "Selective OCR recovery accepted",
-            {
-              fileType: "pdf",
-              attemptedPages:
-                recovery.attemptedPageNumbers,
-              recoveredPages:
-                recovery.recoveredPageNumbers,
-              improvedPages:
-                recovery.improvedPageNumbers,
-              failedPages:
-                recovery.failedPageNumbers,
-              recoveredQualityScore:
-                recoveredQuality.score,
-            },
-          );
+          logger.info("Selective OCR recovery accepted", {
+            fileType: "pdf",
+            attemptedPages: recovery.attemptedPageNumbers,
+            recoveredPages: recovery.recoveredPageNumbers,
+            improvedPages: recovery.improvedPageNumbers,
+            failedPages: recovery.failedPageNumbers,
+            recoveredQualityScore: recoveredQuality.score,
+          });
         } else {
           logger.warn(
             "Selective OCR recovery did not improve extraction quality",
             {
               fileType: "pdf",
-              attemptedPages:
-                recovery.attemptedPageNumbers,
-              recoveredPages:
-                recovery.recoveredPageNumbers,
-              failedPages:
-                recovery.failedPageNumbers,
-              nativeQualityScore:
-                extractionQuality.score,
-              recoveredQualityScore:
-                recoveredQuality.score,
+              attemptedPages: recovery.attemptedPageNumbers,
+              recoveredPages: recovery.recoveredPageNumbers,
+              failedPages: recovery.failedPageNumbers,
+              nativeQualityScore: extractionQuality.score,
+              recoveredQualityScore: recoveredQuality.score,
             },
           );
         }
@@ -362,26 +303,18 @@ export async function processUpload(
           "Selective OCR recovery unavailable; preserving native extraction result",
           {
             fileType: "pdf",
-            requestedPages:
-              ocrPlan.pageNumbers,
-            error:
-              error instanceof Error
-                ? error.message
-                : String(error),
+            requestedPages: ocrPlan.pageNumbers,
+            error: error instanceof Error ? error.message : String(error),
           },
         );
       }
-    } else if (
-      ocrPlan.action === "blocked"
-    ) {
+    } else if (ocrPlan.action === "blocked") {
       logger.warn(
         "Selective OCR recovery skipped because too many pages require OCR",
         {
           fileType: "pdf",
-          candidatePageCount:
-            ocrPlan.candidatePageNumbers.length,
-          maxPages:
-            ocrPlan.maxPages,
+          candidatePageCount: ocrPlan.candidatePageNumbers.length,
+          maxPages: ocrPlan.maxPages,
         },
       );
     }
@@ -389,8 +322,7 @@ export async function processUpload(
     logger.info("Extraction quality assessed", {
       fileType: "pdf",
       ocrUsed,
-      ocrPageCount:
-        ocrPageNumbers.length,
+      ocrPageCount: ocrPageNumbers.length,
       ...extractionQualityLogContext(extractionQuality),
     });
 
@@ -401,11 +333,9 @@ export async function processUpload(
       fileType: "pdf",
       fileSize: file.size,
       content,
-      pageCount:
-        parsed.pageCount,
+      pageCount: parsed.pageCount,
       pages,
-      charCount:
-        content.length,
+      charCount: content.length,
       extractionQuality,
       ocrUsed,
       ocrPageNumbers,
@@ -463,10 +393,7 @@ async function readRequestBodyWithLimit(
   if (declaredLength) {
     const parsedLength = Number(declaredLength);
 
-    if (
-      Number.isFinite(parsedLength) &&
-      parsedLength > requestLimit
-    ) {
+    if (Number.isFinite(parsedLength) && parsedLength > requestLimit) {
       throw new PayloadTooLargeError(
         uploadSizeMessage(parsedLength, maxFileBytes),
       );

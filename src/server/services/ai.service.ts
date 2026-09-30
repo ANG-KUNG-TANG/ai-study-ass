@@ -5,10 +5,7 @@
 // code must never receive provider API keys or call providers directly.
 // =============================================================================
 
-import {
-  AI_CONFIG,
-  type AIProvider,
-} from "@/server/config/ai_config";
+import { AI_CONFIG, type AIProvider } from "@/server/config/ai_config";
 import { AIError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import { appendUntrustedContentRules } from "@/server/utils/prompt-security";
@@ -265,9 +262,7 @@ async function callOpenAI(
       messages,
       max_tokens: options.maxTokens ?? 1_024,
       temperature: options.temperature ?? 0.7,
-      ...(options.jsonMode
-        ? { response_format: { type: "json_object" } }
-        : {}),
+      ...(options.jsonMode ? { response_format: { type: "json_object" } } : {}),
     }),
   });
 
@@ -275,9 +270,7 @@ async function callOpenAI(
     const details = await response.text().catch(() => "");
     logProviderFailure("openai", model, response.status);
 
-    const error: AdapterError = new Error(
-      `OpenAI returned ${response.status}`,
-    );
+    const error: AdapterError = new Error(`OpenAI returned ${response.status}`);
     error.status = response.status;
     error.quotaExceeded =
       response.status === 429 && isOpenAIQuotaExceeded(details);
@@ -374,9 +367,7 @@ async function callGemini(
       generationConfig: {
         maxOutputTokens: options.maxTokens ?? 1_024,
         temperature: options.temperature ?? 0.7,
-        ...(options.jsonMode
-          ? { responseMimeType: "application/json" }
-          : {}),
+        ...(options.jsonMode ? { responseMimeType: "application/json" } : {}),
       },
     }),
   });
@@ -390,9 +381,7 @@ async function callGemini(
         ? parseGeminiQuotaInfo(details)
         : { dailyQuotaExceeded: false };
 
-    const error: AdapterError = new Error(
-      `Gemini returned ${response.status}`,
-    );
+    const error: AdapterError = new Error(`Gemini returned ${response.status}`);
     error.status = response.status;
     error.quotaExceeded = quotaInfo.dailyQuotaExceeded;
 
@@ -464,10 +453,7 @@ async function callGemini(
 
 const ADAPTERS: Record<
   AIProvider,
-  (
-    options: AIGenerateOptions,
-    signal: AbortSignal,
-  ) => Promise<AIGenerateResult>
+  (options: AIGenerateOptions, signal: AbortSignal) => Promise<AIGenerateResult>
 > = {
   openai: callOpenAI,
   gemini: callGemini,
@@ -561,7 +547,8 @@ export async function generate(
         }
 
         throw new AIError(
-          error.publicMessage ?? error.message ??
+          error.publicMessage ??
+            error.message ??
             "The AI request could not be completed.",
           provider,
         );

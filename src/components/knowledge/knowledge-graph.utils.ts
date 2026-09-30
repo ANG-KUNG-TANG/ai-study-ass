@@ -22,26 +22,17 @@ export function asString(value: unknown): string | undefined {
     : undefined;
 }
 
-export function nodeConfidence(
-  node: KnowledgeGraphNode,
-): number | undefined {
+export function nodeConfidence(node: KnowledgeGraphNode): number | undefined {
   const properties = node.properties ?? {};
 
-  return (
-    asNumber(properties.confidence) ??
-    asNumber(properties.score)
-  );
+  return asNumber(properties.confidence) ?? asNumber(properties.score);
 }
 
-export function nodeProvenance(
-  node: KnowledgeGraphNode,
-): string {
+export function nodeProvenance(node: KnowledgeGraphNode): string {
   return asString(node.properties?.provenance) ?? "document";
 }
 
-export function getNodeDescription(
-  node: KnowledgeGraphNode,
-): string {
+export function getNodeDescription(node: KnowledgeGraphNode): string {
   const properties = node.properties ?? {};
 
   const candidates = [
@@ -59,9 +50,7 @@ export function getNodeDescription(
   const evidence = extractNodeEvidence(node);
   if (evidence[0]?.text) {
     const text = evidence[0].text.replace(/\s+/g, " ").trim();
-    return text.length > 220
-      ? `${text.slice(0, 219).trimEnd()}…`
-      : text;
+    return text.length > 220 ? `${text.slice(0, 219).trimEnd()}…` : text;
   }
 
   if (node.type === "section") {
@@ -87,16 +76,12 @@ function normaliseEvidence(
   if (!value || typeof value !== "object") return null;
 
   const raw = value as Record<string, unknown>;
-  const text =
-    asString(raw.text) ??
-    asString(raw.evidenceText);
+  const text = asString(raw.text) ?? asString(raw.evidenceText);
 
   if (!text) return null;
 
   return {
-    id:
-      asString(raw.id) ??
-      `${node.id}-evidence-${index + 1}`,
+    id: asString(raw.id) ?? `${node.id}-evidence-${index + 1}`,
     text,
     pageNumber: asNumber(raw.pageNumber),
     sectionTitle: asString(raw.sectionTitle),
@@ -108,55 +93,40 @@ function normaliseEvidence(
   };
 }
 
-export function extractNodeEvidence(
-  node: KnowledgeGraphNode,
-): EvidenceItem[] {
+export function extractNodeEvidence(node: KnowledgeGraphNode): EvidenceItem[] {
   const rawEvidence = node.properties?.evidence;
 
   if (!Array.isArray(rawEvidence)) return [];
 
   return rawEvidence
-    .map((value, index) =>
-      normaliseEvidence(value, node, index),
-    )
-    .filter(
-      (item): item is EvidenceItem => item !== null,
-    );
+    .map((value, index) => normaliseEvidence(value, node, index))
+    .filter((item): item is EvidenceItem => item !== null);
 }
 
-export function collectEvidence(
-  nodes: KnowledgeGraphNode[],
-): EvidenceItem[] {
+export function collectEvidence(nodes: KnowledgeGraphNode[]): EvidenceItem[] {
   const seen = new Set<string>();
 
-  return nodes
-    .flatMap(extractNodeEvidence)
-    .filter((item) => {
-      const key =
-        item.id || `${item.nodeId}:${item.text}`;
+  return nodes.flatMap(extractNodeEvidence).filter((item) => {
+    const key = item.id || `${item.nodeId}:${item.text}`;
 
-      if (seen.has(key)) return false;
+    if (seen.has(key)) return false;
 
-      seen.add(key);
-      return true;
-    });
+    seen.add(key);
+    return true;
+  });
 }
 
 export function extractEdgeEvidence(
   edge: KnowledgeGraphEdge,
   nodes: KnowledgeGraphNode[],
 ): EvidenceItem[] {
-  const wanted = new Set(
-    edge.evidenceIds ?? [],
-  );
+  const wanted = new Set(edge.evidenceIds ?? []);
 
   if (wanted.size === 0) {
     return [];
   }
 
-  return collectEvidence(nodes).filter(
-    (item) => wanted.has(item.id),
-  );
+  return collectEvidence(nodes).filter((item) => wanted.has(item.id));
 }
 
 export function connectionCountByNode(
@@ -165,14 +135,8 @@ export function connectionCountByNode(
   const counts = new Map<string, number>();
 
   for (const edge of edges) {
-    counts.set(
-      edge.from,
-      (counts.get(edge.from) ?? 0) + 1,
-    );
-    counts.set(
-      edge.to,
-      (counts.get(edge.to) ?? 0) + 1,
-    );
+    counts.set(edge.from, (counts.get(edge.from) ?? 0) + 1);
+    counts.set(edge.to, (counts.get(edge.to) ?? 0) + 1);
   }
 
   return counts;
@@ -208,10 +172,7 @@ export function relationLabel(type: string): string {
     enables: "enables",
   };
 
-  return (
-    labels[type] ??
-    type.replaceAll("_", " ").toLowerCase()
-  );
+  return labels[type] ?? type.replaceAll("_", " ").toLowerCase();
 }
 
 export function relationExplanation(
@@ -231,10 +192,7 @@ export function edgeColor(type: string): string {
     return "#4D7DF3";
   }
 
-  if (
-    lower.includes("uses") ||
-    lower.includes("implement")
-  ) {
+  if (lower.includes("uses") || lower.includes("implement")) {
     return "#E5A229";
   }
 
@@ -246,10 +204,7 @@ export function edgeColor(type: string): string {
     return "#35A86B";
   }
 
-  if (
-    lower.includes("evaluate") ||
-    lower.includes("dataset")
-  ) {
+  if (lower.includes("evaluate") || lower.includes("dataset")) {
     return "#E05A9D";
   }
 
@@ -261,10 +216,7 @@ export function edgeColor(type: string): string {
     return "#8B7DD6";
   }
 
-  if (
-    lower.includes("support") ||
-    lower.includes("define")
-  ) {
+  if (lower.includes("support") || lower.includes("define")) {
     return "#2F86C9";
   }
 
@@ -306,9 +258,7 @@ export function formatProperty(value: unknown): string {
   }
 
   if (typeof value === "number") {
-    return Number.isInteger(value)
-      ? String(value)
-      : value.toFixed(2);
+    return Number.isInteger(value) ? String(value) : value.toFixed(2);
   }
 
   if (typeof value === "boolean") {
@@ -320,9 +270,7 @@ export function formatProperty(value: unknown): string {
   }
 
   if (Array.isArray(value)) {
-    return `${value.length} item${
-      value.length === 1 ? "" : "s"
-    }`;
+    return `${value.length} item${value.length === 1 ? "" : "s"}`;
   }
 
   return JSON.stringify(value);

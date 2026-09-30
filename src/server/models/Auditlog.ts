@@ -1,9 +1,6 @@
 // server/models/AuditLog.ts
 import mongoose from "mongoose";
-import {
-  Schema,
-  model,
-} from "mongoose";
+import { Schema, model } from "mongoose";
 import {
   AUDIT_ACTIONS,
   AUDIT_CATEGORIES,
@@ -45,7 +42,12 @@ const AuditLogSchema = new Schema<AuditLogDocument>(
       },
       index: true,
     },
-    action: { type: String, enum: [...AUDIT_ACTIONS], required: true, index: true },
+    action: {
+      type: String,
+      enum: [...AUDIT_ACTIONS],
+      required: true,
+      index: true,
+    },
     category: {
       type: String,
       enum: [...AUDIT_CATEGORIES],
@@ -55,7 +57,12 @@ const AuditLogSchema = new Schema<AuditLogDocument>(
         return categoryForAuditAction(this.action);
       },
     },
-    status: { type: String, enum: ["success", "failure"], default: "success", index: true },
+    status: {
+      type: String,
+      enum: ["success", "failure"],
+      default: "success",
+      index: true,
+    },
     targetType: { type: String, required: false },
     targetId: { type: String, required: false },
     metadata: { type: Schema.Types.Mixed, required: false },
@@ -64,7 +71,7 @@ const AuditLogSchema = new Schema<AuditLogDocument>(
     userAgent: { type: String, required: false },
     requestId: { type: String, required: false, index: true },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: false } },
 );
 
 // Feed is always sorted newest-first.
@@ -72,5 +79,6 @@ AuditLogSchema.index({ createdAt: -1 });
 AuditLogSchema.index({ category: 1, status: 1, createdAt: -1 });
 AuditLogSchema.index({ targetType: 1, targetId: 1, createdAt: -1 });
 
-
-export const AuditLog = mongoose.models.AuditLog || model<AuditLogDocument>("AuditLog", AuditLogSchema);
+export const AuditLog =
+  mongoose.models.AuditLog ||
+  model<AuditLogDocument>("AuditLog", AuditLogSchema);

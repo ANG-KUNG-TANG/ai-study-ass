@@ -7,7 +7,9 @@ import type { SectionedDocument } from "./types";
 
 export function classifyDocument(doc: SectionedDocument): DocumentProfile {
   const text = doc.analysisText.toLowerCase();
-  const headings = doc.sections.map((section) => section.rawHeading.toLowerCase());
+  const headings = doc.sections.map((section) =>
+    section.rawHeading.toLowerCase(),
+  );
   const reasons: string[] = [];
 
   let kind: DocumentKind = "unknown";
@@ -16,8 +18,12 @@ export function classifyDocument(doc: SectionedDocument): DocumentProfile {
   const researchSignals = [
     doc.hasAbstract,
     headings.some((heading) => /references|bibliography/.test(heading)),
-    headings.some((heading) => /method|approach|model|validation|experiment/.test(heading)),
-    /\b(this paper|we propose|we present|our approach|experimental validation)\b/.test(text),
+    headings.some((heading) =>
+      /method|approach|model|validation|experiment/.test(heading),
+    ),
+    /\b(this paper|we propose|we present|our approach|experimental validation)\b/.test(
+      text,
+    ),
   ].filter(Boolean).length;
 
   const lectureSignals = [
@@ -43,7 +49,9 @@ export function classifyDocument(doc: SectionedDocument): DocumentProfile {
 
   const reportSignals = [
     /\bexecutive summary\b/.test(text),
-    headings.some((heading) => /recommendation|project overview|business objective/.test(heading)),
+    headings.some((heading) =>
+      /recommendation|project overview|business objective/.test(heading),
+    ),
     /\bprepared for|prepared by\b/.test(text),
   ].filter(Boolean).length;
 
@@ -67,16 +75,34 @@ export function classifyDocument(doc: SectionedDocument): DocumentProfile {
 
   if (bestScore > 0) {
     kind = bestKind;
-    confidence = Math.min(0.98, 0.55 + bestScore * 0.1 + Math.max(0, bestScore - secondScore) * 0.05);
+    confidence = Math.min(
+      0.98,
+      0.55 + bestScore * 0.1 + Math.max(0, bestScore - secondScore) * 0.05,
+    );
   }
 
-  if (kind === "research_paper") reasons.push("Abstract/research sections and paper-style language were detected.");
-  if (kind === "lecture_notes") reasons.push("Teaching-oriented headings and learning signals were detected.");
-  if (kind === "textbook_chapter") reasons.push("Chapter structure and worked-example signals were detected.");
-  if (kind === "technical_documentation") reasons.push("API/configuration terminology was detected.");
-  if (kind === "project_report") reasons.push("Report-style executive and recommendation sections were detected.");
-  if (kind === "assignment") reasons.push("Assignment/task and submission terminology was detected.");
-  if (kind === "unknown") reasons.push("No document profile reached a strong classification threshold.");
+  if (kind === "research_paper")
+    reasons.push(
+      "Abstract/research sections and paper-style language were detected.",
+    );
+  if (kind === "lecture_notes")
+    reasons.push(
+      "Teaching-oriented headings and learning signals were detected.",
+    );
+  if (kind === "textbook_chapter")
+    reasons.push("Chapter structure and worked-example signals were detected.");
+  if (kind === "technical_documentation")
+    reasons.push("API/configuration terminology was detected.");
+  if (kind === "project_report")
+    reasons.push(
+      "Report-style executive and recommendation sections were detected.",
+    );
+  if (kind === "assignment")
+    reasons.push("Assignment/task and submission terminology was detected.");
+  if (kind === "unknown")
+    reasons.push(
+      "No document profile reached a strong classification threshold.",
+    );
 
   return {
     kind,
@@ -97,44 +123,139 @@ function expectedFieldsFor(kind: DocumentKind): ExpectedFieldDefinition[] {
   switch (kind) {
     case "research_paper":
       return [
-        field("problem", true, true, "A research paper should state the problem or motivation."),
-        field("method", true, true, "A research paper should describe its approach or model."),
-        field("data_source", false, true, "A named dataset may be absent in industrial or conceptual studies."),
-        field("sample", false, true, "Evaluation may use projects, participants, systems, or documents."),
-        field("metric", false, true, "Evaluation metrics are expected when empirical results are reported."),
-        field("result", true, true, "A research paper should report findings or conclusions."),
-        field("limitation", false, true, "Limitations improve study interpretation but may be implicit."),
+        field(
+          "problem",
+          true,
+          true,
+          "A research paper should state the problem or motivation.",
+        ),
+        field(
+          "method",
+          true,
+          true,
+          "A research paper should describe its approach or model.",
+        ),
+        field(
+          "data_source",
+          false,
+          true,
+          "A named dataset may be absent in industrial or conceptual studies.",
+        ),
+        field(
+          "sample",
+          false,
+          true,
+          "Evaluation may use projects, participants, systems, or documents.",
+        ),
+        field(
+          "metric",
+          false,
+          true,
+          "Evaluation metrics are expected when empirical results are reported.",
+        ),
+        field(
+          "result",
+          true,
+          true,
+          "A research paper should report findings or conclusions.",
+        ),
+        field(
+          "limitation",
+          false,
+          true,
+          "Limitations improve study interpretation but may be implicit.",
+        ),
         field("future_work", false, true, "Future work is optional."),
       ];
     case "lecture_notes":
     case "textbook_chapter":
       return [
-        field("objective", false, true, "Learning material may provide explicit objectives."),
-        field("definition", true, true, "Learning material should define central ideas."),
+        field(
+          "objective",
+          false,
+          true,
+          "Learning material may provide explicit objectives.",
+        ),
+        field(
+          "definition",
+          true,
+          true,
+          "Learning material should define central ideas.",
+        ),
         field("method", false, true, "Procedures or methods may be taught."),
-        field("result", false, false, "Experimental findings are not required for teaching material."),
-        field("data_source", false, false, "A dataset is not required for teaching material."),
+        field(
+          "result",
+          false,
+          false,
+          "Experimental findings are not required for teaching material.",
+        ),
+        field(
+          "data_source",
+          false,
+          false,
+          "A dataset is not required for teaching material.",
+        ),
       ];
     case "technical_documentation":
       return [
-        field("objective", true, true, "Documentation should explain the component's purpose."),
-        field("method", false, true, "Implementation or usage procedures may be present."),
+        field(
+          "objective",
+          true,
+          true,
+          "Documentation should explain the component's purpose.",
+        ),
+        field(
+          "method",
+          false,
+          true,
+          "Implementation or usage procedures may be present.",
+        ),
         field("tool", false, true, "Tools and technologies are often central."),
-        field("definition", true, true, "Important interfaces and terms should be defined."),
+        field(
+          "definition",
+          true,
+          true,
+          "Important interfaces and terms should be defined.",
+        ),
         field("result", false, false, "Research results are not expected."),
       ];
     case "project_report":
       return [
-        field("problem", true, true, "A report should explain the context or problem."),
+        field(
+          "problem",
+          true,
+          true,
+          "A report should explain the context or problem.",
+        ),
         field("objective", true, true, "A report should state its objectives."),
-        field("method", false, true, "A report may explain an implementation or process."),
-        field("result", true, true, "A report should state outcomes or findings."),
+        field(
+          "method",
+          false,
+          true,
+          "A report may explain an implementation or process.",
+        ),
+        field(
+          "result",
+          true,
+          true,
+          "A report should state outcomes or findings.",
+        ),
         field("limitation", false, true, "Constraints may be reported."),
       ];
     case "assignment":
       return [
-        field("objective", false, true, "The task or question supplies the objective."),
-        field("definition", false, true, "Definitions may be required by the assignment."),
+        field(
+          "objective",
+          false,
+          true,
+          "The task or question supplies the objective.",
+        ),
+        field(
+          "definition",
+          false,
+          true,
+          "Definitions may be required by the assignment.",
+        ),
         field("method", false, true, "A solution procedure may be present."),
         field("result", false, true, "Answers may contain final results."),
       ];

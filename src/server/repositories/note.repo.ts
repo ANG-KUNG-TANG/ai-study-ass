@@ -182,13 +182,8 @@ export async function findManyAdmin(
   };
 }
 
-export async function findIdsByUserId(
-  userId: string,
-): Promise<string[]> {
-  const docs = await Note.find(
-    { userId },
-    { _id: 1 },
-  ).lean().exec();
+export async function findIdsByUserId(userId: string): Promise<string[]> {
+  const docs = await Note.find({ userId }, { _id: 1 }).lean().exec();
 
   return docs.map((doc: { _id: unknown }) => String(doc._id));
 }
@@ -309,10 +304,7 @@ export async function findIdsBefore(
   before: Date,
   limit: number = 5_000,
 ): Promise<string[]> {
-  const docs = await Note.find(
-    { createdAt: { $lt: before } },
-    { _id: 1 },
-  )
+  const docs = await Note.find({ createdAt: { $lt: before } }, { _id: 1 })
     .sort({ createdAt: 1 })
     .limit(Math.min(10_000, Math.max(1, Math.floor(limit))))
     .lean()
@@ -337,7 +329,7 @@ export async function setAdminStatus(
     {
       $set: {
         adminStatus: status,
-        quarantineReason: quarantined ? reason?.trim() ?? null : null,
+        quarantineReason: quarantined ? (reason?.trim() ?? null) : null,
         quarantinedAt: quarantined ? new Date() : null,
         quarantinedBy: quarantined ? adminId : null,
         updatedAt: new Date(),

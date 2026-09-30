@@ -29,7 +29,9 @@ export interface ChatProps {
 
 function validateQuestion(question: string): void {
   if (!question.trim()) {
-    throw new ValidationError("Validation failed", { question: "Question is required" });
+    throw new ValidationError("Validation failed", {
+      question: "Question is required",
+    });
   }
   if (question.length > CHAT_RULES.question.maxLength) {
     throw new ValidationError("Validation failed", {
@@ -61,14 +63,30 @@ export class ChatEntity {
     this.#createdAt = props.createdAt;
   }
 
-  get id(): ChatId { return this.#id; }
-  get noteId(): string { return this.#noteId; }
-  get userId(): string { return this.#userId; }
-  get question(): string { return this.#question; }
-  get answer(): string { return this.#answer; }
-  get tokensUsed(): number { return this.#tokensUsed; }
-  get provider(): AIProvider { return this.#provider; }
-  get createdAt(): Date { return this.#createdAt; }
+  get id(): ChatId {
+    return this.#id;
+  }
+  get noteId(): string {
+    return this.#noteId;
+  }
+  get userId(): string {
+    return this.#userId;
+  }
+  get question(): string {
+    return this.#question;
+  }
+  get answer(): string {
+    return this.#answer;
+  }
+  get tokensUsed(): number {
+    return this.#tokensUsed;
+  }
+  get provider(): AIProvider {
+    return this.#provider;
+  }
+  get createdAt(): Date {
+    return this.#createdAt;
+  }
 
   static create(input: {
     id: ChatId;

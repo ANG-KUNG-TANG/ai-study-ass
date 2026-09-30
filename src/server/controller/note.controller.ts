@@ -1,7 +1,14 @@
 import type { NextResponse } from "next/server";
 import * as noteService from "@/server/services/note.service";
-import { successResponse, noContentResponse, paginatedResponse } from "@/server/utils/response";
-import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
+import {
+  successResponse,
+  noContentResponse,
+  paginatedResponse,
+} from "@/server/utils/response";
+import type {
+  AuthContext,
+  RouteContext,
+} from "@/server/middleware/auth.middleware";
 import { parseNoteQuery } from "@/server/validators/note.validators";
 import { logActivity } from "@/server/services/auditLog.service";
 

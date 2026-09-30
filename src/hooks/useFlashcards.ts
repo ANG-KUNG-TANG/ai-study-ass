@@ -6,10 +6,7 @@ import {
   generateFlashcards,
   reviewFlashcard,
 } from "@/services/flashcard.service";
-import type {
-  Flashcard,
-  FlashcardDifficulty,
-} from "@/types/flashcard";
+import type { Flashcard, FlashcardDifficulty } from "@/types/flashcard";
 
 export function useFlashcards(noteId: string) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -32,9 +29,7 @@ export function useFlashcards(noteId: string) {
       setFlashcards(await listFlashcards(noteId));
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load flashcards",
+        err instanceof Error ? err.message : "Failed to load flashcards",
       );
     } finally {
       setIsLoading(false);
@@ -46,28 +41,19 @@ export function useFlashcards(noteId: string) {
   }, [load]);
 
   const generate = useCallback(
-    async (
-      count?: number,
-      force = false,
-    ): Promise<Flashcard[]> => {
+    async (count?: number, force = false): Promise<Flashcard[]> => {
       if (!noteId) return [];
 
       setIsGenerating(true);
       setError(null);
 
       try {
-        const created = await generateFlashcards(
-          noteId,
-          count,
-          force,
-        );
+        const created = await generateFlashcards(noteId, count, force);
         setFlashcards(created);
         return created;
       } catch (err) {
         setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to generate flashcards",
+          err instanceof Error ? err.message : "Failed to generate flashcards",
         );
         return [];
       } finally {
@@ -89,17 +75,13 @@ export function useFlashcards(noteId: string) {
         const updated = await reviewFlashcard(id, difficulty);
 
         setFlashcards((cards) =>
-          cards.map((card) =>
-            card.id === id ? updated : card,
-          ),
+          cards.map((card) => (card.id === id ? updated : card)),
         );
 
         return updated;
       } catch (err) {
         setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to update flashcard",
+          err instanceof Error ? err.message : "Failed to update flashcard",
         );
         return null;
       } finally {

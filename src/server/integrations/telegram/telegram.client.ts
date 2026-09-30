@@ -85,14 +85,11 @@ export async function sendMessage(
     body: JSON.stringify(body),
   });
 
-  const data =
-    (await response.json()) as TelegramApiResponse<unknown>;
+  const data = (await response.json()) as TelegramApiResponse<unknown>;
 
   if (!response.ok || !data.ok) {
     throw new Error(
-      `Telegram sendMessage failed: ${
-        data.description ?? response.statusText
-      }`,
+      `Telegram sendMessage failed: ${data.description ?? response.statusText}`,
     );
   }
 }
@@ -110,14 +107,11 @@ export async function getFile(fileId: string): Promise<TelegramFile> {
     }),
   });
 
-  const data =
-    (await response.json()) as TelegramApiResponse<TelegramFile>;
+  const data = (await response.json()) as TelegramApiResponse<TelegramFile>;
 
   if (!response.ok || !data.ok || !data.result) {
     throw new Error(
-      `Telegram getFile failed: ${
-        data.description ?? response.statusText
-      }`,
+      `Telegram getFile failed: ${data.description ?? response.statusText}`,
     );
   }
 

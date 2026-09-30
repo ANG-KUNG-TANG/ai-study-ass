@@ -18,9 +18,7 @@ describe("Intelligence source hygiene", () => {
     "Student ID: 240702402543",
     "Course: DTI 411",
   ])("rejects non-learning source noise: %s", (value) => {
-    expect(
-      isStudyNoiseLine(value),
-    ).toBe(true);
+    expect(isStudyNoiseLine(value)).toBe(true);
   });
 
   it.each([
@@ -31,9 +29,7 @@ describe("Intelligence source hygiene", () => {
     "State Transition Diagram",
     "Abstraction means focusing on essential features while ignoring accidental properties.",
   ])("keeps legitimate study content: %s", (value) => {
-    expect(
-      isStudyNoiseLine(value),
-    ).toBe(false);
+    expect(isStudyNoiseLine(value)).toBe(false);
   });
 
   it.each([
@@ -42,9 +38,7 @@ describe("Intelligence source hygiene", () => {
     "State, which is the situation at a particular condition during the lifetime of an object.",
     "Though the name and purpose of the methods in the classes are same, the internal.",
   ])("rejects incomplete standalone facts: %s", (value) => {
-    expect(
-      isIncompleteStudyUnit(value),
-    ).toBe(true);
+    expect(isIncompleteStudyUnit(value)).toBe(true);
   });
 
   it("keeps complete subordinate-clause sentences", () => {
@@ -56,42 +50,23 @@ describe("Intelligence source hygiene", () => {
   });
 
   it("canonicalizes simple concept aliases", () => {
-    expect(
-      canonicalStudyConceptKey(
-        "State Machines",
-      ),
-    ).toBe("state machine");
+    expect(canonicalStudyConceptKey("State Machines")).toBe("state machine");
 
-    expect(
-      canonicalStudyConceptKey(
-        "Smart Door (SMART-DOOR)",
-      ),
-    ).toBe("smart door");
+    expect(canonicalStudyConceptKey("Smart Door (SMART-DOOR)")).toBe(
+      "smart door",
+    );
   });
 
   it("recognizes likely person names without treating technical labels as people", () => {
-    expect(
-      looksLikePersonName(
-        "Grady Booch",
-      ),
-    ).toBe(true);
+    expect(looksLikePersonName("Grady Booch")).toBe(true);
 
-    expect(
-      looksLikePersonName(
-        "System Design",
-      ),
-    ).toBe(false);
+    expect(looksLikePersonName("System Design")).toBe(false);
 
-    expect(
-      looksLikePersonName(
-        "Savings Account",
-      ),
-    ).toBe(false);
+    expect(looksLikePersonName("Savings Account")).toBe(false);
   });
 
   it("cleans noise while preserving technical content", () => {
-    const cleaned =
-      cleanStudyAnalysisText(`
+    const cleaned = cleanStudyAnalysisText(`
 SQL HTML CSS Javascript Python Java C C++ PHP Scala C#
 CONTACT US
 Object-Oriented Analysis (OOA) identifies software requirements in terms of interacting objects.
@@ -99,18 +74,10 @@ Register Your Singapore Company Online – 100%
 Port 443 is commonly used for HTTPS.
 `);
 
-    expect(cleaned).toContain(
-      "Object-Oriented Analysis",
-    );
-    expect(cleaned).toContain(
-      "Port 443",
-    );
-    expect(cleaned).not.toContain(
-      "CONTACT US",
-    );
-    expect(cleaned).not.toContain(
-      "Singapore Company",
-    );
+    expect(cleaned).toContain("Object-Oriented Analysis");
+    expect(cleaned).toContain("Port 443");
+    expect(cleaned).not.toContain("CONTACT US");
+    expect(cleaned).not.toContain("Singapore Company");
     expect(
       looksLikeNavigationCluster(
         "Home Whiteboard Online Compilers Practice Articles AI Assistant",

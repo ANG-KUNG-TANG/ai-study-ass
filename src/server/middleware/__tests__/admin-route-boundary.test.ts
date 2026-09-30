@@ -9,21 +9,13 @@ function findRouteFiles(directory: string): string[] {
       return findRouteFiles(fullPath);
     }
 
-    return entry.isFile() && entry.name === "route.ts"
-      ? [fullPath]
-      : [];
+    return entry.isFile() && entry.name === "route.ts" ? [fullPath] : [];
   });
 }
 
 describe("admin API authorization boundary", () => {
   it("requires withRole(admin) on every admin route", () => {
-    const adminRoot = path.join(
-      process.cwd(),
-      "src",
-      "app",
-      "api",
-      "admin",
-    );
+    const adminRoot = path.join(process.cwd(), "src", "app", "api", "admin");
 
     const routes = findRouteFiles(adminRoot);
 

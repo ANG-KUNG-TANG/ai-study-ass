@@ -7,7 +7,7 @@ import type {
   AuthContext,
   RouteContext,
 } from "@/server/middleware/auth.middleware";
-import * as telegramLinkService from "@/server/services/telegramLink.service";  
+import * as telegramLinkService from "@/server/services/telegramLink.service";
 
 export async function webhook(req: Request) {
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;

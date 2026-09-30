@@ -5,9 +5,7 @@ import {
   type QualifiedTerm,
 } from "@/server/intelligence/grounding";
 import type { QuizQuestionInput } from "@/server/entities/quiz.entity";
-import {
-  validateGroundedQuizQuestions,
-} from "@/server/services/quiz/quiz-quality.service";
+import { validateGroundedQuizQuestions } from "@/server/services/quiz/quiz-quality.service";
 
 function makeFact(input: {
   id: string;
@@ -22,13 +20,15 @@ function makeFact(input: {
     content: input.content,
     verbatimRequired: false,
     sourceSectionId: input.sectionId,
-    evidence: [{
-      id: `evidence-${input.id}`,
-      sectionId: input.sectionId,
-      sectionTitle: input.sectionId,
-      pageNumber: input.page ?? 1,
-      text: input.content,
-    }],
+    evidence: [
+      {
+        id: `evidence-${input.id}`,
+        sectionId: input.sectionId,
+        sectionTitle: input.sectionId,
+        pageNumber: input.page ?? 1,
+        text: input.content,
+      },
+    ],
     evidenceType: "stated",
     verificationStatus: "supported",
     confidence: 0.95,
@@ -46,13 +46,15 @@ function makeTerm(
     term,
     definition,
     sourceSectionId: sectionId,
-    evidence: [{
-      id: `term-${term}`,
-      sectionId,
-      sectionTitle: sectionId,
-      pageNumber: 1,
-      text: `${term}: ${definition}`,
-    }],
+    evidence: [
+      {
+        id: `term-${term}`,
+        sectionId,
+        sectionTitle: sectionId,
+        pageNumber: 1,
+        text: `${term}: ${definition}`,
+      },
+    ],
     qualification: "explicit_definition",
     confidence: 0.98,
   };
@@ -177,10 +179,7 @@ function makeGrounding(): GroundedKnowledge {
   };
 }
 
-function validate(
-  question: QuizQuestionInput,
-  grounding = makeGrounding(),
-) {
+function validate(question: QuizQuestionInput, grounding = makeGrounding()) {
   return validateGroundedQuizQuestions([question], grounding);
 }
 
@@ -211,17 +210,18 @@ describe("quiz grounded quality validation", () => {
       ),
     );
 
-    const result = validate({
-      question:
-        'Which term is defined as: "the switch selected using the lowest bridge identifier"?',
-      questionType: "multiple_choice",
-      options: ["Root Bridge", "Primary Bridge", "PortFast"],
-      answer: "Root Bridge",
-    }, grounding);
-
-    expect(result.rejected[0]?.reasonCodes).toContain(
-      "AMBIGUOUS_DISTRACTOR",
+    const result = validate(
+      {
+        question:
+          'Which term is defined as: "the switch selected using the lowest bridge identifier"?',
+        questionType: "multiple_choice",
+        options: ["Root Bridge", "Primary Bridge", "PortFast"],
+        answer: "Root Bridge",
+      },
+      grounding,
     );
+
+    expect(result.rejected[0]?.reasonCodes).toContain("AMBIGUOUS_DISTRACTOR");
   });
 
   it("rejects duplicate MCQ options after normalization", () => {
@@ -233,9 +233,7 @@ describe("quiz grounded quality validation", () => {
       answer: "Root Bridge",
     });
 
-    expect(result.rejected[0]?.reasonCodes).toContain(
-      "DUPLICATE_OPTIONS",
-    );
+    expect(result.rejected[0]?.reasonCodes).toContain("DUPLICATE_OPTIONS");
   });
 
   it("rejects an unsupported MCQ answer", () => {
@@ -247,9 +245,7 @@ describe("quiz grounded quality validation", () => {
       answer: "AES-512",
     });
 
-    expect(result.rejected[0]?.reasonCodes).toContain(
-      "ANSWER_NOT_GROUNDED",
-    );
+    expect(result.rejected[0]?.reasonCodes).toContain("ANSWER_NOT_GROUNDED");
   });
 
   it("rejects answer leakage in a general MCQ", () => {
@@ -261,15 +257,12 @@ describe("quiz grounded quality validation", () => {
       answer: "Root Bridge",
     });
 
-    expect(result.rejected[0]?.reasonCodes).toContain(
-      "ANSWER_LEAKAGE",
-    );
+    expect(result.rejected[0]?.reasonCodes).toContain("ANSWER_LEAKAGE");
   });
 
   it("accepts a directly supported true statement", () => {
     const result = validate({
-      question:
-        "True or false: The default STP bridge priority is 32768.",
+      question: "True or false: The default STP bridge priority is 32768.",
       questionType: "true_false",
       options: ["True", "False"],
       answer: "True",
@@ -280,8 +273,7 @@ describe("quiz grounded quality validation", () => {
 
   it("rejects False when missing evidence is the only basis", () => {
     const result = validate({
-      question:
-        "True or false: STP encrypts all Ethernet frames.",
+      question: "True or false: STP encrypts all Ethernet frames.",
       questionType: "true_false",
       options: ["True", "False"],
       answer: "False",
@@ -294,8 +286,7 @@ describe("quiz grounded quality validation", () => {
 
   it("accepts False when a numeric contradiction is grounded", () => {
     const result = validate({
-      question:
-        "True or false: The default STP bridge priority is 99999.",
+      question: "True or false: The default STP bridge priority is 99999.",
       questionType: "true_false",
       options: ["True", "False"],
       answer: "False",
@@ -306,8 +297,7 @@ describe("quiz grounded quality validation", () => {
 
   it("accepts a section-scoped supported short answer", () => {
     const result = validate({
-      question:
-        'What is one important point from "Edge Port Protection"?',
+      question: 'What is one important point from "Edge Port Protection"?',
       questionType: "short_answer",
       options: [],
       answer:
@@ -319,16 +309,13 @@ describe("quiz grounded quality validation", () => {
 
   it("rejects a hallucinated short answer", () => {
     const result = validate({
-      question:
-        'What is one important point from "Edge Port Protection"?',
+      question: 'What is one important point from "Edge Port Protection"?',
       questionType: "short_answer",
       options: [],
       answer: "Every edge port must use public-key encryption.",
     });
 
-    expect(result.rejected[0]?.reasonCodes).toContain(
-      "ANSWER_NOT_GROUNDED",
-    );
+    expect(result.rejected[0]?.reasonCodes).toContain("ANSWER_NOT_GROUNDED");
   });
 
   it("supports Unicode evidence without English-only token assumptions", () => {
@@ -338,29 +325,33 @@ describe("quiz grounded quality validation", () => {
       makeFact({
         id: "thai-1",
         sectionId: "thai-section",
-        content:
-          "โปรโตคอล STP ช่วยป้องกันลูปในเครือข่ายสวิตช์เลเยอร์ 2",
+        content: "โปรโตคอล STP ช่วยป้องกันลูปในเครือข่ายสวิตช์เลเยอร์ 2",
         type: "definition",
       }),
     ];
-    grounding.sections = [{
-      sectionId: "thai-section",
-      heading: "STP",
-      status: "covered",
-      factIds: ["thai-1"],
-      sourceUnitCount: 1,
-      omittedUnitCount: 0,
-    }];
+    grounding.sections = [
+      {
+        sectionId: "thai-section",
+        heading: "STP",
+        status: "covered",
+        factIds: ["thai-1"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+    ];
     grounding.keyTerms = [];
     grounding.concepts = [];
 
-    const result = validate({
-      question:
-        "True or false: โปรโตคอล STP ช่วยป้องกันลูปในเครือข่ายสวิตช์เลเยอร์ 2",
-      questionType: "true_false",
-      options: ["True", "False"],
-      answer: "True",
-    }, grounding);
+    const result = validate(
+      {
+        question:
+          "True or false: โปรโตคอล STP ช่วยป้องกันลูปในเครือข่ายสวิตช์เลเยอร์ 2",
+        questionType: "true_false",
+        options: ["True", "False"],
+        answer: "True",
+      },
+      grounding,
+    );
 
     expect(result.rejected).toHaveLength(0);
   });

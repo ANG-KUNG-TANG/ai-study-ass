@@ -22,13 +22,15 @@ function fact(input: {
     content: input.content,
     verbatimRequired: false,
     sourceSectionId: input.sectionId,
-    evidence: [{
-      id: `e-${input.id}`,
-      sectionId: input.sectionId,
-      sectionTitle: input.sectionId,
-      pageNumber: 1,
-      text: input.content,
-    }],
+    evidence: [
+      {
+        id: `e-${input.id}`,
+        sectionId: input.sectionId,
+        sectionTitle: input.sectionId,
+        pageNumber: 1,
+        text: input.content,
+      },
+    ],
     evidenceType: "stated",
     verificationStatus: "supported",
     confidence: 0.95,
@@ -46,13 +48,15 @@ function term(
     term: name,
     definition,
     sourceSectionId: sectionId,
-    evidence: [{
-      id: `term-${name}`,
-      sectionId,
-      sectionTitle: sectionId,
-      pageNumber: 1,
-      text: `${name}: ${definition}`,
-    }],
+    evidence: [
+      {
+        id: `term-${name}`,
+        sectionId,
+        sectionTitle: sectionId,
+        pageNumber: 1,
+        text: `${name}: ${definition}`,
+      },
+    ],
     qualification: "explicit_definition",
     confidence: 0.96,
   };
@@ -82,13 +86,12 @@ function grounding(): GroundedKnowledge {
       content:
         "PortFast should be enabled only on access ports connected to end devices.",
       type: "warning",
-      importance: 0.90,
+      importance: 0.9,
     }),
     fact({
       id: "f4",
       sectionId: "s3",
-      content:
-        "The default STP bridge priority is 32768.",
+      content: "The default STP bridge priority is 32768.",
       type: "number",
       importance: 0.86,
     }),
@@ -96,7 +99,7 @@ function grounding(): GroundedKnowledge {
       id: "f5",
       sectionId: "s4",
       content: "Project Name",
-      importance: 0.10,
+      importance: 0.1,
     }),
   ];
 
@@ -118,15 +121,16 @@ function grounding(): GroundedKnowledge {
         "s2",
       ),
     ],
-    concepts: [{
-      name: "Spanning Tree Protocol",
-      normalizedName: "spanning tree protocol",
-      explanation:
-        "A protocol that prevents Layer 2 switching loops.",
-      sourceSectionIds: ["s1"],
-      evidence: facts[0]!.evidence,
-      importanceScore: 0.99,
-    }],
+    concepts: [
+      {
+        name: "Spanning Tree Protocol",
+        normalizedName: "spanning tree protocol",
+        explanation: "A protocol that prevents Layer 2 switching loops.",
+        sourceSectionIds: ["s1"],
+        evidence: facts[0]!.evidence,
+        importanceScore: 0.99,
+      },
+    ],
     sections: [
       {
         sectionId: "s1",
@@ -189,14 +193,16 @@ function card(
 
 describe("flashcard grounded quality validation", () => {
   it("accepts a qualified-term definition card", () => {
-    const result = validateGroundedFlashcards([
-      card({
-        front: 'What does "Root Bridge" mean?',
-        back:
-          "the switch selected using the lowest bridge identifier",
-        difficulty: "easy",
-      }),
-    ], grounding());
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front: 'What does "Root Bridge" mean?',
+          back: "the switch selected using the lowest bridge identifier",
+          difficulty: "easy",
+        }),
+      ],
+      grounding(),
+    );
 
     expect(result.rejected).toHaveLength(0);
     expect(result.contract.hardGatePassed).toBe(true);
@@ -204,43 +210,46 @@ describe("flashcard grounded quality validation", () => {
   });
 
   it("accepts a section-scoped grounded fact card", () => {
-    const result = validateGroundedFlashcards([
-      card({
-        front:
-          'What warning or limitation should be remembered from "Edge Port Protection"?',
-        back:
-          "PortFast should be enabled only on access ports connected to end devices.",
-      }),
-    ], grounding());
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front:
+            'What warning or limitation should be remembered from "Edge Port Protection"?',
+          back: "PortFast should be enabled only on access ports connected to end devices.",
+        }),
+      ],
+      grounding(),
+    );
 
     expect(result.rejected).toHaveLength(0);
   });
 
   it("rejects a hallucinated answer", () => {
-    const result = validateGroundedFlashcards([
-      card({
-        front: "Which encryption algorithm does STP require?",
-        back: "AES-512",
-      }),
-    ], grounding());
-
-    expect(result.rejected[0]?.issueCodes).toContain(
-      "BACK_NOT_GROUNDED",
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front: "Which encryption algorithm does STP require?",
+          back: "AES-512",
+        }),
+      ],
+      grounding(),
     );
+
+    expect(result.rejected[0]?.issueCodes).toContain("BACK_NOT_GROUNDED");
   });
 
   it("rejects a card whose front reveals its short answer", () => {
-    const result = validateGroundedFlashcards([
-      card({
-        front:
-          "Is the default STP bridge priority 32768?",
-        back: "32768",
-      }),
-    ], grounding());
-
-    expect(result.rejected[0]?.issueCodes).toContain(
-      "ANSWER_LEAKAGE",
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front: "Is the default STP bridge priority 32768?",
+          back: "32768",
+        }),
+      ],
+      grounding(),
     );
+
+    expect(result.rejected[0]?.issueCodes).toContain("ANSWER_LEAKAGE");
   });
 
   it("rejects list-style multi-idea backs", () => {
@@ -255,65 +264,66 @@ describe("flashcard grounded quality validation", () => {
       }),
     );
 
-    const result = validateGroundedFlashcards([
-      card({
-        front: "What are three STP responsibilities?",
-        back:
-          "- Prevent loops\n- Select a root bridge\n- Calculate path costs",
-      }),
-    ], source);
-
-    expect(result.rejected[0]?.issueCodes).toContain(
-      "MULTIPLE_IDEAS",
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front: "What are three STP responsibilities?",
+          back: "- Prevent loops\n- Select a root bridge\n- Calculate path costs",
+        }),
+      ],
+      source,
     );
+
+    expect(result.rejected[0]?.issueCodes).toContain("MULTIPLE_IDEAS");
   });
 
   it("rejects low-value metadata cards", () => {
-    const result = validateGroundedFlashcards([
-      card({
-        front: "What is the project name?",
-        back: "Project Name",
-      }),
-    ], grounding());
-
-    expect(result.rejected[0]?.issueCodes).toContain(
-      "LOW_STUDY_VALUE",
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front: "What is the project name?",
+          back: "Project Name",
+        }),
+      ],
+      grounding(),
     );
+
+    expect(result.rejected[0]?.issueCodes).toContain("LOW_STUDY_VALUE");
   });
 
   it("rejects semantic duplicates even when wording changes", () => {
-    const result = validateGroundedFlashcards([
-      card({
-        front:
-          'What numerical result or value is reported in "Bridge Priority"?',
-        back: "The default STP bridge priority is 32768.",
-      }),
-      card({
-        front:
-          'Which value is reported for bridge priority in "Bridge Priority"?',
-        back: "The default STP bridge priority is 32768.",
-      }),
-    ], grounding());
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front:
+            'What numerical result or value is reported in "Bridge Priority"?',
+          back: "The default STP bridge priority is 32768.",
+        }),
+        card({
+          front:
+            'Which value is reported for bridge priority in "Bridge Priority"?',
+          back: "The default STP bridge priority is 32768.",
+        }),
+      ],
+      grounding(),
+    );
 
     expect(result.accepted).toHaveLength(1);
-    expect(result.rejected[0]?.issueCodes).toContain(
-      "NEAR_DUPLICATE",
-    );
+    expect(result.rejected[0]?.issueCodes).toContain("NEAR_DUPLICATE");
   });
 
   it("rejects a section question answered from a different section", () => {
-    const result = validateGroundedFlashcards([
-      card({
-        front:
-          'What is an important point from "Edge Port Protection"?',
-        back:
-          "The root bridge is selected using the lowest bridge identifier.",
-      }),
-    ], grounding());
-
-    expect(result.rejected[0]?.issueCodes).toContain(
-      "FRONT_NOT_ANSWERABLE",
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front: 'What is an important point from "Edge Port Protection"?',
+          back: "The root bridge is selected using the lowest bridge identifier.",
+        }),
+      ],
+      grounding(),
     );
+
+    expect(result.rejected[0]?.issueCodes).toContain("FRONT_NOT_ANSWERABLE");
   });
 
   it("accepts a generic deterministic card when its back is grounded", () => {
@@ -329,14 +339,16 @@ describe("flashcard grounded quality validation", () => {
       }),
     );
 
-    const result = validateGroundedFlashcards([
-      card({
-        front: "What problem does the document address?",
-        back:
-          "The document addresses Layer 2 switching loops in redundant Ethernet topologies.",
-        difficulty: "hard",
-      }),
-    ], source);
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front: "What problem does the document address?",
+          back: "The document addresses Layer 2 switching loops in redundant Ethernet topologies.",
+          difficulty: "hard",
+        }),
+      ],
+      source,
+    );
 
     expect(result.rejected).toHaveLength(0);
   });
@@ -348,30 +360,33 @@ describe("flashcard grounded quality validation", () => {
       fact({
         id: "thai",
         sectionId: "thai-section",
-        content:
-          "โปรโตคอล STP ช่วยป้องกันลูปในเครือข่ายสวิตช์เลเยอร์ 2",
+        content: "โปรโตคอล STP ช่วยป้องกันลูปในเครือข่ายสวิตช์เลเยอร์ 2",
         type: "definition",
         importance: 0.95,
       }),
     ];
-    source.sections = [{
-      sectionId: "thai-section",
-      heading: "STP",
-      status: "covered",
-      factIds: ["thai"],
-      sourceUnitCount: 1,
-      omittedUnitCount: 0,
-    }];
+    source.sections = [
+      {
+        sectionId: "thai-section",
+        heading: "STP",
+        status: "covered",
+        factIds: ["thai"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+    ];
     source.keyTerms = [];
     source.concepts = [];
 
-    const result = validateGroundedFlashcards([
-      card({
-        front: "STP ช่วยป้องกันอะไรในเครือข่าย?",
-        back:
-          "โปรโตคอล STP ช่วยป้องกันลูปในเครือข่ายสวิตช์เลเยอร์ 2",
-      }),
-    ], source);
+    const result = validateGroundedFlashcards(
+      [
+        card({
+          front: "STP ช่วยป้องกันอะไรในเครือข่าย?",
+          back: "โปรโตคอล STP ช่วยป้องกันลูปในเครือข่ายสวิตช์เลเยอร์ 2",
+        }),
+      ],
+      source,
+    );
 
     expect(result.rejected).toHaveLength(0);
   });

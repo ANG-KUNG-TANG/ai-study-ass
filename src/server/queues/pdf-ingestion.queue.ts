@@ -40,7 +40,6 @@ export interface PdfIngestionRetryResult {
   previousState: string;
 }
 
-
 type PdfIngestionQueue = Queue<PdfIngestionJobData, PdfIngestionJobResult>;
 
 type QueueGlobal = typeof globalThis & {

@@ -1,7 +1,4 @@
-import {
-  Knowledge,
-  type KnowledgeDocument,
-} from "@/server/models/Knowledge";
+import { Knowledge, type KnowledgeDocument } from "@/server/models/Knowledge";
 import type {
   IntelligenceResult,
   PipelineStage,
@@ -43,8 +40,7 @@ export function toEntity(doc: KnowledgeDocument): KnowledgeEntity {
     stage: doc.stage,
     error: doc.error,
     core: doc.core as KnowledgeEntity["core"],
-    ontologyMatches:
-      doc.ontologyMatches as KnowledgeEntity["ontologyMatches"],
+    ontologyMatches: doc.ontologyMatches as KnowledgeEntity["ontologyMatches"],
     graph: doc.graph,
     prologFacts: doc.prologFacts,
     gaps: doc.gaps as KnowledgeEntity["gaps"],
@@ -74,16 +70,17 @@ function toPersistence(input: CreateKnowledgeInput) {
   };
 }
 
-export async function save(input: CreateKnowledgeInput): Promise<KnowledgeEntity> {
-  const doc =
-    await new Knowledge(
-      toPersistence(input),
-    ).save();
+export async function save(
+  input: CreateKnowledgeInput,
+): Promise<KnowledgeEntity> {
+  const doc = await new Knowledge(toPersistence(input)).save();
 
   return toEntity(doc);
 }
 
-export async function upsert(input: CreateKnowledgeInput): Promise<KnowledgeEntity> {
+export async function upsert(
+  input: CreateKnowledgeInput,
+): Promise<KnowledgeEntity> {
   const doc = await Knowledge.findOneAndUpdate(
     { noteId: input.noteId },
     { $set: toPersistence(input), $unset: { error: "" } },
@@ -118,7 +115,9 @@ export async function upsertFailed(
   return toEntity(doc);
 }
 
-export async function findByNoteId(noteId: string): Promise<KnowledgeEntity | null> {
+export async function findByNoteId(
+  noteId: string,
+): Promise<KnowledgeEntity | null> {
   const doc = await Knowledge.findOne({ noteId });
   return doc ? toEntity(doc) : null;
 }
@@ -130,11 +129,15 @@ export async function findStagesByNoteIds(
   const docs = await Knowledge.find(
     { noteId: { $in: noteIds } },
     { noteId: 1, stage: 1 },
-  ).lean().exec();
-  return new Map(docs.map((doc: { noteId: string; stage: string }) => [
-    String(doc.noteId),
-    doc.stage,
-  ]));
+  )
+    .lean()
+    .exec();
+  return new Map(
+    docs.map((doc: { noteId: string; stage: string }) => [
+      String(doc.noteId),
+      doc.stage,
+    ]),
+  );
 }
 
 export async function deleteByNoteId(noteId: string): Promise<boolean> {

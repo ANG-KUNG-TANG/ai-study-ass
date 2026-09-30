@@ -7,7 +7,5 @@ export function generateActionToken(): string {
 }
 
 export function hashActionToken(token: string): string {
-  return createHash("sha256")
-    .update(token, "utf8")
-    .digest("hex");
+  return createHash("sha256").update(token, "utf8").digest("hex");
 }

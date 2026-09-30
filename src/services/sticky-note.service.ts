@@ -1,8 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import type {
-  CreateStickyNoteInput,
-  StickyNote,
-} from "@/types/sticky-note";
+import type { CreateStickyNoteInput, StickyNote } from "@/types/sticky-note";
 
 export async function listStickyNotes(limit = 20): Promise<StickyNote[]> {
   return apiFetch<StickyNote[]>(`/sticky-notes?limit=${limit}`);

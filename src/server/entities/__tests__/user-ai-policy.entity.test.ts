@@ -29,12 +29,14 @@ describe("UserAIPolicyEntity", () => {
   });
 
   it("rejects negative limits", () => {
-    expect(() => UserAIPolicyEntity.create({
-      userId: "user-1",
-      enabled: true,
-      dailyRequestLimit: -1,
-      dailyTokenLimit: null,
-      updatedBy: "admin-1",
-    })).toThrow("Validation failed");
+    expect(() =>
+      UserAIPolicyEntity.create({
+        userId: "user-1",
+        enabled: true,
+        dailyRequestLimit: -1,
+        dailyTokenLimit: null,
+        updatedBy: "admin-1",
+      }),
+    ).toThrow("Validation failed");
   });
 });

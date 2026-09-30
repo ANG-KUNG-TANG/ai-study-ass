@@ -33,7 +33,9 @@ export default function AdminContentDetailPage() {
       setData(await getAdminContent(id));
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Content could not be loaded.");
+      setError(
+        cause instanceof Error ? cause.message : "Content could not be loaded.",
+      );
     }
   }, [id]);
 
@@ -61,82 +63,210 @@ export default function AdminContentDetailPage() {
 
   return (
     <>
-      <Topbar eyebrow="Admin · Content" title={data?.note.title ?? "Content detail"} description="Inspect provenance, processing state, generated material, and provider activity before taking action." />
-      {error && <div className="mb-4 border-l-[3px] border-coral bg-coral-soft px-4 py-3 text-[12px] text-coral">{error}</div>}
+      <Topbar
+        eyebrow="Admin · Content"
+        title={data?.note.title ?? "Content detail"}
+        description="Inspect provenance, processing state, generated material, and provider activity before taking action."
+      />
+      {error && (
+        <div className="mb-4 border-l-[3px] border-coral bg-coral-soft px-4 py-3 text-[12px] text-coral">
+          {error}
+        </div>
+      )}
       {!data ? (
-        <AdminPanel className="rounded-none border-x-0 bg-transparent"><p className="py-8 text-center text-[12px] text-ink-faint">Loading content record…</p></AdminPanel>
+        <AdminPanel className="rounded-none border-x-0 bg-transparent">
+          <p className="py-8 text-center text-[12px] text-ink-faint">
+            Loading content record…
+          </p>
+        </AdminPanel>
       ) : (
         <div className="space-y-5">
           <AdminPanel className="rounded-none border-x-0 bg-transparent px-0">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-[12px] text-ink-soft">
-                  {data.note.fileName} · {data.note.fileType.toUpperCase()} · {(data.note.fileSize / 1024).toFixed(1)} KB
-                  {data.note.sourcePageCount ? ` · ${data.note.sourcePageCount} pages` : ""}
+                  {data.note.fileName} · {data.note.fileType.toUpperCase()} ·{" "}
+                  {(data.note.fileSize / 1024).toFixed(1)} KB
+                  {data.note.sourcePageCount
+                    ? ` · ${data.note.sourcePageCount} pages`
+                    : ""}
                 </p>
-                <p className="mt-1 text-[11px] text-ink-faint">Owner: {data.owner?.email ?? "Deleted account"} · Created {new Date(data.note.createdAt).toLocaleString()}</p>
+                <p className="mt-1 text-[11px] text-ink-faint">
+                  Owner: {data.owner?.email ?? "Deleted account"} · Created{" "}
+                  {new Date(data.note.createdAt).toLocaleString()}
+                </p>
                 <p className="mt-2 text-[12px]">
-                  Admin state: <span className={data.note.adminStatus === "quarantined" ? "text-coral" : "text-sage"}>{data.note.adminStatus}</span>
-                  {data.note.quarantineReason ? ` · ${data.note.quarantineReason}` : ""}
+                  Admin state:{" "}
+                  <span
+                    className={
+                      data.note.adminStatus === "quarantined"
+                        ? "text-coral"
+                        : "text-sage"
+                    }
+                  >
+                    {data.note.adminStatus}
+                  </span>
+                  {data.note.quarantineReason
+                    ? ` · ${data.note.quarantineReason}`
+                    : ""}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button disabled={busy} onClick={() => void run("retrying generation", (value) => retryAdminContent(id, value))} className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] hover:bg-line-soft disabled:opacity-50"><RefreshCw size={14} /> Retry</button>
-                <button disabled={busy} onClick={() => void run("cancelling generation", (value) => cancelAdminContent(id, value))} className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] hover:bg-line-soft disabled:opacity-50"><Square size={14} /> Cancel queued</button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void run("retrying generation", (value) =>
+                      retryAdminContent(id, value),
+                    )
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] hover:bg-line-soft disabled:opacity-50"
+                >
+                  <RefreshCw size={14} /> Retry
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void run("cancelling generation", (value) =>
+                      cancelAdminContent(id, value),
+                    )
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] hover:bg-line-soft disabled:opacity-50"
+                >
+                  <Square size={14} /> Cancel queued
+                </button>
                 {data.note.adminStatus === "quarantined" ? (
-                  <button disabled={busy} onClick={() => void run("restoring content", (value) => restoreAdminContent(id, value))} className="inline-flex items-center gap-2 rounded-lg border border-sage/30 px-3 py-2 text-[12px] text-sage disabled:opacity-50"><RotateCcw size={14} /> Restore</button>
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      void run("restoring content", (value) =>
+                        restoreAdminContent(id, value),
+                      )
+                    }
+                    className="inline-flex items-center gap-2 rounded-lg border border-sage/30 px-3 py-2 text-[12px] text-sage disabled:opacity-50"
+                  >
+                    <RotateCcw size={14} /> Restore
+                  </button>
                 ) : (
-                  <button disabled={busy} onClick={() => void run("quarantining content", (value) => quarantineAdminContent(id, value))} className="inline-flex items-center gap-2 rounded-lg border border-coral/30 px-3 py-2 text-[12px] text-coral disabled:opacity-50"><Ban size={14} /> Quarantine</button>
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      void run("quarantining content", (value) =>
+                        quarantineAdminContent(id, value),
+                      )
+                    }
+                    className="inline-flex items-center gap-2 rounded-lg border border-coral/30 px-3 py-2 text-[12px] text-coral disabled:opacity-50"
+                  >
+                    <Ban size={14} /> Quarantine
+                  </button>
                 )}
                 <button
                   disabled={busy}
                   onClick={() => {
-                    if (!window.confirm("Permanently delete this content and its generated material?")) return;
+                    if (
+                      !window.confirm(
+                        "Permanently delete this content and its generated material?",
+                      )
+                    )
+                      return;
                     void run("deleting content", async (value) => {
                       await deleteAdminContent(id, value);
                       router.push("/admin/content");
                     });
                   }}
                   className="inline-flex items-center gap-2 rounded-lg bg-coral px-3 py-2 text-[12px] text-white disabled:opacity-50"
-                ><Trash2 size={14} /> Delete</button>
+                >
+                  <Trash2 size={14} /> Delete
+                </button>
               </div>
             </div>
           </AdminPanel>
 
           <div className="grid border-y border-line lg:grid-cols-2">
             <AdminPanel className="rounded-none border-0 border-b bg-transparent px-0 lg:border-b-0 lg:border-r lg:pr-5">
-              <h2 className="font-serif text-[16px] font-semibold">Processing</h2>
+              <h2 className="font-serif text-[16px] font-semibold">
+                Processing
+              </h2>
               <dl className="mt-4 space-y-2 text-[12px]">
-                <div className="flex justify-between"><dt className="text-ink-soft">Generation stage</dt><dd>{data.generation?.stage ?? "Not started"}</dd></div>
-                <div className="flex justify-between"><dt className="text-ink-soft">Intelligence stage</dt><dd>{data.intelligence?.stage ?? "Not started"}</dd></div>
-                <div className="flex justify-between"><dt className="text-ink-soft">Queue state</dt><dd>{data.queue?.state ?? "No retained job"}</dd></div>
-                {data.queue?.failedReason && <div className="rounded-lg bg-coral-soft p-3 text-coral">{data.queue.failedReason}</div>}
+                <div className="flex justify-between">
+                  <dt className="text-ink-soft">Generation stage</dt>
+                  <dd>{data.generation?.stage ?? "Not started"}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-ink-soft">Intelligence stage</dt>
+                  <dd>{data.intelligence?.stage ?? "Not started"}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-ink-soft">Queue state</dt>
+                  <dd>{data.queue?.state ?? "No retained job"}</dd>
+                </div>
+                {data.queue?.failedReason && (
+                  <div className="rounded-lg bg-coral-soft p-3 text-coral">
+                    {data.queue.failedReason}
+                  </div>
+                )}
               </dl>
               {data.generation?.features && (
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  {Object.entries(data.generation.features).map(([name, feature]) => (
-                    <div key={name} className="border-b border-line-soft py-3 text-[11px]"><p className="font-medium">{name}</p><p className="mt-1 text-ink-faint">{feature.status}{feature.error ? ` · ${feature.error}` : ""}</p></div>
-                  ))}
+                  {Object.entries(data.generation.features).map(
+                    ([name, feature]) => (
+                      <div
+                        key={name}
+                        className="border-b border-line-soft py-3 text-[11px]"
+                      >
+                        <p className="font-medium">{name}</p>
+                        <p className="mt-1 text-ink-faint">
+                          {feature.status}
+                          {feature.error ? ` · ${feature.error}` : ""}
+                        </p>
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
             </AdminPanel>
 
             <AdminPanel className="rounded-none border-0 bg-transparent px-0 lg:pl-5">
-              <h2 className="font-serif text-[16px] font-semibold">AI usage for this note</h2>
-              <p className="mt-2 text-[12px] text-ink-soft">{data.aiUsage.length} retained provider event(s)</p>
+              <h2 className="font-serif text-[16px] font-semibold">
+                AI usage for this note
+              </h2>
+              <p className="mt-2 text-[12px] text-ink-soft">
+                {data.aiUsage.length} retained provider event(s)
+              </p>
               <div className="mt-4 max-h-56 space-y-2 overflow-auto">
                 {data.aiUsage.map((item) => (
-                  <div key={item.id} className="flex justify-between border-b border-line-soft py-2 text-[10px]"><span>{item.usageLabel} · {item.provider}</span><span>{item.tokensUsed.toLocaleString()} tokens · ${item.estimatedCostUsd.toFixed(6)}</span></div>
+                  <div
+                    key={item.id}
+                    className="flex justify-between border-b border-line-soft py-2 text-[10px]"
+                  >
+                    <span>
+                      {item.usageLabel} · {item.provider}
+                    </span>
+                    <span>
+                      {item.tokensUsed.toLocaleString()} tokens · $
+                      {item.estimatedCostUsd.toFixed(6)}
+                    </span>
+                  </div>
                 ))}
-                {data.aiUsage.length === 0 && <p className="text-[11px] text-ink-faint">No AI-provider usage is associated with this note.</p>}
+                {data.aiUsage.length === 0 && (
+                  <p className="text-[11px] text-ink-faint">
+                    No AI-provider usage is associated with this note.
+                  </p>
+                )}
               </div>
             </AdminPanel>
           </div>
 
           <AdminPanel className="rounded-none border-x-0 bg-transparent px-0">
-            <h2 className="font-serif text-[16px] font-semibold">Extracted context preview</h2>
-            <p className="mt-1 text-[10px] text-ink-faint">The original upload is removed from temporary storage after ingestion; this is the retained extracted text.</p>
-            <pre className="mt-4 max-h-[420px] overflow-auto whitespace-pre-wrap border-l-[3px] border-yellow bg-line-soft p-4 font-mono text-[11px] leading-5 text-ink-soft">{data.extractedTextPreview}</pre>
+            <h2 className="font-serif text-[16px] font-semibold">
+              Extracted context preview
+            </h2>
+            <p className="mt-1 text-[10px] text-ink-faint">
+              The original upload is removed from temporary storage after
+              ingestion; this is the retained extracted text.
+            </p>
+            <pre className="mt-4 max-h-[420px] overflow-auto whitespace-pre-wrap border-l-[3px] border-yellow bg-line-soft p-4 font-mono text-[11px] leading-5 text-ink-soft">
+              {data.extractedTextPreview}
+            </pre>
           </AdminPanel>
         </div>
       )}

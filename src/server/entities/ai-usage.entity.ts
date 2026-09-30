@@ -1,12 +1,8 @@
 import { ValidationError } from "@/server/utils/errors";
 
-export const AI_USAGE_PROVIDERS = [
-  "openai",
-  "gemini",
-] as const;
+export const AI_USAGE_PROVIDERS = ["openai", "gemini"] as const;
 
-export type AIUsageProvider =
-  (typeof AI_USAGE_PROVIDERS)[number];
+export type AIUsageProvider = (typeof AI_USAGE_PROVIDERS)[number];
 
 export interface AIUsageProps {
   id: string;
@@ -36,10 +32,7 @@ export interface AIUsageProps {
   createdAt: Date;
 }
 
-function validateNonNegative(
-  field: string,
-  value: number,
-): void {
+function validateNonNegative(field: string, value: number): void {
   if (!Number.isFinite(value) || value < 0) {
     throw new ValidationError("Validation failed", {
       [field]: `${field} must be a non-negative number`,
@@ -83,10 +76,7 @@ export class AIUsageEntity {
       });
     }
 
-    validateNonNegative(
-      "tokensUsed",
-      input.tokensUsed,
-    );
+    validateNonNegative("tokensUsed", input.tokensUsed);
 
     const inputTokens = input.inputTokens ?? 0;
     const outputTokens = input.outputTokens ?? 0;
@@ -96,18 +86,13 @@ export class AIUsageEntity {
     validateNonNegative("outputTokens", outputTokens);
     validateNonNegative("estimatedCostUsd", estimatedCostUsd);
 
-    validateNonNegative(
-      "latencyMs",
-      input.latencyMs,
-    );
+    validateNonNegative("latencyMs", input.latencyMs);
 
     if (
       input.statusCode !== null &&
-      (
-        !Number.isInteger(input.statusCode) ||
+      (!Number.isInteger(input.statusCode) ||
         input.statusCode < 100 ||
-        input.statusCode > 599
-      )
+        input.statusCode > 599)
     ) {
       throw new ValidationError("Validation failed", {
         statusCode: "Invalid HTTP status code",
@@ -127,9 +112,7 @@ export class AIUsageEntity {
     });
   }
 
-  static fromPersistence(
-    props: AIUsageProps,
-  ): AIUsageEntity {
+  static fromPersistence(props: AIUsageProps): AIUsageEntity {
     return new AIUsageEntity(props);
   }
 

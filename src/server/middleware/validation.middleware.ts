@@ -1,6 +1,10 @@
 import { z, type ZodSchema } from "zod";
 import { ValidationError } from "@/server/utils/errors";
-import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from "@/server/utils/constants";
+import {
+  DEFAULT_PAGE,
+  DEFAULT_LIMIT,
+  MAX_LIMIT,
+} from "@/server/utils/constants";
 
 // ─── validateBody ─────────────────────────────────────────────────────────────
 // Parses + validates JSON request body against a Zod schema.
@@ -11,7 +15,7 @@ import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from "@/server/utils/constants
 
 export async function validateBody<T>(
   req: Request,
-  schema: ZodSchema<T>
+  schema: ZodSchema<T>,
 ): Promise<T> {
   let body: unknown;
 
@@ -25,7 +29,7 @@ export async function validateBody<T>(
 
   if (!result.success) {
     const fields = Object.fromEntries(
-      result.error.issues.map((i) => [i.path.join("."), i.message])
+      result.error.issues.map((i) => [i.path.join("."), i.message]),
     );
     throw new ValidationError("Validation failed", fields);
   }
@@ -48,7 +52,7 @@ export function validateQuery<T>(req: Request, schema: ZodSchema<T>): T {
 
   if (!result.success) {
     const fields = Object.fromEntries(
-      result.error.issues.map((i) => [i.path.join("."), i.message])
+      result.error.issues.map((i) => [i.path.join("."), i.message]),
     );
     throw new ValidationError("Invalid query parameters", fields);
   }

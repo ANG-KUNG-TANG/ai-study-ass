@@ -1,12 +1,7 @@
-import type {
-  GroundedKnowledge,
-} from "@/server/intelligence/grounding";
+import type { GroundedKnowledge } from "@/server/intelligence/grounding";
 import { toLearningGrounding } from "@/server/services/quality/learning-evidence.service";
 
-export type ChatAnswerability =
-  | "ANSWERABLE"
-  | "PARTIAL"
-  | "NOT_ANSWERABLE";
+export type ChatAnswerability = "ANSWERABLE" | "PARTIAL" | "NOT_ANSWERABLE";
 
 export type ChatGroundingIssueCode =
   | "UNSUPPORTED_NUMERIC"
@@ -109,29 +104,18 @@ export function classifyGroundedQuestion(
   grounding: GroundedKnowledge,
   question: string,
 ): ChatGroundingDecision {
-  const candidates = buildEvidenceCandidates(
-    grounding,
-  );
+  const candidates = buildEvidenceCandidates(grounding);
 
   if (candidates.length === 0) {
     return notAnswerableDecision();
   }
 
-  const broadStudyQuery =
-    BROAD_STUDY_QUERY_RE.test(question);
+  const broadStudyQuery = BROAD_STUDY_QUERY_RE.test(question);
 
   if (broadStudyQuery) {
     const selected = candidates
-      .filter(
-        (candidate) =>
-          candidate.answerText.trim().length >
-          0,
-      )
-      .sort(
-        (left, right) =>
-          right.importance -
-          left.importance,
-      )
+      .filter((candidate) => candidate.answerText.trim().length > 0)
+      .sort((left, right) => right.importance - left.importance)
       .slice(0, 4);
 
     if (selected.length === 0) {
@@ -143,51 +127,25 @@ export function classifyGroundedQuestion(
       confidence: 0.9,
       queryCoverage: 1,
       evidence: uniqueStrings(
-        selected.map(
-          (candidate) =>
-            candidate.evidenceText,
-        ),
+        selected.map((candidate) => candidate.evidenceText),
       ),
-      evidenceIds: uniqueStrings(
-        selected.map(
-          (candidate) =>
-            candidate.id,
-        ),
-      ),
+      evidenceIds: uniqueStrings(selected.map((candidate) => candidate.id)),
       supportedPoints: uniqueStrings(
-        selected.map(
-          (candidate) =>
-            candidate.answerText,
-        ),
+        selected.map((candidate) => candidate.answerText),
       ),
     };
   }
 
-  const queryTokens = meaningfulTokens(
-    question,
-  );
+  const queryTokens = meaningfulTokens(question);
 
   if (queryTokens.size === 0) {
     return notAnswerableDecision();
   }
 
   const ranked = candidates
-    .map((candidate) =>
-      rankCandidate(
-        candidate,
-        question,
-        queryTokens,
-      ),
-    )
-    .filter(
-      (item) =>
-        item.score >= 0.2 &&
-        item.matchedQueryTokens.size > 0,
-    )
-    .sort(
-      (left, right) =>
-        right.score - left.score,
-    )
+    .map((candidate) => rankCandidate(candidate, question, queryTokens))
+    .filter((item) => item.score >= 0.2 && item.matchedQueryTokens.size > 0)
+    .sort((left, right) => right.score - left.score)
     .slice(0, 4);
 
   if (ranked.length === 0) {
@@ -196,100 +154,58 @@ export function classifyGroundedQuestion(
 
   const matchedTokens = new Set<string>();
   for (const item of ranked) {
-    for (
-      const token of
-      item.matchedQueryTokens
-    ) {
+    for (const token of item.matchedQueryTokens) {
       matchedTokens.add(token);
     }
   }
 
   const queryCoverage =
-    queryTokens.size === 0
-      ? 0
-      : matchedTokens.size /
-        queryTokens.size;
+    queryTokens.size === 0 ? 0 : matchedTokens.size / queryTokens.size;
 
-  const bestScore =
-    ranked[0]?.score ?? 0;
+  const bestScore = ranked[0]?.score ?? 0;
 
-  let answerability:
-    ChatAnswerability;
+  let answerability: ChatAnswerability;
 
-  if (
-    queryCoverage >= 0.72 &&
-    bestScore >= 0.48
-  ) {
+  if (queryCoverage >= 0.72 && bestScore >= 0.48) {
     answerability = "ANSWERABLE";
-  } else if (
-    queryCoverage >= 0.2 &&
-    bestScore >= 0.28
-  ) {
+  } else if (queryCoverage >= 0.2 && bestScore >= 0.28) {
     answerability = "PARTIAL";
   } else {
     return notAnswerableDecision();
   }
 
-  const selected =
-    selectDiverseCandidates(ranked, 3);
+  const selected = selectDiverseCandidates(ranked, 3);
 
   return {
     answerability,
-    confidence:
-      roundRatio(
-        Math.min(
-          0.97,
-          0.35 +
-            queryCoverage * 0.45 +
-            bestScore * 0.2,
-        ),
-      ),
-    queryCoverage:
-      roundRatio(queryCoverage),
+    confidence: roundRatio(
+      Math.min(0.97, 0.35 + queryCoverage * 0.45 + bestScore * 0.2),
+    ),
+    queryCoverage: roundRatio(queryCoverage),
     evidence: uniqueStrings(
-      selected.map(
-        (item) =>
-          item.candidate.evidenceText,
-      ),
+      selected.map((item) => item.candidate.evidenceText),
     ),
-    evidenceIds: uniqueStrings(
-      selected.map(
-        (item) =>
-          item.candidate.id,
-      ),
+    evidenceIds: uniqueStrings(selected.map((item) => item.candidate.id)),
+    supportedPoints: uniqueStrings(
+      selected.map((item) => item.candidate.answerText),
     ),
-    supportedPoints:
-      uniqueStrings(
-        selected.map(
-          (item) =>
-            item.candidate.answerText,
-        ),
-      ),
   };
 }
 
 export function buildGroundedChatFallback(
   decision: ChatGroundingDecision,
 ): string {
-  if (
-    decision.answerability ===
-    "NOT_ANSWERABLE"
-  ) {
+  if (decision.answerability === "NOT_ANSWERABLE") {
     return (
       "I couldn't find verified evidence in this document that answers that question. " +
       "I won't guess beyond the uploaded material."
     );
   }
 
-  const points =
-    decision.supportedPoints
-      .filter(Boolean)
-      .slice(0, 3);
+  const points = decision.supportedPoints.filter(Boolean).slice(0, 3);
 
   if (points.length === 0) {
-    return (
-      "I couldn't find enough verified document evidence to answer that confidently."
-    );
+    return "I couldn't find enough verified document evidence to answer that confidently.";
   }
 
   const body =
@@ -297,15 +213,10 @@ export function buildGroundedChatFallback(
       ? points[0]!
       : [
           "Based on verified document evidence:",
-          ...points.map(
-            (point) => `- ${point}`,
-          ),
+          ...points.map((point) => `- ${point}`),
         ].join("\n");
 
-  if (
-    decision.answerability ===
-    "PARTIAL"
-  ) {
+  if (decision.answerability === "PARTIAL") {
     return (
       `${body}\n\n` +
       "The document only supports part of your question; I couldn't verify the rest from the uploaded material."
@@ -319,18 +230,12 @@ export function validateGroundedChatResponse(
   answer: string,
   decision: ChatGroundingDecision,
 ): ChatResponseValidation {
-  const issueCodes:
-    ChatGroundingIssueCode[] = [];
+  const issueCodes: ChatGroundingIssueCode[] = [];
 
-  if (
-    decision.answerability ===
-    "NOT_ANSWERABLE"
-  ) {
+  if (decision.answerability === "NOT_ANSWERABLE") {
     return {
       accepted: false,
-      issueCodes: [
-        "UNSUPPORTED_CLAIM",
-      ],
+      issueCodes: ["UNSUPPORTED_CLAIM"],
     };
   }
 
@@ -339,96 +244,57 @@ export function validateGroundedChatResponse(
     ...decision.supportedPoints,
   ]).join(" ");
 
-  const answerNumbers =
-    numericTokens(answer);
-  const supportNumbers =
-    numericTokens(supportCorpus);
+  const answerNumbers = numericTokens(answer);
+  const supportNumbers = numericTokens(supportCorpus);
 
-  if (
-    !isSubset(
-      answerNumbers,
-      supportNumbers,
-    )
-  ) {
-    issueCodes.push(
-      "UNSUPPORTED_NUMERIC",
-    );
+  if (!isSubset(answerNumbers, supportNumbers)) {
+    issueCodes.push("UNSUPPORTED_NUMERIC");
   }
 
-  const statements =
-    factualStatements(answer);
+  const statements = factualStatements(answer);
 
   for (const statement of statements) {
-    if (
-      LIMITATION_RE.test(statement)
-    ) {
+    if (LIMITATION_RE.test(statement)) {
       continue;
     }
 
-    const support =
-      supportScore(
-        statement,
-        supportCorpus,
-      );
+    const support = supportScore(statement, supportCorpus);
 
     if (support < 0.46) {
-      issueCodes.push(
-        "UNSUPPORTED_CLAIM",
-      );
+      issueCodes.push("UNSUPPORTED_CLAIM");
       break;
     }
   }
 
-  if (
-    decision.answerability ===
-      "PARTIAL" &&
-    !LIMITATION_RE.test(answer)
-  ) {
-    issueCodes.push(
-      "PARTIAL_WITHOUT_LIMITATION",
-    );
+  if (decision.answerability === "PARTIAL" && !LIMITATION_RE.test(answer)) {
+    issueCodes.push("PARTIAL_WITHOUT_LIMITATION");
   }
 
   if (
-    decision.answerability ===
-      "ANSWERABLE" &&
+    decision.answerability === "ANSWERABLE" &&
     LIMITATION_RE.test(answer) &&
-    statements.every(
-      (statement) =>
-        LIMITATION_RE.test(statement),
-    )
+    statements.every((statement) => LIMITATION_RE.test(statement))
   ) {
-    issueCodes.push(
-      "UNEXPECTED_ABSTENTION",
-    );
+    issueCodes.push("UNEXPECTED_ABSTENTION");
   }
 
   return {
-    accepted:
-      issueCodes.length === 0,
-    issueCodes:
-      [...new Set(issueCodes)],
+    accepted: issueCodes.length === 0,
+    issueCodes: [...new Set(issueCodes)],
   };
 }
 
 export function chatGroundingLogContext(
   decision: ChatGroundingDecision,
-  validation?:
-    ChatResponseValidation,
+  validation?: ChatResponseValidation,
 ): Record<string, unknown> {
   return {
-    answerability:
-      decision.answerability,
-    groundingConfidence:
-      decision.confidence,
-    queryCoverage:
-      decision.queryCoverage,
-    evidenceCount:
-      decision.evidence.length,
-    responseAccepted:
-      validation?.accepted,
-    responseIssueCodes:
-      validation?.issueCodes ?? [],
+    answerability: decision.answerability,
+    groundingConfidence: decision.confidence,
+    queryCoverage: decision.queryCoverage,
+    evidenceCount: decision.evidence.length,
+    responseAccepted: validation?.accepted,
+    responseIssueCodes: validation?.issueCodes ?? [],
   };
 }
 
@@ -436,146 +302,83 @@ function buildEvidenceCandidates(
   grounding: GroundedKnowledge,
 ): EvidenceCandidate[] {
   grounding = toLearningGrounding(grounding);
-  const headings =
-    new Map(
-      grounding.sections.map(
-        (section) => [
-          section.sectionId,
-          section.heading,
-        ],
-      ),
-    );
+  const headings = new Map(
+    grounding.sections.map((section) => [section.sectionId, section.heading]),
+  );
 
-  const candidates:
-    EvidenceCandidate[] = [];
+  const candidates: EvidenceCandidate[] = [];
 
   for (const term of grounding.keyTerms) {
-    if (
-      term.evidence.length === 0 ||
-      !term.definition.trim()
-    ) {
+    if (term.evidence.length === 0 || !term.definition.trim()) {
       continue;
     }
 
     candidates.push({
-      id:
-        term.evidence[0]?.id ??
-        `term:${normalise(term.term)}`,
-      answerText:
-        term.definition.trim(),
+      id: term.evidence[0]?.id ?? `term:${normalise(term.term)}`,
+      answerText: term.definition.trim(),
       searchableText: [
         term.term,
         term.definition,
-        headings.get(
-          term.sourceSectionId,
-        ) ?? "",
-        ...term.evidence.map(
-          (evidence) =>
-            evidence.text,
-        ),
+        headings.get(term.sourceSectionId) ?? "",
+        ...term.evidence.map((evidence) => evidence.text),
       ].join(" "),
-      evidenceText:
-        term.evidence[0]?.text ??
-        term.definition,
-      aliases:
-        aliasesFor(term.term),
-      importance:
-        Math.max(
-          0.8,
-          term.confidence,
-        ),
+      evidenceText: term.evidence[0]?.text ?? term.definition,
+      aliases: aliasesFor(term.term),
+      importance: Math.max(0.8, term.confidence),
     });
   }
 
-  for (
-    const concept of
-    grounding.concepts
-  ) {
-    if (
-      concept.evidence.length === 0
-    ) {
+  for (const concept of grounding.concepts) {
+    if (concept.evidence.length === 0) {
       continue;
     }
 
     const answerText =
-      concept.explanation?.trim() ||
-      concept.evidence[0]?.text ||
-      "";
+      concept.explanation?.trim() || concept.evidence[0]?.text || "";
 
     if (!answerText) continue;
 
     candidates.push({
-      id:
-        concept.evidence[0]?.id ??
-        `concept:${normalise(
-          concept.name,
-        )}`,
+      id: concept.evidence[0]?.id ?? `concept:${normalise(concept.name)}`,
       answerText,
       searchableText: [
         concept.name,
         concept.explanation ?? "",
         ...concept.sourceSectionIds.map(
-          (sectionId) =>
-            headings.get(sectionId) ??
-            "",
+          (sectionId) => headings.get(sectionId) ?? "",
         ),
-        ...concept.evidence.map(
-          (evidence) =>
-            evidence.text,
-        ),
+        ...concept.evidence.map((evidence) => evidence.text),
       ].join(" "),
-      evidenceText:
-        concept.evidence[0]?.text ??
-        answerText,
-      aliases:
-        aliasesFor(
-          concept.name,
-        ),
-      importance:
-        concept.importanceScore,
+      evidenceText: concept.evidence[0]?.text ?? answerText,
+      aliases: aliasesFor(concept.name),
+      importance: concept.importanceScore,
     });
   }
 
   for (const fact of grounding.facts) {
     if (
-      fact.verificationStatus !==
-        "supported" ||
+      fact.verificationStatus !== "supported" ||
       fact.evidence.length === 0 ||
-      !isChatEligibleFact(
-        fact.content,
-      )
+      !isChatEligibleFact(fact.content)
     ) {
       continue;
     }
 
     candidates.push({
-      id:
-        fact.evidence[0]?.id ??
-        fact.id,
-      answerText:
-        fact.content,
+      id: fact.evidence[0]?.id ?? fact.id,
+      answerText: fact.content,
       searchableText: [
         fact.content,
-        headings.get(
-          fact.sourceSectionId,
-        ) ?? "",
-        ...fact.evidence.map(
-          (evidence) =>
-            evidence.text,
-        ),
+        headings.get(fact.sourceSectionId) ?? "",
+        ...fact.evidence.map((evidence) => evidence.text),
       ].join(" "),
-      evidenceText:
-        fact.evidence[0]?.text ??
-        fact.content,
+      evidenceText: fact.evidence[0]?.text ?? fact.content,
       aliases: [],
-      importance:
-        fact.importanceScore,
+      importance: fact.importanceScore,
     });
   }
 
-  return deduplicateCandidates(
-    candidates,
-  );
+  return deduplicateCandidates(candidates);
 }
 
 function rankCandidate(
@@ -583,59 +386,31 @@ function rankCandidate(
   question: string,
   queryTokens: Set<string>,
 ): RankedCandidate {
-  const sourceTokens =
-    meaningfulTokens(
-      candidate.searchableText,
-    );
-  const matchedQueryTokens =
-    intersection(
-      queryTokens,
-      sourceTokens,
-    );
+  const sourceTokens = meaningfulTokens(candidate.searchableText);
+  const matchedQueryTokens = intersection(queryTokens, sourceTokens);
 
   const queryCoverage =
-    queryTokens.size === 0
-      ? 0
-      : matchedQueryTokens.size /
-        queryTokens.size;
+    queryTokens.size === 0 ? 0 : matchedQueryTokens.size / queryTokens.size;
 
-  const phraseBonus =
-    candidate.aliases.some(
-      (alias) =>
-        alias.length >= 2 &&
-        containsPhrase(
-          question,
-          alias,
-        ),
-    )
-      ? 0.36
-      : 0;
+  const phraseBonus = candidate.aliases.some(
+    (alias) => alias.length >= 2 && containsPhrase(question, alias),
+  )
+    ? 0.36
+    : 0;
 
   const sourceSpecificity =
     sourceTokens.size === 0
       ? 0
       : matchedQueryTokens.size /
-        Math.min(
-          sourceTokens.size,
-          Math.max(
-            1,
-            queryTokens.size,
-          ),
-        );
+        Math.min(sourceTokens.size, Math.max(1, queryTokens.size));
 
   return {
     candidate,
     score:
       queryCoverage * 0.62 +
-      Math.min(
-        0.22,
-        sourceSpecificity * 0.22,
-      ) +
+      Math.min(0.22, sourceSpecificity * 0.22) +
       phraseBonus +
-      Math.min(
-        0.08,
-        candidate.importance * 0.08,
-      ),
+      Math.min(0.08, candidate.importance * 0.08),
     matchedQueryTokens,
   };
 }
@@ -644,30 +419,20 @@ function selectDiverseCandidates(
   ranked: RankedCandidate[],
   limit: number,
 ): RankedCandidate[] {
-  const selected:
-    RankedCandidate[] = [];
-  const seenAnswers =
-    new Set<string>();
+  const selected: RankedCandidate[] = [];
+  const seenAnswers = new Set<string>();
 
   for (const item of ranked) {
-    const key =
-      normalise(
-        item.candidate.answerText,
-      );
+    const key = normalise(item.candidate.answerText);
 
-    if (
-      !key ||
-      seenAnswers.has(key)
-    ) {
+    if (!key || seenAnswers.has(key)) {
       continue;
     }
 
     seenAnswers.add(key);
     selected.push(item);
 
-    if (
-      selected.length >= limit
-    ) {
+    if (selected.length >= limit) {
       break;
     }
   }
@@ -678,16 +443,11 @@ function selectDiverseCandidates(
 function deduplicateCandidates(
   candidates: EvidenceCandidate[],
 ): EvidenceCandidate[] {
-  const output:
-    EvidenceCandidate[] = [];
-  const seen =
-    new Set<string>();
+  const output: EvidenceCandidate[] = [];
+  const seen = new Set<string>();
 
   for (const candidate of candidates) {
-    const key =
-      normalise(
-        candidate.answerText,
-      );
+    const key = normalise(candidate.answerText);
 
     if (!key || seen.has(key)) {
       continue;
@@ -700,46 +460,22 @@ function deduplicateCandidates(
   return output;
 }
 
-function factualStatements(
-  answer: string,
-): string[] {
+function factualStatements(answer: string): string[] {
   return answer
-    .split(
-      /\n+|(?<=[.!?。！？])\s+/u,
-    )
-    .map((statement) =>
-      statement
-        .replace(
-          /^\s*[-*•]\s*/u,
-          "",
-        )
-        .trim(),
-    )
+    .split(/\n+|(?<=[.!?。！？])\s+/u)
+    .map((statement) => statement.replace(/^\s*[-*•]\s*/u, "").trim())
     .filter(
       (statement) =>
         statement.length > 0 &&
-        !SCAFFOLDING_RE.test(
-          statement,
-        ) &&
-        (
-          meaningfulTokens(
-            statement,
-          ).size >= 3 ||
-          numericTokens(
-            statement,
-          ).size > 0
-        ),
+        !SCAFFOLDING_RE.test(statement) &&
+        (meaningfulTokens(statement).size >= 3 ||
+          numericTokens(statement).size > 0),
     );
 }
 
-function supportScore(
-  candidate: string,
-  source: string,
-): number {
-  const left =
-    normalise(candidate);
-  const right =
-    normalise(source);
+function supportScore(candidate: string, source: string): number {
+  const left = normalise(candidate);
+  const right = normalise(source);
 
   if (!left || !right) {
     return 0;
@@ -749,100 +485,56 @@ function supportScore(
     return 1;
   }
 
-  const tokenCoverage =
-    setCoverage(
-      meaningfulTokens(left),
-      meaningfulTokens(right),
-    );
-
-  const gramCoverage =
-    characterGramCoverage(
-      compact(left),
-      compact(right),
-      3,
-    );
-
-  return Math.max(
-    tokenCoverage,
-    gramCoverage * 0.88,
+  const tokenCoverage = setCoverage(
+    meaningfulTokens(left),
+    meaningfulTokens(right),
   );
+
+  const gramCoverage = characterGramCoverage(compact(left), compact(right), 3);
+
+  return Math.max(tokenCoverage, gramCoverage * 0.88);
 }
 
-function meaningfulTokens(
-  value: string,
-): Set<string> {
+function meaningfulTokens(value: string): Set<string> {
   const raw =
-    normalise(value).match(
-      /[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]*/gu,
-    ) ?? [];
+    normalise(value).match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]*/gu) ?? [];
 
   return new Set(
     raw
       .map(canonicalToken)
-      .filter(
-        (token) =>
-          token.length >= 2 &&
-          !QUERY_STOP_WORDS.has(
-            token,
-          ),
-      ),
+      .filter((token) => token.length >= 2 && !QUERY_STOP_WORDS.has(token)),
   );
 }
 
-function canonicalToken(
-  token: string,
-): string {
-  const value =
-    token.toLocaleLowerCase();
+function canonicalToken(token: string): string {
+  const value = token.toLocaleLowerCase();
 
-  if (
-    !/^[a-z0-9-]+$/u.test(
-      value,
-    ) ||
-    value.length <= 4
-  ) {
+  if (!/^[a-z0-9-]+$/u.test(value) || value.length <= 4) {
     return value;
   }
 
-  if (
-    value.endsWith("ing") &&
-    value.length > 6
-  ) {
+  if (value.endsWith("ing") && value.length > 6) {
     return value.slice(0, -3);
   }
 
-  if (
-    value.endsWith("ed") &&
-    value.length > 5
-  ) {
+  if (value.endsWith("ed") && value.length > 5) {
     return value.slice(0, -2);
   }
 
-  if (
-    value.endsWith("es") &&
-    value.length > 5
-  ) {
+  if (value.endsWith("es") && value.length > 5) {
     return value.slice(0, -2);
   }
 
-  if (
-    value.endsWith("s") &&
-    value.length > 4
-  ) {
+  if (value.endsWith("s") && value.length > 4) {
     return value.slice(0, -1);
   }
 
   return value;
 }
 
-function aliasesFor(
-  label: string,
-): string[] {
-  const aliases = [
-    normalise(label),
-  ];
-  const acronym =
-    initialism(label);
+function aliasesFor(label: string): string[] {
+  const aliases = [normalise(label)];
+  const acronym = initialism(label);
 
   if (acronym.length >= 2) {
     aliases.push(acronym);
@@ -851,106 +543,55 @@ function aliasesFor(
   return uniqueStrings(aliases);
 }
 
-function initialism(
-  value: string,
-): string {
-  const words =
-    value
-      .normalize("NFKC")
-      .match(
-        /[\p{L}\p{N}]+/gu,
-      ) ?? [];
+function initialism(value: string): string {
+  const words = value.normalize("NFKC").match(/[\p{L}\p{N}]+/gu) ?? [];
 
   if (words.length < 2) {
     return "";
   }
 
   return words
-    .map((word) =>
-      word[0] ?? "",
-    )
+    .map((word) => word[0] ?? "")
     .join("")
     .toLocaleLowerCase();
 }
 
-function containsPhrase(
-  text: string,
-  phrase: string,
-): boolean {
-  const haystack =
-    normalise(text);
-  const needle =
-    normalise(phrase);
+function containsPhrase(text: string, phrase: string): boolean {
+  const haystack = normalise(text);
+  const needle = normalise(phrase);
 
   if (!needle) return false;
 
-  const start =
-    haystack.indexOf(needle);
+  const start = haystack.indexOf(needle);
 
   if (start < 0) {
     return false;
   }
 
-  const before =
-    start === 0
-      ? ""
-      : haystack[
-          start - 1
-        ] ?? "";
-  const end =
-    start + needle.length;
-  const after =
-    end >= haystack.length
-      ? ""
-      : haystack[end] ?? "";
+  const before = start === 0 ? "" : (haystack[start - 1] ?? "");
+  const end = start + needle.length;
+  const after = end >= haystack.length ? "" : (haystack[end] ?? "");
 
   return (
-    !/[\p{L}\p{N}\p{M}]/u.test(
-      before,
-    ) &&
-    !/[\p{L}\p{N}\p{M}]/u.test(
-      after,
-    )
+    !/[\p{L}\p{N}\p{M}]/u.test(before) && !/[\p{L}\p{N}\p{M}]/u.test(after)
   );
 }
 
-function numericTokens(
-  value: string,
-): Set<string> {
+function numericTokens(value: string): Set<string> {
   return new Set(
     (
-      value
-        .normalize("NFKC")
-        .match(
-          /[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu,
-        ) ?? []
+      value.normalize("NFKC").match(/[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu) ?? []
     ).map((token) =>
-      token
-        .replace(/\s+/gu, "")
-        .replace(
-          /,(?=\d{3}(?:\D|$))/gu,
-          "",
-        ),
+      token.replace(/\s+/gu, "").replace(/,(?=\d{3}(?:\D|$))/gu, ""),
     ),
   );
 }
 
-function intersection(
-  left: Set<string>,
-  right: Set<string>,
-): Set<string> {
-  return new Set(
-    [...left].filter(
-      (token) =>
-        right.has(token),
-    ),
-  );
+function intersection(left: Set<string>, right: Set<string>): Set<string> {
+  return new Set([...left].filter((token) => right.has(token)));
 }
 
-function setCoverage(
-  candidate: Set<string>,
-  source: Set<string>,
-): number {
+function setCoverage(candidate: Set<string>, source: Set<string>): number {
   if (candidate.size === 0) {
     return 0;
   }
@@ -963,8 +604,7 @@ function setCoverage(
     }
   }
 
-  return matches /
-    candidate.size;
+  return matches / candidate.size;
 }
 
 function characterGramCoverage(
@@ -972,49 +612,24 @@ function characterGramCoverage(
   source: string,
   width: number,
 ): number {
-  if (
-    candidate.length < width ||
-    source.length < width
-  ) {
-    return candidate === source
-      ? 1
-      : 0;
+  if (candidate.length < width || source.length < width) {
+    return candidate === source ? 1 : 0;
   }
 
-  return setCoverage(
-    grams(candidate, width),
-    grams(source, width),
-  );
+  return setCoverage(grams(candidate, width), grams(source, width));
 }
 
-function grams(
-  value: string,
-  width: number,
-): Set<string> {
-  const output =
-    new Set<string>();
+function grams(value: string, width: number): Set<string> {
+  const output = new Set<string>();
 
-  for (
-    let index = 0;
-    index <=
-    value.length - width;
-    index += 1
-  ) {
-    output.add(
-      value.slice(
-        index,
-        index + width,
-      ),
-    );
+  for (let index = 0; index <= value.length - width; index += 1) {
+    output.add(value.slice(index, index + width));
   }
 
   return output;
 }
 
-function isSubset(
-  candidate: Set<string>,
-  source: Set<string>,
-): boolean {
+function isSubset(candidate: Set<string>, source: Set<string>): boolean {
   for (const token of candidate) {
     if (!source.has(token)) {
       return false;
@@ -1024,19 +639,15 @@ function isSubset(
   return true;
 }
 
-function isChatEligibleFact(
-  value: string,
-): boolean {
+function isChatEligibleFact(value: string): boolean {
   return !/^(?:project name|team members?|course:?|date:?|student name|student id|use case name|brief description|actor involved|system purpose|purpose of the system|problem summary|stakeholders|system scope)\b/iu.test(
     value.trim(),
   );
 }
 
-function notAnswerableDecision():
-  ChatGroundingDecision {
+function notAnswerableDecision(): ChatGroundingDecision {
   return {
-    answerability:
-      "NOT_ANSWERABLE",
+    answerability: "NOT_ANSWERABLE",
     confidence: 0.98,
     queryCoverage: 0,
     evidence: [],
@@ -1045,48 +656,23 @@ function notAnswerableDecision():
   };
 }
 
-function uniqueStrings(
-  values: string[],
-): string[] {
-  return [
-    ...new Set(
-      values.filter(
-        (value) =>
-          value.trim().length > 0,
-      ),
-    ),
-  ];
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter((value) => value.trim().length > 0))];
 }
 
-function compact(
-  value: string,
-): string {
-  return value.replace(
-    /[^\p{L}\p{N}]+/gu,
-    "",
-  );
+function compact(value: string): string {
+  return value.replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
-function normalise(
-  value: string,
-): string {
+function normalise(value: string): string {
   return value
     .normalize("NFKC")
     .toLocaleLowerCase()
-    .replace(
-      /[^\p{L}\p{N}\p{M}%+., -]+/gu,
-      " ",
-    )
+    .replace(/[^\p{L}\p{N}\p{M}%+., -]+/gu, " ")
     .replace(/\s+/gu, " ")
     .trim();
 }
 
-function roundRatio(
-  value: number,
-): number {
-  return (
-    Math.round(
-      value * 1000,
-    ) / 1000
-  );
+function roundRatio(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }

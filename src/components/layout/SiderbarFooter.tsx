@@ -19,7 +19,10 @@ export function SidebarFooter({ showStreak = true }: SidebarFooterProps) {
   return (
     <div className="flex flex-col gap-4">
       {showStreak && (
-        <StreakBox days={6} message="Review 2 more flashcard decks today to keep it going." />
+        <StreakBox
+          days={6}
+          message="Review 2 more flashcard decks today to keep it going."
+        />
       )}
 
       <div className="border-t border-line pt-4">
@@ -28,8 +31,12 @@ export function SidebarFooter({ showStreak = true }: SidebarFooterProps) {
             <User size={18} />
           </div>
           <div className="flex-1 overflow-hidden">
-            <div className="truncate text-[13px] font-medium text-ink">{user?.name || "Admin"}</div>
-            <div className="truncate text-[11px] text-ink-soft">{user?.email || "admin@recall.ai"}</div>
+            <div className="truncate text-[13px] font-medium text-ink">
+              {user?.name || "Admin"}
+            </div>
+            <div className="truncate text-[11px] text-ink-soft">
+              {user?.email || "admin@recall.ai"}
+            </div>
           </div>
         </div>
         <Button

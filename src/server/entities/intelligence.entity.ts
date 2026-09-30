@@ -1,14 +1,22 @@
 import { ValidationError } from "@/server/utils/errors";
-import type { KnowledgeCore, KnowledgeGraph, PrologFact, ResolvedConcept, GapDetectionResult } from "@/server/intelligence/types";
+import type {
+  KnowledgeCore,
+  KnowledgeGraph,
+  PrologFact,
+  ResolvedConcept,
+  GapDetectionResult,
+} from "@/server/intelligence/types";
 import type { GroundedKnowledge } from "@/server/intelligence/grounding";
 
 export const INTELLIGENCE_RULES = {
   symbolicOnlyThreshold: 0.85,
-  aiRequiredThreshold: 0.70,
+  aiRequiredThreshold: 0.7,
 } as const;
 
-export type IntelligenceStage = "extraction" | "ontology" | "graph" | "prolog" | "complete";
-export type ConfidenceMode = "SYMBOLIC_ONLY" | "SYMBOLIC_WITH_OPTIONAL_AI_POLISH" | "AI_REQUIRED";
+export type IntelligenceStage =
+  "extraction" | "ontology" | "graph" | "prolog" | "complete";
+export type ConfidenceMode =
+  "SYMBOLIC_ONLY" | "SYMBOLIC_WITH_OPTIONAL_AI_POLISH" | "AI_REQUIRED";
 
 export interface IntelligenceResultProps {
   noteId: string;
@@ -27,7 +35,9 @@ export interface IntelligenceResultProps {
 
 function validateConfidence(confidence: number): void {
   if (confidence < 0 || confidence > 1) {
-    throw new ValidationError("Validation failed", { confidence: "Confidence must be between 0 and 1" });
+    throw new ValidationError("Validation failed", {
+      confidence: "Confidence must be between 0 and 1",
+    });
   }
 }
 
@@ -60,18 +70,42 @@ export class IntelligenceResultEntity {
     this.#gaps = props.gaps ?? null;
   }
 
-  get noteId(): string { return this.#noteId; }
-  get stage(): IntelligenceStage { return this.#stage; }
-  get core(): KnowledgeCore | null { return this.#core; }
-  get grounding(): GroundedKnowledge | null { return this.#grounding; }
-  get ontology(): ResolvedConcept[] { return this.#ontology; }
-  get graph(): KnowledgeGraph | null { return this.#graph; }
-  get facts(): PrologFact[] { return this.#facts; }
-  get confidence(): number | null { return this.#confidence; }
-  get failedStage(): IntelligenceStage | null { return this.#failedStage; }
-  get failedReason(): string | null { return this.#failedReason; }
-  get processedAt(): Date { return this.#processedAt; }
-  get gaps(): GapDetectionResult | null { return this.#gaps; }
+  get noteId(): string {
+    return this.#noteId;
+  }
+  get stage(): IntelligenceStage {
+    return this.#stage;
+  }
+  get core(): KnowledgeCore | null {
+    return this.#core;
+  }
+  get grounding(): GroundedKnowledge | null {
+    return this.#grounding;
+  }
+  get ontology(): ResolvedConcept[] {
+    return this.#ontology;
+  }
+  get graph(): KnowledgeGraph | null {
+    return this.#graph;
+  }
+  get facts(): PrologFact[] {
+    return this.#facts;
+  }
+  get confidence(): number | null {
+    return this.#confidence;
+  }
+  get failedStage(): IntelligenceStage | null {
+    return this.#failedStage;
+  }
+  get failedReason(): string | null {
+    return this.#failedReason;
+  }
+  get processedAt(): Date {
+    return this.#processedAt;
+  }
+  get gaps(): GapDetectionResult | null {
+    return this.#gaps;
+  }
 
   static createSuccess(input: {
     noteId: string;
@@ -86,48 +120,93 @@ export class IntelligenceResultEntity {
     gaps?: GapDetectionResult | null;
   }): IntelligenceResultEntity {
     validateConfidence(input.confidence);
-    return new IntelligenceResultEntity({ ...input, failedStage: null, failedReason: null });
-  }
-
-  static createFailed(noteId: string, failedStage: IntelligenceStage, reason?: string): IntelligenceResultEntity {
     return new IntelligenceResultEntity({
-      noteId, stage: failedStage, core: null, grounding: null, ontology: [], graph: null, facts: [],
-      confidence: null, failedStage, failedReason: reason ?? null, processedAt: new Date(), gaps: null,
+      ...input,
+      failedStage: null,
+      failedReason: null,
     });
   }
 
-  static fromPersistence(props: IntelligenceResultProps): IntelligenceResultEntity {
+  static createFailed(
+    noteId: string,
+    failedStage: IntelligenceStage,
+    reason?: string,
+  ): IntelligenceResultEntity {
+    return new IntelligenceResultEntity({
+      noteId,
+      stage: failedStage,
+      core: null,
+      grounding: null,
+      ontology: [],
+      graph: null,
+      facts: [],
+      confidence: null,
+      failedStage,
+      failedReason: reason ?? null,
+      processedAt: new Date(),
+      gaps: null,
+    });
+  }
+
+  static fromPersistence(
+    props: IntelligenceResultProps,
+  ): IntelligenceResultEntity {
     return new IntelligenceResultEntity(props);
   }
 
-  belongsToNote(noteId: string): boolean { return this.#noteId === noteId; }
-  isComplete(): boolean { return this.#stage === "complete" && this.#failedStage === null; }
-  hasFailed(): boolean { return this.#failedStage !== null; }
+  belongsToNote(noteId: string): boolean {
+    return this.#noteId === noteId;
+  }
+  isComplete(): boolean {
+    return this.#stage === "complete" && this.#failedStage === null;
+  }
+  hasFailed(): boolean {
+    return this.#failedStage !== null;
+  }
 
   getConfidenceMode(): ConfidenceMode {
     if (!this.isComplete() || this.#confidence === null) return "AI_REQUIRED";
-    if (this.#confidence >= INTELLIGENCE_RULES.symbolicOnlyThreshold) return "SYMBOLIC_ONLY";
-    if (this.#confidence >= INTELLIGENCE_RULES.aiRequiredThreshold) return "SYMBOLIC_WITH_OPTIONAL_AI_POLISH";
+    if (this.#confidence >= INTELLIGENCE_RULES.symbolicOnlyThreshold)
+      return "SYMBOLIC_ONLY";
+    if (this.#confidence >= INTELLIGENCE_RULES.aiRequiredThreshold)
+      return "SYMBOLIC_WITH_OPTIONAL_AI_POLISH";
     return "AI_REQUIRED";
   }
 
-  needsAIFallback(): boolean { return this.getConfidenceMode() === "AI_REQUIRED"; }
-  canUseOptionalAIPolish(): boolean { return this.getConfidenceMode() === "SYMBOLIC_WITH_OPTIONAL_AI_POLISH"; }
-  hasReasoningData(): boolean { return this.#graph !== null && this.#facts.length > 0; }
-  resolvedConcepts(): ResolvedConcept[] { return this.#ontology.filter((r) => r.matchType !== "unknown"); }
+  needsAIFallback(): boolean {
+    return this.getConfidenceMode() === "AI_REQUIRED";
+  }
+  canUseOptionalAIPolish(): boolean {
+    return this.getConfidenceMode() === "SYMBOLIC_WITH_OPTIONAL_AI_POLISH";
+  }
+  hasReasoningData(): boolean {
+    return this.#graph !== null && this.#facts.length > 0;
+  }
+  resolvedConcepts(): ResolvedConcept[] {
+    return this.#ontology.filter((r) => r.matchType !== "unknown");
+  }
 
   toPublic(): IntelligenceResultProps {
     return {
-      noteId: this.#noteId, stage: this.#stage, core: this.#core, grounding: this.#grounding, ontology: this.#ontology,
-      graph: this.#graph, facts: this.#facts, confidence: this.#confidence,
-      failedStage: this.#failedStage, failedReason: this.#failedReason, processedAt: this.#processedAt,
+      noteId: this.#noteId,
+      stage: this.#stage,
+      core: this.#core,
+      grounding: this.#grounding,
+      ontology: this.#ontology,
+      graph: this.#graph,
+      facts: this.#facts,
+      confidence: this.#confidence,
+      failedStage: this.#failedStage,
+      failedReason: this.#failedReason,
+      processedAt: this.#processedAt,
       gaps: this.#gaps,
     };
   }
 
-  toPersistence(): IntelligenceResultProps { return this.toPublic(); }
+  toPersistence(): IntelligenceResultProps {
+    return this.toPublic();
+  }
 }
-
 
 /**
  * Below this confidence score, the symbolic pipeline's output is considered

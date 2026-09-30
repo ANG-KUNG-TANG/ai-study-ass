@@ -1,14 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  listQuizzesByNote,
-  generateQuiz,
-} from "@/services/quiz.service";
-import type {
-  Quiz,
-  GenerateQuizOptions,
-} from "@/types/quiz";
+import { listQuizzesByNote, generateQuiz } from "@/services/quiz.service";
+import type { Quiz, GenerateQuizOptions } from "@/types/quiz";
 
 export function useQuiz(noteId: string) {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -36,11 +30,7 @@ export function useQuiz(noteId: string) {
 
       setQuiz(latest ?? null);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load quiz",
-      );
+      setError(err instanceof Error ? err.message : "Failed to load quiz");
     } finally {
       setIsLoading(false);
     }
@@ -51,9 +41,7 @@ export function useQuiz(noteId: string) {
   }, [load]);
 
   const generate = useCallback(
-    async (
-      options?: GenerateQuizOptions,
-    ): Promise<Quiz | null> => {
+    async (options?: GenerateQuizOptions): Promise<Quiz | null> => {
       if (!noteId) return null;
 
       setIsGenerating(true);
@@ -65,9 +53,7 @@ export function useQuiz(noteId: string) {
         return created;
       } catch (err) {
         setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to generate quiz",
+          err instanceof Error ? err.message : "Failed to generate quiz",
         );
         return null;
       } finally {

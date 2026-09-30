@@ -13,7 +13,13 @@ interface NoteContextValue {
 
 const NoteContext = createContext<NoteContextValue | null>(null);
 
-export function NoteProvider({ noteId, children }: { noteId: string; children: ReactNode }) {
+export function NoteProvider({
+  noteId,
+  children,
+}: {
+  noteId: string;
+  children: ReactNode;
+}) {
   const value = useNote(noteId);
   return <NoteContext.Provider value={value}>{children}</NoteContext.Provider>;
 }

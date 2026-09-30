@@ -49,7 +49,9 @@ export function mapKnowledgeGraph(
 
   const edges: KnowledgeFlowEdge[] = apiEdges.map((edge, index) => {
     const relatedToSelection =
-      !selectedNodeId || edge.from === selectedNodeId || edge.to === selectedNodeId;
+      !selectedNodeId ||
+      edge.from === selectedNodeId ||
+      edge.to === selectedNodeId;
     const stroke = edgeColor(edge.type);
 
     return {

@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { AUDIT_ACTIONS, AUDIT_CATEGORIES } from "@/server/entities/auditLog.entity";
+import {
+  AUDIT_ACTIONS,
+  AUDIT_CATEGORIES,
+} from "@/server/entities/auditLog.entity";
 import { ADMIN_FILE_TYPES } from "@/server/entities/operational-settings.entity";
 import { MAX_FILE_SIZE_BYTES } from "@/server/utils/constants";
 
@@ -35,7 +38,11 @@ export const adminContentQuerySchema = noteQuerySchema.extend({
 
 export type AdminContentQueryInput = z.infer<typeof adminContentQuerySchema>;
 
-const optionalDate = z.string().datetime({ offset: true }).transform((value) => new Date(value)).optional();
+const optionalDate = z
+  .string()
+  .datetime({ offset: true })
+  .transform((value) => new Date(value))
+  .optional();
 
 export const activityQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
@@ -86,7 +93,9 @@ export const operationalSettingsSchema = z.object({
   reason: z.string().trim().min(3).max(500),
 });
 
-export type OperationalSettingsInput = z.infer<typeof operationalSettingsSchema>;
+export type OperationalSettingsInput = z.infer<
+  typeof operationalSettingsSchema
+>;
 // ─── Update role ──────────────────────────────────────────────────────────────
 
 export const updateRoleSchema = z.object({

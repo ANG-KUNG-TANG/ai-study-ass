@@ -114,7 +114,8 @@ export class OperationalSettingsEntity {
       input.contentRetentionDays > 3650
     ) {
       throw new ValidationError("Validation failed", {
-        contentRetentionDays: "Content retention must be 0 or between 1 and 3650 days",
+        contentRetentionDays:
+          "Content retention must be 0 or between 1 and 3650 days",
       });
     }
 

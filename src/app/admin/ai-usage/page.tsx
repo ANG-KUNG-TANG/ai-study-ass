@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -15,14 +11,8 @@ import {
 
 import { Topbar } from "@/components/layout/Topbar";
 import { AdminPanel } from "@/components/admin/AdminPanel";
-import {
-  getAdminAIUsage,
-  testAdminAIProvider,
-} from "@/services/admin.service";
-import type {
-  AdminAIUsage,
-  AdminAIUsageActivity,
-} from "@/types/admin";
+import { getAdminAIUsage, testAdminAIProvider } from "@/services/admin.service";
+import type { AdminAIUsage, AdminAIUsageActivity } from "@/types/admin";
 import { useLanguage } from "@/context/LanguageContext";
 import type { Locale } from "@/i18n/translations";
 
@@ -47,16 +37,10 @@ function formatTimestamp(value: string | null, locale: Locale): string {
 
   const date = new Date(value);
 
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleString(locale);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString(locale);
 }
 
-function ActivityRow({
-  item,
-}: {
-  item: AdminAIUsageActivity;
-}) {
+function ActivityRow({ item }: { item: AdminAIUsageActivity }) {
   const { locale, t } = useLanguage();
 
   return (
@@ -76,9 +60,7 @@ function ActivityRow({
       </td>
 
       <td className="px-3 py-3">
-        <p className="font-medium text-ink">
-          {item.usageLabel}
-        </p>
+        <p className="font-medium text-ink">{item.usageLabel}</p>
         <p className="mt-0.5 text-[10px] text-ink-faint">
           {item.provider} · {item.model}
         </p>
@@ -92,13 +74,9 @@ function ActivityRow({
         ${item.estimatedCostUsd.toFixed(6)}
       </td>
 
-      <td className="px-3 py-3 font-mono">
-        {formatLatency(item.latencyMs)}
-      </td>
+      <td className="px-3 py-3 font-mono">{formatLatency(item.latencyMs)}</td>
 
-      <td className="px-3 py-3">
-        {item.statusCode ?? "—"}
-      </td>
+      <td className="px-3 py-3">{item.statusCode ?? "—"}</td>
 
       <td className="px-3 py-3">
         {item.quotaExceeded ? t("admin.ai.yes") : t("admin.ai.no")}
@@ -113,12 +91,9 @@ function ActivityRow({
 
 export default function AdminAIUsagePage() {
   const { locale, t } = useLanguage();
-  const [data, setData] =
-    useState<AdminAIUsage | null>(null);
-  const [error, setError] =
-    useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] =
-    useState(false);
+  const [data, setData] = useState<AdminAIUsage | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -127,9 +102,7 @@ export default function AdminAIUsagePage() {
       setError(null);
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : t("admin.ai.unavailable"),
+        cause instanceof Error ? cause.message : t("admin.ai.unavailable"),
       );
     } finally {
       setIsRefreshing(false);
@@ -152,9 +125,9 @@ export default function AdminAIUsagePage() {
   }, [load]);
 
   async function testProvider(): Promise<void> {
-    const reason = window.prompt(
-      "Reason for testing the active AI provider:",
-    )?.trim();
+    const reason = window
+      .prompt("Reason for testing the active AI provider:")
+      ?.trim();
 
     if (!reason) return;
 
@@ -162,15 +135,11 @@ export default function AdminAIUsagePage() {
 
     try {
       const result = await testAdminAIProvider(reason);
-      window.alert(
-        `${result.provider} / ${result.model}: ${result.response}`,
-      );
+      window.alert(`${result.provider} / ${result.model}: ${result.response}`);
       await load();
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : "Provider test failed.",
+        cause instanceof Error ? cause.message : "Provider test failed.",
       );
       setIsRefreshing(false);
     }
@@ -236,18 +205,34 @@ export default function AdminAIUsagePage() {
 
           <section className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-7">
             {[
-              [t("admin.ai.requestsToday"), formatNumber(data.summary.requestsToday, locale)],
-              [t("admin.ai.successRate"), `${data.summary.successRate.toFixed(1)}%`],
-              [t("admin.ai.failures"), formatNumber(data.summary.failuresToday, locale)],
-              [t("admin.ai.tokens"), formatNumber(data.summary.tokensToday, locale)],
-              [t("admin.ai.averageLatency"), formatLatency(data.summary.averageLatencyMs)],
-              [t("admin.ai.quotaErrors"), formatNumber(data.summary.quotaExceededToday, locale)],
+              [
+                t("admin.ai.requestsToday"),
+                formatNumber(data.summary.requestsToday, locale),
+              ],
+              [
+                t("admin.ai.successRate"),
+                `${data.summary.successRate.toFixed(1)}%`,
+              ],
+              [
+                t("admin.ai.failures"),
+                formatNumber(data.summary.failuresToday, locale),
+              ],
+              [
+                t("admin.ai.tokens"),
+                formatNumber(data.summary.tokensToday, locale),
+              ],
+              [
+                t("admin.ai.averageLatency"),
+                formatLatency(data.summary.averageLatencyMs),
+              ],
+              [
+                t("admin.ai.quotaErrors"),
+                formatNumber(data.summary.quotaExceededToday, locale),
+              ],
               ["Monthly cost", `$${data.monthlySpend.toFixed(2)}`],
             ].map(([label, value]) => (
               <AdminPanel key={label}>
-                <p className="text-[11px] text-ink-faint">
-                  {label}
-                </p>
+                <p className="text-[11px] text-ink-faint">{label}</p>
                 <p className="mt-2 font-serif text-2xl font-semibold text-ink">
                   {value}
                 </p>
@@ -277,12 +262,30 @@ export default function AdminAIUsagePage() {
 
                 <div className="divide-y divide-line-soft">
                   {[
-                    [t("admin.ai.requestsToday"), formatNumber(provider.requestsToday, locale)],
-                    [t("admin.ai.successful"), formatNumber(provider.successesToday, locale)],
-                    [t("admin.ai.failures"), formatNumber(provider.failuresToday, locale)],
-                    [t("admin.ai.quotaExceeded"), formatNumber(provider.quotaExceededToday, locale)],
-                    [t("admin.ai.tokensToday"), formatNumber(provider.tokensToday, locale)],
-                    [t("admin.ai.averageLatency"), formatLatency(provider.averageLatencyMs)],
+                    [
+                      t("admin.ai.requestsToday"),
+                      formatNumber(provider.requestsToday, locale),
+                    ],
+                    [
+                      t("admin.ai.successful"),
+                      formatNumber(provider.successesToday, locale),
+                    ],
+                    [
+                      t("admin.ai.failures"),
+                      formatNumber(provider.failuresToday, locale),
+                    ],
+                    [
+                      t("admin.ai.quotaExceeded"),
+                      formatNumber(provider.quotaExceededToday, locale),
+                    ],
+                    [
+                      t("admin.ai.tokensToday"),
+                      formatNumber(provider.tokensToday, locale),
+                    ],
+                    [
+                      t("admin.ai.averageLatency"),
+                      formatLatency(provider.averageLatencyMs),
+                    ],
                     ["Estimated spend", `$${provider.spendToday.toFixed(4)}`],
                   ].map(([label, value]) => (
                     <div
@@ -333,9 +336,7 @@ export default function AdminAIUsagePage() {
                       key={item.route}
                       className="flex items-center justify-between text-[12px]"
                     >
-                      <span className="text-ink-soft">
-                        {item.route}
-                      </span>
+                      <span className="text-ink-soft">{item.route}</span>
                       <span className="font-mono text-ink">
                         {formatNumber(item.count, locale)}
                       </span>
@@ -360,13 +361,27 @@ export default function AdminAIUsagePage() {
                 <table className="w-full min-w-[680px] text-left text-[12px] text-ink-soft">
                   <thead>
                     <tr>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.provider")}</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.model")}</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.requests")}</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.success")}</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.failed")}</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.tokens")}</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.averageLatency")}</th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.provider")}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.model")}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.requests")}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.success")}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.failed")}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.tokens")}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.averageLatency")}
+                      </th>
                     </tr>
                   </thead>
 
@@ -425,12 +440,18 @@ export default function AdminAIUsagePage() {
                 <div className="text-right text-[10px] text-ink-faint">
                   <p>
                     {t("admin.ai.lastSuccess", {
-                      value: formatTimestamp(data.summary.lastSuccessAt, locale),
+                      value: formatTimestamp(
+                        data.summary.lastSuccessAt,
+                        locale,
+                      ),
                     })}
                   </p>
                   <p className="mt-1">
                     {t("admin.ai.lastFailure", {
-                      value: formatTimestamp(data.summary.lastFailureAt, locale),
+                      value: formatTimestamp(
+                        data.summary.lastFailureAt,
+                        locale,
+                      ),
                     })}
                   </p>
                 </div>
@@ -440,23 +461,32 @@ export default function AdminAIUsagePage() {
                 <table className="w-full min-w-[900px] text-left text-[12px] text-ink-soft">
                   <thead>
                     <tr>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.result")}</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.usage")}</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.tokens")}</th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.result")}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.usage")}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.tokens")}
+                      </th>
                       <th className="px-3 py-2 font-medium">Cost</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.latency")}</th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.latency")}
+                      </th>
                       <th className="px-3 py-2 font-medium">HTTP</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.quota")}</th>
-                      <th className="px-3 py-2 font-medium">{t("admin.ai.time")}</th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.quota")}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("admin.ai.time")}
+                      </th>
                     </tr>
                   </thead>
 
                   <tbody>
                     {data.recentActivity.map((item) => (
-                      <ActivityRow
-                        key={item.id}
-                        item={item}
-                      />
+                      <ActivityRow key={item.id} item={item} />
                     ))}
 
                     {data.recentActivity.length === 0 && (

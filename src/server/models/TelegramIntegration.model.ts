@@ -1,8 +1,4 @@
-import mongoose, {
-  Schema,
-  type InferSchemaType,
-  type Model,
-} from "mongoose";
+import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 
 const telegramIntegrationSchema = new Schema(
   {
@@ -49,16 +45,16 @@ const telegramIntegrationSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-export type TelegramIntegrationDocument =
-  InferSchemaType<typeof telegramIntegrationSchema>;
+export type TelegramIntegrationDocument = InferSchemaType<
+  typeof telegramIntegrationSchema
+>;
 
 export const TelegramIntegrationModel =
-  (mongoose.models.TelegramIntegration as
-    Model<TelegramIntegrationDocument>) ||
+  (mongoose.models.TelegramIntegration as Model<TelegramIntegrationDocument>) ||
   mongoose.model<TelegramIntegrationDocument>(
     "TelegramIntegration",
-    telegramIntegrationSchema
+    telegramIntegrationSchema,
   );

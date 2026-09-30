@@ -13,15 +13,8 @@ export default function ChatPage() {
   const { t } = useLanguage();
   const noteId = note?.id ?? "";
 
-  const {
-    messages,
-    isLoading,
-    isSending,
-    isClearing,
-    error,
-    send,
-    clear,
-  } = useChat(noteId);
+  const { messages, isLoading, isSending, isClearing, error, send, clear } =
+    useChat(noteId);
 
   const [question, setQuestion] = useState("");
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -70,9 +63,7 @@ export default function ChatPage() {
       <Card className="flex min-h-[470px] flex-1 flex-col rounded-none border-x-0 bg-transparent px-0 sm:px-2">
         <div className="flex-1 space-y-5 overflow-y-auto pr-1">
           {isLoading && (
-            <p className="text-[13px] text-ink-soft">
-              {t("chat.loading")}
-            </p>
+            <p className="text-[13px] text-ink-soft">{t("chat.loading")}</p>
           )}
 
           {!isLoading && messages.length === 0 && (

@@ -28,11 +28,13 @@ const COVERAGE_CODES = new Set([
   "LOW_CONCEPT_COVERAGE",
 ]);
 
-const summaryRepairPatchSchema = z.object({
-  overviewAdditions: z.array(z.string()).default([]),
-  keyPoints: z.array(z.string()).default([]),
-  importantConcepts: z.array(z.string()).default([]),
-}).strict();
+const summaryRepairPatchSchema = z
+  .object({
+    overviewAdditions: z.array(z.string()).default([]),
+    keyPoints: z.array(z.string()).default([]),
+    importantConcepts: z.array(z.string()).default([]),
+  })
+  .strict();
 
 export interface SummaryRepairPatch {
   overviewAdditions: string[];
@@ -79,8 +81,9 @@ export function buildSummaryRepairPlan(input: {
     ...artifact.importantConcepts,
   ].join("\n");
 
-  const allSupportedFacts = grounding.facts
-    .filter((fact) => fact.verificationStatus === "supported");
+  const allSupportedFacts = grounding.facts.filter(
+    (fact) => fact.verificationStatus === "supported",
+  );
   const learningSections = selectSummarySections(
     grounding.sections,
     new Map(allSupportedFacts.map((fact) => [fact.id, fact])),
@@ -107,7 +110,9 @@ export function buildSummaryRepairPlan(input: {
           const sectionFacts = section.factIds
             .map((id) => supportedFacts.find((fact) => fact.id === id))
             .filter((fact): fact is AtomicFact => Boolean(fact));
-          return !sectionFacts.some((fact) => factIsRepresented(fact, artifactText));
+          return !sectionFacts.some((fact) =>
+            factIsRepresented(fact, artifactText),
+          );
         })
         .slice(0, 8)
         .map((section) => section.sectionId)
@@ -147,30 +152,33 @@ export function validateSummaryRepairPatch(
   evidenceText: string,
 ): SummaryRepairPatch | null {
   const overviewAdditions = unique(
-    patch.overviewAdditions.filter((item) =>
-      item.trim().length >= 30 &&
-      item.trim().length <= 500 &&
-      isSummaryCandidateTextEligible(item) &&
-      isGroundedText(item, evidenceText)
+    patch.overviewAdditions.filter(
+      (item) =>
+        item.trim().length >= 30 &&
+        item.trim().length <= 500 &&
+        isSummaryCandidateTextEligible(item) &&
+        isGroundedText(item, evidenceText),
     ),
     3,
   );
   const keyPoints = unique(
-    patch.keyPoints.filter((item) =>
-      item.trim().length >= 18 &&
-      item.trim().length <= 420 &&
-      isSummaryCandidateTextEligible(item) &&
-      isGroundedText(item, evidenceText)
+    patch.keyPoints.filter(
+      (item) =>
+        item.trim().length >= 18 &&
+        item.trim().length <= 420 &&
+        isSummaryCandidateTextEligible(item) &&
+        isGroundedText(item, evidenceText),
     ),
     6,
   );
   const importantConcepts = unique(
     patch.importantConcepts
       .map(canonicalizeStudyConceptLabel)
-      .filter((concept) =>
-        isValidConcept(concept) &&
-        conceptIsRepresented(concept, evidenceText) &&
-        !isExampleOnlyConceptInText(concept, evidenceText)
+      .filter(
+        (concept) =>
+          isValidConcept(concept) &&
+          conceptIsRepresented(concept, evidenceText) &&
+          !isExampleOnlyConceptInText(concept, evidenceText),
       ),
     6,
   );
@@ -193,15 +201,13 @@ export function applySummaryRepairPatch(
   let summary = symbolic.summary;
 
   for (const addition of patch.overviewAdditions) {
-    summary = applyIfFits(
-      summary,
-      (value) => appendBulletToSection(value, "Overview", addition),
+    summary = applyIfFits(summary, (value) =>
+      appendBulletToSection(value, "Overview", addition),
     );
   }
   for (const point of patch.keyPoints) {
-    summary = applyIfFits(
-      summary,
-      (value) => appendBulletToSection(value, "Key Takeaways", point),
+    summary = applyIfFits(summary, (value) =>
+      appendBulletToSection(value, "Key Takeaways", point),
     );
   }
   // Concepts remain validation metadata for the deterministic topic model.
@@ -239,28 +245,47 @@ export function isSummaryRepairImprovement(
   if (after.coverageSufficient && !before.coverageSufficient) return true;
   if (
     after.scoreOutOf10 > before.scoreOutOf10 + 0.05 &&
-    after.metrics.unsupportedFactualUnitCount <= before.metrics.unsupportedFactualUnitCount &&
-    after.metrics.unsupportedNumericUnitCount <= before.metrics.unsupportedNumericUnitCount
+    after.metrics.unsupportedFactualUnitCount <=
+      before.metrics.unsupportedFactualUnitCount &&
+    after.metrics.unsupportedNumericUnitCount <=
+      before.metrics.unsupportedNumericUnitCount
   ) {
     return true;
   }
 
-  return coverageMissingCount(after) < coverageMissingCount(before) &&
+  return (
+    coverageMissingCount(after) < coverageMissingCount(before) &&
     after.metrics.unsupportedFactualUnitCount <=
       before.metrics.unsupportedFactualUnitCount &&
     after.metrics.unsupportedNumericUnitCount <=
-      before.metrics.unsupportedNumericUnitCount;
+      before.metrics.unsupportedNumericUnitCount
+  );
 }
 
 function coverageMissingCount(report: SummaryQualityReport): number {
-  return Math.max(0, report.metrics.majorFactTargetCount - report.metrics.majorFactCoveredCount) +
-    Math.max(0, report.metrics.requiredSectionCount - report.metrics.representedSectionCount) +
-    Math.max(0, report.metrics.conceptTargetCount - report.metrics.conceptCoveredCount);
+  return (
+    Math.max(
+      0,
+      report.metrics.majorFactTargetCount -
+        report.metrics.majorFactCoveredCount,
+    ) +
+    Math.max(
+      0,
+      report.metrics.requiredSectionCount -
+        report.metrics.representedSectionCount,
+    ) +
+    Math.max(
+      0,
+      report.metrics.conceptTargetCount - report.metrics.conceptCoveredCount,
+    )
+  );
 }
 
 function factIsRepresented(fact: AtomicFact, artifactText: string): boolean {
-  return textOverlap(fact.content, artifactText) >= 0.55 ||
-    fact.evidence.some((item) => textOverlap(item.text, artifactText) >= 0.55);
+  return (
+    textOverlap(fact.content, artifactText) >= 0.55 ||
+    fact.evidence.some((item) => textOverlap(item.text, artifactText) >= 0.55)
+  );
 }
 
 function conceptIsRepresented(concept: string, artifactText: string): boolean {
@@ -291,21 +316,25 @@ function textOverlap(candidate: string, source: string): number {
   const candidateTokens = meaningfulTokens(candidate);
   if (candidateTokens.size === 0) return 0;
   const sourceTokens = meaningfulTokens(source);
-  const matched = [...candidateTokens].filter((token) => sourceTokens.has(token)).length;
+  const matched = [...candidateTokens].filter((token) =>
+    sourceTokens.has(token),
+  ).length;
   return matched / candidateTokens.size;
 }
 
 function meaningfulTokens(value: string): Set<string> {
   return new Set(
-    (normalise(value).match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu) ?? [])
-      .filter((token) => token.length >= 2),
+    (
+      normalise(value).match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu) ?? []
+    ).filter((token) => token.length >= 2),
   );
 }
 
 function extractNumericTokens(value: string): Set<string> {
   return new Set(
-    (value.match(/[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu) ?? [])
-      .map((item) => item.replace(/\s+/gu, "").replace(/,(?=\d{3}(?:\D|$))/gu, "")),
+    (value.match(/[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu) ?? []).map((item) =>
+      item.replace(/\s+/gu, "").replace(/,(?=\d{3}(?:\D|$))/gu, ""),
+    ),
   );
 }
 

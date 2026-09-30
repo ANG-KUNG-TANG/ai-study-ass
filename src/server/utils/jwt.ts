@@ -50,7 +50,7 @@ export function signAccessToken(payload: TokenPayload): string {
     {
       expiresIn: env.JWT_ACCESS_EXPIRY as jwt.SignOptions["expiresIn"],
       jwtid: generateTokenId(), // jwtid is the JWT spec field — sets the jti claim
-    }
+    },
   );
 }
 
@@ -65,7 +65,7 @@ export function signRefreshToken(payload: TokenPayload): {
     {
       expiresIn: env.JWT_REFRESH_EXPIRY as jwt.SignOptions["expiresIn"],
       jwtid: tokenId,
-    }
+    },
   );
   return { token, tokenId };
 }
@@ -119,7 +119,9 @@ export function verifyRefreshToken(token: string): TokenPayload {
     return jwt.verify(token, env.JWT_REFRESH_SECRET) as TokenPayload;
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
-      throw new UnauthorizedError("Refresh token expired — please log in again");
+      throw new UnauthorizedError(
+        "Refresh token expired — please log in again",
+      );
     }
     throw new UnauthorizedError("Invalid refresh token");
   }
@@ -132,7 +134,9 @@ export function verifyRefreshToken(token: string): TokenPayload {
  *   1. Was this specific token (jti) explicitly revoked?
  *   2. Were ALL tokens for this user revoked (e.g. after password change)?
  */
-export async function verifyAccessTokenFull(token: string): Promise<TokenPayload> {
+export async function verifyAccessTokenFull(
+  token: string,
+): Promise<TokenPayload> {
   const payload = verifyAccessToken(token); // throws if invalid/expired
 
   const [specificRevoked, allRevoked] = await Promise.all([
@@ -141,7 +145,8 @@ export async function verifyAccessTokenFull(token: string): Promise<TokenPayload
   ]);
 
   if (specificRevoked) throw new UnauthorizedError("Token has been revoked");
-  if (allRevoked) throw new UnauthorizedError("Session expired — please log in again");
+  if (allRevoked)
+    throw new UnauthorizedError("Session expired — please log in again");
 
   return payload;
 }
@@ -178,7 +183,10 @@ export function decodeToken(token: string): TokenPayload | null {
 
 // Use on logout to immediately invalidate the current access token.
 // The refresh token is handled separately — deleted from User.refreshToken in auth.service.
-export async function revokeToken(token: string, secret: string): Promise<void> {
+export async function revokeToken(
+  token: string,
+  secret: string,
+): Promise<void> {
   let payload: TokenPayload;
   try {
     payload = jwt.verify(token, secret) as TokenPayload;
@@ -218,7 +226,7 @@ export async function revokeToken(token: string, secret: string): Promise<void> 
  */
 export async function revokeAllUserTokens(userId: string): Promise<void> {
   const expiresAt = new Date(
-    Date.now() + parseDurationMs(env.JWT_REFRESH_EXPIRY)
+    Date.now() + parseDurationMs(env.JWT_REFRESH_EXPIRY),
   );
 
   await RevokedToken.findOneAndUpdate(
@@ -250,6 +258,8 @@ export async function clearUserRevocation(userId: string): Promise<void> {
 
 // ─── Check all-user revocation ────────────────────────────────────────────────
 
-export async function areAllUserTokensRevoked(userId: string): Promise<boolean> {
+export async function areAllUserTokensRevoked(
+  userId: string,
+): Promise<boolean> {
   return Boolean(await RevokedToken.exists({ jti: `all:${userId}` }));
 }

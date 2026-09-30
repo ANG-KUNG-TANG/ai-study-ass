@@ -221,9 +221,7 @@ export function buildGraph(
     .slice(0, 40);
 
   const validClaims = core.claims.filter(
-    (item) =>
-      item.validationStatus === "valid" &&
-      item.evidence.length > 0,
+    (item) => item.validationStatus === "valid" && item.evidence.length > 0,
   );
 
   const sections = collectSections(validConcepts, validClaims);
@@ -262,12 +260,9 @@ export function buildGraph(
     // Fuzzy/generated ontology matches can introduce unrelated external
     // concepts. Use ontology canonicalisation only for exact/alias matches.
     const useCanonical =
-      resolution.matchType === "exact" ||
-      resolution.matchType === "alias";
+      resolution.matchType === "exact" || resolution.matchType === "alias";
 
-    const label = useCanonical
-      ? resolution.concept.label
-      : concept.term;
+    const label = useCanonical ? resolution.concept.label : concept.term;
 
     const normalized = normalizeTerm(label || concept.normalizedTerm);
     const conceptId = `concept:local-${slugify(concept.normalizedTerm)}`;
@@ -289,7 +284,10 @@ export function buildGraph(
         rawInput: concept.term,
         definition:
           concept.definition ??
-          inferDefinitionFromEvidence(label, concept.evidence.map((item) => item.text)),
+          inferDefinitionFromEvidence(
+            label,
+            concept.evidence.map((item) => item.text),
+          ),
         evidence: concept.evidence,
         sectionIds: concept.sectionIds,
         ontologyMatchType: useCanonical ? resolution.matchType : "not_used",
@@ -297,9 +295,7 @@ export function buildGraph(
     });
 
     const attachedSections = new Set(
-      concept.evidence
-        .map((evidence) => evidence.sectionId)
-        .filter(Boolean),
+      concept.evidence.map((evidence) => evidence.sectionId).filter(Boolean),
     );
 
     if (attachedSections.size > 0) {
@@ -356,11 +352,13 @@ export function buildGraph(
         unit: claim.unit,
         confidence: claim.confidence,
         evidence: claim.evidence,
-        description: claimSentence(claim.subject, claim.predicate, claim.object),
+        description: claimSentence(
+          claim.subject,
+          claim.predicate,
+          claim.object,
+        ),
         provenance:
-          claim.extractionSource === "ai"
-            ? "ai_grounded"
-            : "document",
+          claim.extractionSource === "ai" ? "ai_grounded" : "document",
         learningRole: "grounded_claim",
       },
     });
@@ -392,7 +390,9 @@ export function buildGraph(
       });
     }
 
-    if (["method", "tool", "data_source", "sample", "metric"].includes(claim.type)) {
+    if (
+      ["method", "tool", "data_source", "sample", "metric"].includes(claim.type)
+    ) {
       const typedNode = makeTypedNode(
         claim.type,
         claim.object,
@@ -561,9 +561,7 @@ function inferGroundedRelation(
   if (aIndex < 0 || bIndex < 0) return null;
 
   const [first, second, firstIndex, secondIndex] =
-    aIndex <= bIndex
-      ? [a, b, aIndex, bIndex]
-      : [b, a, bIndex, aIndex];
+    aIndex <= bIndex ? [a, b, aIndex, bIndex] : [b, a, bIndex, aIndex];
 
   const between = sentence
     .slice(firstIndex, secondIndex + 1)
@@ -616,18 +614,14 @@ function chooseMention(sentence: string, ref: ConceptRef): string | null {
   return candidates.find((candidate) => sentence.includes(candidate)) ?? null;
 }
 
-function findConceptRef(
-  value: string,
-  refs: ConceptRef[],
-): ConceptRef | null {
+function findConceptRef(value: string, refs: ConceptRef[]): ConceptRef | null {
   const normalized = normalizeTerm(value);
   if (!normalized) return null;
 
   return (
     refs.find(
       (ref) =>
-        ref.normalized === normalized ||
-        ref.aliases.includes(normalized),
+        ref.normalized === normalized || ref.aliases.includes(normalized),
     ) ??
     refs.find(
       (ref) =>

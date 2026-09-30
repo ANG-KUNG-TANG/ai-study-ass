@@ -81,7 +81,10 @@ function LoginContent() {
 
       <form onSubmit={handleSubmit} className="space-y-[18px]">
         <div className="space-y-2">
-          <label htmlFor="email" className="block text-[12px] font-semibold text-ink-soft">
+          <label
+            htmlFor="email"
+            className="block text-[12px] font-semibold text-ink-soft"
+          >
             {t("common.email")}
           </label>
           <input
@@ -97,7 +100,10 @@ function LoginContent() {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="block text-[12px] font-semibold text-ink-soft">
+          <label
+            htmlFor="password"
+            className="block text-[12px] font-semibold text-ink-soft"
+          >
             {t("common.password")}
           </label>
           <div className="relative">
@@ -178,7 +184,7 @@ function LoginContent() {
       <GoogleAuthButton />
 
       <p className="mt-5 text-center text-[13px] text-ink-soft">
-        {t("login.noAccount")} {" "}
+        {t("login.noAccount")}{" "}
         <Link
           href="/auth/register"
           className="font-semibold text-ink hover:underline"

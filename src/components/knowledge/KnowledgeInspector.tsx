@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  BookOpen,
-  ChevronDown,
-  GitBranch,
-  ShieldCheck,
-  X,
-} from "lucide-react";
+import { BookOpen, ChevronDown, GitBranch, ShieldCheck, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import type {
   EvidenceItem,
@@ -27,10 +21,7 @@ import {
 } from "./knowledge-graph.utils";
 import { useLanguage } from "@/context/LanguageContext";
 
-type InspectorTab =
-  | "understand"
-  | "connections"
-  | "evidence";
+type InspectorTab = "understand" | "connections" | "evidence";
 
 interface KnowledgeInspectorProps {
   node: KnowledgeGraphNode;
@@ -40,9 +31,7 @@ interface KnowledgeInspectorProps {
   compact?: boolean;
 }
 
-function technicalEntries(
-  node: KnowledgeGraphNode,
-): Array<[string, unknown]> {
+function technicalEntries(node: KnowledgeGraphNode): Array<[string, unknown]> {
   const hidden = new Set([
     "evidence",
     "description",
@@ -68,10 +57,8 @@ export function KnowledgeInspector({
   compact = false,
 }: KnowledgeInspectorProps) {
   const { t } = useLanguage();
-  const [tab, setTab] =
-    useState<InspectorTab>("understand");
-  const [showTechnical, setShowTechnical] =
-    useState(false);
+  const [tab, setTab] = useState<InspectorTab>("understand");
+  const [showTechnical, setShowTechnical] = useState(false);
 
   const confidence = nodeConfidence(node);
   const evidence = extractNodeEvidence(node);
@@ -81,33 +68,15 @@ export function KnowledgeInspector({
   const connections = useMemo(
     () =>
       edges
-        .filter(
-          (edge) =>
-            edge.from === node.id ||
-            edge.to === node.id,
-        )
+        .filter((edge) => edge.from === node.id || edge.to === node.id)
         .map((edge) => {
-          const otherId =
-            edge.from === node.id
-              ? edge.to
-              : edge.from;
+          const otherId = edge.from === node.id ? edge.to : edge.from;
 
           return {
             edge,
-            node:
-              nodes.find(
-                (candidate) =>
-                  candidate.id === otherId,
-              ) ?? null,
-            direction:
-              edge.from === node.id
-                ? "outgoing"
-                : "incoming",
-            evidence:
-              extractEdgeEvidence(
-                edge,
-                nodes,
-              ),
+            node: nodes.find((candidate) => candidate.id === otherId) ?? null,
+            direction: edge.from === node.id ? "outgoing" : "incoming",
+            evidence: extractEdgeEvidence(edge, nodes),
           } as const;
         }),
     [edges, node.id, nodes],
@@ -115,8 +84,7 @@ export function KnowledgeInspector({
 
   const meaningfulConnections = connections.filter(
     ({ node: connectedNode }) =>
-      connectedNode &&
-      connectedNode.type !== "paper",
+      connectedNode && connectedNode.type !== "paper",
   );
 
   const tabs: Array<{
@@ -144,9 +112,7 @@ export function KnowledgeInspector({
     <aside
       className={[
         "overflow-hidden rounded-[10px] border border-line bg-paper-raised",
-        compact
-          ? "max-h-[72vh]"
-          : "sticky top-5 max-h-[calc(100vh-40px)]",
+        compact ? "max-h-[72vh]" : "sticky top-5 max-h-[calc(100vh-40px)]",
       ].join(" ")}
     >
       <div className="border-b border-[#EFE8D6] px-5 pb-0 pt-5">
@@ -202,8 +168,7 @@ export function KnowledgeInspector({
               ].join(" ")}
             >
               {item.label}
-              {typeof item.count === "number" &&
-                ` (${item.count})`}
+              {typeof item.count === "number" && ` (${item.count})`}
             </button>
           ))}
         </div>
@@ -231,73 +196,56 @@ export function KnowledgeInspector({
                 <div className="mt-2 space-y-2">
                   {meaningfulConnections
                     .slice(0, 4)
-                    .map(
-                      ({
-                        edge,
-                        node: connectedNode,
-                        direction,
-                      }) => {
-                        if (!connectedNode) {
-                          return null;
-                        }
+                    .map(({ edge, node: connectedNode, direction }) => {
+                      if (!connectedNode) {
+                        return null;
+                      }
 
-                        return (
-                          <button
-                            key={`${edge.from}-${edge.type}-${edge.to}`}
-                            type="button"
-                            onClick={() =>
-                              setTab("connections")
-                            }
-                            className="w-full rounded-[8px] border border-[#EFE8D6] bg-paper px-3 py-2.5 text-left"
-                          >
-                            <p className="text-[11.5px] leading-5 text-ink-soft">
-                              {direction === "outgoing"
-                                ? relationExplanation(
-                                    edge,
-                                    node.label,
-                                    connectedNode.label,
-                                  )
-                                : relationExplanation(
-                                    edge,
-                                    connectedNode.label,
-                                    node.label,
-                                  )}
-                            </p>
-                          </button>
-                        );
-                      },
-                    )}
+                      return (
+                        <button
+                          key={`${edge.from}-${edge.type}-${edge.to}`}
+                          type="button"
+                          onClick={() => setTab("connections")}
+                          className="w-full rounded-[8px] border border-[#EFE8D6] bg-paper px-3 py-2.5 text-left"
+                        >
+                          <p className="text-[11.5px] leading-5 text-ink-soft">
+                            {direction === "outgoing"
+                              ? relationExplanation(
+                                  edge,
+                                  node.label,
+                                  connectedNode.label,
+                                )
+                              : relationExplanation(
+                                  edge,
+                                  connectedNode.label,
+                                  node.label,
+                                )}
+                          </p>
+                        </button>
+                      );
+                    })}
                 </div>
               </section>
             )}
 
-            {typeof confidence === "number" &&
-              node.type !== "section" && (
-                <section>
-                  <div className="flex items-center justify-between text-[11px] font-medium text-ink-soft">
-                    <span>{t("knowledge.sourceConfidence")}</span>
-                    <span>
-                      {Math.round(confidence * 100)}%
-                    </span>
-                  </div>
+            {typeof confidence === "number" && node.type !== "section" && (
+              <section>
+                <div className="flex items-center justify-between text-[11px] font-medium text-ink-soft">
+                  <span>{t("knowledge.sourceConfidence")}</span>
+                  <span>{Math.round(confidence * 100)}%</span>
+                </div>
 
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-line-soft">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.max(
-                          0,
-                          Math.min(
-                            100,
-                            confidence * 100,
-                          ),
-                        )}%`,
-                        background: accent,
-                      }}
-                    />
-                  </div>
-                </section>
-              )}
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-line-soft">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, confidence * 100))}%`,
+                      background: accent,
+                    }}
+                  />
+                </div>
+              </section>
+            )}
 
             {evidence.length > 0 && (
               <button
@@ -319,18 +267,14 @@ export function KnowledgeInspector({
             <section>
               <button
                 type="button"
-                onClick={() =>
-                  setShowTechnical((current) => !current)
-                }
+                onClick={() => setShowTechnical((current) => !current)}
                 className="flex w-full items-center justify-between rounded-[8px] border border-line px-3 py-2.5 text-[11.5px] font-medium text-ink-soft hover:bg-[#FAF6EC]"
               >
                 {t("knowledge.inspector.technical")}
                 <ChevronDown
                   size={14}
                   className={
-                    showTechnical
-                      ? "rotate-180 transition"
-                      : "transition"
+                    showTechnical ? "rotate-180 transition" : "transition"
                   }
                 />
               </button>
@@ -346,21 +290,19 @@ export function KnowledgeInspector({
                     </dd>
                   </div>
 
-                  {technicalEntries(node).map(
-                    ([key, value]) => (
-                      <div
-                        key={key}
-                        className="grid grid-cols-[100px_1fr] gap-3 py-2.5 text-[11.5px]"
-                      >
-                        <dt className="break-words text-ink-soft">
-                          {readableType(key)}
-                        </dt>
-                        <dd className="break-words font-medium text-ink">
-                          {formatProperty(value)}
-                        </dd>
-                      </div>
-                    ),
-                  )}
+                  {technicalEntries(node).map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="grid grid-cols-[100px_1fr] gap-3 py-2.5 text-[11.5px]"
+                    >
+                      <dt className="break-words text-ink-soft">
+                        {readableType(key)}
+                      </dt>
+                      <dd className="break-words font-medium text-ink">
+                        {formatProperty(value)}
+                      </dd>
+                    </div>
+                  ))}
                 </dl>
               )}
             </section>
@@ -435,19 +377,13 @@ export function KnowledgeInspector({
           </div>
         )}
 
-        {tab === "evidence" && (
-          <EvidenceList evidence={evidence} />
-        )}
+        {tab === "evidence" && <EvidenceList evidence={evidence} />}
       </div>
     </aside>
   );
 }
 
-function EvidenceList({
-  evidence,
-}: {
-  evidence: EvidenceItem[];
-}) {
+function EvidenceList({ evidence }: { evidence: EvidenceItem[] }) {
   const { t } = useLanguage();
 
   if (evidence.length === 0) {

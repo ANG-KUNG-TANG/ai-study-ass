@@ -3,9 +3,7 @@ import {
   FEATURE_QUALITY_TARGET,
   type StudyFeatureQualityName,
 } from "@/server/services/quality/feature-quality.contract";
-import {
-  evaluateQualityBenchmark,
-} from "@/server/services/quality/quality-benchmark.service";
+import { evaluateQualityBenchmark } from "@/server/services/quality/quality-benchmark.service";
 
 function perfectReport(feature: StudyFeatureQualityName) {
   return buildFeatureQualityReport({
@@ -51,9 +49,7 @@ describe("feature-specific quality contracts", () => {
       dimensions: [
         { key: "correctness", label: "Correctness", weight: 10, ratio: 0.94 },
       ],
-      hardGates: [
-        { code: "VALID", message: "Valid quiz", passed: true },
-      ],
+      hardGates: [{ code: "VALID", message: "Valid quiz", passed: true }],
     });
 
     expect(report.scoreOutOf10).toBe(9.4);
@@ -88,7 +84,9 @@ describe("feature-specific quality contracts", () => {
 
     expect(benchmark.passed).toBe(true);
     expect(benchmark.featureResults).toHaveLength(5);
-    expect(benchmark.featureResults.every((item) => item.minimumScoreOutOf10 >= 9.5)).toBe(true);
+    expect(
+      benchmark.featureResults.every((item) => item.minimumScoreOutOf10 >= 9.5),
+    ).toBe(true);
   });
 
   it("reports the exact case, feature, and hard-gate failure", () => {

@@ -15,19 +15,34 @@ const emailField = z
 
 const passwordField = z
   .string({ error: "Password is required" })
-  .min(USER_RULES.password.minLength, `Password must be at least ${USER_RULES.password.minLength} characters`)
-  .max(USER_RULES.password.maxLength, `Password cannot exceed ${USER_RULES.password.maxLength} characters`)
+  .min(
+    USER_RULES.password.minLength,
+    `Password must be at least ${USER_RULES.password.minLength} characters`,
+  )
+  .max(
+    USER_RULES.password.maxLength,
+    `Password cannot exceed ${USER_RULES.password.maxLength} characters`,
+  )
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
   .regex(/[0-9]/, "Password must contain at least one number")
-  .regex(/[!@#$%^&*(){}~]/, "Password must contain at least one special character");
+  .regex(
+    /[!@#$%^&*(){}~]/,
+    "Password must contain at least one special character",
+  );
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 export const registerSchema = z.object({
   name: z
     .string({ error: "Name is required" })
-    .min(USER_RULES.name.minLength, `Name must be at least ${USER_RULES.name.minLength} characters`)
-    .max(USER_RULES.name.maxLength, `Name cannot exceed ${USER_RULES.name.maxLength} characters`)
+    .min(
+      USER_RULES.name.minLength,
+      `Name must be at least ${USER_RULES.name.minLength} characters`,
+    )
+    .max(
+      USER_RULES.name.maxLength,
+      `Name cannot exceed ${USER_RULES.name.maxLength} characters`,
+    )
     .trim(),
   email: emailField,
   password: passwordField,
@@ -41,12 +56,9 @@ export const loginSchema = z.object({
 
 export const changePasswordSchema = z
   .object({
-    currentPassword: z
-      .string({ error: "Current password is required" })
-      .min(1),
+    currentPassword: z.string({ error: "Current password is required" }).min(1),
     newPassword: passwordField,
-    confirmPassword: z
-      .string({ error: "Please confirm your new password" }),
+    confirmPassword: z.string({ error: "Please confirm your new password" }),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",
@@ -69,21 +81,22 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 
-
 // Request a password reset link
 export const forgotPasswordSchema = z.object({
   email: emailField,
 });
 
 // Submit a new password using the reset token
-export const resetPasswordSchema = z.object({
-  token: z.string({ error: "Reset token is required" }).min(1),
-  newPassword: passwordField,
-  confirmPassword: z.string({ error: "Please confirm your new password" }),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
+export const resetPasswordSchema = z
+  .object({
+    token: z.string({ error: "Reset token is required" }).min(1),
+    newPassword: passwordField,
+    confirmPassword: z.string({ error: "Please confirm your new password" }),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

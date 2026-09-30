@@ -89,9 +89,7 @@ function cleanRating(value?: number | null): number | null {
 }
 
 export class FeedbackEntity {
-  private constructor(
-    private readonly data: FeedbackAdminView,
-  ) {}
+  private constructor(private readonly data: FeedbackAdminView) {}
 
   static create(input: CreateFeedbackEntityInput): FeedbackEntity {
     const now = new Date();

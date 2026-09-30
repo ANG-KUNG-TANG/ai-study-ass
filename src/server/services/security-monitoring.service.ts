@@ -53,18 +53,13 @@ function stringMetadata(
   key: string,
 ): string | undefined {
   const value = event.metadata?.[key];
-  return typeof value === "string" && value.trim()
-    ? value.trim()
-    : undefined;
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function pushGroupedSignal(
   signals: SecuritySignal[],
   events: AuditLogEntity[],
-  input: Omit<
-    SecuritySignal,
-    "count" | "firstSeen" | "lastSeen"
-  >,
+  input: Omit<SecuritySignal, "count" | "firstSeen" | "lastSeen">,
 ): void {
   if (events.length === 0) return;
 
@@ -95,9 +90,7 @@ export function detectSecuritySignals(
           "A stale or concurrently reused refresh token was detected and sessions were revoked.",
         count: 1,
         ...(event.actorId ? { actorId: event.actorId } : {}),
-        ...(event.actorEmail
-          ? { actorEmail: event.actorEmail }
-          : {}),
+        ...(event.actorEmail ? { actorEmail: event.actorEmail } : {}),
         firstSeen: event.createdAt,
         lastSeen: event.createdAt,
       });
@@ -115,15 +108,11 @@ export function detectSecuritySignals(
       signals.push({
         type: "sensitive_admin_action",
         severity: highRisk ? "high" : "medium",
-        title: highRisk
-          ? "High-impact admin action"
-          : "Sensitive admin action",
+        title: highRisk ? "High-impact admin action" : "Sensitive admin action",
         description: `Administrative action recorded: ${event.action}.`,
         count: 1,
         ...(event.actorId ? { actorId: event.actorId } : {}),
-        ...(event.actorEmail
-          ? { actorEmail: event.actorEmail }
-          : {}),
+        ...(event.actorEmail ? { actorEmail: event.actorEmail } : {}),
         firstSeen: event.createdAt,
         lastSeen: event.createdAt,
       });
@@ -135,9 +124,7 @@ export function detectSecuritySignals(
   for (const event of events) {
     if (event.action !== "auth.login_failed") continue;
 
-    const identity =
-      event.actorId ??
-      event.actorEmail?.trim().toLowerCase();
+    const identity = event.actorId ?? event.actorEmail?.trim().toLowerCase();
 
     if (!identity) continue;
 
@@ -155,11 +142,8 @@ export function detectSecuritySignals(
       type: "repeated_failed_login",
       severity: "high",
       title: "Repeated failed login attempts",
-      description:
-        `${failedEvents.length} failed login attempts were recorded for the same account identity.`,
-      ...(first.actorId
-        ? { actorId: first.actorId }
-        : {}),
+      description: `${failedEvents.length} failed login attempts were recorded for the same account identity.`,
+      ...(first.actorId ? { actorId: first.actorId } : {}),
       ...(first.actorEmail
         ? { actorEmail: first.actorEmail }
         : identity.includes("@")
@@ -190,8 +174,7 @@ export function detectSecuritySignals(
       type: "rate_limit_abuse",
       severity: "high",
       title: "Repeated rate-limit violations",
-      description:
-        `${rateLimitEvents.length} rate-limit violations were recorded from the same client identity.`,
+      description: `${rateLimitEvents.length} rate-limit violations were recorded from the same client identity.`,
       ip,
     });
   }
@@ -217,9 +200,7 @@ export async function getSecurityReport(
   );
 
   const generatedAt = new Date();
-  const since = new Date(
-    generatedAt.getTime() - safeWindowMinutes * 60_000,
-  );
+  const since = new Date(generatedAt.getTime() - safeWindowMinutes * 60_000);
 
   const events = await auditLogRepo.findSince(since);
   const signals = detectSecuritySignals(events);
@@ -229,15 +210,10 @@ export async function getSecurityReport(
     generatedAt,
     scannedEvents: events.length,
     summary: {
-      medium: signals.filter(
-        (signal) => signal.severity === "medium",
-      ).length,
-      high: signals.filter(
-        (signal) => signal.severity === "high",
-      ).length,
-      critical: signals.filter(
-        (signal) => signal.severity === "critical",
-      ).length,
+      medium: signals.filter((signal) => signal.severity === "medium").length,
+      high: signals.filter((signal) => signal.severity === "high").length,
+      critical: signals.filter((signal) => signal.severity === "critical")
+        .length,
     },
     signals,
   };

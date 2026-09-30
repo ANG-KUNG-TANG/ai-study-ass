@@ -16,15 +16,9 @@ const VISIBLE_SECTION_STATUSES = new Set([
   "no_extractable_knowledge",
 ]);
 
-const POSITIVE_CAUSAL_RELATIONS = new Set([
-  "causes",
-  "leads_to",
-  "enables",
-]);
+const POSITIVE_CAUSAL_RELATIONS = new Set(["causes", "leads_to", "enables"]);
 
-const NEGATIVE_CAUSAL_RELATIONS = new Set([
-  "prevents",
-]);
+const NEGATIVE_CAUSAL_RELATIONS = new Set(["prevents"]);
 
 interface SemanticRegistryEntry {
   nodeId: string;
@@ -83,9 +77,7 @@ export function buildGroundedKnowledgeGraphResult(
 
   const state: SemanticGraphState = {
     nodes: [documentNode],
-    nodesById: new Map([
-      [documentNode.id, documentNode],
-    ]),
+    nodesById: new Map([[documentNode.id, documentNode]]),
     structuralEdges: [],
     semanticEdges: new Map(),
     registry: new Map(),
@@ -106,24 +98,15 @@ export function buildGroundedKnowledgeGraphResult(
   addSemanticRelationships(state, grounding.facts);
   resolveSemanticConflicts(state);
 
-  const semanticEdges = [
-    ...state.semanticEdges.values(),
-  ];
+  const semanticEdges = [...state.semanticEdges.values()];
   const graph: GraphData = {
     nodes: uniqueNodes(state.nodes),
-    edges: uniqueEdges([
-      ...state.structuralEdges,
-      ...semanticEdges,
-    ]),
+    edges: uniqueEdges([...state.structuralEdges, ...semanticEdges]),
   };
 
   return {
     graph,
-    quality: buildQuality(
-      state,
-      graph,
-      semanticEdges,
-    ),
+    quality: buildQuality(state, graph, semanticEdges),
   };
 }
 
@@ -131,47 +114,38 @@ function addSections(
   state: SemanticGraphState,
   grounding: GroundedKnowledge,
 ): void {
-  grounding.sections.forEach(
-    (section, learningOrder) => {
-      if (
-        !VISIBLE_SECTION_STATUSES.has(
-          section.status,
-        )
-      ) {
-        return;
-      }
+  grounding.sections.forEach((section, learningOrder) => {
+    if (!VISIBLE_SECTION_STATUSES.has(section.status)) {
+      return;
+    }
 
-      state.visibleSectionIds.add(
-        section.sectionId,
-      );
+    state.visibleSectionIds.add(section.sectionId);
 
-      const sectionNode: GraphNodeData = {
-        id: section.sectionId,
-        type: "section",
-        label: cleanHeading(section.heading),
-        properties: {
-          description:
-            section.status ===
-            "no_extractable_knowledge"
-              ? "This source section contains no extractable study facts."
-              : "A source-grounded section in the document learning path.",
-          learningOrder: learningOrder + 1,
-          pageNumber: section.pageStart,
-          pageEnd: section.pageEnd,
-          factCount: section.factIds.length,
-          provenance: "document",
-        },
-      };
+    const sectionNode: GraphNodeData = {
+      id: section.sectionId,
+      type: "section",
+      label: cleanHeading(section.heading),
+      properties: {
+        description:
+          section.status === "no_extractable_knowledge"
+            ? "This source section contains no extractable study facts."
+            : "A source-grounded section in the document learning path.",
+        learningOrder: learningOrder + 1,
+        pageNumber: section.pageStart,
+        pageEnd: section.pageEnd,
+        factCount: section.factIds.length,
+        provenance: "document",
+      },
+    };
 
-      pushNode(state, sectionNode);
-      state.structuralEdges.push({
-        from: "grounded-document",
-        to: section.sectionId,
-        type: "contains",
-        weight: 1,
-      });
-    },
-  );
+    pushNode(state, sectionNode);
+    state.structuralEdges.push({
+      from: "grounded-document",
+      to: section.sectionId,
+      type: "contains",
+      weight: 1,
+    });
+  });
 }
 
 function addSupportedFacts(
@@ -182,41 +156,23 @@ function addSupportedFacts(
     (fact) =>
       fact.verificationStatus === "supported" &&
       fact.evidence.length > 0 &&
-      state.visibleSectionIds.has(
-        fact.sourceSectionId,
-      ),
+      state.visibleSectionIds.has(fact.sourceSectionId),
   );
 
   const orderBySection = new Map<string, number>();
 
   for (const fact of visibleFacts) {
-    const currentOrder =
-      (orderBySection.get(
-        fact.sourceSectionId,
-      ) ?? 0) + 1;
-    orderBySection.set(
-      fact.sourceSectionId,
-      currentOrder,
-    );
+    const currentOrder = (orderBySection.get(fact.sourceSectionId) ?? 0) + 1;
+    orderBySection.set(fact.sourceSectionId, currentOrder);
 
-    pushNode(
-      state,
-      factNode(
-        fact,
-        currentOrder,
-      ),
-    );
+    pushNode(state, factNode(fact, currentOrder));
 
     state.structuralEdges.push({
       from: fact.sourceSectionId,
       to: fact.id,
       type: "contains",
       weight: fact.importanceScore,
-      evidenceIds: uniqueStrings(
-        fact.evidence.map(
-          (evidence) => evidence.id,
-        ),
-      ),
+      evidenceIds: uniqueStrings(fact.evidence.map((evidence) => evidence.id)),
     });
   }
 }
@@ -231,10 +187,9 @@ function addConceptNodes(
       return;
     }
 
-    const conceptId =
-      `grounded-concept-${safeId(
-        concept.normalizedName,
-      )}-${index + 1}`;
+    const conceptId = `grounded-concept-${safeId(
+      concept.normalizedName,
+    )}-${index + 1}`;
 
     const node: GraphNodeData = {
       id: conceptId,
@@ -251,11 +206,7 @@ function addConceptNodes(
     };
 
     pushNode(state, node);
-    registerSemanticNode(
-      state,
-      node.id,
-      concept.name,
-    );
+    registerSemanticNode(state, node.id, concept.name);
     connectEvidenceToSource(
       state,
       node.id,
@@ -265,28 +216,17 @@ function addConceptNodes(
   });
 }
 
-function addTermNodes(
-  state: SemanticGraphState,
-  terms: QualifiedTerm[],
-): void {
+function addTermNodes(state: SemanticGraphState, terms: QualifiedTerm[]): void {
   terms.forEach((term, index) => {
     if (term.evidence.length === 0) {
       state.omittedUngroundedNodeCount += 1;
       return;
     }
 
-    const aliasNodeId =
-      findAliasNodeId(
-        state,
-        term.term,
-      );
+    const aliasNodeId = findAliasNodeId(state, term.term);
 
     if (aliasNodeId) {
-      mergeTermIntoNode(
-        state,
-        aliasNodeId,
-        term,
-      );
+      mergeTermIntoNode(state, aliasNodeId, term);
       connectEvidenceToSource(
         state,
         aliasNodeId,
@@ -296,10 +236,7 @@ function addTermNodes(
       return;
     }
 
-    const nodeId =
-      `grounded-term-${safeId(
-        term.term,
-      )}-${index + 1}`;
+    const nodeId = `grounded-term-${safeId(term.term)}-${index + 1}`;
 
     const node: GraphNodeData = {
       id: nodeId,
@@ -317,17 +254,8 @@ function addTermNodes(
     };
 
     pushNode(state, node);
-    registerSemanticNode(
-      state,
-      node.id,
-      term.term,
-    );
-    connectEvidenceToSource(
-      state,
-      node.id,
-      term.evidence,
-      term.confidence,
-    );
+    registerSemanticNode(state, node.id, term.term);
+    connectEvidenceToSource(state, node.id, term.evidence, term.confidence);
   });
 }
 
@@ -340,22 +268,14 @@ function connectEvidenceToSource(
   }>,
   weight: number,
 ): void {
-  const bySection = new Map<
-    string,
-    string[]
-  >();
+  const bySection = new Map<string, string[]>();
 
   for (const item of evidence) {
-    if (
-      !state.visibleSectionIds.has(
-        item.sectionId,
-      )
-    ) {
+    if (!state.visibleSectionIds.has(item.sectionId)) {
       continue;
     }
 
-    const ids =
-      bySection.get(item.sectionId) ?? [];
+    const ids = bySection.get(item.sectionId) ?? [];
     ids.push(item.id);
     bySection.set(item.sectionId, ids);
   }
@@ -366,22 +286,18 @@ function connectEvidenceToSource(
       to: nodeId,
       type: "mentions",
       weight,
-      evidenceIds: uniqueStrings(
-        evidence.map((item) => item.id),
-      ),
+      evidenceIds: uniqueStrings(evidence.map((item) => item.id)),
     });
     return;
   }
 
-  for (const [sectionId, evidenceIds]
-    of bySection) {
+  for (const [sectionId, evidenceIds] of bySection) {
     state.structuralEdges.push({
       from: sectionId,
       to: nodeId,
       type: "mentions",
       weight,
-      evidenceIds:
-        uniqueStrings(evidenceIds),
+      evidenceIds: uniqueStrings(evidenceIds),
     });
   }
 }
@@ -391,53 +307,35 @@ function mergeTermIntoNode(
   nodeId: string,
   term: QualifiedTerm,
 ): void {
-  const node =
-    state.nodesById.get(nodeId);
+  const node = state.nodesById.get(nodeId);
   if (!node) return;
 
-  const properties =
-    node.properties ?? {};
-  const existingEvidence =
-    Array.isArray(properties.evidence)
-      ? properties.evidence
-      : [];
-  const existingAliases =
-    Array.isArray(properties.aliases)
-      ? properties.aliases.filter(
-          (value): value is string =>
-            typeof value === "string",
-        )
-      : [];
+  const properties = node.properties ?? {};
+  const existingEvidence = Array.isArray(properties.evidence)
+    ? properties.evidence
+    : [];
+  const existingAliases = Array.isArray(properties.aliases)
+    ? properties.aliases.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : [];
 
   node.properties = {
     ...properties,
     definition:
-      typeof properties.definition ===
-        "string"
+      typeof properties.definition === "string"
         ? properties.definition
         : term.definition,
     confidence: Math.max(
-      asFiniteNumber(
-        properties.confidence,
-      ) ?? 0,
+      asFiniteNumber(properties.confidence) ?? 0,
       term.confidence,
     ),
-    evidence: uniqueEvidence([
-      ...existingEvidence,
-      ...term.evidence,
-    ]),
-    aliases: uniqueStrings([
-      ...existingAliases,
-      term.term,
-    ]),
+    evidence: uniqueEvidence([...existingEvidence, ...term.evidence]),
+    aliases: uniqueStrings([...existingAliases, term.term]),
     qualification: term.qualification,
   };
 
-  addAlias(
-    state,
-    nodeId,
-    term.term,
-  );
+  addAlias(state, nodeId, term.term);
 }
 
 function addSemanticRelationships(
@@ -445,29 +343,19 @@ function addSemanticRelationships(
   facts: AtomicFact[],
 ): void {
   for (const fact of facts) {
-    if (
-      fact.verificationStatus !==
-        "supported" ||
-      fact.evidence.length === 0
-    ) {
+    if (fact.verificationStatus !== "supported" || fact.evidence.length === 0) {
       continue;
     }
 
-    const text = normalise(
-      fact.content,
-    );
-    const mentions = findMentions(
-      state,
-      text,
-    );
+    const text = normalise(fact.content);
+    const mentions = findMentions(state, text);
 
     if (mentions.length < 2) {
       continue;
     }
 
     const relationshipCandidate =
-      fact.type === "relationship" ||
-      hasExplicitRelationCue(text);
+      fact.type === "relationship" || hasExplicitRelationCue(text);
 
     if (relationshipCandidate) {
       state.relationshipCandidateCount += 1;
@@ -475,83 +363,49 @@ function addSemanticRelationships(
 
     let parsedAny = false;
 
-    for (
-      let index = 0;
-      index < mentions.length - 1;
-      index += 1
-    ) {
+    for (let index = 0; index < mentions.length - 1; index += 1) {
       const left = mentions[index]!;
-      const right =
-        mentions[index + 1]!;
+      const right = mentions[index + 1]!;
 
       if (left.nodeId === right.nodeId) {
         continue;
       }
 
-      const between = text
-        .slice(
-          left.end,
-          right.start,
-        )
-        .trim();
+      const between = text.slice(left.end, right.start).trim();
 
-      const relation =
-        inferRelation(between);
+      const relation = inferRelation(between);
 
       if (!relation) continue;
 
-      const from = relation.reverse
-        ? right.nodeId
-        : left.nodeId;
-      const to = relation.reverse
-        ? left.nodeId
-        : right.nodeId;
+      const from = relation.reverse ? right.nodeId : left.nodeId;
+      const to = relation.reverse ? left.nodeId : right.nodeId;
 
-      addSemanticEdge(
-        state,
-        {
-          from,
-          to,
-          type: relation.type,
-          weight:
-            relationshipWeight(fact),
-          evidenceIds:
-            uniqueStrings(
-              fact.evidence.map(
-                (evidence) =>
-                  evidence.id,
-              ),
-            ),
-        },
-      );
+      addSemanticEdge(state, {
+        from,
+        to,
+        type: relation.type,
+        weight: relationshipWeight(fact),
+        evidenceIds: uniqueStrings(
+          fact.evidence.map((evidence) => evidence.id),
+        ),
+      });
 
       parsedAny = true;
     }
 
-    if (
-      relationshipCandidate &&
-      parsedAny
-    ) {
-      state.parsedRelationshipCandidateCount +=
-        1;
-    } else if (
-      relationshipCandidate
-    ) {
-      state.skippedUnsafeRelationshipCount +=
-        1;
+    if (relationshipCandidate && parsedAny) {
+      state.parsedRelationshipCandidateCount += 1;
+    } else if (relationshipCandidate) {
+      state.skippedUnsafeRelationshipCount += 1;
     }
   }
 }
 
-function inferRelation(
-  between: string,
-): {
+function inferRelation(between: string): {
   type: string;
   reverse: boolean;
 } | null {
-  const value = between
-    .replace(/\s+/g, " ")
-    .trim();
+  const value = between.replace(/\s+/g, " ").trim();
 
   const forward: Array<{
     pattern: RegExp;
@@ -563,8 +417,7 @@ function inferRelation(
       type: "is_a",
     },
     {
-      pattern:
-        /^(?:is|are)\s+(?:a|an|the)?\s*(?:part|component|member)\s+of$/u,
+      pattern: /^(?:is|are)\s+(?:a|an|the)?\s*(?:part|component|member)\s+of$/u,
       type: "part_of",
     },
     {
@@ -573,58 +426,47 @@ function inferRelation(
       type: "contains",
     },
     {
-      pattern:
-        /^(?:depends?\s+on|relies?\s+on)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:depends?\s+on|relies?\s+on)(?:\s+(?:the|a|an))?$/u,
       type: "depends_on",
     },
     {
-      pattern:
-        /^(?:uses?|utilizes?|employs?)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:uses?|utilizes?|employs?)(?:\s+(?:the|a|an))?$/u,
       type: "uses",
     },
     {
-      pattern:
-        /^(?:requires?|needs?)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:requires?|needs?)(?:\s+(?:the|a|an))?$/u,
       type: "requires",
     },
     {
-      pattern:
-        /^(?:prevents?|avoids?|blocks?|inhibits?)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:prevents?|avoids?|blocks?|inhibits?)(?:\s+(?:the|a|an))?$/u,
       type: "prevents",
     },
     {
-      pattern:
-        /^(?:causes?|produces?|results?\s+in)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:causes?|produces?|results?\s+in)(?:\s+(?:the|a|an))?$/u,
       type: "causes",
     },
     {
-      pattern:
-        /^(?:leads?\s+to)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:leads?\s+to)(?:\s+(?:the|a|an))?$/u,
       type: "leads_to",
     },
     {
-      pattern:
-        /^(?:supports?)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:supports?)(?:\s+(?:the|a|an))?$/u,
       type: "supports",
     },
     {
-      pattern:
-        /^(?:protects?)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:protects?)(?:\s+(?:the|a|an))?$/u,
       type: "protects",
     },
     {
-      pattern:
-        /^(?:controls?|governs?)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:controls?|governs?)(?:\s+(?:the|a|an))?$/u,
       type: "controls",
     },
     {
-      pattern:
-        /^(?:enables?|allows?)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:enables?|allows?)(?:\s+(?:the|a|an))?$/u,
       type: "enables",
     },
     {
-      pattern:
-        /^(?:defines?|describes?)(?:\s+(?:the|a|an))?$/u,
+      pattern: /^(?:defines?|describes?)(?:\s+(?:the|a|an))?$/u,
       type: "defines",
     },
     {
@@ -635,9 +477,7 @@ function inferRelation(
   ];
 
   for (const candidate of forward) {
-    if (
-      candidate.pattern.test(value)
-    ) {
+    if (candidate.pattern.test(value)) {
       return {
         type: candidate.type,
         reverse: false,
@@ -650,41 +490,33 @@ function inferRelation(
     type: string;
   }> = [
     {
-      pattern:
-        /^(?:is|are)\s+(?:prevented|blocked|inhibited)\s+by$/u,
+      pattern: /^(?:is|are)\s+(?:prevented|blocked|inhibited)\s+by$/u,
       type: "prevents",
     },
     {
-      pattern:
-        /^(?:is|are)\s+(?:caused|produced)\s+by$/u,
+      pattern: /^(?:is|are)\s+(?:caused|produced)\s+by$/u,
       type: "causes",
     },
     {
-      pattern:
-        /^(?:is|are)\s+supported\s+by$/u,
+      pattern: /^(?:is|are)\s+supported\s+by$/u,
       type: "supports",
     },
     {
-      pattern:
-        /^(?:is|are)\s+protected\s+by$/u,
+      pattern: /^(?:is|are)\s+protected\s+by$/u,
       type: "protects",
     },
     {
-      pattern:
-        /^(?:is|are)\s+controlled\s+by$/u,
+      pattern: /^(?:is|are)\s+controlled\s+by$/u,
       type: "controls",
     },
     {
-      pattern:
-        /^(?:is|are)\s+defined\s+by$/u,
+      pattern: /^(?:is|are)\s+defined\s+by$/u,
       type: "defines",
     },
   ];
 
   for (const candidate of passive) {
-    if (
-      candidate.pattern.test(value)
-    ) {
+    if (candidate.pattern.test(value)) {
       return {
         type: candidate.type,
         reverse: true,
@@ -695,44 +527,30 @@ function inferRelation(
   return null;
 }
 
-function hasExplicitRelationCue(
-  text: string,
-): boolean {
+function hasExplicitRelationCue(text: string): boolean {
   return /\b(?:type|kind|form|subtype|category|part|component|member|contains?|includes?|comprises?|consists?|depends?|relies?|uses?|utilizes?|employs?|requires?|needs?|prevents?|avoids?|blocks?|inhibits?|causes?|produces?|results?|leads?|supports?|protects?|controls?|governs?|enables?|allows?|defines?|describes?|connects?|maps?|related|associated)\b/u.test(
     text,
   );
 }
 
-function addSemanticEdge(
-  state: SemanticGraphState,
-  edge: GraphEdgeData,
-): void {
+function addSemanticEdge(state: SemanticGraphState, edge: GraphEdgeData): void {
   let from = edge.from;
   let to = edge.to;
 
-  if (
-    edge.type === "related_to" &&
-    from.localeCompare(to) > 0
-  ) {
+  if (edge.type === "related_to" && from.localeCompare(to) > 0) {
     [from, to] = [to, from];
   }
 
-  const key =
-    `${from}:${edge.type}:${to}`;
-  const existing =
-    state.semanticEdges.get(key);
+  const key = `${from}:${edge.type}:${to}`;
+  const existing = state.semanticEdges.get(key);
 
   if (existing) {
     state.duplicateEdgeCount += 1;
-    existing.weight = Math.max(
-      existing.weight,
-      edge.weight,
-    );
-    existing.evidenceIds =
-      uniqueStrings([
-        ...(existing.evidenceIds ?? []),
-        ...(edge.evidenceIds ?? []),
-      ]);
+    existing.weight = Math.max(existing.weight, edge.weight);
+    existing.evidenceIds = uniqueStrings([
+      ...(existing.evidenceIds ?? []),
+      ...(edge.evidenceIds ?? []),
+    ]);
     return;
   }
 
@@ -740,39 +558,20 @@ function addSemanticEdge(
     ...edge,
     from,
     to,
-    evidenceIds:
-      uniqueStrings(
-        edge.evidenceIds ?? [],
-      ),
+    evidenceIds: uniqueStrings(edge.evidenceIds ?? []),
   });
 }
 
-function resolveSemanticConflicts(
-  state: SemanticGraphState,
-): void {
+function resolveSemanticConflicts(state: SemanticGraphState): void {
   resolveCausalConflicts(state);
-  resolveReverseHierarchyConflicts(
-    state,
-    "is_a",
-  );
-  resolveReverseHierarchyConflicts(
-    state,
-    "part_of",
-  );
+  resolveReverseHierarchyConflicts(state, "is_a");
+  resolveReverseHierarchyConflicts(state, "part_of");
 }
 
-function resolveCausalConflicts(
-  state: SemanticGraphState,
-): void {
-  const byPair = new Map<
-    string,
-    GraphEdgeData[]
-  >();
+function resolveCausalConflicts(state: SemanticGraphState): void {
+  const byPair = new Map<string, GraphEdgeData[]>();
 
-  for (
-    const edge of
-    state.semanticEdges.values()
-  ) {
+  for (const edge of state.semanticEdges.values()) {
     const key = `${edge.from}:${edge.to}`;
     const edges = byPair.get(key) ?? [];
     edges.push(edge);
@@ -780,17 +579,11 @@ function resolveCausalConflicts(
   }
 
   for (const edges of byPair.values()) {
-    const hasPositive = edges.some(
-      (edge) =>
-        POSITIVE_CAUSAL_RELATIONS.has(
-          edge.type,
-        ),
+    const hasPositive = edges.some((edge) =>
+      POSITIVE_CAUSAL_RELATIONS.has(edge.type),
     );
-    const hasNegative = edges.some(
-      (edge) =>
-        NEGATIVE_CAUSAL_RELATIONS.has(
-          edge.type,
-        ),
+    const hasNegative = edges.some((edge) =>
+      NEGATIVE_CAUSAL_RELATIONS.has(edge.type),
     );
 
     if (!hasPositive || !hasNegative) {
@@ -801,16 +594,10 @@ function resolveCausalConflicts(
 
     for (const edge of edges) {
       if (
-        POSITIVE_CAUSAL_RELATIONS.has(
-          edge.type,
-        ) ||
-        NEGATIVE_CAUSAL_RELATIONS.has(
-          edge.type,
-        )
+        POSITIVE_CAUSAL_RELATIONS.has(edge.type) ||
+        NEGATIVE_CAUSAL_RELATIONS.has(edge.type)
       ) {
-        state.semanticEdges.delete(
-          `${edge.from}:${edge.type}:${edge.to}`,
-        );
+        state.semanticEdges.delete(`${edge.from}:${edge.type}:${edge.to}`);
       }
     }
   }
@@ -820,42 +607,26 @@ function resolveReverseHierarchyConflicts(
   state: SemanticGraphState,
   relationType: string,
 ): void {
-  const visited =
-    new Set<string>();
+  const visited = new Set<string>();
 
-  for (
-    const edge of
-    [...state.semanticEdges.values()]
-  ) {
+  for (const edge of [...state.semanticEdges.values()]) {
     if (edge.type !== relationType) {
       continue;
     }
 
-    const unordered =
-      [edge.from, edge.to]
-        .sort()
-        .join(":");
+    const unordered = [edge.from, edge.to].sort().join(":");
 
     if (visited.has(unordered)) {
       continue;
     }
     visited.add(unordered);
 
-    const reverseKey =
-      `${edge.to}:${relationType}:${edge.from}`;
+    const reverseKey = `${edge.to}:${relationType}:${edge.from}`;
 
-    if (
-      state.semanticEdges.has(
-        reverseKey,
-      )
-    ) {
+    if (state.semanticEdges.has(reverseKey)) {
       state.conflictingEdgeCount += 1;
-      state.semanticEdges.delete(
-        `${edge.from}:${relationType}:${edge.to}`,
-      );
-      state.semanticEdges.delete(
-        reverseKey,
-      );
+      state.semanticEdges.delete(`${edge.from}:${relationType}:${edge.to}`);
+      state.semanticEdges.delete(reverseKey);
     }
   }
 }
@@ -866,8 +637,7 @@ function registerSemanticNode(
   label: string,
 ): void {
   const aliases = new Set<string>();
-  const normalisedLabel =
-    normalise(label);
+  const normalisedLabel = normalise(label);
   if (normalisedLabel) {
     aliases.add(normalisedLabel);
   }
@@ -883,19 +653,11 @@ function registerSemanticNode(
     aliases,
   };
 
-  state.registry.set(
-    nodeId,
-    entry,
-  );
+  state.registry.set(nodeId, entry);
 
   for (const alias of aliases) {
-    if (
-      !state.aliasToNodeId.has(alias)
-    ) {
-      state.aliasToNodeId.set(
-        alias,
-        nodeId,
-      );
+    if (!state.aliasToNodeId.has(alias)) {
+      state.aliasToNodeId.set(alias, nodeId);
     }
   }
 }
@@ -905,27 +667,18 @@ function addAlias(
   nodeId: string,
   alias: string,
 ): void {
-  const entry =
-    state.registry.get(nodeId);
+  const entry = state.registry.get(nodeId);
   if (!entry) return;
 
-  const values = [
-    normalise(alias),
-    initialism(alias),
-  ].filter(
+  const values = [normalise(alias), initialism(alias)].filter(
     (value) => value.length >= 2,
   );
 
   for (const value of values) {
     entry.aliases.add(value);
 
-    if (
-      !state.aliasToNodeId.has(value)
-    ) {
-      state.aliasToNodeId.set(
-        value,
-        nodeId,
-      );
+    if (!state.aliasToNodeId.has(value)) {
+      state.aliasToNodeId.set(value, nodeId);
     }
   }
 }
@@ -934,32 +687,20 @@ function findAliasNodeId(
   state: SemanticGraphState,
   label: string,
 ): string | null {
-  const direct =
-    state.aliasToNodeId.get(
-      normalise(label),
-    );
+  const direct = state.aliasToNodeId.get(normalise(label));
 
   if (direct) return direct;
 
   const acronym = initialism(label);
   if (acronym.length >= 2) {
-    const acronymMatch =
-      state.aliasToNodeId.get(acronym);
+    const acronymMatch = state.aliasToNodeId.get(acronym);
     if (acronymMatch) {
       return acronymMatch;
     }
   }
 
-  for (
-    const entry of
-    state.registry.values()
-  ) {
-    if (
-      isAcronymAlias(
-        label,
-        entry.label,
-      )
-    ) {
+  for (const entry of state.registry.values()) {
+    if (isAcronymAlias(label, entry.label)) {
       return entry.nodeId;
     }
   }
@@ -967,40 +708,23 @@ function findAliasNodeId(
   return null;
 }
 
-function findMentions(
-  state: SemanticGraphState,
-  text: string,
-): Mention[] {
+function findMentions(state: SemanticGraphState, text: string): Mention[] {
   const candidates: Mention[] = [];
 
-  for (
-    const entry of
-    state.registry.values()
-  ) {
+  for (const entry of state.registry.values()) {
     for (const alias of entry.aliases) {
       if (alias.length < 2) continue;
 
       let searchFrom = 0;
 
       while (searchFrom < text.length) {
-        const start =
-          text.indexOf(
-            alias,
-            searchFrom,
-          );
+        const start = text.indexOf(alias, searchFrom);
 
         if (start < 0) break;
 
-        const end =
-          start + alias.length;
+        const end = start + alias.length;
 
-        if (
-          hasBoundary(
-            text,
-            start,
-            end,
-          )
-        ) {
+        if (hasBoundary(text, start, end)) {
           candidates.push({
             nodeId: entry.nodeId,
             start,
@@ -1009,8 +733,7 @@ function findMentions(
           });
         }
 
-        searchFrom =
-          Math.max(end, start + 1);
+        searchFrom = Math.max(end, start + 1);
       }
     }
   }
@@ -1018,8 +741,7 @@ function findMentions(
   candidates.sort(
     (left, right) =>
       left.start - right.start ||
-      (right.end - right.start) -
-        (left.end - left.start),
+      right.end - right.start - (left.end - left.start),
   );
 
   const selected: Mention[] = [];
@@ -1027,10 +749,7 @@ function findMentions(
   for (const candidate of candidates) {
     const overlaps = selected.some(
       (current) =>
-        candidate.start <
-          current.end &&
-        current.start <
-          candidate.end,
+        candidate.start < current.end && current.start < candidate.end,
     );
 
     if (!overlaps) {
@@ -1038,38 +757,18 @@ function findMentions(
     }
   }
 
-  return selected.sort(
-    (left, right) =>
-      left.start - right.start,
-  );
+  return selected.sort((left, right) => left.start - right.start);
 }
 
-function hasBoundary(
-  text: string,
-  start: number,
-  end: number,
-): boolean {
-  const before =
-    start === 0
-      ? ""
-      : text[start - 1] ?? "";
-  const after =
-    end >= text.length
-      ? ""
-      : text[end] ?? "";
+function hasBoundary(text: string, start: number, end: number): boolean {
+  const before = start === 0 ? "" : (text[start - 1] ?? "");
+  const after = end >= text.length ? "" : (text[end] ?? "");
 
-  return (
-    !isAlphaNumeric(before) &&
-    !isAlphaNumeric(after)
-  );
+  return !isAlphaNumeric(before) && !isAlphaNumeric(after);
 }
 
-function isAlphaNumeric(
-  value: string,
-): boolean {
-  return /[\p{L}\p{N}\p{M}]/u.test(
-    value,
-  );
+function isAlphaNumeric(value: string): boolean {
+  return /[\p{L}\p{N}\p{M}]/u.test(value);
 }
 
 function buildQuality(
@@ -1077,53 +776,32 @@ function buildQuality(
   graph: GraphData,
   semanticEdges: GraphEdgeData[],
 ): KnowledgeGraphQuality {
-  const semanticNodeIds =
-    new Set(
-      graph.nodes
-        .filter((node) =>
-          node.type === "concept" ||
-          node.type === "term",
-        )
-        .map((node) => node.id),
-    );
+  const semanticNodeIds = new Set(
+    graph.nodes
+      .filter((node) => node.type === "concept" || node.type === "term")
+      .map((node) => node.id),
+  );
 
-  const connectedSemanticNodeIds =
-    new Set<string>();
+  const connectedSemanticNodeIds = new Set<string>();
 
   for (const edge of semanticEdges) {
-    if (
-      semanticNodeIds.has(edge.from)
-    ) {
-      connectedSemanticNodeIds.add(
-        edge.from,
-      );
+    if (semanticNodeIds.has(edge.from)) {
+      connectedSemanticNodeIds.add(edge.from);
     }
-    if (
-      semanticNodeIds.has(edge.to)
-    ) {
-      connectedSemanticNodeIds.add(
-        edge.to,
-      );
+    if (semanticNodeIds.has(edge.to)) {
+      connectedSemanticNodeIds.add(edge.to);
     }
   }
 
-  const semanticIsolationCount =
-    [...semanticNodeIds].filter(
-      (nodeId) =>
-        !connectedSemanticNodeIds.has(
-          nodeId,
-        ),
-    ).length;
+  const semanticIsolationCount = [...semanticNodeIds].filter(
+    (nodeId) => !connectedSemanticNodeIds.has(nodeId),
+  ).length;
 
   const semanticEdgeEvidenceCoverage =
     semanticEdges.length === 0
       ? 1
-      : semanticEdges.filter(
-          (edge) =>
-            (edge.evidenceIds?.length ?? 0) >
-            0,
-        ).length /
-        semanticEdges.length;
+      : semanticEdges.filter((edge) => (edge.evidenceIds?.length ?? 0) > 0)
+          .length / semanticEdges.length;
 
   const relationshipFactCoverage =
     state.relationshipCandidateCount === 0
@@ -1132,9 +810,7 @@ function buildQuality(
         state.relationshipCandidateCount;
 
   const warnings: string[] = [];
-  let status:
-    KnowledgeGraphQuality["status"] =
-      "passed";
+  let status: KnowledgeGraphQuality["status"] = "passed";
 
   if (semanticNodeIds.size === 0) {
     status = "failed";
@@ -1142,37 +818,28 @@ function buildQuality(
       "No evidence-grounded semantic nodes were available for the Knowledge Graph.",
     );
   } else {
-    if (
-      semanticEdgeEvidenceCoverage < 1
-    ) {
+    if (semanticEdgeEvidenceCoverage < 1) {
       status = "warning";
       warnings.push(
         "One or more semantic relationships are missing direct evidence.",
       );
     }
 
-    if (
-      state.skippedUnsafeRelationshipCount >
-      0
-    ) {
+    if (state.skippedUnsafeRelationshipCount > 0) {
       status = "warning";
       warnings.push(
         "Some relationship candidates were omitted because their direction or meaning could not be proven safely.",
       );
     }
 
-    if (
-      state.conflictingEdgeCount > 0
-    ) {
+    if (state.conflictingEdgeCount > 0) {
       status = "warning";
       warnings.push(
         "Conflicting semantic relationship candidates were removed from the Knowledge Graph.",
       );
     }
 
-    if (
-      state.omittedUngroundedNodeCount > 0
-    ) {
+    if (state.omittedUngroundedNodeCount > 0) {
       status = "warning";
       warnings.push(
         "Ungrounded concept or term candidates were omitted from the Knowledge Graph.",
@@ -1180,8 +847,7 @@ function buildQuality(
     }
 
     if (
-      state.relationshipCandidateCount >
-        0 &&
+      state.relationshipCandidateCount > 0 &&
       relationshipFactCoverage < 0.5
     ) {
       status = "warning";
@@ -1193,55 +859,35 @@ function buildQuality(
 
   return {
     status,
-    semanticNodeCount:
-      semanticNodeIds.size,
-    semanticEdgeCount:
-      semanticEdges.length,
+    semanticNodeCount: semanticNodeIds.size,
+    semanticEdgeCount: semanticEdges.length,
     semanticIsolationCount,
-    semanticEdgeEvidenceCoverage:
-      roundRatio(
-        semanticEdgeEvidenceCoverage,
-      ),
-    relationshipFactCoverage:
-      roundRatio(
-        relationshipFactCoverage,
-      ),
-    duplicateEdgeCount:
-      state.duplicateEdgeCount,
-    conflictingEdgeCount:
-      state.conflictingEdgeCount,
-    skippedUnsafeRelationshipCount:
-      state.skippedUnsafeRelationshipCount,
-    omittedUngroundedNodeCount:
-      state.omittedUngroundedNodeCount,
+    semanticEdgeEvidenceCoverage: roundRatio(semanticEdgeEvidenceCoverage),
+    relationshipFactCoverage: roundRatio(relationshipFactCoverage),
+    duplicateEdgeCount: state.duplicateEdgeCount,
+    conflictingEdgeCount: state.conflictingEdgeCount,
+    skippedUnsafeRelationshipCount: state.skippedUnsafeRelationshipCount,
+    omittedUngroundedNodeCount: state.omittedUngroundedNodeCount,
     warnings,
   };
 }
 
-function factNode(
-  fact: AtomicFact,
-  learningOrder: number,
-): GraphNodeData {
+function factNode(fact: AtomicFact, learningOrder: number): GraphNodeData {
   return {
     id: fact.id,
     type:
       fact.type === "result"
         ? "result"
-        : fact.type ===
-            "procedure_step"
+        : fact.type === "procedure_step"
           ? "method"
           : "claim",
-    label: shorten(
-      fact.content,
-      120,
-    ),
+    label: shorten(fact.content, 120),
     properties: {
       description: fact.content,
       confidence: fact.confidence,
       score: fact.importanceScore,
       factType: fact.type,
-      sourceSectionId:
-        fact.sourceSectionId,
+      sourceSectionId: fact.sourceSectionId,
       learningOrder,
       evidence: fact.evidence,
       provenance: "document",
@@ -1249,26 +895,16 @@ function factNode(
   };
 }
 
-function pushNode(
-  state: SemanticGraphState,
-  node: GraphNodeData,
-): void {
-  if (
-    state.nodesById.has(node.id)
-  ) {
+function pushNode(state: SemanticGraphState, node: GraphNodeData): void {
+  if (state.nodesById.has(node.id)) {
     return;
   }
 
   state.nodes.push(node);
-  state.nodesById.set(
-    node.id,
-    node,
-  );
+  state.nodesById.set(node.id, node);
 }
 
-function uniqueNodes(
-  nodes: GraphNodeData[],
-): GraphNodeData[] {
+function uniqueNodes(nodes: GraphNodeData[]): GraphNodeData[] {
   const seen = new Set<string>();
 
   return nodes.filter((node) => {
@@ -1280,90 +916,54 @@ function uniqueNodes(
   });
 }
 
-function uniqueEdges(
-  edges: GraphEdgeData[],
-): GraphEdgeData[] {
-  const output =
-    new Map<string, GraphEdgeData>();
+function uniqueEdges(edges: GraphEdgeData[]): GraphEdgeData[] {
+  const output = new Map<string, GraphEdgeData>();
 
   for (const edge of edges) {
-    const key =
-      `${edge.from}:${edge.type}:${edge.to}`;
-    const existing =
-      output.get(key);
+    const key = `${edge.from}:${edge.type}:${edge.to}`;
+    const existing = output.get(key);
 
     if (!existing) {
       output.set(key, {
         ...edge,
         ...(edge.evidenceIds
           ? {
-              evidenceIds:
-                uniqueStrings(
-                  edge.evidenceIds,
-                ),
+              evidenceIds: uniqueStrings(edge.evidenceIds),
             }
           : {}),
       });
       continue;
     }
 
-    existing.weight = Math.max(
-      existing.weight,
-      edge.weight,
-    );
+    existing.weight = Math.max(existing.weight, edge.weight);
 
-    if (
-      edge.evidenceIds ||
-      existing.evidenceIds
-    ) {
-      existing.evidenceIds =
-        uniqueStrings([
-          ...(existing.evidenceIds ??
-            []),
-          ...(edge.evidenceIds ?? []),
-        ]);
+    if (edge.evidenceIds || existing.evidenceIds) {
+      existing.evidenceIds = uniqueStrings([
+        ...(existing.evidenceIds ?? []),
+        ...(edge.evidenceIds ?? []),
+      ]);
     }
   }
 
   return [...output.values()];
 }
 
-function relationshipWeight(
-  fact: AtomicFact,
-): number {
-  return Math.min(
-    1,
-    Math.max(
-      0,
-      (
-        fact.confidence +
-        fact.importanceScore
-      ) / 2,
-    ),
-  );
+function relationshipWeight(fact: AtomicFact): number {
+  return Math.min(1, Math.max(0, (fact.confidence + fact.importanceScore) / 2));
 }
 
-function uniqueEvidence(
-  evidence: unknown[],
-): unknown[] {
+function uniqueEvidence(evidence: unknown[]): unknown[] {
   const output: unknown[] = [];
   const seen = new Set<string>();
 
   for (const item of evidence) {
-    if (
-      !item ||
-      typeof item !== "object"
-    ) {
+    if (!item || typeof item !== "object") {
       output.push(item);
       continue;
     }
 
-    const raw =
-      item as Record<string, unknown>;
-    const id =
-      typeof raw.id === "string"
-        ? raw.id
-        : JSON.stringify(item);
+    const raw = item as Record<string, unknown>;
+    const id = typeof raw.id === "string" ? raw.id : JSON.stringify(item);
 
     if (seen.has(id)) continue;
     seen.add(id);
@@ -1373,53 +973,26 @@ function uniqueEvidence(
   return output;
 }
 
-function asFiniteNumber(
-  value: unknown,
-): number | undefined {
-  return (
-    typeof value === "number" &&
-    Number.isFinite(value)
-  )
+function asFiniteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
     ? value
     : undefined;
 }
 
-function isAcronymAlias(
-  left: string,
-  right: string,
-): boolean {
-  const leftCompact = normalise(left)
-    .replace(/\s+/g, "");
-  const rightCompact = normalise(right)
-    .replace(/\s+/g, "");
-  const leftInitialism =
-    initialism(left);
-  const rightInitialism =
-    initialism(right);
+function isAcronymAlias(left: string, right: string): boolean {
+  const leftCompact = normalise(left).replace(/\s+/g, "");
+  const rightCompact = normalise(right).replace(/\s+/g, "");
+  const leftInitialism = initialism(left);
+  const rightInitialism = initialism(right);
 
   return Boolean(
-    (
-      leftCompact.length >= 2 &&
-      leftCompact ===
-        rightInitialism
-    ) ||
-    (
-      rightCompact.length >= 2 &&
-      rightCompact ===
-        leftInitialism
-    ),
+    (leftCompact.length >= 2 && leftCompact === rightInitialism) ||
+    (rightCompact.length >= 2 && rightCompact === leftInitialism),
   );
 }
 
-function initialism(
-  value: string,
-): string {
-  const words =
-    value
-      .normalize("NFKC")
-      .match(
-        /[\p{L}\p{N}]+/gu,
-      ) ?? [];
+function initialism(value: string): string {
+  const words = value.normalize("NFKC").match(/[\p{L}\p{N}]+/gu) ?? [];
 
   if (words.length < 2) {
     return "";
@@ -1431,31 +1004,15 @@ function initialism(
     .toLocaleLowerCase();
 }
 
-function uniqueStrings(
-  values: string[],
-): string[] {
-  return [
-    ...new Set(
-      values.filter(
-        (value) =>
-          value.trim().length > 0,
-      ),
-    ),
-  ];
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter((value) => value.trim().length > 0))];
 }
 
-function roundRatio(
-  value: number,
-): number {
-  return (
-    Math.round(value * 1000) /
-    1000
-  );
+function roundRatio(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
-function cleanHeading(
-  value: string,
-): string {
+function cleanHeading(value: string): string {
   return value
     .replace(/^#+\s*/, "")
     .replace(
@@ -1466,53 +1023,32 @@ function cleanHeading(
     .trim();
 }
 
-function shorten(
-  value: string,
-  maxLength: number,
-): string {
-  const text =
-    value
-      .replace(/\s+/g, " ")
-      .trim();
+function shorten(value: string, maxLength: number): string {
+  const text = value.replace(/\s+/g, " ").trim();
 
-  if (
-    text.length <= maxLength
-  ) {
+  if (text.length <= maxLength) {
     return text;
   }
 
-  return `${text
-    .slice(0, maxLength - 1)
-    .trimEnd()}…`;
+  return `${text.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
-function safeId(
-  value: string,
-): string {
+function safeId(value: string): string {
+  return (
+    value
+      .normalize("NFKC")
+      .toLocaleLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 64) || "item"
+  );
+}
+
+function normalise(value: string): string {
   return value
     .normalize("NFKC")
     .toLocaleLowerCase()
-    .replace(
-      /[^\p{L}\p{N}]+/gu,
-      "-",
-    )
-    .replace(
-      /^-+|-+$/g,
-      "",
-    )
-    .slice(0, 64) || "item";
-}
-
-function normalise(
-  value: string,
-): string {
-  return value
-    .normalize("NFKC")
-    .toLocaleLowerCase()
-    .replace(
-      /[^\p{L}\p{N}\p{M} ]+/gu,
-      " ",
-    )
+    .replace(/[^\p{L}\p{N}\p{M} ]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

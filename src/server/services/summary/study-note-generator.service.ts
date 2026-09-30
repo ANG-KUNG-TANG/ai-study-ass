@@ -159,7 +159,9 @@ function calculateCopyRatio(output: string, source: string): number {
 
   if (sentences.length === 0) return 0;
 
-  const copied = sentences.filter((sentence) => sourceNormalised.includes(sentence)).length;
+  const copied = sentences.filter((sentence) =>
+    sourceNormalised.includes(sentence),
+  ).length;
   return copied / sentences.length;
 }
 
@@ -208,13 +210,17 @@ export async function generateStudyNotes(
   const sourceText = normaliseSource(input.sourceText);
 
   if (!sourceText) {
-    throw new Error("Cannot generate notes because the extracted document text is empty");
+    throw new Error(
+      "Cannot generate notes because the extracted document text is empty",
+    );
   }
 
   const chunks = sampleChunks(splitByParagraph(sourceText));
 
   if (chunks.length === 0) {
-    throw new Error("The document could not be divided into usable text sections");
+    throw new Error(
+      "The document could not be divided into usable text sections",
+    );
   }
 
   const intermediateNotes: string[] = [];
@@ -230,13 +236,17 @@ export async function generateStudyNotes(
     intermediateNotes.push(notes);
   }
 
-  const finalResponse = await generate(buildFinalPrompt(input.title, intermediateNotes));
+  const finalResponse = await generate(
+    buildFinalPrompt(input.title, intermediateNotes),
+  );
   let finalNotes = finalResponse.text.trim();
   validateGeneratedNotes(finalNotes);
 
   // A second pass is used only when the output contains too many exact source sentences.
   if (calculateCopyRatio(finalNotes, sourceText) > MAX_COPY_RATIO) {
-    const rewritten = await generate(buildRewritePrompt(input.title, finalNotes));
+    const rewritten = await generate(
+      buildRewritePrompt(input.title, finalNotes),
+    );
     const rewrittenNotes = rewritten.text.trim();
     validateGeneratedNotes(rewrittenNotes);
     finalNotes = rewrittenNotes;

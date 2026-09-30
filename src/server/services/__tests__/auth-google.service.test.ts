@@ -31,10 +31,7 @@ import bcrypt from "bcryptjs";
 import { UserEntity } from "@/server/entities/user.entity";
 import * as userRepo from "@/server/repositories/user.repo";
 import { loginWithGoogle } from "@/server/services/auth.service";
-import {
-  clearUserRevocation,
-  signTokenPair,
-} from "@/server/utils/jwt";
+import { clearUserRevocation, signTokenPair } from "@/server/utils/jwt";
 
 const googleIdentity = {
   subject: "google-subject-1",
@@ -130,9 +127,11 @@ describe("loginWithGoogle", () => {
 
   it("does not let Google linking reactivate an administratively disabled account", async () => {
     jest.mocked(userRepo.findByGoogleSubject).mockResolvedValue(null);
-    jest.mocked(userRepo.findByEmail).mockResolvedValue(
-      persistedUser({ active: false, emailVerified: false }),
-    );
+    jest
+      .mocked(userRepo.findByEmail)
+      .mockResolvedValue(
+        persistedUser({ active: false, emailVerified: false }),
+      );
 
     await expect(loginWithGoogle(googleIdentity)).rejects.toMatchObject({
       code: "UNAUTHORIZED",
@@ -145,9 +144,9 @@ describe("loginWithGoogle", () => {
 
   it("does not automatically link a password account on another domain", async () => {
     jest.mocked(userRepo.findByGoogleSubject).mockResolvedValue(null);
-    jest.mocked(userRepo.findByEmail).mockResolvedValue(
-      persistedUser({ active: true }),
-    );
+    jest
+      .mocked(userRepo.findByEmail)
+      .mockResolvedValue(persistedUser({ active: true }));
 
     await expect(
       loginWithGoogle({

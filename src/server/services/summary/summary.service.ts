@@ -13,9 +13,7 @@ import {
   buildGroundedStudyNotes,
   getStudyNotesVersionMarker,
 } from "@/server/services/summary/grounded-study-notes.service";
-import {
-  buildGroundedSummaryRecovery,
-} from "@/server/services/summary/summary-recovery.service";
+import { buildGroundedSummaryRecovery } from "@/server/services/summary/summary-recovery.service";
 import {
   assessSummaryQuality,
   summaryQualityLogContext,
@@ -31,10 +29,7 @@ import {
   validateSummaryRepairPatch,
 } from "@/server/services/summary/summary-targeted-repair.service";
 import { getReliableProfile } from "@/server/intelligence/reliability/profile";
-import {
-  NotFoundError,
-  ValidationError,
-} from "@/server/utils/errors";
+import { NotFoundError, ValidationError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type {
   GenerationMetadata,
@@ -49,12 +44,8 @@ import {
   invalidateCachedRepair,
   saveCachedRepair,
 } from "@/server/services/repair-cache.service";
-import {
-  recordRepairTelemetry,
-} from "@/server/services/repair-telemetry.service";
-import {
-  isSummaryCandidatePreferred,
-} from "@/server/services/summary/summary-candidate-arbitration.service";
+import { recordRepairTelemetry } from "@/server/services/repair-telemetry.service";
+import { isSummaryCandidatePreferred } from "@/server/services/summary/summary-candidate-arbitration.service";
 
 export interface SummaryResult extends GenerationMetadata {
   summary: string;
@@ -66,16 +57,22 @@ export interface SummaryResult extends GenerationMetadata {
   warnings?: string[];
 }
 
-const aiStudyNotesDraftSchema = z.object({
-  overview: z.string().min(1),
-  keyPoints: z.array(z.string()).default([]),
-  importantConcepts: z.array(z.string()).default([]),
-  keyTerms: z.array(z.object({
-    term: z.string().min(1),
-    definition: z.string().min(1),
-  })).default([]),
-  unresolvedAssumptions: z.array(z.string()).default([]),
-}).strict();
+const aiStudyNotesDraftSchema = z
+  .object({
+    overview: z.string().min(1),
+    keyPoints: z.array(z.string()).default([]),
+    importantConcepts: z.array(z.string()).default([]),
+    keyTerms: z
+      .array(
+        z.object({
+          term: z.string().min(1),
+          definition: z.string().min(1),
+        }),
+      )
+      .default([]),
+    unresolvedAssumptions: z.array(z.string()).default([]),
+  })
+  .strict();
 
 function parseAIDraft(rawText: string): AIStudyNotesDraft {
   const cleaned = rawText
@@ -92,9 +89,7 @@ export async function generateSummary(
   const note = await noteRepo.findById(noteId);
   const v2Enabled = isIntelligenceV2Enabled();
   const requestedMode = options.mode ?? "comprehensive";
-  const mode: SummaryMode = v2Enabled
-    ? requestedMode
-    : "comprehensive";
+  const mode: SummaryMode = v2Enabled ? requestedMode : "comprehensive";
   const expectedVersionMarker = getStudyNotesVersionMarker(mode);
 
   if (!note) {
@@ -104,11 +99,9 @@ export async function generateSummary(
   if (
     !options.force &&
     note.summary?.trim() &&
-    (
-      v2Enabled
-        ? note.summary.includes(expectedVersionMarker)
-        : isReliableCachedSummary(note.summary)
-    )
+    (v2Enabled
+      ? note.summary.includes(expectedVersionMarker)
+      : isReliableCachedSummary(note.summary))
   ) {
     return {
       summary: note.summary,
@@ -134,9 +127,7 @@ export async function generateSummary(
       });
       return null;
     });
-  const grounding = v2Enabled
-    ? intelligence?.grounding ?? null
-    : null;
+  const grounding = v2Enabled ? (intelligence?.grounding ?? null) : null;
 
   let result:
     | ReturnType<typeof buildGroundedStudyNotes>
@@ -156,10 +147,7 @@ export async function generateSummary(
         "Grounded study-note construction failed; using strict source-extractive recovery",
         {
           noteId,
-          error:
-            error instanceof Error
-              ? error.message
-              : String(error),
+          error: error instanceof Error ? error.message : String(error),
         },
       );
 
@@ -191,30 +179,26 @@ export async function generateSummary(
         mode,
       })
     : null;
-  const repairPlan = grounding && deterministicQuality
-    ? buildSummaryRepairPlan({
-        grounding,
-        artifact: {
-          summary: result.summary,
-          keyPoints: result.keyPoints,
-          importantConcepts: result.importantConcepts,
-        },
-        quality: deterministicQuality,
-        mode,
-      })
-    : null;
+  const repairPlan =
+    grounding && deterministicQuality
+      ? buildSummaryRepairPlan({
+          grounding,
+          artifact: {
+            summary: result.summary,
+            keyPoints: result.keyPoints,
+            importantConcepts: result.importantConcepts,
+          },
+          quality: deterministicQuality,
+          mode,
+        })
+      : null;
 
   let source: GenerationSource = "symbolic";
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
-  const repairStrategyVersion =
-    "summary-targeted-v3.0.2-semantic-ownership";
-  const repairNeeded =
-    Boolean(
-      grounding &&
-      repairPlan?.needed,
-    );
+  const repairStrategyVersion = "summary-targeted-v3.0.2-semantic-ownership";
+  const repairNeeded = Boolean(grounding && repairPlan?.needed);
   let repairAttempted = false;
   let repairCacheHit = false;
   let repairAccepted = false;
@@ -229,11 +213,9 @@ export async function generateSummary(
     ? !recoveryUsed && Boolean(repairPlan?.needed)
     : !recoveryUsed &&
       mode === "comprehensive" &&
-      (
-        result.status === "partial" ||
+      (result.status === "partial" ||
         result.confidence < 0.85 ||
-        (result.profile?.coverage.missingFields.length ?? 0) > 1
-      );
+        (result.profile?.coverage.missingFields.length ?? 0) > 1);
 
   if (needsFallback && result.profile?.status !== "rejected") {
     try {
@@ -242,8 +224,7 @@ export async function generateSummary(
           grounding,
           repairPlan.evidenceRequest,
         );
-        repairEvidenceCharacters =
-          evidence.characterCount;
+        repairEvidenceCharacters = evidence.characterCount;
 
         if (!evidence.text) {
           logger.warn(
@@ -251,58 +232,44 @@ export async function generateSummary(
             { noteId, gaps: repairPlan.gaps },
           );
         } else {
-          const cacheDescriptor =
-            buildRepairCacheDescriptor({
-              noteId,
-              userId: note.userId,
-              feature: "summary",
-              sourceText: note.content,
-              variant:
-                `mode=${mode}`,
-              gapParts:
-                repairPlan.gaps,
-              strategyVersion:
-                repairStrategyVersion,
-            });
+          const cacheDescriptor = buildRepairCacheDescriptor({
+            noteId,
+            userId: note.userId,
+            feature: "summary",
+            sourceText: note.content,
+            variant: `mode=${mode}`,
+            gapParts: repairPlan.gaps,
+            strategyVersion: repairStrategyVersion,
+          });
           let cacheApplied = false;
 
           if (!options.force) {
-            const cached =
-              await getCachedRepair<unknown>(
-                cacheDescriptor,
-              );
+            const cached = await getCachedRepair<unknown>(cacheDescriptor);
 
             if (cached) {
               try {
-                const parsedCached =
-                  parseSummaryRepairPatch(
-                    JSON.stringify(cached),
-                  );
-                const validatedCached =
-                  validateSummaryRepairPatch(
-                    parsedCached,
-                    evidence.text,
-                  );
+                const parsedCached = parseSummaryRepairPatch(
+                  JSON.stringify(cached),
+                );
+                const validatedCached = validateSummaryRepairPatch(
+                  parsedCached,
+                  evidence.text,
+                );
 
                 if (validatedCached) {
-                  const candidate =
-                    applySummaryRepairPatch(
-                      result,
-                      validatedCached,
-                    );
-                  const candidateQuality =
-                    assessSummaryQuality({
-                      artifact: {
-                        summary:
-                          candidate.summary,
-                        keyPoints:
-                          candidate.keyPoints,
-                        importantConcepts:
-                          candidate.importantConcepts,
-                      },
-                      grounding,
-                      mode,
-                    });
+                  const candidate = applySummaryRepairPatch(
+                    result,
+                    validatedCached,
+                  );
+                  const candidateQuality = assessSummaryQuality({
+                    artifact: {
+                      summary: candidate.summary,
+                      keyPoints: candidate.keyPoints,
+                      importantConcepts: candidate.importantConcepts,
+                    },
+                    grounding,
+                    mode,
+                  });
 
                   if (
                     isSummaryRepairImprovement(
@@ -310,8 +277,7 @@ export async function generateSummary(
                       candidateQuality,
                     ) &&
                     candidateQuality.contract.hardGatePassed &&
-                    candidateQuality.status !==
-                      "failed"
+                    candidateQuality.status !== "failed"
                   ) {
                     result = candidate;
                     source = "hybrid";
@@ -320,18 +286,12 @@ export async function generateSummary(
                     repairAccepted = true;
                     cacheApplied = true;
 
-                    logger.info(
-                      "Applied cached targeted summary repair",
-                      {
-                        noteId,
-                        gaps:
-                          repairPlan.gaps,
-                        evidenceCharacters:
-                          evidence.characterCount,
-                        providerCallAvoided:
-                          true,
-                      },
-                    );
+                    logger.info("Applied cached targeted summary repair", {
+                      noteId,
+                      gaps: repairPlan.gaps,
+                      evidenceCharacters: evidence.characterCount,
+                      providerCallAvoided: true,
+                    });
                   }
                 }
               } catch (error) {
@@ -340,17 +300,13 @@ export async function generateSummary(
                   {
                     noteId,
                     error:
-                      error instanceof Error
-                        ? error.message
-                        : String(error),
+                      error instanceof Error ? error.message : String(error),
                   },
                 );
               }
 
               if (!cacheApplied) {
-                await invalidateCachedRepair(
-                  cacheDescriptor,
-                );
+                await invalidateCachedRepair(cacheDescriptor);
               }
             }
           }
@@ -378,10 +334,7 @@ export async function generateSummary(
             tokensUsed = aiResult.tokensUsed;
 
             const parsed = parseSummaryRepairPatch(aiResult.text);
-            const validated = validateSummaryRepairPatch(
-              parsed,
-              evidence.text,
-            );
+            const validated = validateSummaryRepairPatch(parsed, evidence.text);
 
             if (validated) {
               const candidate = applySummaryRepairPatch(result, validated);
@@ -407,14 +360,10 @@ export async function generateSummary(
                 repairAccepted = true;
 
                 if (
-                  candidateQuality.status !==
-                  "failed" &&
+                  candidateQuality.status !== "failed" &&
                   candidateQuality.contract.hardGatePassed
                 ) {
-                  await saveCachedRepair(
-                    cacheDescriptor,
-                    validated,
-                  );
+                  await saveCachedRepair(cacheDescriptor, validated);
                 }
 
                 logger.info("Applied targeted summary coverage repair", {
@@ -440,8 +389,7 @@ export async function generateSummary(
           }
         }
       } else {
-        const fallbackSource =
-          result.profile?.cleanedText ?? note.content;
+        const fallbackSource = result.profile?.cleanedText ?? note.content;
         const prompt = buildSummaryPrompt({
           content: fallbackSource,
           profile: result.profile,
@@ -466,16 +414,22 @@ export async function generateSummary(
           source = "hybrid";
           aiFallbackUsed = true;
         } else {
-          logger.warn("AI summary fallback failed grounding/quality validation", {
-            noteId,
-          });
+          logger.warn(
+            "AI summary fallback failed grounding/quality validation",
+            {
+              noteId,
+            },
+          );
         }
       }
     } catch (error) {
-      logger.warn("AI summary fallback unavailable; keeping deterministic notes", {
-        noteId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        "AI summary fallback unavailable; keeping deterministic notes",
+        {
+          noteId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
     }
   }
 
@@ -525,38 +479,29 @@ export async function generateSummary(
       summaryQuality?.contract.hardGatePassed === false) &&
     grounding
   ) {
-    const recovery =
-      buildGroundedSummaryRecovery(
-        grounding,
-        getReliableProfile(intelligence?.core),
-        note.title,
-        mode,
-      );
+    const recovery = buildGroundedSummaryRecovery(
+      grounding,
+      getReliableProfile(intelligence?.core),
+      note.title,
+      mode,
+    );
 
-    const recoveryQuality =
-      assessSummaryQuality({
-        artifact: {
-          summary: recovery.summary,
-          keyPoints: recovery.keyPoints,
-          importantConcepts:
-            recovery.importantConcepts,
-        },
-        grounding,
-        mode,
-      });
+    const recoveryQuality = assessSummaryQuality({
+      artifact: {
+        summary: recovery.summary,
+        keyPoints: recovery.keyPoints,
+        importantConcepts: recovery.importantConcepts,
+      },
+      grounding,
+      mode,
+    });
 
     logger.warn(
       "Grounded summary failed validation; evaluated semantic-safe recovery",
       {
         noteId,
-        original:
-          summaryQualityLogContext(
-            summaryQuality,
-          ),
-        recovery:
-          summaryQualityLogContext(
-            recoveryQuality,
-          ),
+        original: summaryQualityLogContext(summaryQuality),
+        recovery: summaryQualityLogContext(recoveryQuality),
       },
     );
 
@@ -604,10 +549,7 @@ export async function generateSummary(
     );
   }
 
-  if (
-    summaryQuality?.status === "failed" &&
-    summaryQuality.faithful
-  ) {
+  if (summaryQuality?.status === "failed" && summaryQuality.faithful) {
     logger.warn(
       "Returning faithful partial summary with coverage limitations instead of failing the request",
       {
@@ -618,13 +560,10 @@ export async function generateSummary(
   }
 
   if (summaryQuality?.status === "warning") {
-    logger.warn(
-      "Grounded summary passed with quality warnings",
-      {
-        noteId,
-        ...summaryQualityLogContext(summaryQuality),
-      },
-    );
+    logger.warn("Grounded summary passed with quality warnings", {
+      noteId,
+      ...summaryQualityLogContext(summaryQuality),
+    });
   }
 
   if (summaryQuality && !summaryQuality.contractPassed) {
@@ -638,29 +577,21 @@ export async function generateSummary(
   }
 
   if (repairNeeded) {
-    repairAccepted =
-      repairAccepted &&
-      source !== "symbolic";
+    repairAccepted = repairAccepted && source !== "symbolic";
 
     await recordRepairTelemetry({
       noteId,
       userId: note.userId,
       feature: "summary",
-      strategyVersion:
-        repairStrategyVersion,
+      strategyVersion: repairStrategyVersion,
       repairNeeded: true,
       repairAttempted,
       repairCacheHit,
       repairAccepted,
-      providerCallAvoided:
-        repairCacheHit &&
-        repairAccepted &&
-        !repairAttempted,
-      evidenceCharacters:
-        repairEvidenceCharacters,
+      providerCallAvoided: repairCacheHit && repairAccepted && !repairAttempted,
+      evidenceCharacters: repairEvidenceCharacters,
       tokensUsed,
-      gapCodes:
-        repairPlan?.gaps ?? [],
+      gapCodes: repairPlan?.gaps ?? [],
     });
   }
 
@@ -688,9 +619,7 @@ export async function generateSummary(
     warnings: [
       ...(result.profile?.warnings ?? []),
       ...(grounding?.quality.warnings ?? []),
-      ...(summaryQuality
-        ? summaryQualityWarnings(summaryQuality)
-        : []),
+      ...(summaryQuality ? summaryQualityWarnings(summaryQuality) : []),
       ...(recoveryUsed
         ? [
             "A semantic-safe recovery summary was used because the normal grounded summary could not be returned safely.",

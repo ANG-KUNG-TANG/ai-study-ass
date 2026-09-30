@@ -4,15 +4,9 @@ import type {
   ImportantConcept,
   QualifiedTerm,
 } from "@/server/intelligence/grounding";
-import type {
-  ReliableDocumentProfile,
-} from "@/server/intelligence/reliability/types";
-import {
-  buildSemanticEvidenceMap,
-} from "@/server/intelligence/semantic-evidence";
-import {
-  NOTE_RULES,
-} from "@/server/entities/note.entity";
+import type { ReliableDocumentProfile } from "@/server/intelligence/reliability/types";
+import { buildSemanticEvidenceMap } from "@/server/intelligence/semantic-evidence";
+import { NOTE_RULES } from "@/server/entities/note.entity";
 import {
   getStudyNotesVersionMarker,
   type GroundedStudyNotesResult,
@@ -23,15 +17,9 @@ import {
   selectSummaryConcepts,
   selectSummaryKeyTerms,
 } from "@/server/services/summary/summary-learning-structure.service";
-import {
-  buildSummaryLearningTopics,
-} from "@/server/services/summary/summary-topic-learning.service";
-import {
-  buildLearningEvidenceProfile,
-} from "@/server/services/quality/learning-evidence.service";
-import type {
-  SummaryMode,
-} from "@/types/summary";
+import { buildSummaryLearningTopics } from "@/server/services/summary/summary-topic-learning.service";
+import { buildLearningEvidenceProfile } from "@/server/services/quality/learning-evidence.service";
+import type { SummaryMode } from "@/types/summary";
 
 interface RecoveryPolicy {
   topicLimit: number;
@@ -97,34 +85,44 @@ export function buildGroundedSummaryRecovery(
   const policy = RECOVERY_POLICIES[mode];
   const learningProfile = buildLearningEvidenceProfile(grounding);
   const facts = uniqueFacts(
-    learningProfile.facts.filter((fact) =>
-      fact.verificationStatus === "supported" &&
-      fact.content.trim().length > 0 &&
-      learningProfile.rolesByFactId.get(fact.id) !== "example"
+    learningProfile.facts.filter(
+      (fact) =>
+        fact.verificationStatus === "supported" &&
+        fact.content.trim().length > 0 &&
+        learningProfile.rolesByFactId.get(fact.id) !== "example",
     ),
   );
   const procedureFacts = uniqueFacts(learningProfile.procedureFacts)
     .sort(bySourceOrder(grounding))
     .slice(0, policy.procedureLimit);
   const procedureIds = new Set(procedureFacts.map((fact) => fact.id));
-  const topicFacts = facts.filter((fact) =>
-    !procedureIds.has(fact.id) &&
-    !["warning", "common_mistake", "limitation", "formula", "number"].includes(fact.type)
+  const topicFacts = facts.filter(
+    (fact) =>
+      !procedureIds.has(fact.id) &&
+      ![
+        "warning",
+        "common_mistake",
+        "limitation",
+        "formula",
+        "number",
+      ].includes(fact.type),
   );
   const factsById = new Map(topicFacts.map((fact) => [fact.id, fact]));
   const visibleFactIds = new Set(topicFacts.map((fact) => fact.id));
   const recoverySections = learningProfile.sections
     .filter(
-      (section) => !/^(?:common\s+mistakes?|warnings?|pitfalls?|limitations?|important\s+(?:practical\s+)?note)$/iu.test(
-        cleanHeading(section.heading),
-      ),
+      (section) =>
+        !/^(?:common\s+mistakes?|warnings?|pitfalls?|limitations?|important\s+(?:practical\s+)?note)$/iu.test(
+          cleanHeading(section.heading),
+        ),
     )
     .map((section) => ({
       ...section,
       factIds: section.factIds.filter((id) => visibleFactIds.has(id)),
     }))
     .filter((section) => section.factIds.length > 0);
-  const title = cleanHeading(profile?.title.value ?? fallbackTitle) || "Study Notes";
+  const title =
+    cleanHeading(profile?.title.value ?? fallbackTitle) || "Study Notes";
   const semanticMap = buildSemanticEvidenceMap({
     sections: recoverySections,
     facts: topicFacts,
@@ -185,20 +183,28 @@ export function buildGroundedSummaryRecovery(
     const overview = [...visibleTopics]
       .sort((left, right) => right.score - left.score)
       .slice(0, mode === "comprehensive" ? 3 : 2)
-      .map((topic) => `- ${sentence(topic.explanation.content)}${pageLabel(topic.explanation.evidence[0]?.pageNumber)}`)
+      .map(
+        (topic) =>
+          `- ${sentence(topic.explanation.content)}${pageLabel(topic.explanation.evidence[0]?.pageNumber)}`,
+      )
       .join("\n");
     const topicBlocks = visibleTopics
       .map((topic) => {
         const points = topic.keyPoints
           .slice(0, pointsPerTopic)
-          .map((fact) => `- ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`)
+          .map(
+            (fact) =>
+              `- ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`,
+          )
           .join("\n");
         return [
           `### ${topic.heading}`,
           `**Simple explanation:** ${sentence(topic.explanation.content)}${pageLabel(topic.explanation.evidence[0]?.pageNumber)}`,
           points ? "**Important details:**" : "",
           points,
-        ].filter(Boolean).join("\n");
+        ]
+          .filter(Boolean)
+          .join("\n");
       })
       .join("\n\n");
 
@@ -223,18 +229,27 @@ export function buildGroundedSummaryRecovery(
       renderFactList(warnings),
       importantResultFacts.length > 0 ? "## Important Numbers / Formulas" : "",
       renderFactList(importantResultFacts),
-    ].filter(Boolean).join("\n\n").trim();
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
   };
 
   let summary = render(policy.topicLimit, policy.pointsPerTopic);
   if (summary.length > NOTE_RULES.SUMMARY_MAX) {
-    summary = render(Math.max(3, policy.topicLimit - 2), Math.max(2, policy.pointsPerTopic - 1));
+    summary = render(
+      Math.max(3, policy.topicLimit - 2),
+      Math.max(2, policy.pointsPerTopic - 1),
+    );
   }
   if (summary.length > NOTE_RULES.SUMMARY_MAX) {
     summary = render(Math.max(2, policy.topicLimit - 4), 2);
   }
   if (summary.length > NOTE_RULES.SUMMARY_MAX) {
-    summary = summary.slice(0, NOTE_RULES.SUMMARY_MAX).replace(/\s+\S*$/u, "").trim();
+    summary = summary
+      .slice(0, NOTE_RULES.SUMMARY_MAX)
+      .replace(/\s+\S*$/u, "")
+      .trim();
   }
 
   return {
@@ -256,18 +271,23 @@ function selectImportantRecoveryResults(
       if (fact.type === "formula") return true;
       const meaningfulNumericText =
         /\b\d+(?:\.\d+)?\s*%/u.test(fact.content) ||
-        /\b\d+(?:\.\d+)?\s*(?:percent|volt|volts|v\b|ms\b|s\b|seconds?|minutes?|hours?|projects?|samples?|cases?|users?|items?)\b/iu.test(fact.content) ||
+        /\b\d+(?:\.\d+)?\s*(?:percent|volt|volts|v\b|ms\b|s\b|seconds?|minutes?|hours?|projects?|samples?|cases?|users?|items?)\b/iu.test(
+          fact.content,
+        ) ||
         /[=<>±×÷]/u.test(fact.content);
       if (fact.type === "number") return isMeaningfulSummaryNumberFact(fact);
       if (fact.type === "result") {
-        return isMeaningfulSummaryNumberFact(fact) &&
-          (fact.numericTokens.length > 0 || meaningfulNumericText);
+        return (
+          isMeaningfulSummaryNumberFact(fact) &&
+          (fact.numericTokens.length > 0 || meaningfulNumericText)
+        );
       }
       return meaningfulNumericText;
     })
-    .sort((left, right) =>
-      right.importanceScore - left.importanceScore ||
-      right.confidence - left.confidence,
+    .sort(
+      (left, right) =>
+        right.importanceScore - left.importanceScore ||
+        right.confidence - left.confidence,
     )
     .slice(0, limit);
 }
@@ -277,8 +297,17 @@ function selectRecoveryKeyPoints(
   limit: number,
 ): AtomicFact[] {
   return uniqueFacts(facts)
-    .filter((fact) =>
-      !["procedure_step", "example", "warning", "common_mistake", "limitation", "formula", "number"].includes(fact.type)
+    .filter(
+      (fact) =>
+        ![
+          "procedure_step",
+          "example",
+          "warning",
+          "common_mistake",
+          "limitation",
+          "formula",
+          "number",
+        ].includes(fact.type),
     )
     .sort((left, right) => right.importanceScore - left.importanceScore)
     .slice(0, limit);
@@ -297,20 +326,29 @@ function renderConceptList(concepts: ImportantConcept[]): string {
 function renderKeyTermList(terms: QualifiedTerm[]): string {
   if (terms.length === 0) return "";
   return terms
-    .map((term) => `- **${term.term}:** ${sentence(term.definition)}${pageLabel(term.evidence[0]?.pageNumber)}`)
+    .map(
+      (term) =>
+        `- **${term.term}:** ${sentence(term.definition)}${pageLabel(term.evidence[0]?.pageNumber)}`,
+    )
     .join("\n");
 }
 
 function renderFactList(facts: AtomicFact[]): string {
   if (facts.length === 0) return "";
   return facts
-    .map((fact) => `- ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`)
+    .map(
+      (fact) =>
+        `- ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`,
+    )
     .join("\n");
 }
 
 function renderNumberedList(facts: AtomicFact[]): string {
   return facts
-    .map((fact, index) => `${index + 1}. ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`)
+    .map(
+      (fact, index) =>
+        `${index + 1}. ${sentence(fact.content)}${pageLabel(fact.evidence[0]?.pageNumber)}`,
+    )
     .join("\n");
 }
 
@@ -320,7 +358,9 @@ function isUsefulExample(value: string): boolean {
     text.length >= 24 &&
     text.length <= 420 &&
     !text.endsWith("?") &&
-    !/^(?:i|we|you|my|our|let(?:'|’)s|imagine|suppose|write|answer)\b/iu.test(text)
+    !/^(?:i|we|you|my|our|let(?:'|’)s|imagine|suppose|write|answer)\b/iu.test(
+      text,
+    )
   );
 }
 

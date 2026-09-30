@@ -20,10 +20,7 @@ import type {
   TranslationValues,
 } from "@/i18n/translations";
 
-type Translate = (
-  key: TranslationKey,
-  values?: TranslationValues,
-) => string;
+type Translate = (key: TranslationKey, values?: TranslationValues) => string;
 
 function StatusIcon({ ok }: { ok: boolean | undefined }) {
   if (ok === true) {
@@ -91,22 +88,14 @@ function queueValue(input: number | null): string {
   return input === null ? "—" : String(input);
 }
 
-function formatHealthTimestamp(
-  value: string | null,
-  locale: Locale,
-): string {
+function formatHealthTimestamp(value: string | null, locale: Locale): string {
   if (!value) {
     return "—";
   }
 
-  const date =
-    new Date(value);
+  const date = new Date(value);
 
-  return Number.isNaN(
-    date.getTime(),
-  )
-    ? "—"
-    : date.toLocaleString(locale);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString(locale);
 }
 
 function WorkerCard({
@@ -199,9 +188,7 @@ export default function AdminHealthPage() {
       setError(null);
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : t("admin.health.loadFailed"),
+        cause instanceof Error ? cause.message : t("admin.health.loadFailed"),
       );
     } finally {
       setIsLoading(false);
@@ -237,7 +224,11 @@ export default function AdminHealthPage() {
 
   return (
     <>
-      <Topbar eyebrow={t("admin.eyebrow")} title={t("admin.health.title")} description={t("admin.health.description")} />
+      <Topbar
+        eyebrow={t("admin.eyebrow")}
+        title={t("admin.health.title")}
+        description={t("admin.health.description")}
+      />
 
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
@@ -372,9 +363,7 @@ export default function AdminHealthPage() {
                 />
               </div>
 
-              <p className="text-[13px] capitalize">
-                {health.ai.provider}
-              </p>
+              <p className="text-[13px] capitalize">{health.ai.provider}</p>
 
               <p className="mt-1 truncate text-[11px] text-ink-faint">
                 {health.ai.model}
@@ -504,19 +493,33 @@ export default function AdminHealthPage() {
               <table className="w-full min-w-[760px] text-left text-[12px] text-ink-soft">
                 <thead>
                   <tr>
-                    <th className="px-3 py-2 font-medium">{t("admin.health.queue")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.health.queue")}
+                    </th>
 
-                    <th className="px-3 py-2 font-medium">{t("admin.health.status")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.health.status")}
+                    </th>
 
-                    <th className="px-3 py-2 font-medium">{t("admin.health.waiting")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.health.waiting")}
+                    </th>
 
-                    <th className="px-3 py-2 font-medium">{t("admin.health.active")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.health.active")}
+                    </th>
 
-                    <th className="px-3 py-2 font-medium">{t("admin.health.delayed")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.health.delayed")}
+                    </th>
 
-                    <th className="px-3 py-2 font-medium">{t("admin.health.failed")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.health.failed")}
+                    </th>
 
-                    <th className="px-3 py-2 font-medium">{t("admin.health.completed")}</th>
+                    <th className="px-3 py-2 font-medium">
+                      {t("admin.health.completed")}
+                    </th>
                   </tr>
                 </thead>
 
@@ -622,7 +625,8 @@ export default function AdminHealthPage() {
                 </div>
 
                 <p className="truncate text-[13px]">
-                  {health.telegram.webhook.lastErrorMessage ?? t("admin.health.none")}
+                  {health.telegram.webhook.lastErrorMessage ??
+                    t("admin.health.none")}
                 </p>
 
                 <p className="mt-1 text-[11px] text-ink-faint">

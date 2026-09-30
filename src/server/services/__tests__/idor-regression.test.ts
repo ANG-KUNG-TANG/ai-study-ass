@@ -14,18 +14,10 @@ import * as flashcardRepo from "@/server/repositories/flashcard.repo";
 import * as quizRepo from "@/server/repositories/quiz.repo";
 import * as summaryService from "@/server/services/summary/summary.service";
 
-import {
-  getGenerationStatus,
-} from "@/server/services/study-material-generation.service";
-import {
-  getFlashcardsByNote,
-} from "@/server/services/flashcard.service";
-import {
-  generateQuizWithMetadata,
-} from "@/server/services/quiz/quiz.service";
-import {
-  postSummary,
-} from "@/server/controller/summary.controller";
+import { getGenerationStatus } from "@/server/services/study-material-generation.service";
+import { getFlashcardsByNote } from "@/server/services/flashcard.service";
+import { generateQuizWithMetadata } from "@/server/services/quiz/quiz.service";
+import { postSummary } from "@/server/controller/summary.controller";
 import type {
   AuthContext,
   RouteContext,
@@ -75,11 +67,7 @@ describe("IDOR regression invariants", () => {
 
   it("does not generate a quiz for a foreign note", async () => {
     await expect(
-      generateQuizWithMetadata(
-        "user-b-note",
-        "user-a",
-        {},
-      ),
+      generateQuizWithMetadata("user-b-note", "user-a", {}),
     ).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
@@ -90,25 +78,18 @@ describe("IDOR regression invariants", () => {
   });
 
   it("does not generate a summary for a foreign note", async () => {
-    const request = new Request(
-      "http://localhost/api/summary",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          noteId: "user-b-note",
-        }),
+    const request = new Request("http://localhost/api/summary", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        noteId: "user-b-note",
+      }),
+    });
 
     await expect(
-      postSummary(
-        request,
-        emptyContext,
-        auth,
-      ),
+      postSummary(request, emptyContext, auth),
     ).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
@@ -133,8 +114,6 @@ describe("IDOR regression invariants", () => {
 
     const source = fs.readFileSync(routePath, "utf8");
 
-    expect(source).toMatch(
-      /withAuth\s*\(\s*getIntelligenceStatus\s*\)/,
-    );
+    expect(source).toMatch(/withAuth\s*\(\s*getIntelligenceStatus\s*\)/);
   });
 });

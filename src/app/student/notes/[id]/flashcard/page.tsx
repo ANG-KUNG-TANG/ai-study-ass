@@ -46,14 +46,14 @@ export default function FlashcardPage() {
     setRevealed(false);
 
     setCurrentIndex((current) =>
-      flashcards.length > 1
-        ? (current + 1) % flashcards.length
-        : current,
+      flashcards.length > 1 ? (current + 1) % flashcards.length : current,
     );
   }
 
   if (isLoading) {
-    return <p className="text-[13px] text-ink-soft">{t("flashcards.loading")}</p>;
+    return (
+      <p className="text-[13px] text-ink-soft">{t("flashcards.loading")}</p>
+    );
   }
 
   if (flashcards.length === 0) {
@@ -75,9 +75,7 @@ export default function FlashcardPage() {
           {isGenerating ? t("flashcards.generating") : t("flashcards.generate")}
         </Button>
 
-        {error && (
-          <p className="mt-3 text-[12px] text-coral">{error}</p>
-        )}
+        {error && <p className="mt-3 text-[12px] text-coral">{error}</p>}
       </Card>
     );
   }
@@ -92,7 +90,10 @@ export default function FlashcardPage() {
             {t("flashcards.reviewDeck")}
           </p>
           <h2 className="mt-1 font-serif text-[20px] font-semibold">
-            {t("flashcards.position", { current: currentIndex + 1, total: flashcards.length })}
+            {t("flashcards.position", {
+              current: currentIndex + 1,
+              total: flashcards.length,
+            })}
           </h2>
         </div>
 
@@ -102,11 +103,10 @@ export default function FlashcardPage() {
           disabled={isGenerating}
           className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
         >
-          <RefreshCw
-            size={14}
-            className={isGenerating ? "animate-spin" : ""}
-          />
-          {isGenerating ? t("flashcards.regenerating") : t("flashcards.regenerate")}
+          <RefreshCw size={14} className={isGenerating ? "animate-spin" : ""} />
+          {isGenerating
+            ? t("flashcards.regenerating")
+            : t("flashcards.regenerate")}
         </button>
       </div>
 
@@ -164,9 +164,7 @@ export default function FlashcardPage() {
         <button
           type="button"
           onClick={() => {
-            setCurrentIndex((current) =>
-              (current + 1) % flashcards.length,
-            );
+            setCurrentIndex((current) => (current + 1) % flashcards.length);
             setRevealed(false);
           }}
           className="flex items-center gap-1 text-[12px] text-ink-soft hover:text-ink"

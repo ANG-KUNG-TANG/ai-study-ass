@@ -1,6 +1,6 @@
 // server/types/ai.types.ts
 
-export type AIProvider = 'openai' | 'gemini';
+export type AIProvider = "openai" | "gemini";
 
 export interface AIGenerateOptions {
   prompt: string;

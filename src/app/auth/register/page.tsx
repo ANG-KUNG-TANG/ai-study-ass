@@ -56,7 +56,12 @@ export default function RegisterPage() {
     return (
       <div className="w-full text-center">
         <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-sage-soft text-sage">
-          <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-5 w-5"
+            aria-hidden="true"
+          >
             <path
               d="M5 13l4 4L19 7"
               stroke="currentColor"
@@ -140,7 +145,9 @@ export default function RegisterPage() {
           placeholder="••••••••"
           className="h-[48px] rounded-[10px] bg-paper-raised px-4 text-[13px] focus:border-yellow focus:ring-2 focus:ring-yellow-soft"
           value={form.password}
-          onChange={(event) => setForm({ ...form, password: event.target.value })}
+          onChange={(event) =>
+            setForm({ ...form, password: event.target.value })
+          }
           required
         />
         <p className="-mt-1 text-[10.5px] leading-4 text-ink-faint">
@@ -173,8 +180,11 @@ export default function RegisterPage() {
       </form>
 
       <p className="mt-4 text-center text-[12.5px] text-ink-soft">
-        {t("register.hasAccount")} {" "}
-        <Link href="/auth/login" className="font-medium text-ink hover:underline">
+        {t("register.hasAccount")}{" "}
+        <Link
+          href="/auth/login"
+          className="font-medium text-ink hover:underline"
+        >
           {t("register.login")}
         </Link>
       </p>
