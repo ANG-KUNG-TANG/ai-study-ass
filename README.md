@@ -673,8 +673,10 @@ Health checks
 | AI | Google GenAI |
 | Document Processing | PDF Parse, Mammoth, Tesseract OCR |
 | Reasoning | Tau-Prolog |
-| Visualization | XYFlow |
-| Authentication | JWT, Google OAuth |
+| Visualization | XYFlow (@xyflow/react) |
+| Authentication | JWT (jsonwebtoken, jose), Google OAuth |
+| Validation | Zod |
+| Email | Resend |
 | Infrastructure | Docker, Docker Compose |
 | Deployment | Vercel |
 | Messaging | Telegram Bot API |
@@ -724,8 +726,8 @@ ai-study-assistant/
 
 ### Requirements
 
-- Node.js
-- pnpm
+- Node.js 20.9 or later (required by Next.js 16)
+- npm (bundled with Node.js)
 - Docker
 - Docker Compose
 
@@ -739,7 +741,7 @@ cd ai-study-ass
 ### Install dependencies
 
 ```bash
-pnpm install
+npm install
 ```
 
 ### Configure environment variables
@@ -751,7 +753,7 @@ See [Environment Variables](#-environment-variables).
 ### Start the development server
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 Open:
@@ -759,6 +761,38 @@ Open:
 ```text
 http://localhost:3000
 ```
+
+### Start the background workers
+
+The web app only enqueues jobs. To process them, start the workers in separate terminals (Redis and MongoDB must be running, for example via Docker Compose):
+
+```bash
+npm run worker       # AI study-generation worker
+npm run worker:pdf   # PDF ingestion worker
+```
+
+### Available scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the Next.js development server |
+| `npm run build` | Create a production build |
+| `npm start` | Run the production build |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | Run TypeScript type checking (`tsc --noEmit`) |
+| `npm test` | Run the Jest test suite |
+| `npm run test:watch` | Run Jest in watch mode |
+| `npm run test:coverage` | Generate a coverage report |
+| `npm run format` | Format the codebase with Prettier |
+| `npm run format:check` | Check formatting without changing files |
+| `npm run check` | Run typecheck, lint, tests, and build in sequence |
+| `npm run worker` | Start the AI study-generation worker |
+| `npm run worker:pdf` | Start the PDF ingestion worker |
+| `npm run docker:build` | Build the Docker image |
+| `npm run docker:up` | Start the Docker Compose stack |
+| `npm run docker:down` | Stop the Docker Compose stack |
+| `npm run docker:logs` | Follow the app container logs |
+| `npm run docker:prod` | Start the production Compose stack |
 
 ---
 
@@ -768,6 +802,8 @@ Start the local service stack:
 
 ```bash
 docker compose up --build -d
+# or
+npm run docker:up
 ```
 
 Check running services:
@@ -847,31 +883,37 @@ A recommended repository file is `.env.example`, containing variable names but n
 Run the test suite:
 
 ```bash
-pnpm test
+npm test
 ```
 
 Run tests in watch mode:
 
 ```bash
-pnpm test:watch
+npm run test:watch
 ```
 
 Generate coverage:
 
 ```bash
-pnpm test:coverage
+npm run test:coverage
 ```
 
 Run type checking:
 
 ```bash
-pnpm typecheck
+npm run typecheck
 ```
 
 Run linting:
 
 ```bash
-pnpm lint
+npm run lint
+```
+
+Run the full pre-merge check (typecheck, lint, tests, build):
+
+```bash
+npm run check
 ```
 
 ---
