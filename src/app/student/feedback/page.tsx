@@ -15,10 +15,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/Button";
 import { useLanguage } from "@/context/LanguageContext";
 import type { TranslationKey } from "@/i18n/translations";
-import {
-  listOwnFeedback,
-  submitFeedback,
-} from "@/services/feedback.service";
+import { listOwnFeedback, submitFeedback } from "@/services/feedback.service";
 import type {
   FeedbackStatus,
   FeedbackSubmission,
@@ -176,7 +173,9 @@ export default function StudentFeedbackPage() {
                           : "border-line bg-paper text-ink-soft hover:border-ink/30"
                       }`}
                     >
-                      <span className={`grid size-8 shrink-0 place-items-center rounded-full ${tone}`}>
+                      <span
+                        className={`grid size-8 shrink-0 place-items-center rounded-full ${tone}`}
+                      >
                         <Icon size={15} strokeWidth={1.8} aria-hidden="true" />
                       </span>
                       {t(label)}
@@ -187,7 +186,10 @@ export default function StudentFeedbackPage() {
             </fieldset>
 
             <div>
-              <label htmlFor="feedback-title" className="mb-1.5 block text-[12px] font-semibold text-ink-soft">
+              <label
+                htmlFor="feedback-title"
+                className="mb-1.5 block text-[12px] font-semibold text-ink-soft"
+              >
                 {t("feedback.titleLabel")}
               </label>
               <input
@@ -204,7 +206,10 @@ export default function StudentFeedbackPage() {
 
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3">
-                <label htmlFor="feedback-message" className="text-[12px] font-semibold text-ink-soft">
+                <label
+                  htmlFor="feedback-message"
+                  className="text-[12px] font-semibold text-ink-soft"
+                >
                   {t("feedback.messageLabel")}
                 </label>
                 <span className="text-[10px] text-ink-faint">
@@ -227,7 +232,9 @@ export default function StudentFeedbackPage() {
             <fieldset>
               <legend className="mb-2 text-[12px] font-semibold text-ink-soft">
                 {t("feedback.ratingLabel")}{" "}
-                <span className="font-normal text-ink-faint">({t("feedback.ratingOptional")})</span>
+                <span className="font-normal text-ink-faint">
+                  ({t("feedback.ratingOptional")})
+                </span>
               </legend>
               <div className="flex items-center gap-1.5">
                 {[1, 2, 3, 4, 5].map((value) => (
@@ -243,25 +250,40 @@ export default function StudentFeedbackPage() {
                         : "border-line bg-paper text-ink-faint hover:text-ink"
                     }`}
                   >
-                    <Star size={17} fill={rating !== null && value <= rating ? "currentColor" : "none"} />
+                    <Star
+                      size={17}
+                      fill={
+                        rating !== null && value <= rating
+                          ? "currentColor"
+                          : "none"
+                      }
+                    />
                   </button>
                 ))}
               </div>
             </fieldset>
 
             <div className="rounded-[8px] border border-line-soft bg-paper px-3 py-2 text-[10.5px] text-ink-faint">
-              <strong className="font-semibold text-ink-soft">{t("feedback.contextLabel")}:</strong>{" "}
+              <strong className="font-semibold text-ink-soft">
+                {t("feedback.contextLabel")}:
+              </strong>{" "}
               {sourcePath}
             </div>
 
             {success && (
-              <p className="flex items-start gap-2 rounded-[8px] bg-sage-soft px-3 py-2.5 text-[12px] leading-5 text-sage" role="status">
+              <p
+                className="flex items-start gap-2 rounded-[8px] bg-sage-soft px-3 py-2.5 text-[12px] leading-5 text-sage"
+                role="status"
+              >
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
                 {success}
               </p>
             )}
             {error && (
-              <p className="rounded-[8px] bg-coral-soft px-3 py-2.5 text-[12px] leading-5 text-coral" role="alert">
+              <p
+                className="rounded-[8px] bg-coral-soft px-3 py-2.5 text-[12px] leading-5 text-coral"
+                role="alert"
+              >
                 {error}
               </p>
             )}
@@ -288,7 +310,9 @@ export default function StudentFeedbackPage() {
 
           <div className="mt-4 border-t border-line pt-4">
             {isLoading ? (
-              <p className="text-[12px] text-ink-faint">{t("common.loading")}</p>
+              <p className="text-[12px] text-ink-faint">
+                {t("common.loading")}
+              </p>
             ) : recent.length === 0 ? (
               <p className="rounded-[8px] bg-paper px-3 py-5 text-center text-[12px] text-ink-soft">
                 {t("feedback.empty")}
@@ -296,12 +320,17 @@ export default function StudentFeedbackPage() {
             ) : (
               <ul className="space-y-3">
                 {recent.map((entry) => (
-                  <li key={entry.id} className="rounded-[8px] border border-line-soft bg-paper p-3">
+                  <li
+                    key={entry.id}
+                    className="rounded-[8px] border border-line-soft bg-paper p-3"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <strong className="line-clamp-2 text-[12.5px] leading-5 text-ink">
                         {entry.title}
                       </strong>
-                      <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${statusTone[entry.status]}`}>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${statusTone[entry.status]}`}
+                      >
                         {t(statusKeys[entry.status])}
                       </span>
                     </div>

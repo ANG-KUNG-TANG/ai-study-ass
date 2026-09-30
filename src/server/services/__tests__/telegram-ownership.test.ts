@@ -28,7 +28,9 @@ describe("telegram integration ownership", () => {
 
   it("creates a one-time link token bound to the authenticated web user", async () => {
     jest.mocked(telegramRepo.findByUserId).mockResolvedValue(null);
-    jest.mocked(telegramRepo.deleteTokensForUser).mockResolvedValue({} as never);
+    jest
+      .mocked(telegramRepo.deleteTokensForUser)
+      .mockResolvedValue({} as never);
     jest.mocked(telegramRepo.createLinkToken).mockResolvedValue({} as never);
 
     const result = await generateTelegramLink("user-1");
@@ -41,9 +43,7 @@ describe("telegram integration ownership", () => {
 
     expect(rawToken).toBeTruthy();
 
-    const expectedHash = createHash("sha256")
-      .update(rawToken!)
-      .digest("hex");
+    const expectedHash = createHash("sha256").update(rawToken!).digest("hex");
 
     expect(telegramRepo.createLinkToken).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -129,9 +129,7 @@ describe("telegram integration ownership", () => {
     } as never);
     jest.mocked(telegramRepo.deleteByUserId).mockResolvedValue({} as never);
 
-    await expect(
-      unlinkTelegram("user-1"),
-    ).resolves.toEqual({
+    await expect(unlinkTelegram("user-1")).resolves.toEqual({
       disconnected: true,
     });
 
@@ -142,9 +140,7 @@ describe("telegram integration ownership", () => {
   it("does not delete any integration when the authenticated user has none", async () => {
     jest.mocked(telegramRepo.findByUserId).mockResolvedValue(null);
 
-    await expect(
-      unlinkTelegram("user-1"),
-    ).rejects.toMatchObject({
+    await expect(unlinkTelegram("user-1")).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
     });

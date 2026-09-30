@@ -1,11 +1,7 @@
 // server/repositories/auditLog.repo.ts
 
-import {
-  randomUUID,
-} from "crypto";
-import {
-  AuditLog,
-} from "@/server/models/Auditlog";
+import { randomUUID } from "crypto";
+import { AuditLog } from "@/server/models/Auditlog";
 import {
   AuditLogEntity,
   categoryForAuditAction,
@@ -16,47 +12,26 @@ import {
   type AuditStatus,
 } from "@/server/entities/auditLog.entity";
 
-function toEntity(
-  doc: any,
-): AuditLogEntity {
-  const props:
-    AuditLogProps = {
-      id:
-        String(doc._id),
-      actorId:
-        doc.actorId,
-      actorEmail:
-        doc.actorEmail,
-      actorRole:
-        doc.actorRole,
-      action:
-        doc.action,
-      category:
-        doc.category,
-      status:
-        doc.status,
-      targetType:
-        doc.targetType,
-      targetId:
-        doc.targetId,
-      metadata:
-        doc.metadata,
-      reason:
-        doc.reason,
-      ipAddress:
-        doc.ipAddress,
-      userAgent:
-        doc.userAgent,
-      requestId:
-        doc.requestId,
-      createdAt:
-        doc.createdAt,
-    };
+function toEntity(doc: any): AuditLogEntity {
+  const props: AuditLogProps = {
+    id: String(doc._id),
+    actorId: doc.actorId,
+    actorEmail: doc.actorEmail,
+    actorRole: doc.actorRole,
+    action: doc.action,
+    category: doc.category,
+    status: doc.status,
+    targetType: doc.targetType,
+    targetId: doc.targetId,
+    metadata: doc.metadata,
+    reason: doc.reason,
+    ipAddress: doc.ipAddress,
+    userAgent: doc.userAgent,
+    requestId: doc.requestId,
+    createdAt: doc.createdAt,
+  };
 
-  return AuditLogEntity
-    .fromPersistence(
-      props,
-    );
+  return AuditLogEntity.fromPersistence(props);
 }
 
 export interface LogEventInput {
@@ -68,10 +43,7 @@ export interface LogEventInput {
   status?: AuditStatus;
   targetType?: string;
   targetId?: string;
-  metadata?: Record<
-    string,
-    unknown
-  >;
+  metadata?: Record<string, unknown>;
   reason?: string;
   ipAddress?: string;
   userAgent?: string;
@@ -96,58 +68,42 @@ export interface AuditLogPage {
   total: number;
 }
 
-export async function log(
-  input: LogEventInput,
-): Promise<AuditLogEntity> {
-  const doc =
-    await AuditLog.create({
-      _id:
-        randomUUID(),
-      ...input,
-      actorRole: input.actorRole ?? (input.actorId ? "user" : "system"),
-      category: input.category ?? categoryForAuditAction(input.action),
-      status: input.status ?? (input.action === "auth.login_failed" ? "failure" : "success"),
-    });
+export async function log(input: LogEventInput): Promise<AuditLogEntity> {
+  const doc = await AuditLog.create({
+    _id: randomUUID(),
+    ...input,
+    actorRole: input.actorRole ?? (input.actorId ? "user" : "system"),
+    category: input.category ?? categoryForAuditAction(input.action),
+    status:
+      input.status ??
+      (input.action === "auth.login_failed" ? "failure" : "success"),
+  });
 
-  return toEntity(
-    doc,
-  );
+  return toEntity(doc);
 }
 
-export async function findPage(
-  query: AuditLogQuery,
-): Promise<AuditLogPage> {
+export async function findPage(query: AuditLogQuery): Promise<AuditLogPage> {
   const page = Math.max(1, Math.floor(query.page ?? 1));
   const limit = Math.min(500, Math.max(1, Math.floor(query.limit ?? 20)));
-  const skip =
-    (page - 1) *
-    limit;
+  const skip = (page - 1) * limit;
 
   const filter = buildFilter(query);
 
-  const [
-    docs,
-    total,
-  ] =
-    await Promise.all([
-      AuditLog.find(filter)
-        .sort({
-          createdAt:
-            -1,
-        })
-        .skip(skip)
-        .limit(limit)
-        .lean()
-        .exec(),
+  const [docs, total] = await Promise.all([
+    AuditLog.find(filter)
+      .sort({
+        createdAt: -1,
+      })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
 
-      AuditLog.countDocuments(filter).exec(),
-    ]);
+    AuditLog.countDocuments(filter).exec(),
+  ]);
 
   return {
-    data:
-      docs.map(
-        toEntity,
-      ),
+    data: docs.map(toEntity),
     total,
   };
 }
@@ -184,11 +140,8 @@ function buildFilter(query: AuditLogQuery): Record<string, unknown> {
 
 export async function findRecent(
   limit: number = 20,
-): Promise<
-  AuditLogEntity[]
-> {
-  const result =
-    await findPage({ page: 1, limit });
+): Promise<AuditLogEntity[]> {
+  const result = await findPage({ page: 1, limit });
 
   return result.data;
 }
@@ -196,34 +149,25 @@ export async function findRecent(
 export async function findByActor(
   actorId: string,
   limit: number = 20,
-): Promise<
-  AuditLogEntity[]
-> {
-  const docs =
-    await AuditLog.find({
-      actorId,
+): Promise<AuditLogEntity[]> {
+  const docs = await AuditLog.find({
+    actorId,
+  })
+    .sort({
+      createdAt: -1,
     })
-      .sort({
-        createdAt:
-          -1,
-      })
-      .limit(limit)
-      .lean()
-      .exec();
+    .limit(limit)
+    .lean()
+    .exec();
 
-  return docs.map(
-    toEntity,
-  );
+  return docs.map(toEntity);
 }
 
 export async function findSince(
   since: Date,
   limit: number = 2_000,
 ): Promise<AuditLogEntity[]> {
-  const safeLimit = Math.min(
-    5_000,
-    Math.max(1, Math.floor(limit)),
-  );
+  const safeLimit = Math.min(5_000, Math.max(1, Math.floor(limit)));
 
   const docs = await AuditLog.find({
     createdAt: { $gte: since },
@@ -254,6 +198,8 @@ export async function countBefore(before: Date): Promise<number> {
 }
 
 export async function deleteBefore(before: Date): Promise<number> {
-  const result = await AuditLog.deleteMany({ createdAt: { $lt: before } }).exec();
+  const result = await AuditLog.deleteMany({
+    createdAt: { $lt: before },
+  }).exec();
   return result.deletedCount;
 }

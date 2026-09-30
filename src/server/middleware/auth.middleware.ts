@@ -26,13 +26,13 @@ export type RouteContext = { params: Promise<Record<string, string>> };
 type AuthedHandler<T = unknown> = (
   req: Request,
   context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ) => Promise<NextResponse<T>>;
 
 type OptionalAuthHandler<T = unknown> = (
   req: Request,
   context: RouteContext,
-  auth: AuthContext | null
+  auth: AuthContext | null,
 ) => Promise<NextResponse<T>>;
 
 // ─── withAuth ─────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ type OptionalAuthHandler<T = unknown> = (
 export function withAuth<T>(handler: AuthedHandler<T>) {
   return async (
     req: Request,
-    context: RouteContext
+    context: RouteContext,
   ): Promise<NextResponse<T | ApiError>> => {
     try {
       await connectDb();
@@ -77,7 +77,9 @@ export function withRole<T>(role: UserRole) {
   return (handler: AuthedHandler<T>) => {
     return withAuth<T>(async (req, context, auth) => {
       if (auth.role !== role) {
-        throw new ForbiddenError("You do not have permission to access this resource");
+        throw new ForbiddenError(
+          "You do not have permission to access this resource",
+        );
       }
       return handler(req, context, auth);
     });
@@ -90,7 +92,7 @@ export function withRole<T>(role: UserRole) {
 export function withOptionalAuth<T>(handler: OptionalAuthHandler<T>) {
   return async (
     req: Request,
-    context: RouteContext
+    context: RouteContext,
   ): Promise<NextResponse<T | ApiError>> => {
     try {
       await connectDb();

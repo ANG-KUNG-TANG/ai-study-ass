@@ -1,11 +1,9 @@
-import {
-  isSummaryCandidatePreferred,
-} from "@/server/services/summary/summary-candidate-arbitration.service";
-import type {
-  SummaryQualityReport,
-} from "@/server/services/summary/summary-quality.service";
+import { isSummaryCandidatePreferred } from "@/server/services/summary/summary-candidate-arbitration.service";
+import type { SummaryQualityReport } from "@/server/services/summary/summary-quality.service";
 
-function quality(overrides: Partial<SummaryQualityReport> = {}): SummaryQualityReport {
+function quality(
+  overrides: Partial<SummaryQualityReport> = {},
+): SummaryQualityReport {
   const report: SummaryQualityReport = {
     status: "warning",
     faithful: true,
@@ -68,7 +66,10 @@ describe("summary candidate arbitration", () => {
       contract: {
         ...quality().contract,
         hardGatePassed: true,
-        hardGates: quality().contract.hardGates.map((gate) => ({ ...gate, passed: true })),
+        hardGates: quality().contract.hardGates.map((gate) => ({
+          ...gate,
+          passed: true,
+        })),
       },
     });
     const structurallyDirty = quality({
@@ -101,7 +102,10 @@ describe("summary candidate arbitration", () => {
         passed: true,
         hardGatePassed: true,
         scoreOutOf10: 9.7,
-        hardGates: original.contract.hardGates.map((gate) => ({ ...gate, passed: true })),
+        hardGates: original.contract.hardGates.map((gate) => ({
+          ...gate,
+          passed: true,
+        })),
       },
     });
 

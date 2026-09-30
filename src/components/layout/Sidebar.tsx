@@ -3,40 +3,16 @@
 import Link from "next/link";
 import Image from "next/image";
 
-import {
-  usePathname,
-} from "next/navigation";
-import {
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Menu,
-  X,
-} from "lucide-react";
-import {
-  useEffect,
-  useState,
-} from "react";
+import { usePathname } from "next/navigation";
+import { ChevronLeft, ChevronRight, FileText, Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import {
-  studentNavItems,
-  adminNavItems,
-} from "./nav-config";
-import {
-  StreakBox,
-} from "@/components/notes/StreakBox";
-import {
-  useSidebar,
-} from "@/context/SidebarContext";
-import {
-  useLanguage,
-} from "@/context/LanguageContext";
-import type {
-  TranslationKey,
-} from "@/i18n/translations";
-import {
-  SidebarAccountMenu,
-} from "@/components/layout/SidebarAccountMenu";
+import { studentNavItems, adminNavItems } from "./nav-config";
+import { StreakBox } from "@/components/notes/StreakBox";
+import { useSidebar } from "@/context/SidebarContext";
+import { useLanguage } from "@/context/LanguageContext";
+import type { TranslationKey } from "@/i18n/translations";
+import { SidebarAccountMenu } from "@/components/layout/SidebarAccountMenu";
 
 const NAVIGATION_KEYS: Record<string, TranslationKey> = {
   Dashboard: "nav.dashboard",
@@ -59,91 +35,52 @@ interface SidebarProps {
   variant: "student" | "admin";
 }
 
-export function Sidebar({
-  variant,
-}: SidebarProps) {
+export function Sidebar({ variant }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLanguage();
 
-  const {
-    isCollapsed,
-    toggle,
-  } = useSidebar();
+  const { isCollapsed, toggle } = useSidebar();
 
-  const [
-    isMobileOpen,
-    setIsMobileOpen,
-  ] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const noteMatch =
     variant === "student"
-      ? pathname?.match(
-          /^\/student\/notes\/([^/]+)(?:\/|$)/,
-        )
+      ? pathname?.match(/^\/student\/notes\/([^/]+)(?:\/|$)/)
       : null;
 
-  const currentNoteId =
-    noteMatch?.[1];
+  const currentNoteId = noteMatch?.[1];
 
-  const noteSourceItem =
-    currentNoteId
-      ? {
-          href:
-            `/student/notes/${currentNoteId}/original`,
-          label:
-            "Original text",
-          icon:
-            FileText,
-        }
-      : null;
+  const noteSourceItem = currentNoteId
+    ? {
+        href: `/student/notes/${currentNoteId}/original`,
+        label: "Original text",
+        icon: FileText,
+      }
+    : null;
 
   const navItems =
     variant === "student"
-      ? [
-          ...studentNavItems,
-          ...(noteSourceItem
-            ? [noteSourceItem]
-            : []),
-        ]
+      ? [...studentNavItems, ...(noteSourceItem ? [noteSourceItem] : [])]
       : adminNavItems;
 
-  const activeHref =
-    navItems
-      .filter(
-        (
-          item,
-        ) =>
-          pathname ===
-            item.href ||
-          pathname?.startsWith(
-            `${item.href}/`,
-          ),
-      )
-      .sort(
-        (
-          left,
-          right,
-        ) =>
-          right.href.length -
-          left.href.length,
-      )[0]?.href;
+  const activeHref = navItems
+    .filter(
+      (item) => pathname === item.href || pathname?.startsWith(`${item.href}/`),
+    )
+    .sort((left, right) => right.href.length - left.href.length)[0]?.href;
 
   useEffect(() => {
     setIsMobileOpen(false);
   }, [pathname]);
 
-  function navContent(
-    collapsed: boolean,
-  ) {
+  function navContent(collapsed: boolean) {
     return (
       <div className="flex h-full min-h-0 flex-col">
         {/* Brand */}
         <div
           className={[
             "mb-5 flex shrink-0 items-center border-b border-line px-2 pb-5",
-            collapsed
-              ? "justify-center"
-              : "justify-between",
+            collapsed ? "justify-center" : "justify-between",
           ].join(" ")}
         >
           <div className="flex min-w-0 items-center gap-2.5">
@@ -163,16 +100,11 @@ export function Sidebar({
 
           <button
             type="button"
-            onClick={() =>
-              setIsMobileOpen(false)
-            }
+            onClick={() => setIsMobileOpen(false)}
             className="rounded-md p-1 text-ink-soft hover:bg-line-soft md:hidden"
             aria-label={t("sidebar.closeMenu")}
           >
-            <X
-              size={18}
-              strokeWidth={1.8}
-            />
+            <X size={18} strokeWidth={1.8} />
           </button>
         </div>
 
@@ -185,36 +117,20 @@ export function Sidebar({
           )}
           <div className="flex flex-col gap-[3px]">
             {navItems.map((item) => {
-              const isActive =
-                activeHref ===
-                item.href;
-              const labelKey =
-                NAVIGATION_KEYS[item.label];
-              const localizedLabel =
-                labelKey
-                  ? t(labelKey)
-                  : item.label;
+              const isActive = activeHref === item.href;
+              const labelKey = NAVIGATION_KEYS[item.label];
+              const localizedLabel = labelKey ? t(labelKey) : item.label;
 
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  aria-current={
-                    isActive
-                      ? "page"
-                      : undefined
-                  }
-                  title={
-                    collapsed
-                      ? localizedLabel
-                      : undefined
-                  }
+                  aria-current={isActive ? "page" : undefined}
+                  title={collapsed ? localizedLabel : undefined}
                   className={[
                     "flex w-full items-center rounded-r-[8px] border-l-2 py-2.5",
                     "text-[13.5px] font-medium transition-colors",
-                    collapsed
-                      ? "justify-center px-2"
-                      : "gap-[11px] px-3",
+                    collapsed ? "justify-center px-2" : "gap-[11px] px-3",
                     isActive
                       ? "border-coral bg-line-soft text-ink"
                       : "border-transparent text-ink-soft hover:bg-line-soft hover:text-ink",
@@ -228,9 +144,7 @@ export function Sidebar({
                   />
 
                   {!collapsed && (
-                    <span className="truncate">
-                      {localizedLabel}
-                    </span>
+                    <span className="truncate">{localizedLabel}</span>
                   )}
                 </Link>
               );
@@ -239,15 +153,11 @@ export function Sidebar({
         </nav>
 
         {/* Student streak */}
-        {variant === "student" &&
-          !collapsed && (
-            <div className="mt-4 shrink-0">
-              <StreakBox
-                days={6}
-                message={t("sidebar.streak")}
-              />
-            </div>
-          )}
+        {variant === "student" && !collapsed && (
+          <div className="mt-4 shrink-0">
+            <StreakBox days={6} message={t("sidebar.streak")} />
+          </div>
+        )}
 
         {/* Account menu */}
         <div className="mt-4 shrink-0 border-t border-line pt-3">
@@ -281,17 +191,12 @@ export function Sidebar({
 
         <button
           type="button"
-          onClick={() =>
-            setIsMobileOpen(true)
-          }
+          onClick={() => setIsMobileOpen(true)}
           className="rounded-md p-1.5 text-ink-soft hover:bg-line-soft"
           aria-label={t("sidebar.openMenu")}
           aria-expanded={isMobileOpen}
         >
-          <Menu
-            size={20}
-            strokeWidth={1.8}
-          />
+          <Menu size={20} strokeWidth={1.8} />
         </button>
       </div>
 
@@ -301,9 +206,7 @@ export function Sidebar({
           <button
             type="button"
             className="absolute inset-0 bg-ink/40"
-            onClick={() =>
-              setIsMobileOpen(false)
-            }
+            onClick={() => setIsMobileOpen(false)}
             aria-label={t("sidebar.closeMenu")}
           />
 
@@ -320,9 +223,7 @@ export function Sidebar({
           "border-r border-line bg-paper-raised py-5",
           "transition-[width,padding] duration-300 ease-out",
           "md:flex",
-          isCollapsed
-            ? "w-[72px] px-2"
-            : "w-[224px] px-4",
+          isCollapsed ? "w-[72px] px-2" : "w-[224px] px-4",
         ].join(" ")}
       >
         {navContent(isCollapsed)}
@@ -338,22 +239,12 @@ export function Sidebar({
             "text-ink-soft shadow-sm transition-colors",
             "hover:bg-line-soft md:flex",
           ].join(" ")}
-          aria-label={
-            isCollapsed
-              ? t("sidebar.expand")
-              : t("sidebar.collapse")
-          }
+          aria-label={isCollapsed ? t("sidebar.expand") : t("sidebar.collapse")}
         >
           {isCollapsed ? (
-            <ChevronRight
-              size={13}
-              strokeWidth={2}
-            />
+            <ChevronRight size={13} strokeWidth={2} />
           ) : (
-            <ChevronLeft
-              size={13}
-              strokeWidth={2}
-            />
+            <ChevronLeft size={13} strokeWidth={2} />
           )}
         </button>
       </aside>

@@ -72,18 +72,10 @@ async function checkSlidingWindow(
   const now = Date.now();
   const member = `${now}:${randomUUID()}`;
 
-  const result = await client.eval(
-    REDIS_SLIDING_WINDOW_SCRIPT,
-    {
-      keys: [key],
-      arguments: [
-        String(now),
-        String(windowMs),
-        String(limit),
-        member,
-      ],
-    },
-  );
+  const result = await client.eval(REDIS_SLIDING_WINDOW_SCRIPT, {
+    keys: [key],
+    arguments: [String(now), String(windowMs), String(limit), member],
+  });
 
   return normaliseRedisResult(result);
 }
@@ -103,19 +95,12 @@ function createLimiter(limit: number, windowMs: number) {
     let result: RateLimitResult;
 
     try {
-      result = await checkSlidingWindow(
-        key,
-        limit,
-        windowMs,
-      );
+      result = await checkSlidingWindow(key, limit, windowMs);
     } catch (error) {
       logger.error("[rate-limit] Redis check failed", {
         identifier,
         ip,
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
+        error: error instanceof Error ? error.message : String(error),
       });
 
       throw error;

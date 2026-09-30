@@ -21,8 +21,7 @@ const MAJOR_CONCEPT_IMPORTANCE = 0.65;
 const MIN_FACT_IMPORTANCE = 0.78;
 const MAX_EXPLICIT_HIERARCHY_DEPTH = 3;
 
-interface MutableTreeNode
-  extends Omit<KnowledgeTreeNodeData, "children"> {
+interface MutableTreeNode extends Omit<KnowledgeTreeNodeData, "children"> {
   parentId: string | null;
   childIds: string[];
 }
@@ -53,9 +52,7 @@ export function buildGroundedKnowledgeTree(
     aliasToNodeId: new Map(),
     visibleSections: new Map(
       grounding.sections
-        .filter((section) =>
-          VISIBLE_SECTION_STATUSES.has(section.status),
-        )
+        .filter((section) => VISIBLE_SECTION_STATUSES.has(section.status))
         .map((section) => [section.sectionId, section]),
     ),
     duplicateAliasCount: 0,
@@ -65,8 +62,7 @@ export function buildGroundedKnowledgeTree(
   };
 
   const majorConcepts = grounding.concepts.filter(
-    (concept) =>
-      concept.importanceScore >= MAJOR_CONCEPT_IMPORTANCE,
+    (concept) => concept.importanceScore >= MAJOR_CONCEPT_IMPORTANCE,
   );
 
   addConcepts(state, grounding.concepts);
@@ -76,14 +72,10 @@ export function buildGroundedKnowledgeTree(
   removeEmptyTopics(state);
   sortChildren(state);
 
-  const materializedRoot = materializeTree(
-    root.id,
-    state.nodes,
-    new Set(),
-  );
+  const materializedRoot = materializeTree(root.id, state.nodes, new Set());
 
-  const includedMajorConcepts = majorConcepts.filter((concept) =>
-    findCanonicalNodeId(state, concept.name) !== null,
+  const includedMajorConcepts = majorConcepts.filter(
+    (concept) => findCanonicalNodeId(state, concept.name) !== null,
   ).length;
   const majorConceptCoverage =
     majorConcepts.length === 0
@@ -93,13 +85,9 @@ export function buildGroundedKnowledgeTree(
   const orphanCount = countOrphans(state);
   const knowledgeItemCount = [...state.nodes.values()].filter(
     (node) =>
-      node.type === "concept" ||
-      node.type === "term" ||
-      node.type === "fact",
+      node.type === "concept" || node.type === "term" || node.type === "fact",
   ).length;
-  const maxDepth = materializedRoot
-    ? measureDepth(materializedRoot)
-    : 0;
+  const maxDepth = materializedRoot ? measureDepth(materializedRoot) : 0;
 
   const quality = buildQuality({
     knowledgeItemCount,
@@ -136,10 +124,7 @@ function makeRoot(): MutableTreeNode {
   };
 }
 
-function addConcepts(
-  state: BuildState,
-  concepts: ImportantConcept[],
-): void {
+function addConcepts(state: BuildState, concepts: ImportantConcept[]): void {
   concepts.forEach((concept, index) => {
     if (
       concept.importanceScore < MIN_CONCEPT_IMPORTANCE ||
@@ -151,8 +136,7 @@ function addConcepts(
       return;
     }
 
-    const conceptId =
-      `grounded-concept-${safeId(concept.normalizedName)}-${index + 1}`;
+    const conceptId = `grounded-concept-${safeId(concept.normalizedName)}-${index + 1}`;
     const sourceSectionIds = uniqueStrings([
       ...concept.sourceSectionIds,
       ...concept.evidence.map((evidence) => evidence.sectionId),
@@ -181,10 +165,7 @@ function addConcepts(
   });
 }
 
-function addTerms(
-  state: BuildState,
-  terms: QualifiedTerm[],
-): void {
+function addTerms(state: BuildState, terms: QualifiedTerm[]): void {
   terms.forEach((term, index) => {
     if (term.evidence.length === 0) {
       state.omittedUngroundedCount += 1;
@@ -193,17 +174,12 @@ function addTerms(
 
     const existingId = findCanonicalNodeId(state, term.term);
     if (existingId) {
-      mergeTermIntoNode(
-        state,
-        existingId,
-        term,
-      );
+      mergeTermIntoNode(state, existingId, term);
       state.duplicateAliasCount += 1;
       return;
     }
 
-    const nodeId =
-      `knowledge-term-${safeId(term.term)}-${index + 1}`;
+    const nodeId = `knowledge-term-${safeId(term.term)}-${index + 1}`;
     const sourceSectionIds = uniqueStrings([
       term.sourceSectionId,
       ...term.evidence.map((evidence) => evidence.sectionId),
@@ -216,9 +192,7 @@ function addTerms(
       description: term.definition,
       importance: term.confidence,
       sourceSectionIds,
-      evidenceIds: uniqueStrings(
-        term.evidence.map((evidence) => evidence.id),
-      ),
+      evidenceIds: uniqueStrings(term.evidence.map((evidence) => evidence.id)),
       graphNodeId: null,
       relationToParent: "topic_group",
       relationEvidenceIds: [],
@@ -232,10 +206,7 @@ function addTerms(
   });
 }
 
-function addImportantFacts(
-  state: BuildState,
-  facts: AtomicFact[],
-): void {
+function addImportantFacts(state: BuildState, facts: AtomicFact[]): void {
   for (const fact of facts) {
     if (
       fact.verificationStatus !== "supported" ||
@@ -266,14 +237,10 @@ function addImportantFacts(
       description: fact.content,
       importance: fact.importanceScore,
       sourceSectionIds: [fact.sourceSectionId],
-      evidenceIds: uniqueStrings(
-        fact.evidence.map((evidence) => evidence.id),
-      ),
+      evidenceIds: uniqueStrings(fact.evidence.map((evidence) => evidence.id)),
       graphNodeId: fact.id,
       relationToParent:
-        mentionedKnowledgeIds.length === 1
-          ? "supporting_fact"
-          : "topic_group",
+        mentionedKnowledgeIds.length === 1 ? "supporting_fact" : "topic_group",
       relationEvidenceIds: uniqueStrings(
         fact.evidence.map((evidence) => evidence.id),
       ),
@@ -286,34 +253,21 @@ function addImportantFacts(
   }
 }
 
-function applyExplicitHierarchy(
-  state: BuildState,
-  facts: AtomicFact[],
-): void {
+function applyExplicitHierarchy(state: BuildState, facts: AtomicFact[]): void {
   for (const fact of facts) {
     if (
       fact.verificationStatus !== "supported" ||
       fact.evidence.length === 0 ||
-      (
-        fact.type !== "relationship" &&
-        fact.type !== "definition"
-      )
+      (fact.type !== "relationship" && fact.type !== "definition")
     ) {
       continue;
     }
 
-    const candidates = findMentionedCanonicalNodeIds(
-      state,
-      fact.content,
-    );
+    const candidates = findMentionedCanonicalNodeIds(state, fact.content);
 
     if (candidates.length < 2) continue;
 
-    const direction = inferHierarchyDirection(
-      fact.content,
-      candidates,
-      state,
-    );
+    const direction = inferHierarchyDirection(fact.content, candidates, state);
 
     if (!direction) continue;
 
@@ -331,24 +285,15 @@ function applyExplicitHierarchy(
 
     if (
       child.relationToParent === "explicit_hierarchy" ||
-      wouldCreateCycle(
-        state.nodes,
-        parent.id,
-        child.id,
-      ) ||
-      nodeDepth(state.nodes, parent.id) >=
-        MAX_EXPLICIT_HIERARCHY_DEPTH
+      wouldCreateCycle(state.nodes, parent.id, child.id) ||
+      nodeDepth(state.nodes, parent.id) >= MAX_EXPLICIT_HIERARCHY_DEPTH
     ) {
       state.skippedHierarchyCount += 1;
       continue;
     }
 
     if (child.parentId) {
-      detachChild(
-        state,
-        child.parentId,
-        child.id,
-      );
+      detachChild(state, child.parentId, child.id);
     }
 
     child.parentId = parent.id;
@@ -384,16 +329,8 @@ function inferHierarchyDirection(
       if (!childLabel || !parentLabel) continue;
 
       if (
-        matchesChildOfParent(
-          text,
-          childLabel,
-          parentLabel,
-        ) ||
-        matchesParentContainsChild(
-          text,
-          parentLabel,
-          childLabel,
-        )
+        matchesChildOfParent(text, childLabel, parentLabel) ||
+        matchesParentContainsChild(text, parentLabel, childLabel)
       ) {
         return {
           parentId,
@@ -412,23 +349,13 @@ function matchesChildOfParent(
   parent: string,
 ): boolean {
   const childIndex = text.indexOf(child);
-  const parentIndex = text.indexOf(
-    parent,
-    childIndex + child.length,
-  );
+  const parentIndex = text.indexOf(parent, childIndex + child.length);
 
-  if (
-    childIndex < 0 ||
-    parentIndex < 0 ||
-    parentIndex <= childIndex
-  ) {
+  if (childIndex < 0 || parentIndex < 0 || parentIndex <= childIndex) {
     return false;
   }
 
-  const between = text.slice(
-    childIndex + child.length,
-    parentIndex,
-  );
+  const between = text.slice(childIndex + child.length, parentIndex);
 
   return /\b(?:is|are)\s+(?:a\s+|an\s+|the\s+)?(?:type|kind|form|subtype|category|part|component)\s+of\b/u.test(
     between,
@@ -441,23 +368,13 @@ function matchesParentContainsChild(
   child: string,
 ): boolean {
   const parentIndex = text.indexOf(parent);
-  const childIndex = text.indexOf(
-    child,
-    parentIndex + parent.length,
-  );
+  const childIndex = text.indexOf(child, parentIndex + parent.length);
 
-  if (
-    parentIndex < 0 ||
-    childIndex < 0 ||
-    childIndex <= parentIndex
-  ) {
+  if (parentIndex < 0 || childIndex < 0 || childIndex <= parentIndex) {
     return false;
   }
 
-  const between = text.slice(
-    parentIndex + parent.length,
-    childIndex,
-  );
+  const between = text.slice(parentIndex + parent.length, childIndex);
 
   return /\b(?:includes?|contains?|comprises?|consists?\s+of|is\s+composed\s+of|are\s+composed\s+of)\b/u.test(
     between,
@@ -484,10 +401,7 @@ function attachToPrimaryTopic(
   attachChild(state, topicId, nodeId);
 }
 
-function ensureTopic(
-  state: BuildState,
-  sectionId: string,
-): string {
+function ensureTopic(state: BuildState, sectionId: string): string {
   const topicId = `knowledge-topic-${safeId(sectionId)}`;
   if (state.nodes.has(topicId)) return topicId;
 
@@ -517,9 +431,7 @@ function ensureTopic(
   return node.id;
 }
 
-function ensureOtherTopic(
-  state: BuildState,
-): string {
+function ensureOtherTopic(state: BuildState): string {
   const topicId = "knowledge-topic-other";
   if (state.nodes.has(topicId)) return topicId;
 
@@ -591,10 +503,9 @@ function mergeTermIntoNode(
     node.description = term.definition;
   }
 
-  const aliases = [
-    normalise(term.term),
-    initialism(term.term),
-  ].filter((value) => value.length >= 2);
+  const aliases = [normalise(term.term), initialism(term.term)].filter(
+    (value) => value.length >= 2,
+  );
 
   for (const alias of aliases) {
     item.aliases.add(alias);
@@ -604,10 +515,7 @@ function mergeTermIntoNode(
   }
 }
 
-function findCanonicalNodeId(
-  state: BuildState,
-  label: string,
-): string | null {
+function findCanonicalNodeId(state: BuildState, label: string): string | null {
   const normalised = normalise(label);
   if (!normalised) return null;
 
@@ -642,9 +550,7 @@ function findMentionedCanonicalNodeIds(
   for (const [nodeId, item] of state.canonicalItems) {
     if (
       [...item.aliases].some(
-        (alias) =>
-          alias.length >= 3 &&
-          containsTokenSequence(text, alias),
+        (alias) => alias.length >= 3 && containsTokenSequence(text, alias),
       )
     ) {
       matches.push(nodeId);
@@ -654,16 +560,10 @@ function findMentionedCanonicalNodeIds(
   return uniqueStrings(matches);
 }
 
-function containsTokenSequence(
-  text: string,
-  phrase: string,
-): boolean {
+function containsTokenSequence(text: string, phrase: string): boolean {
   if (!phrase) return false;
 
-  const escaped = phrase.replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&",
-  );
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   return new RegExp(
     `(?:^|[^\\p{L}\\p{N}])${escaped}(?:$|[^\\p{L}\\p{N}])`,
@@ -671,32 +571,20 @@ function containsTokenSequence(
   ).test(text);
 }
 
-function isAcronymAlias(
-  left: string,
-  right: string,
-): boolean {
+function isAcronymAlias(left: string, right: string): boolean {
   const leftCompact = normalise(left).replace(/\s+/g, "");
   const rightCompact = normalise(right).replace(/\s+/g, "");
   const leftInitialism = initialism(left);
   const rightInitialism = initialism(right);
 
   return Boolean(
-    (
-      leftCompact.length >= 2 &&
-      leftCompact === rightInitialism
-    ) ||
-    (
-      rightCompact.length >= 2 &&
-      rightCompact === leftInitialism
-    ),
+    (leftCompact.length >= 2 && leftCompact === rightInitialism) ||
+    (rightCompact.length >= 2 && rightCompact === leftInitialism),
   );
 }
 
 function initialism(value: string): string {
-  const words =
-    value.normalize("NFKC").match(
-      /[\p{L}\p{N}]+/gu,
-    ) ?? [];
+  const words = value.normalize("NFKC").match(/[\p{L}\p{N}]+/gu) ?? [];
 
   if (words.length < 2) {
     return "";
@@ -729,9 +617,7 @@ function detachChild(
   const parent = state.nodes.get(parentId);
   if (!parent) return;
 
-  parent.childIds = parent.childIds.filter(
-    (id) => id !== childId,
-  );
+  parent.childIds = parent.childIds.filter((id) => id !== childId);
 }
 
 function wouldCreateCycle(
@@ -770,33 +656,25 @@ function nodeDepth(
   return depth;
 }
 
-function removeEmptyTopics(
-  state: BuildState,
-): void {
+function removeEmptyTopics(state: BuildState): void {
   const root = state.nodes.get("knowledge-root");
   if (!root) return;
 
   for (const childId of [...root.childIds]) {
     const child = state.nodes.get(childId);
-    if (
-      child?.type === "topic" &&
-      child.childIds.length === 0
-    ) {
-      root.childIds = root.childIds.filter(
-        (id) => id !== childId,
-      );
+    if (child?.type === "topic" && child.childIds.length === 0) {
+      root.childIds = root.childIds.filter((id) => id !== childId);
       state.nodes.delete(childId);
     }
   }
 }
 
-function sortChildren(
-  state: BuildState,
-): void {
+function sortChildren(state: BuildState): void {
   const sectionOrder = new Map(
-    [...state.visibleSections.keys()].map(
-      (sectionId, index) => [sectionId, index],
-    ),
+    [...state.visibleSections.keys()].map((sectionId, index) => [
+      sectionId,
+      index,
+    ]),
   );
 
   for (const node of state.nodes.values()) {
@@ -805,14 +683,9 @@ function sortChildren(
       const right = state.nodes.get(rightId);
       if (!left || !right) return 0;
 
-      if (
-        left.type === "topic" &&
-        right.type === "topic"
-      ) {
-        const leftSection =
-          left.sourceSectionIds[0] ?? "";
-        const rightSection =
-          right.sourceSectionIds[0] ?? "";
+      if (left.type === "topic" && right.type === "topic") {
+        const leftSection = left.sourceSectionIds[0] ?? "";
+        const rightSection = right.sourceSectionIds[0] ?? "";
 
         return (
           (sectionOrder.get(leftSection) ?? 9999) -
@@ -822,8 +695,7 @@ function sortChildren(
 
       return (
         typeRank(left.type) - typeRank(right.type) ||
-        (right.importance ?? 0) -
-          (left.importance ?? 0) ||
+        (right.importance ?? 0) - (left.importance ?? 0) ||
         left.label.localeCompare(right.label)
       );
     });
@@ -866,38 +738,20 @@ function materializeTree(
     evidenceIds: [...node.evidenceIds],
     graphNodeId: node.graphNodeId,
     relationToParent: node.relationToParent,
-    relationEvidenceIds: [
-      ...node.relationEvidenceIds,
-    ],
+    relationEvidenceIds: [...node.relationEvidenceIds],
     children: node.childIds
-      .map((childId) =>
-        materializeTree(
-          childId,
-          nodes,
-          nextStack,
-        ),
-      )
-      .filter(
-        (
-          child,
-        ): child is KnowledgeTreeNodeData =>
-          child !== null,
-      ),
+      .map((childId) => materializeTree(childId, nodes, nextStack))
+      .filter((child): child is KnowledgeTreeNodeData => child !== null),
   };
 }
 
-function countOrphans(
-  state: BuildState,
-): number {
+function countOrphans(state: BuildState): number {
   const reachable = new Set<string>();
   const visit = (nodeId: string): void => {
     if (reachable.has(nodeId)) return;
     reachable.add(nodeId);
 
-    for (
-      const childId of
-      state.nodes.get(nodeId)?.childIds ?? []
-    ) {
+    for (const childId of state.nodes.get(nodeId)?.childIds ?? []) {
       visit(childId);
     }
   };
@@ -905,23 +759,14 @@ function countOrphans(
   visit("knowledge-root");
 
   return [...state.nodes.values()].filter(
-    (node) =>
-      node.type !== "root" &&
-      !reachable.has(node.id),
+    (node) => node.type !== "root" && !reachable.has(node.id),
   ).length;
 }
 
-function measureDepth(
-  node: KnowledgeTreeNodeData,
-): number {
+function measureDepth(node: KnowledgeTreeNodeData): number {
   if (node.children.length === 0) return 0;
 
-  return (
-    1 +
-    Math.max(
-      ...node.children.map(measureDepth),
-    )
-  );
+  return 1 + Math.max(...node.children.map(measureDepth));
 }
 
 function buildQuality(input: {
@@ -981,34 +826,23 @@ function buildQuality(input: {
 
   return {
     status,
-    majorConceptCoverage:
-      Math.round(input.majorConceptCoverage * 1000) /
-      1000,
+    majorConceptCoverage: Math.round(input.majorConceptCoverage * 1000) / 1000,
     orphanCount: input.orphanCount,
     duplicateAliasCount: input.duplicateAliasCount,
-    explicitHierarchyCount:
-      input.explicitHierarchyCount,
-    skippedHierarchyCount:
-      input.skippedHierarchyCount,
-    omittedUngroundedCount:
-      input.omittedUngroundedCount,
+    explicitHierarchyCount: input.explicitHierarchyCount,
+    skippedHierarchyCount: input.skippedHierarchyCount,
+    omittedUngroundedCount: input.omittedUngroundedCount,
     maxDepth: input.maxDepth,
     warnings,
   };
 }
 
-function isSemanticNode(
-  type: KnowledgeTreeNodeType,
-): boolean {
+function isSemanticNode(type: KnowledgeTreeNodeType): boolean {
   return type === "concept" || type === "term";
 }
 
-function uniqueStrings(
-  values: string[],
-): string[] {
-  return [...new Set(
-    values.filter((value) => value.trim()),
-  )];
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter((value) => value.trim()))];
 }
 
 function cleanHeading(value: string): string {
@@ -1018,25 +852,22 @@ function cleanHeading(value: string): string {
     .trim();
 }
 
-function shorten(
-  value: string,
-  maxLength: number,
-): string {
+function shorten(value: string, maxLength: number): string {
   const text = value.replace(/\s+/g, " ").trim();
   if (text.length <= maxLength) return text;
 
-  return `${text
-    .slice(0, maxLength - 1)
-    .trimEnd()}…`;
+  return `${text.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
 function safeId(value: string): string {
-  return value
-    .normalize("NFKC")
-    .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 64) || "item";
+  return (
+    value
+      .normalize("NFKC")
+      .toLocaleLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 64) || "item"
+  );
 }
 
 function normalise(value: string): string {

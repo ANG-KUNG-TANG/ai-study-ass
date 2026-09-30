@@ -1,10 +1,10 @@
 import { apiFetch } from "@/lib/api";
-import type {
-  Quiz,
-  GenerateQuizOptions,
-} from "@/types/quiz";
+import type { Quiz, GenerateQuizOptions } from "@/types/quiz";
 
-export function generateQuiz(noteId: string, options: GenerateQuizOptions = {}): Promise<Quiz> {
+export function generateQuiz(
+  noteId: string,
+  options: GenerateQuizOptions = {},
+): Promise<Quiz> {
   return apiFetch<Quiz>("/quiz/generate", {
     method: "POST",
     body: JSON.stringify({ noteId, ...options }),

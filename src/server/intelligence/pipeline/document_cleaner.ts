@@ -11,9 +11,7 @@ import {
   normaliseLine,
   normaliseRepeatedLineKey,
 } from "../reliability/text-quality";
-import {
-  cleanStudyAnalysisText,
-} from "./source-hygiene";
+import { cleanStudyAnalysisText } from "./source-hygiene";
 
 const REFERENCES_HEADINGS = [
   /^references$/i,
@@ -31,308 +29,158 @@ const PAREN_CITATION_RE =
 const PAGE_NUMBER_RE =
   /^(?:(?:[-–—]{1,2}\s*)?(?:page\s*)?\d+(?:\s+(?:of|\/)\s+\d+)?(?:\s*[-–—]{1,2})?)$/i;
 
-const RUNNING_HEADER_MAX_LENGTH =
-  140;
+const RUNNING_HEADER_MAX_LENGTH = 140;
 
-export function cleanDocument(
-  raw: RawDocument,
-): CleanedDocument {
-  const pages =
-    normaliseInputPages(
-      raw,
-    );
-  const hasPageBoundaries =
-    Boolean(raw.pages?.length) ||
-    pages.length > 1;
+export function cleanDocument(raw: RawDocument): CleanedDocument {
+  const pages = normaliseInputPages(raw);
+  const hasPageBoundaries = Boolean(raw.pages?.length) || pages.length > 1;
 
   const stats: CleaningStats = {
-    rawLength:
-      raw.rawText.length,
-    cleanLength:
-      0,
-    pageNumbersRemoved:
-      0,
-    citationsRemoved:
-      0,
-    referenceLinesRemoved:
-      0,
-    referencesSectionTruncated:
-      false,
-    runningHeadersRemoved:
-      0,
-    hyphenatedBreaksJoined:
-      0,
+    rawLength: raw.rawText.length,
+    cleanLength: 0,
+    pageNumbersRemoved: 0,
+    citationsRemoved: 0,
+    referenceLinesRemoved: 0,
+    referencesSectionTruncated: false,
+    runningHeadersRemoved: 0,
+    hyphenatedBreaksJoined: 0,
   };
 
-  const runningHeaders =
-    detectRunningHeaders(
-      pages,
-    );
+  const runningHeaders = detectRunningHeaders(pages);
 
-  const preservedRunningHeaders =
-    new Set<string>();
+  const preservedRunningHeaders = new Set<string>();
 
-  const sourcePages:
-    SourcePage[] = [];
+  const sourcePages: SourcePage[] = [];
 
-  let globalOffset =
-    0;
+  let globalOffset = 0;
 
-  let referencesReached =
-    false;
+  let referencesReached = false;
 
-  for (
-    const page of pages
-  ) {
-    const displayLines:
-      string[] = [];
+  for (const page of pages) {
+    const displayLines: string[] = [];
 
-    const analysisLines:
-      string[] = [];
+    const analysisLines: string[] = [];
 
-    const rawLines =
-      page.rawText
-        .replace(
-          /\r\n?/g,
-          "\n",
-        )
-        .split(
-          "\n",
-        );
+    const rawLines = page.rawText.replace(/\r\n?/g, "\n").split("\n");
 
-    for (
-      const rawLine of rawLines
-    ) {
-      const line =
-        normaliseLine(
-          rawLine,
-        );
+    for (const rawLine of rawLines) {
+      const line = normaliseLine(rawLine);
 
-      if (
-        line &&
-        REFERENCES_HEADINGS.some(
-          (
-            pattern,
-          ) =>
-            pattern.test(
-              line,
-            ),
-        )
-      ) {
-        referencesReached =
-          true;
+      if (line && REFERENCES_HEADINGS.some((pattern) => pattern.test(line))) {
+        referencesReached = true;
 
-        stats.referencesSectionTruncated =
-          true;
+        stats.referencesSectionTruncated = true;
       }
 
-      if (
-        PAGE_NUMBER_RE.test(
-          line,
-        )
-      ) {
-        stats.pageNumbersRemoved +=
-          1;
+      if (PAGE_NUMBER_RE.test(line)) {
+        stats.pageNumbersRemoved += 1;
 
         continue;
       }
 
-      const repeatedKey =
-        normaliseRepeatedLineKey(
-          line,
-        );
+      const repeatedKey = normaliseRepeatedLineKey(line);
 
-      if (
-        line &&
-        runningHeaders.has(
-          repeatedKey,
-        )
-      ) {
-        if (
-          preservedRunningHeaders.has(
-            repeatedKey,
-          )
-        ) {
-          stats.runningHeadersRemoved +=
-            1;
+      if (line && runningHeaders.has(repeatedKey)) {
+        if (preservedRunningHeaders.has(repeatedKey)) {
+          stats.runningHeadersRemoved += 1;
 
           continue;
         }
 
         // Preserve the first occurrence so a real title or section heading is
         // not removed merely because it also appears as a later page header.
-        preservedRunningHeaders.add(
-          repeatedKey,
-        );
+        preservedRunningHeaders.add(repeatedKey);
       }
 
-      displayLines.push(
-        line,
-      );
+      displayLines.push(line);
 
-      if (
-        !referencesReached
-      ) {
-        analysisLines.push(
-          line,
-        );
-      } else if (
-        line
-      ) {
-        stats.referenceLinesRemoved +=
-          1;
+      if (!referencesReached) {
+        analysisLines.push(line);
+      } else if (line) {
+        stats.referenceLinesRemoved += 1;
       }
     }
 
-    const displayLayout =
-      normaliseLayout(
-        displayLines.join(
-          "\n",
-        ),
-        stats,
-        false,
-        true,
-      );
+    const displayLayout = normaliseLayout(
+      displayLines.join("\n"),
+      stats,
+      false,
+      true,
+    );
 
-    const analysisLayout =
-      normaliseLayout(
-        stripCitations(
-          analysisLines.join(
-            "\n",
-          ),
-          stats,
-        ),
-        stats,
-        true,
-        false,
-      );
+    const analysisLayout = normaliseLayout(
+      stripCitations(analysisLines.join("\n"), stats),
+      stats,
+      true,
+      false,
+    );
 
-    const reliableDisplay =
-      cleanTextReliably(
-        displayLayout,
-      );
+    const reliableDisplay = cleanTextReliably(displayLayout);
 
-    const reliableAnalysis =
-      cleanTextReliably(
-        analysisLayout,
-      );
+    const reliableAnalysis = cleanTextReliably(analysisLayout);
 
     // These removals happen after the page-aware pass, so add them once from
     // the display representation. The analysis representation contains the
     // same header and page-number candidates.
-    stats.pageNumbersRemoved +=
-      reliableDisplay.removedPageNumbers;
+    stats.pageNumbersRemoved += reliableDisplay.removedPageNumbers;
 
-    stats.runningHeadersRemoved +=
-      reliableDisplay.removedRepeatedLines;
+    stats.runningHeadersRemoved += reliableDisplay.removedRepeatedLines;
 
-    const displayText =
-      reliableDisplay.text;
+    const displayText = reliableDisplay.text;
 
-    const analysisText =
-      cleanStudyAnalysisText(
-        reliableAnalysis.text,
-      );
+    const analysisText = cleanStudyAnalysisText(reliableAnalysis.text);
 
-    const startOffset =
-      globalOffset;
+    const startOffset = globalOffset;
 
-    const endOffset =
-      startOffset +
-      displayText.length;
+    const endOffset = startOffset + displayText.length;
 
     sourcePages.push({
-      pageNumber:
-        page.pageNumber,
-      rawText:
-        page.rawText,
+      pageNumber: page.pageNumber,
+      rawText: page.rawText,
       displayText,
       analysisText,
       startOffset,
       endOffset,
     });
 
-    globalOffset =
-      endOffset + 2;
+    globalOffset = endOffset + 2;
   }
 
-  const displayText =
-    sourcePages
-      .map(
-        (
-          page,
-        ) =>
-          page.displayText,
-      )
-      .filter(
-        Boolean,
-      )
-      .join(
-        "\n\n",
-      )
-      .trim();
+  const displayText = sourcePages
+    .map((page) => page.displayText)
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
 
-  const analysisText =
-    sourcePages
-      .map(
-        (
-          page,
-        ) =>
-          page.analysisText,
-      )
-      .filter(
-        Boolean,
-      )
-      .join(
-        "\n\n",
-      )
-      .trim();
+  const analysisText = sourcePages
+    .map((page) => page.analysisText)
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
 
-  stats.cleanLength =
-    analysisText.length;
+  stats.cleanLength = analysisText.length;
 
   return {
-    sourceText:
-      raw.rawText,
+    sourceText: raw.rawText,
     displayText,
     analysisText,
-    cleanText:
-      analysisText,
+    cleanText: analysisText,
     sourcePages,
-    fileName:
-      raw.fileName,
-    mimeType:
-      raw.mimeType,
-    fileSize:
-      raw.fileSize,
+    fileName: raw.fileName,
+    mimeType: raw.mimeType,
+    fileSize: raw.fileSize,
     pageCount:
-      raw.pageCount ??
-      (hasPageBoundaries
-        ? sourcePages.length
-        : undefined),
-    cleaningStats:
-      stats,
+      raw.pageCount ?? (hasPageBoundaries ? sourcePages.length : undefined),
+    cleaningStats: stats,
   };
 }
 
-function normaliseInputPages(
-  raw: RawDocument,
-): RawDocumentPage[] {
-  if (
-    raw.pages?.length
-  ) {
-    return raw.pages.map(
-      (
-        page,
-        index,
-      ) => ({
-        pageNumber:
-          page.pageNumber ||
-          index + 1,
-        rawText:
-          page.rawText,
-      }),
-    );
+function normaliseInputPages(raw: RawDocument): RawDocumentPage[] {
+  if (raw.pages?.length) {
+    return raw.pages.map((page, index) => ({
+      pageNumber: page.pageNumber || index + 1,
+      rawText: page.rawText,
+    }));
   }
 
   const legacyPdfPages = splitLegacyPdfParsePages(raw.rawText);
@@ -341,39 +189,26 @@ function normaliseInputPages(
     return legacyPdfPages;
   }
 
-  const formFeedPages =
-    raw.rawText.split(
-      "\f",
-    );
+  const formFeedPages = raw.rawText.split("\f");
 
-  if (
-    formFeedPages.length >
-    1
-  ) {
-    return formFeedPages.map(
-      (
-        rawText,
-        index,
-      ) => ({
-        pageNumber:
-          index + 1,
-        rawText,
-      }),
-    );
+  if (formFeedPages.length > 1) {
+    return formFeedPages.map((rawText, index) => ({
+      pageNumber: index + 1,
+      rawText,
+    }));
   }
 
   return [
     {
-      pageNumber:
-        1,
-      rawText:
-        raw.rawText,
+      pageNumber: 1,
+      rawText: raw.rawText,
     },
   ];
 }
 
 function splitLegacyPdfParsePages(text: string): RawDocumentPage[] {
-  const marker = /^[ \t]*[-–—]{1,3}[ \t]*(?:page[ \t]+)?(\d+)[ \t]+(?:of|\/)[ \t]+(\d+)[ \t]*[-–—]{1,3}[ \t]*$/gim;
+  const marker =
+    /^[ \t]*[-–—]{1,3}[ \t]*(?:page[ \t]+)?(\d+)[ \t]+(?:of|\/)[ \t]+(\d+)[ \t]*[-–—]{1,3}[ \t]*$/gim;
   const matches = [...text.matchAll(marker)];
 
   if (matches.length < 2) return [];
@@ -421,99 +256,36 @@ function splitLegacyPdfParsePages(text: string): RawDocumentPage[] {
   return pages.length === declaredTotal ? pages : [];
 }
 
-function detectRunningHeaders(
-  pages: RawDocumentPage[],
-): Set<string> {
-  if (
-    pages.length <
-    2
-  ) {
+function detectRunningHeaders(pages: RawDocumentPage[]): Set<string> {
+  if (pages.length < 2) {
     return new Set();
   }
 
-  const counts =
-    new Map<
-      string,
-      number
-    >();
+  const counts = new Map<string, number>();
 
-  for (
-    const page of pages
-  ) {
-    const uniqueLines =
-      new Set(
-        page.rawText
-          .replace(
-            /\r\n?/g,
-            "\n",
-          )
-          .split(
-            "\n",
-          )
-          .map(
-            (
-              line,
-            ) =>
-              normaliseRepeatedLineKey(
-                line,
-              ),
-          )
-          .filter(
-            (
-              line,
-            ) =>
-              line.length >=
-                4 &&
-              line.length <=
-                RUNNING_HEADER_MAX_LENGTH,
-          ),
-      );
+  for (const page of pages) {
+    const uniqueLines = new Set(
+      page.rawText
+        .replace(/\r\n?/g, "\n")
+        .split("\n")
+        .map((line) => normaliseRepeatedLineKey(line))
+        .filter(
+          (line) =>
+            line.length >= 4 && line.length <= RUNNING_HEADER_MAX_LENGTH,
+        ),
+    );
 
-    for (
-      const line of uniqueLines
-    ) {
-      counts.set(
-        line,
-        (
-          counts.get(
-            line,
-          ) ?? 0
-        ) + 1,
-      );
+    for (const line of uniqueLines) {
+      counts.set(line, (counts.get(line) ?? 0) + 1);
     }
   }
 
-  const threshold =
-    Math.max(
-      2,
-      Math.ceil(
-        pages.length *
-          0.55,
-      ),
-    );
+  const threshold = Math.max(2, Math.ceil(pages.length * 0.55));
 
   return new Set(
-    [
-      ...counts.entries(),
-    ]
-      .filter(
-        (
-          [
-            ,
-            count,
-          ],
-        ) =>
-          count >=
-          threshold,
-      )
-      .map(
-        (
-          [
-            line,
-          ],
-        ) =>
-          line,
-      ),
+    [...counts.entries()]
+      .filter(([, count]) => count >= threshold)
+      .map(([line]) => line),
   );
 }
 
@@ -523,92 +295,45 @@ function normaliseLayout(
   collapseMoreAggressively: boolean,
   trackHyphenation: boolean,
 ): string {
-  let text =
-    input.replace(
-      /\t/g,
-      " ",
-    );
+  let text = input.replace(/\t/g, " ");
 
-  if (
-    trackHyphenation
-  ) {
-    const hyphenMatches =
-      text.match(
-        /(\p{L})-\n(\p{Ll})/gu,
-      )?.length ?? 0;
+  if (trackHyphenation) {
+    const hyphenMatches = text.match(/(\p{L})-\n(\p{Ll})/gu)?.length ?? 0;
 
-    stats.hyphenatedBreaksJoined +=
-      hyphenMatches;
+    stats.hyphenatedBreaksJoined += hyphenMatches;
   }
 
-  text =
-    text.replace(
-      /(\p{L})-\n(\p{Ll})/gu,
-      "$1$2",
-    );
+  text = text.replace(/(\p{L})-\n(\p{Ll})/gu, "$1$2");
 
   // Join a PDF line break only when both sides look like one continuing
   // sentence. Uppercase headings and list items retain their line boundaries.
-  text =
-    text.replace(
-      /([a-z0-9,;:])\n(?=[a-z(])/g,
-      "$1 ",
-    );
+  text = text.replace(/([a-z0-9,;:])\n(?=[a-z(])/g, "$1 ");
 
-  text =
-    text.replace(
-      /[ ]{2,}/g,
-      " ",
-    );
+  text = text.replace(/[ ]{2,}/g, " ");
 
-  text =
-    text.replace(
-      collapseMoreAggressively
-        ? /\n{3,}/g
-        : /\n{4,}/g,
-      "\n\n",
-    );
+  text = text.replace(collapseMoreAggressively ? /\n{3,}/g : /\n{4,}/g, "\n\n");
 
-  text =
-    text.replace(
-      /\s+([.,;:!?])/g,
-      "$1",
-    );
+  text = text.replace(/\s+([.,;:!?])/g, "$1");
 
   return text.trim();
 }
 
-function stripCitations(
-  text: string,
-  stats: CleaningStats,
-): string {
-  let count =
-    0;
+function stripCitations(text: string, stats: CleaningStats): string {
+  let count = 0;
 
-  const withoutInline =
-    text.replace(
-      INLINE_CITATION_RE,
-      () => {
-        count +=
-          1;
+  const withoutInline = text.replace(INLINE_CITATION_RE, () => {
+    count += 1;
 
-        return "";
-      },
-    );
+    return "";
+  });
 
-  const withoutParenthetical =
-    withoutInline.replace(
-      PAREN_CITATION_RE,
-      () => {
-        count +=
-          1;
+  const withoutParenthetical = withoutInline.replace(PAREN_CITATION_RE, () => {
+    count += 1;
 
-        return "";
-      },
-    );
+    return "";
+  });
 
-  stats.citationsRemoved +=
-    count;
+  stats.citationsRemoved += count;
 
   return withoutParenthetical;
 }

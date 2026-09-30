@@ -33,10 +33,7 @@ export function detectSections(doc: CleanedDocument): SectionedDocument {
       rawHeading: "Document",
       level: 1,
       body: doc.displayText,
-      analysisBody:
-        cleanStudyAnalysisText(
-          doc.analysisText,
-        ),
+      analysisBody: cleanStudyAnalysisText(doc.analysisText),
       startOffset: 0,
       endOffset: doc.displayText.length,
       ...estimatePages(doc, 0, doc.displayText.length),
@@ -53,12 +50,7 @@ export function detectSections(doc: CleanedDocument): SectionedDocument {
           rawHeading: "Preamble",
           level: 1,
           body: preamble,
-          analysisBody:
-            cleanStudyAnalysisText(
-              stripCitationNoise(
-                preamble,
-              ),
-            ),
+          analysisBody: cleanStudyAnalysisText(stripCitationNoise(preamble)),
           startOffset: 0,
           endOffset: first.startOffset,
           ...estimatePages(doc, 0, first.startOffset),
@@ -82,12 +74,7 @@ export function detectSections(doc: CleanedDocument): SectionedDocument {
         headingNumber: candidate.number,
         level: candidate.level,
         body,
-        analysisBody:
-          cleanStudyAnalysisText(
-            stripCitationNoise(
-              body,
-            ),
-          ),
+        analysisBody: cleanStudyAnalysisText(stripCitationNoise(body)),
         startOffset: candidate.startOffset,
         endOffset: bodyEnd,
         ...estimatePages(doc, candidate.startOffset, bodyEnd),
@@ -95,30 +82,15 @@ export function detectSections(doc: CleanedDocument): SectionedDocument {
     });
   }
 
-  const studySections =
-    normaliseStudySections(
-      sections,
-    );
+  const studySections = normaliseStudySections(sections);
 
   return {
     ...doc,
     sections: studySections,
-    hasAbstract:
-      studySections.some(
-        (section) =>
-          section.title ===
-          "abstract",
-      ),
-    hasMethodology:
-      studySections.some(
-        (section) =>
-          [
-            "methodology",
-            "experiments",
-          ].includes(
-            section.title,
-          ),
-      ),
+    hasAbstract: studySections.some((section) => section.title === "abstract"),
+    hasMethodology: studySections.some((section) =>
+      ["methodology", "experiments"].includes(section.title),
+    ),
   };
 }
 
@@ -162,7 +134,11 @@ function findHeadingCandidates(text: string): HeadingCandidate[] {
       continue;
     }
 
-    if (isKnownHeading(trimmed) || isUppercaseHeading(trimmed) || isTitleCaseHeading(trimmed)) {
+    if (
+      isKnownHeading(trimmed) ||
+      isUppercaseHeading(trimmed) ||
+      isTitleCaseHeading(trimmed)
+    ) {
       candidates.push({
         line,
         heading: trimmed,
@@ -194,14 +170,20 @@ function isKnownHeading(value: string): boolean {
 
 function isUppercaseHeading(value: string): boolean {
   const letters = value.replace(/[^A-Za-z]/g, "");
-  return letters.length >= 3 && value === value.toUpperCase() && value.split(/\s+/).length <= 12;
+  return (
+    letters.length >= 3 &&
+    value === value.toUpperCase() &&
+    value.split(/\s+/).length <= 12
+  );
 }
 
 function isTitleCaseHeading(value: string): boolean {
   if (/^[\u2022\u25AA\u25E6\u2023\u2043*+-]/u.test(value)) return false;
   const words = value.split(/\s+/);
   if (words.length < 1 || words.length > 10) return false;
-  const titleWords = words.filter((word) => /^[A-Z][A-Za-z0-9&/-]*$/.test(word));
+  const titleWords = words.filter((word) =>
+    /^[A-Z][A-Za-z0-9&/-]*$/.test(word),
+  );
   return titleWords.length / words.length >= 0.75 && !/[.!?]$/.test(value);
 }
 
@@ -225,7 +207,10 @@ function removeNumberedListCandidates(
       ? Number(candidate.number)
       : null;
 
-    if (numeric === null || candidate.heading.toLowerCase().startsWith("slide ")) {
+    if (
+      numeric === null ||
+      candidate.heading.toLowerCase().startsWith("slide ")
+    ) {
       flush();
       continue;
     }
@@ -238,7 +223,9 @@ function removeNumberedListCandidates(
     const previousIndex = run.at(-1)!;
     const previous = candidates[previousIndex];
     const previousNumber = Number(previous.number);
-    const gap = text.slice(previous.lineEndOffset, candidate.startOffset).trim();
+    const gap = text
+      .slice(previous.lineEndOffset, candidate.startOffset)
+      .trim();
 
     if (numeric === previousNumber + 1 && gap.length === 0) {
       run.push(index);
@@ -257,33 +244,59 @@ function removeFalsePositiveHeadings(
   text: string,
 ): HeadingCandidate[] {
   return candidates.filter((candidate) => {
-    const previous = text.slice(Math.max(0, candidate.startOffset - 2), candidate.startOffset);
-    const next = text.slice(candidate.lineEndOffset, candidate.lineEndOffset + 200).trim();
+    const previous = text.slice(
+      Math.max(0, candidate.startOffset - 2),
+      candidate.startOffset,
+    );
+    const next = text
+      .slice(candidate.lineEndOffset, candidate.lineEndOffset + 200)
+      .trim();
     const words = candidate.heading.split(/\s+/);
 
     if (words.length > 12) return false;
     if (!next && candidate.heading.toLowerCase() !== "references") return false;
-    if (previous && !previous.includes("\n") && candidate.startOffset > 0) return false;
+    if (previous && !previous.includes("\n") && candidate.startOffset > 0)
+      return false;
     return true;
   });
 }
 
-function mapHeading(raw: string): { title: SectionTitle; role: SemanticSectionRole } {
-  const value = raw.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+function mapHeading(raw: string): {
+  title: SectionTitle;
+  role: SemanticSectionRole;
+} {
+  const value = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  if (/abstract|executive summary/.test(value)) return { title: "abstract", role: "abstract" };
-  if (/introduction|overview/.test(value)) return { title: "introduction", role: "background" };
-  if (/related work|literature review|prior work/.test(value)) return { title: "related_work", role: "background" };
-  if (/background|foundation|theory|bayesian network/.test(value)) return { title: "background", role: "background" };
-  if (/method|approach|model|modelling|architecture|design/.test(value)) return { title: "methodology", role: "method" };
-  if (/implementation|application methodology|toolset/.test(value)) return { title: "methodology", role: "implementation" };
-  if (/experiment|evaluation|validation|trial|aim and methodology/.test(value)) return { title: "experiments", role: "evaluation" };
-  if (/result|finding|performance/.test(value)) return { title: "results", role: "results" };
-  if (/discussion|analysis|limitation/.test(value)) return { title: "discussion", role: "discussion" };
-  if (/conclusion|summary/.test(value)) return { title: "conclusion", role: "conclusion" };
-  if (/future work|future research/.test(value)) return { title: "future_work", role: "conclusion" };
-  if (/acknowledg/.test(value)) return { title: "acknowledgements", role: "other" };
-  if (/reference|bibliography/.test(value)) return { title: "references", role: "references" };
+  if (/abstract|executive summary/.test(value))
+    return { title: "abstract", role: "abstract" };
+  if (/introduction|overview/.test(value))
+    return { title: "introduction", role: "background" };
+  if (/related work|literature review|prior work/.test(value))
+    return { title: "related_work", role: "background" };
+  if (/background|foundation|theory|bayesian network/.test(value))
+    return { title: "background", role: "background" };
+  if (/method|approach|model|modelling|architecture|design/.test(value))
+    return { title: "methodology", role: "method" };
+  if (/implementation|application methodology|toolset/.test(value))
+    return { title: "methodology", role: "implementation" };
+  if (/experiment|evaluation|validation|trial|aim and methodology/.test(value))
+    return { title: "experiments", role: "evaluation" };
+  if (/result|finding|performance/.test(value))
+    return { title: "results", role: "results" };
+  if (/discussion|analysis|limitation/.test(value))
+    return { title: "discussion", role: "discussion" };
+  if (/conclusion|summary/.test(value))
+    return { title: "conclusion", role: "conclusion" };
+  if (/future work|future research/.test(value))
+    return { title: "future_work", role: "conclusion" };
+  if (/acknowledg/.test(value))
+    return { title: "acknowledgements", role: "other" };
+  if (/reference|bibliography/.test(value))
+    return { title: "references", role: "references" };
   return { title: "other", role: "other" };
 }
 
@@ -296,8 +309,7 @@ function estimatePages(
     const exclusiveEnd = Math.max(startOffset + 1, endOffset);
     const overlappingPages = doc.sourcePages.filter(
       (page) =>
-        page.startOffset < exclusiveEnd &&
-        page.endOffset >= startOffset,
+        page.startOffset < exclusiveEnd && page.endOffset >= startOffset,
     );
     const startPage = overlappingPages[0];
     const endPage = overlappingPages.at(-1);
@@ -321,8 +333,14 @@ function estimatePages(
   const ratioStart = startOffset / doc.displayText.length;
   const ratioEnd = endOffset / doc.displayText.length;
   return {
-    pageStart: Math.min(pageCount, Math.max(1, Math.floor(ratioStart * pageCount) + 1)),
-    pageEnd: Math.min(pageCount, Math.max(1, Math.floor(ratioEnd * pageCount) + 1)),
+    pageStart: Math.min(
+      pageCount,
+      Math.max(1, Math.floor(ratioStart * pageCount) + 1),
+    ),
+    pageEnd: Math.min(
+      pageCount,
+      Math.max(1, Math.floor(ratioEnd * pageCount) + 1),
+    ),
     pageEstimate: true,
   };
 }

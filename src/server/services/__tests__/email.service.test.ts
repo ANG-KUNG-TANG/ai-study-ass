@@ -51,9 +51,7 @@ describe("email service", () => {
         text: expect.stringContaining(
           "https://study.example.test/auth/reset-password?token=reset-token",
         ),
-        idempotencyKey: expect.stringMatching(
-          /^password-reset\/[a-f0-9]{64}$/,
-        ),
+        idempotencyKey: expect.stringMatching(/^password-reset\/[a-f0-9]{64}$/),
       }),
     );
   });

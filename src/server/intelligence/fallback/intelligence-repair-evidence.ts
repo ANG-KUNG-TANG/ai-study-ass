@@ -5,18 +5,111 @@ const DEFAULT_MAX_CHARACTERS = 7_000;
 const DEFAULT_MAX_CHUNKS = 6;
 
 const FIELD_HINTS: Record<ExpectedField, readonly string[]> = {
-  problem: ["problem", "challenge", "issue", "motivation", "pain point", "need"],
-  objective: ["objective", "goal", "aim", "purpose", "research question", "intended to"],
-  method: ["method", "methodology", "approach", "procedure", "design", "algorithm", "technique"],
-  tool: ["tool", "software", "framework", "library", "platform", "technology", "implemented using"],
-  data_source: ["dataset", "data source", "data collected", "records", "corpus", "database", "repository"],
-  sample: ["sample", "participants", "projects", "subjects", "instances", "cases", "respondents"],
-  metric: ["metric", "measure", "precision", "recall", "f1", "accuracy", "auc", "rmse", "mae", "correlation"],
-  result: ["result", "finding", "performance", "achieved", "improved", "evaluation", "outcome"],
-  contribution: ["contribution", "novel", "propose", "proposed", "introduce", "introduced", "we present"],
-  limitation: ["limitation", "limitations", "threat", "constraint", "weakness", "drawback"],
-  future_work: ["future work", "future research", "further work", "next step", "future study"],
-  definition: ["definition", "defined as", "refers to", "means", "is a", "are a"],
+  problem: [
+    "problem",
+    "challenge",
+    "issue",
+    "motivation",
+    "pain point",
+    "need",
+  ],
+  objective: [
+    "objective",
+    "goal",
+    "aim",
+    "purpose",
+    "research question",
+    "intended to",
+  ],
+  method: [
+    "method",
+    "methodology",
+    "approach",
+    "procedure",
+    "design",
+    "algorithm",
+    "technique",
+  ],
+  tool: [
+    "tool",
+    "software",
+    "framework",
+    "library",
+    "platform",
+    "technology",
+    "implemented using",
+  ],
+  data_source: [
+    "dataset",
+    "data source",
+    "data collected",
+    "records",
+    "corpus",
+    "database",
+    "repository",
+  ],
+  sample: [
+    "sample",
+    "participants",
+    "projects",
+    "subjects",
+    "instances",
+    "cases",
+    "respondents",
+  ],
+  metric: [
+    "metric",
+    "measure",
+    "precision",
+    "recall",
+    "f1",
+    "accuracy",
+    "auc",
+    "rmse",
+    "mae",
+    "correlation",
+  ],
+  result: [
+    "result",
+    "finding",
+    "performance",
+    "achieved",
+    "improved",
+    "evaluation",
+    "outcome",
+  ],
+  contribution: [
+    "contribution",
+    "novel",
+    "propose",
+    "proposed",
+    "introduce",
+    "introduced",
+    "we present",
+  ],
+  limitation: [
+    "limitation",
+    "limitations",
+    "threat",
+    "constraint",
+    "weakness",
+    "drawback",
+  ],
+  future_work: [
+    "future work",
+    "future research",
+    "further work",
+    "next step",
+    "future study",
+  ],
+  definition: [
+    "definition",
+    "defined as",
+    "refers to",
+    "means",
+    "is a",
+    "are a",
+  ],
 };
 
 const FIELD_ROLES: Record<
@@ -70,11 +163,7 @@ export function buildIntelligenceRepairEvidence(
     1_200,
     10_000,
   );
-  const maxChunks = clamp(
-    options.maxChunks ?? DEFAULT_MAX_CHUNKS,
-    1,
-    10,
-  );
+  const maxChunks = clamp(options.maxChunks ?? DEFAULT_MAX_CHUNKS, 1, 10);
   const candidates = chunks.filter((chunk) => chunk.text.trim().length > 0);
 
   if (fields.length === 0 || candidates.length === 0) {
@@ -159,8 +248,7 @@ export function buildIntelligenceRepairEvidence(
     sectionIds: [...new Set(selected.map((chunk) => chunk.sectionId))],
     characterCount: text.length,
     wasTruncated:
-      text.length < joined.length ||
-      text.length < originalSelectedCharacters,
+      text.length < joined.length || text.length < originalSelectedCharacters,
   };
 }
 
@@ -197,7 +285,10 @@ function scoreChunkForField(
     score += Math.min(countOccurrences(text, hint), 3) * 7;
   }
 
-  if (["metric", "result", "sample"].includes(field) && /\d/u.test(chunk.text)) {
+  if (
+    ["metric", "result", "sample"].includes(field) &&
+    /\d/u.test(chunk.text)
+  ) {
     score += 4;
   }
 
@@ -222,9 +313,7 @@ function buildRelevantExcerpt(
     }))
     .filter((item) => item.score > 0)
     .sort(
-      (left, right) =>
-        right.score - left.score ||
-        left.index - right.index,
+      (left, right) => right.score - left.score || left.index - right.index,
     );
 
   const selectedIndexes = new Set<number>();
@@ -306,10 +395,7 @@ function countOccurrences(value: string, needle: string): number {
   return count;
 }
 
-function truncateAtBoundary(
-  value: string,
-  maxCharacters: number,
-): string {
+function truncateAtBoundary(value: string, maxCharacters: number): string {
   const trimmed = value.trim();
   if (trimmed.length <= maxCharacters) return trimmed;
 

@@ -58,7 +58,14 @@ const studyGenerationSchema = new Schema(
     userId: { type: String, required: true, index: true },
     stage: {
       type: String,
-      enum: ["pending", "analyzing", "generating", "complete", "partial", "failed"],
+      enum: [
+        "pending",
+        "analyzing",
+        "generating",
+        "complete",
+        "partial",
+        "failed",
+      ],
       required: true,
       default: "pending",
     },

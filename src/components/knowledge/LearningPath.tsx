@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  BookOpen,
-  ChevronRight,
-  Layers3,
-  Lightbulb,
-} from "lucide-react";
-import type {
-  KnowledgeGraphEdge,
-  KnowledgeGraphNode,
-} from "./types";
+import { BookOpen, ChevronRight, Layers3, Lightbulb } from "lucide-react";
+import type { KnowledgeGraphEdge, KnowledgeGraphNode } from "./types";
 import {
   asNumber,
   getNodeDescription,
@@ -28,11 +20,7 @@ interface SectionStep {
   concepts: KnowledgeGraphNode[];
 }
 
-export function LearningPath({
-  nodes,
-  edges,
-  onOpen,
-}: LearningPathProps) {
+export function LearningPath({ nodes, edges, onOpen }: LearningPathProps) {
   const { t } = useLanguage();
   const sections = nodes
     .filter((node) => node.type === "section")
@@ -42,63 +30,42 @@ export function LearningPath({
         (asNumber(b.properties?.learningOrder) ?? 999),
     );
 
-  const steps: SectionStep[] = sections.map(
-    (section) => {
-      const childIds = new Set(
-        edges
-          .filter(
-            (edge) =>
-              edge.from === section.id &&
-              edge.type === "contains",
-          )
-          .map((edge) => edge.to),
-      );
+  const steps: SectionStep[] = sections.map((section) => {
+    const childIds = new Set(
+      edges
+        .filter((edge) => edge.from === section.id && edge.type === "contains")
+        .map((edge) => edge.to),
+    );
 
-      const concepts = nodes
-        .filter(
-          (node) =>
-            childIds.has(node.id) &&
-            [
-              "concept",
-              "method",
-              "claim",
-              "result",
-            ].includes(node.type),
-        )
-        .sort((a, b) => {
-          const aOrder = asNumber(a.properties?.learningOrder);
-          const bOrder = asNumber(b.properties?.learningOrder);
+    const concepts = nodes
+      .filter(
+        (node) =>
+          childIds.has(node.id) &&
+          ["concept", "method", "claim", "result"].includes(node.type),
+      )
+      .sort((a, b) => {
+        const aOrder = asNumber(a.properties?.learningOrder);
+        const bOrder = asNumber(b.properties?.learningOrder);
 
-          if (aOrder !== undefined || bOrder !== undefined) {
-            return (aOrder ?? 999) - (bOrder ?? 999);
-          }
+        if (aOrder !== undefined || bOrder !== undefined) {
+          return (aOrder ?? 999) - (bOrder ?? 999);
+        }
 
-          const aKey =
-            nodeConfidence(a) ??
-            asNumber(a.properties?.score) ??
-            0;
-          const bKey =
-            nodeConfidence(b) ??
-            asNumber(b.properties?.score) ??
-            0;
-          return bKey - aKey;
-        });
+        const aKey = nodeConfidence(a) ?? asNumber(a.properties?.score) ?? 0;
+        const bKey = nodeConfidence(b) ?? asNumber(b.properties?.score) ?? 0;
+        return bKey - aKey;
+      });
 
-      return {
-        node: section,
-        concepts,
-      };
-    },
-  );
+    return {
+      node: section,
+      concepts,
+    };
+  });
 
   if (steps.length === 0) {
     const concepts = nodes
       .filter((node) => node.type === "concept")
-      .sort(
-        (a, b) =>
-          (nodeConfidence(b) ?? 0) -
-          (nodeConfidence(a) ?? 0),
-      )
+      .sort((a, b) => (nodeConfidence(b) ?? 0) - (nodeConfidence(a) ?? 0))
       .slice(0, 12);
 
     return (
@@ -118,9 +85,7 @@ export function LearningPath({
               onClick={() => onOpen(concept.id)}
               className="rounded-[8px] border border-line bg-paper p-4 text-left transition"
             >
-              <p className="font-medium text-ink">
-                {concept.label}
-              </p>
+              <p className="font-medium text-ink">{concept.label}</p>
               <p className="mt-2 line-clamp-3 text-[12px] leading-5 text-ink-soft">
                 {getNodeDescription(concept)}
               </p>
@@ -135,10 +100,7 @@ export function LearningPath({
     <div className="space-y-4">
       <div className="rounded-[10px] border border-violet/25 bg-violet-soft/45 p-4">
         <div className="flex items-start gap-3">
-          <Lightbulb
-            size={18}
-            className="mt-0.5 shrink-0 text-violet"
-          />
+          <Lightbulb size={18} className="mt-0.5 shrink-0 text-violet" />
           <div>
             <p className="text-[13px] font-semibold text-violet">
               {t("knowledge.followOrder")}
@@ -155,15 +117,10 @@ export function LearningPath({
 
         <div className="space-y-4">
           {steps.map((step, index) => {
-            const pageNumber = asNumber(
-              step.node.properties?.pageNumber,
-            );
+            const pageNumber = asNumber(step.node.properties?.pageNumber);
 
             return (
-              <section
-                key={step.node.id}
-                className="relative pl-14"
-              >
+              <section key={step.node.id} className="relative pl-14">
                 <div className="absolute left-0 top-5 flex h-11 w-11 items-center justify-center rounded-full border-4 border-paper bg-ink font-mono text-[11px] font-semibold text-paper-raised">
                   {index + 1}
                 </div>
@@ -195,9 +152,7 @@ export function LearningPath({
                         <button
                           key={concept.id}
                           type="button"
-                          onClick={() =>
-                            onOpen(concept.id)
-                          }
+                          onClick={() => onOpen(concept.id)}
                           className="group rounded-[8px] border border-[#EFE8D6] bg-paper p-3.5 text-left transition hover:border-[#CFC1A2] hover:bg-paper-raised"
                         >
                           <div className="flex items-start justify-between gap-2">

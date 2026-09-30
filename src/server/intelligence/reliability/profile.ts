@@ -111,10 +111,7 @@ export function attachReliableProfile(
   extras.reliableProfile = profile;
   extras.topic = profile.classification.domain;
   extras.keywords = unique(
-    [
-      ...profile.concepts.map((concept) => concept.term),
-      ...extras.keywords,
-    ],
+    [...profile.concepts.map((concept) => concept.term), ...extras.keywords],
     20,
   );
 
@@ -126,26 +123,31 @@ export function attachReliableProfile(
 
     core.keyPoints = unique(
       [
-        ...profile.caseStudy.financialInputs.slice(0, 8).map(
-          (input) => `${input.label}: ${input.unit === "USD" ? "$" : ""}${input.value.toLocaleString()}${input.unit === "percent" ? "%" : ""}`,
+        ...profile.caseStudy.financialInputs
+          .slice(0, 8)
+          .map(
+            (input) =>
+              `${input.label}: ${input.unit === "USD" ? "$" : ""}${input.value.toLocaleString()}${input.unit === "percent" ? "%" : ""}`,
+          ),
+        ...profile.caseStudy.requiredCalculations.map(
+          (value) => `Required analysis: ${value}`,
         ),
-        ...profile.caseStudy.requiredCalculations.map((value) => `Required analysis: ${value}`),
         ...core.keyPoints.map((point) => `${point.label}: ${point.value}`),
       ],
       14,
     ).map((value) => {
       const separator = value.indexOf(":");
       return separator > 0
-        ? { label: value.slice(0, separator), value: value.slice(separator + 1).trim() }
+        ? {
+            label: value.slice(0, separator),
+            value: value.slice(separator + 1).trim(),
+          }
         : { label: "Key Point", value };
     });
   }
 
   core.entities = unique(
-    [
-      ...profile.concepts.map((concept) => concept.term),
-      ...core.entities,
-    ],
+    [...profile.concepts.map((concept) => concept.term), ...core.entities],
     24,
   );
 
@@ -163,10 +165,7 @@ export function calibrateConfidenceBreakdown<
   T extends Pick<ConfidenceBreakdown, "overall" | "overallOutOf10"> & {
     coverage?: number;
   },
->(
-  breakdown: T,
-  profile: ReliableDocumentProfile | null,
-): T {
+>(breakdown: T, profile: ReliableDocumentProfile | null): T {
   if (!profile) return breakdown;
 
   const calibratedCoverage = Math.min(
@@ -174,10 +173,7 @@ export function calibrateConfidenceBreakdown<
     profile.coverage.score,
   );
 
-  let overall = clamp(
-    breakdown.overall * 0.58 +
-      profile.qualityScore * 0.42,
-  );
+  let overall = clamp(breakdown.overall * 0.58 + profile.qualityScore * 0.42);
 
   if (profile.status === "partial") overall = Math.min(overall, 0.84);
   if (profile.status === "rejected") overall = Math.min(overall, 0.59);
@@ -185,7 +181,9 @@ export function calibrateConfidenceBreakdown<
 
   return {
     ...breakdown,
-    ...(breakdown.coverage !== undefined ? { coverage: calibratedCoverage } : {}),
+    ...(breakdown.coverage !== undefined
+      ? { coverage: calibratedCoverage }
+      : {}),
     overall,
     overallOutOf10: overall * 10,
   } as T;

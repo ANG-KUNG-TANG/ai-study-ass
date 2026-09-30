@@ -23,13 +23,9 @@ export interface GenerateStudyMaterialsInput {
 }
 
 export interface BackgroundGenerationHooks {
-  onComplete?: (
-    state: StudyGenerationState,
-  ) => void | Promise<void>;
+  onComplete?: (state: StudyGenerationState) => void | Promise<void>;
 
-  onError?: (
-    error: unknown,
-  ) => void | Promise<void>;
+  onError?: (error: unknown) => void | Promise<void>;
 }
 
 function safeMessage(error: unknown): string {
@@ -111,11 +107,7 @@ function calculateFinalStage(
     return "complete";
   }
 
-  if (
-    statuses.some(
-      (status) => status === "ready" || status === "partial",
-    )
-  ) {
+  if (statuses.some((status) => status === "ready" || status === "partial")) {
     return "partial";
   }
 
@@ -125,10 +117,7 @@ function calculateFinalStage(
 export async function generateStudyMaterials(
   input: GenerateStudyMaterialsInput,
 ): Promise<StudyGenerationState> {
-  const note = await noteRepo.findByIdAndUserId(
-    input.noteId,
-    input.userId,
-  );
+  const note = await noteRepo.findByIdAndUserId(input.noteId, input.userId);
 
   if (!note) {
     throw new NotFoundError("Note");
@@ -140,46 +129,32 @@ export async function generateStudyMaterials(
     Boolean(input.force),
   );
 
-  await generationRepo.updateStage(
-    input.noteId,
-    "analyzing",
-  );
+  await generationRepo.updateStage(input.noteId, "analyzing");
 
-  const intelligence =
-    input.document
-      ? await intelligenceService.runAndPersistPipeline(
-          input.noteId,
-          input.document,
-        )
-      : await intelligenceService.getOrRunPipeline(
-          input.noteId,
-          {
-            repairMissingFields: true,
-          },
-        );
+  const intelligence = input.document
+    ? await intelligenceService.runAndPersistPipeline(
+        input.noteId,
+        input.document,
+      )
+    : await intelligenceService.getOrRunPipeline(input.noteId, {
+        repairMissingFields: true,
+      });
 
   if (intelligenceHasFailed(intelligence)) {
-    await generationRepo.updateStage(
-      input.noteId,
-      "failed",
-    );
+    await generationRepo.updateStage(input.noteId, "failed");
 
     throw new Error(
       "Study-material generation stopped because document intelligence did not complete successfully.",
     );
   }
 
-  await generationRepo.updateStage(
-    input.noteId,
-    "generating",
-  );
+  await generationRepo.updateStage(input.noteId, "generating");
 
   await Promise.allSettled([
     runFeature(input.noteId, "summary", async () => {
-      const result = await summaryService.generateSummary(
-        input.noteId,
-        { force: input.force },
-      );
+      const result = await summaryService.generateSummary(input.noteId, {
+        force: input.force,
+      });
 
       return {
         value: result,
@@ -188,15 +163,14 @@ export async function generateStudyMaterials(
     }),
 
     runFeature(input.noteId, "quiz", async () => {
-      const result =
-        await quizService.generateQuizWithMetadata(
-          input.noteId,
-          input.userId,
-          {
-            force: input.force,
-            dropInvalidQuestions: true,
-          },
-        );
+      const result = await quizService.generateQuizWithMetadata(
+        input.noteId,
+        input.userId,
+        {
+          force: input.force,
+          dropInvalidQuestions: true,
+        },
+      );
 
       return {
         value: result.quiz,
@@ -205,13 +179,12 @@ export async function generateStudyMaterials(
     }),
 
     runFeature(input.noteId, "flashcards", async () => {
-      const result =
-        await flashcardService.generateFlashcardsWithMetadata(
-          input.noteId,
-          input.userId,
-          DEFAULT_FLASHCARDS,
-          { force: input.force },
-        );
+      const result = await flashcardService.generateFlashcardsWithMetadata(
+        input.noteId,
+        input.userId,
+        DEFAULT_FLASHCARDS,
+        { force: input.force },
+      );
 
       return {
         value: result.flashcards,
@@ -220,11 +193,10 @@ export async function generateStudyMaterials(
     }),
 
     runFeature(input.noteId, "chatKnowledge", async () => {
-      const metadata =
-        await chatService.prepareChatKnowledge(
-          input.noteId,
-          input.userId,
-        );
+      const metadata = await chatService.prepareChatKnowledge(
+        input.noteId,
+        input.userId,
+      );
 
       return {
         value: metadata,
@@ -233,22 +205,15 @@ export async function generateStudyMaterials(
     }),
   ]);
 
-  const current =
-    await generationRepo.findByNoteId(input.noteId);
+  const current = await generationRepo.findByNoteId(input.noteId);
 
   if (!current) {
-    throw new Error(
-      `Generation status disappeared for note ${input.noteId}`,
-    );
+    throw new Error(`Generation status disappeared for note ${input.noteId}`);
   }
 
-  await generationRepo.updateStage(
-    input.noteId,
-    calculateFinalStage(current),
-  );
+  await generationRepo.updateStage(input.noteId, calculateFinalStage(current));
 
-  const finalState =
-    await generationRepo.findByNoteId(input.noteId);
+  const finalState = await generationRepo.findByNoteId(input.noteId);
 
   if (!finalState) {
     throw new Error(
@@ -261,9 +226,10 @@ export async function generateStudyMaterials(
     userId: input.userId,
     stage: finalState.stage,
     features: Object.fromEntries(
-      Object.entries(finalState.features).map(
-        ([name, value]) => [name, value.status],
-      ),
+      Object.entries(finalState.features).map(([name, value]) => [
+        name,
+        value.status,
+      ]),
     ),
   });
 
@@ -282,14 +248,11 @@ async function runCompletionHook(
   try {
     await hook(state);
   } catch (error) {
-    logger.error(
-      "Background generation completion hook failed",
-      {
-        noteId: input.noteId,
-        userId: input.userId,
-        error: safeMessage(error),
-      },
-    );
+    logger.error("Background generation completion hook failed", {
+      noteId: input.noteId,
+      userId: input.userId,
+      error: safeMessage(error),
+    });
   }
 }
 
@@ -305,14 +268,11 @@ async function runErrorHook(
   try {
     await hook(error);
   } catch (hookError) {
-    logger.error(
-      "Background generation error hook failed",
-      {
-        noteId: input.noteId,
-        userId: input.userId,
-        error: safeMessage(hookError),
-      },
-    );
+    logger.error("Background generation error hook failed", {
+      noteId: input.noteId,
+      userId: input.userId,
+      error: safeMessage(hookError),
+    });
   }
 }
 
@@ -322,27 +282,16 @@ export function generateStudyMaterialsInBackground(
 ): void {
   void generateStudyMaterials(input)
     .then(async (state) => {
-      await runCompletionHook(
-        input,
-        hooks.onComplete,
-        state,
-      );
+      await runCompletionHook(input, hooks.onComplete, state);
     })
     .catch(async (error: unknown) => {
-      logger.error(
-        "Background study material generation failed",
-        {
-          noteId: input.noteId,
-          userId: input.userId,
-          error: safeMessage(error),
-        },
-      );
+      logger.error("Background study material generation failed", {
+        noteId: input.noteId,
+        userId: input.userId,
+        error: safeMessage(error),
+      });
 
-      await runErrorHook(
-        input,
-        hooks.onError,
-        error,
-      );
+      await runErrorHook(input, hooks.onError, error);
     });
 }
 
@@ -350,10 +299,7 @@ export async function getGenerationStatus(
   noteId: string,
   userId: string,
 ): Promise<StudyGenerationState> {
-  const note = await noteRepo.findByIdAndUserId(
-    noteId,
-    userId,
-  );
+  const note = await noteRepo.findByIdAndUserId(noteId, userId);
 
   if (!note) {
     throw new NotFoundError("Note");
@@ -365,8 +311,6 @@ export async function getGenerationStatus(
   );
 }
 
-export async function deleteForNote(
-  noteId: string,
-): Promise<void> {
+export async function deleteForNote(noteId: string): Promise<void> {
   await generationRepo.deleteByNoteId(noteId);
 }

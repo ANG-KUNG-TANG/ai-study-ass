@@ -87,12 +87,21 @@ function scoreOntology(ontology: ResolvedConcept[]): number {
 }
 
 function scoreGraph(graph: KnowledgeGraph, core: KnowledgeCore): number {
-  const validClaims = core.claims.filter((claim) => claim.validationStatus === "valid");
+  const validClaims = core.claims.filter(
+    (claim) => claim.validationStatus === "valid",
+  );
   if (validClaims.length === 0) return 0;
-  const claimNodes = [...graph.nodes.values()].filter((node) => node.type === "claim" || node.type === "result").length;
-  const evidenceEdges = graph.edges.filter((edge) => edge.evidenceIds && edge.evidenceIds.length > 0).length;
+  const claimNodes = [...graph.nodes.values()].filter(
+    (node) => node.type === "claim" || node.type === "result",
+  ).length;
+  const evidenceEdges = graph.edges.filter(
+    (edge) => edge.evidenceIds && edge.evidenceIds.length > 0,
+  ).length;
   const claimCoverage = Math.min(1, claimNodes / validClaims.length);
-  const evidenceCoverage = Math.min(1, evidenceEdges / Math.max(1, validClaims.length));
+  const evidenceCoverage = Math.min(
+    1,
+    evidenceEdges / Math.max(1, validClaims.length),
+  );
   return clamp(claimCoverage * 0.65 + evidenceCoverage * 0.35);
 }
 

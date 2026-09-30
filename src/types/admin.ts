@@ -27,7 +27,14 @@ export interface AdminActivityItem {
   actorEmail: string | null;
   actorRole: "user" | "admin" | "system";
   action: string;
-  category: "authentication" | "user" | "content" | "ai" | "security" | "settings" | "system";
+  category:
+    | "authentication"
+    | "user"
+    | "content"
+    | "ai"
+    | "security"
+    | "settings"
+    | "system";
   status: "success" | "failure";
   targetType?: string;
   targetId?: string;
@@ -214,10 +221,13 @@ export interface OperationalSettings {
   maxUploadSizeBytes: number;
   auditRetentionDays: number;
   contentRetentionDays: number;
-  pricing: Record<"openai" | "gemini", {
-    inputPerMillionUsd: number;
-    outputPerMillionUsd: number;
-  }>;
+  pricing: Record<
+    "openai" | "gemini",
+    {
+      inputPerMillionUsd: number;
+      outputPerMillionUsd: number;
+    }
+  >;
   updatedBy: string | null;
   createdAt: string;
   updatedAt: string;

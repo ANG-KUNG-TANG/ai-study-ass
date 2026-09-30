@@ -1,15 +1,7 @@
-export type FeedbackType =
-  | "general"
-  | "suggestion"
-  | "feature_request"
-  | "bug";
+export type FeedbackType = "general" | "suggestion" | "feature_request" | "bug";
 
 export type FeedbackStatus =
-  | "new"
-  | "reviewing"
-  | "planned"
-  | "implemented"
-  | "closed";
+  "new" | "reviewing" | "planned" | "implemented" | "closed";
 
 export interface FeedbackSubmission {
   id: string;

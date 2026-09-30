@@ -1,7 +1,5 @@
 import { runPipeline } from "@/server/intelligence/pipeline";
-import {
-  buildGroundedStudyNotes,
-} from "@/server/services/summary/grounded-study-notes.service";
+import { buildGroundedStudyNotes } from "@/server/services/summary/grounded-study-notes.service";
 import {
   answerFromGrounding,
   buildFlashcardsFromGrounding,
@@ -113,16 +111,12 @@ const LECTURE_PAGE_STARTS = [
   "Slide 10 — Validation Checklist",
 ];
 
-const LECTURE_PAGES = splitAtHeadings(
-  LECTURE_NOTE,
-  LECTURE_PAGE_STARTS,
-).map((rawText, index) => ({
-  pageNumber: index + 1,
-  rawText:
-    index === 0
-      ? `${rawText}\n-- 1 of 6 --`
-      : rawText,
-}));
+const LECTURE_PAGES = splitAtHeadings(LECTURE_NOTE, LECTURE_PAGE_STARTS).map(
+  (rawText, index) => ({
+    pageNumber: index + 1,
+    rawText: index === 0 ? `${rawText}\n-- 1 of 6 --` : rawText,
+  }),
+);
 
 describe("Intelligence Engine V2 grounding", () => {
   const result = runPipeline({
@@ -140,8 +134,12 @@ describe("Intelligence Engine V2 grounding", () => {
   );
 
   it("supports an immediate environment-based rollback", () => {
-    expect(isIntelligenceV2Enabled({ INTELLIGENCE_V2_ENABLED: "true" })).toBe(true);
-    expect(isIntelligenceV2Enabled({ INTELLIGENCE_V2_ENABLED: "false" })).toBe(false);
+    expect(isIntelligenceV2Enabled({ INTELLIGENCE_V2_ENABLED: "true" })).toBe(
+      true,
+    );
+    expect(isIntelligenceV2Enabled({ INTELLIGENCE_V2_ENABLED: "false" })).toBe(
+      false,
+    );
   });
 
   it("marks regenerated grounding with the current pipeline version", () => {
@@ -149,12 +147,16 @@ describe("Intelligence Engine V2 grounding", () => {
   });
 
   it("preserves bullet boundaries instead of creating cross-bullet phrases", () => {
-    expect(result.nlp.sentences.some((sentence) =>
-      sentence.text === "Functional Requirements",
-    )).toBe(true);
-    expect(result.nlp.sentences.some((sentence) =>
-      sentence.text === "Business Rules",
-    )).toBe(true);
+    expect(
+      result.nlp.sentences.some(
+        (sentence) => sentence.text === "Functional Requirements",
+      ),
+    ).toBe(true);
+    expect(
+      result.nlp.sentences.some(
+        (sentence) => sentence.text === "Business Rules",
+      ),
+    ).toBe(true);
     expect(result.nlp.keyPhrases).not.toContain(
       "non-functional requirements business rules",
     );
@@ -171,12 +173,18 @@ describe("Intelligence Engine V2 grounding", () => {
         expect.stringMatching(/Slide 12\s+[-–—]\s+Q&A/),
       ]),
     );
-    expect(result.grounding.quality.sectionCoverageRatio).toBeGreaterThanOrEqual(0.85);
-    expect(result.document.sections.every((section) => !section.pageEstimate)).toBe(true);
+    expect(
+      result.grounding.quality.sectionCoverageRatio,
+    ).toBeGreaterThanOrEqual(0.85);
+    expect(
+      result.document.sections.every((section) => !section.pageEstimate),
+    ).toBe(true);
   });
 
   it("rejects sentence fragments, slide labels, and placeholders as terms", () => {
-    const terms = result.grounding.keyTerms.map((term) => term.term.toLowerCase());
+    const terms = result.grounding.keyTerms.map((term) =>
+      term.term.toLowerCase(),
+    );
 
     expect(terms).toContain("requirements traceability");
     expect(terms).not.toContain("once the srs");
@@ -276,8 +284,8 @@ describe("Intelligence Engine V2 grounding", () => {
       ),
     ).toBe(true);
     expect(
-      unknownPageResult.grounding.facts.every(
-        (fact) => fact.evidence.every((evidence) => evidence.pageNumber === undefined),
+      unknownPageResult.grounding.facts.every((fact) =>
+        fact.evidence.every((evidence) => evidence.pageNumber === undefined),
       ),
     ).toBe(true);
     expect(unknownPageNotes.summary).not.toMatch(/\(p{1,2}\.\s*1\)/);
@@ -329,13 +337,15 @@ describe("Intelligence Engine V2 grounding", () => {
             content: "Overloading slides with text",
             verbatimRequired: false,
             sourceSectionId,
-            evidence: [{
-              id: "e-common-mistake-overloading",
-              sectionId: sourceSectionId,
-              sectionTitle: "Common Mistakes Students Make",
-              pageNumber: 5,
-              text: "Overloading slides with text",
-            }],
+            evidence: [
+              {
+                id: "e-common-mistake-overloading",
+                sectionId: sourceSectionId,
+                sectionTitle: "Common Mistakes Students Make",
+                pageNumber: 5,
+                text: "Overloading slides with text",
+              },
+            ],
             evidenceType: "stated",
             verificationStatus: "supported",
             confidence: 1,
@@ -348,7 +358,10 @@ describe("Intelligence Engine V2 grounding", () => {
       result.reliabilityProfile,
       "Lecture Note",
     );
-    const warnings = sectionBullets(actionableNotes.summary, "Warnings / Common Mistakes");
+    const warnings = sectionBullets(
+      actionableNotes.summary,
+      "Warnings / Common Mistakes",
+    );
 
     expect(warnings).toContain("Avoid overloading slides with text.");
   });
@@ -395,8 +408,7 @@ describe("Intelligence Engine V2 grounding", () => {
       graph.edges
         .filter(
           (edge) =>
-            edge.from === commonMistakes?.id &&
-            edge.type === "contains",
+            edge.from === commonMistakes?.id && edge.type === "contains",
         )
         .map((edge) => edge.to),
     );
@@ -431,11 +443,10 @@ describe("Intelligence Engine V2 grounding", () => {
   });
 
   it("reuses verified knowledge for quiz, flashcard, and chat artifacts", () => {
-    const questions = buildQuestionsFromGrounding(
-      result.grounding,
-      5,
-      ["short_answer", "true_false"],
-    );
+    const questions = buildQuestionsFromGrounding(result.grounding, 5, [
+      "short_answer",
+      "true_false",
+    ]);
     const cards = buildFlashcardsFromGrounding(result.grounding, 5);
     const chat = answerFromGrounding(
       result.grounding,
@@ -476,7 +487,6 @@ function sectionBullets(markdown: string, heading: string): string[] {
     );
 }
 
-
 function studyTopicCount(summary: string): number {
   const match = summary.match(
     /## Detailed Study Notes\s*\n([\s\S]*?)(?=\n\n## |$)/u,
@@ -484,7 +494,6 @@ function studyTopicCount(summary: string): number {
 
   return match?.[1]?.match(/^###\s+/gmu)?.length ?? 0;
 }
-
 
 function splitAtHeadings(text: string, headings: string[]): string[] {
   const pages: string[] = [];

@@ -13,12 +13,14 @@ import { useLanguage } from "@/context/LanguageContext";
 import { updateProfile } from "@/services/user.service";
 
 function initials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("") || "U";
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "U"
+  );
 }
 
 export default function StudentProfilePage() {
@@ -118,12 +120,18 @@ export default function StudentProfilePage() {
             />
 
             {success && (
-              <p className="rounded-[8px] bg-sage-soft px-3 py-2 text-[12px] text-sage" aria-live="polite">
+              <p
+                className="rounded-[8px] bg-sage-soft px-3 py-2 text-[12px] text-sage"
+                aria-live="polite"
+              >
                 {t("profile.updated")}
               </p>
             )}
             {error && (
-              <p className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+              <p
+                className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral"
+                role="alert"
+              >
                 {error}
               </p>
             )}
@@ -131,7 +139,9 @@ export default function StudentProfilePage() {
             <Button
               type="submit"
               variant="dark"
-              disabled={saving || name.trim().length < 2 || name.trim() === user.name}
+              disabled={
+                saving || name.trim().length < 2 || name.trim() === user.name
+              }
             >
               {saving ? t("profile.saving") : t("profile.save")}
             </Button>
@@ -150,7 +160,9 @@ export default function StudentProfilePage() {
                 <dt className="text-[11px] uppercase tracking-[0.08em] text-ink-faint">
                   {t("common.email")}
                 </dt>
-                <dd className="mt-1 break-all text-[13px] text-ink">{user.email}</dd>
+                <dd className="mt-1 break-all text-[13px] text-ink">
+                  {user.email}
+                </dd>
               </div>
             </div>
 
@@ -169,7 +181,10 @@ export default function StudentProfilePage() {
             </div>
 
             <div className="flex gap-3">
-              <CalendarDays className="mt-0.5 shrink-0 text-ink-faint" size={17} />
+              <CalendarDays
+                className="mt-0.5 shrink-0 text-ink-faint"
+                size={17}
+              />
               <div>
                 <dt className="text-[11px] uppercase tracking-[0.08em] text-ink-faint">
                   {t("profile.memberSince")}

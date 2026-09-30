@@ -1,22 +1,10 @@
-export type GenerationSource =
-  | "symbolic"
-  | "hybrid"
-  | "ai_fallback";
+export type GenerationSource = "symbolic" | "hybrid" | "ai_fallback";
 
 export type FeatureGenerationStatus =
-  | "pending"
-  | "generating"
-  | "ready"
-  | "partial"
-  | "failed";
+  "pending" | "generating" | "ready" | "partial" | "failed";
 
 export type StudyGenerationStage =
-  | "pending"
-  | "analyzing"
-  | "generating"
-  | "complete"
-  | "partial"
-  | "failed";
+  "pending" | "analyzing" | "generating" | "complete" | "partial" | "failed";
 
 export interface FeatureGenerationState {
   status: FeatureGenerationStatus;

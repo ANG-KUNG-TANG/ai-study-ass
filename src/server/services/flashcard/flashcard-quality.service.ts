@@ -1,9 +1,5 @@
-import type {
-  GroundedKnowledge,
-} from "@/server/intelligence/grounding";
-import type {
-  FlashcardDifficulty,
-} from "@/server/entities/flashcard.entity";
+import type { GroundedKnowledge } from "@/server/intelligence/grounding";
+import type { FlashcardDifficulty } from "@/server/entities/flashcard.entity";
 import {
   buildFeatureQualityReport,
   qualityRatio,
@@ -54,10 +50,36 @@ interface SupportMatch {
 }
 
 const QUESTION_STOP_WORDS = new Set([
-  "a", "about", "an", "and", "are", "as", "at", "be", "does", "document",
-  "evaluation", "for", "from", "important", "in", "is", "main", "one",
-  "or", "reported", "result", "the", "this", "to", "used", "uses", "what",
-  "which", "with", "work",
+  "a",
+  "about",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "does",
+  "document",
+  "evaluation",
+  "for",
+  "from",
+  "important",
+  "in",
+  "is",
+  "main",
+  "one",
+  "or",
+  "reported",
+  "result",
+  "the",
+  "this",
+  "to",
+  "used",
+  "uses",
+  "what",
+  "which",
+  "with",
+  "work",
 ]);
 
 const SAFE_GENERIC_FRONTS = [
@@ -83,12 +105,7 @@ export function validateGroundedFlashcards(
   const sources = buildSupportSources(grounding);
 
   for (const card of cards) {
-    const issueCodes = validateCard(
-      card,
-      grounding,
-      sources,
-      accepted,
-    );
+    const issueCodes = validateCard(card, grounding, sources, accepted);
 
     if (issueCodes.length > 0) {
       rejected.push({ issueCodes });
@@ -130,7 +147,10 @@ export function assessFlashcardQualityContract(
     ),
   ).length;
   const clarityCount = cards.filter((card) => isClearCard(card)).length;
-  const concepts = selectLearningConcepts(grounding.concepts, Math.max(4, Math.min(12, total)));
+  const concepts = selectLearningConcepts(
+    grounding.concepts,
+    Math.max(4, Math.min(12, total)),
+  );
   const deckText = cards.map((card) => `${card.front} ${card.back}`).join(" ");
   const coverage = qualityRatio(
     concepts.filter((concept) => textRepresents(deckText, concept.name)).length,
@@ -145,30 +165,79 @@ export function assessFlashcardQualityContract(
   );
   const duplicateRatio = nearDuplicateDeckRatio(cards);
   const difficultyBalance = flashcardDifficultyBalance(cards);
-  const leakageFree = cards.every((card) => !leaksAnswer(card.front, card.back));
+  const leakageFree = cards.every(
+    (card) => !leaksAnswer(card.front, card.back),
+  );
 
   return buildFeatureQualityReport({
     feature: "flashcards",
     dimensions: [
-      { key: "grounding", label: "Grounding", weight: 2.0, ratio: qualityRatio(groundedCount, total, 1) },
-      { key: "atomicity", label: "Atomicity", weight: 1.5, ratio: qualityRatio(atomicCount, total, 1) },
-      { key: "recallUsefulness", label: "Recall usefulness", weight: 1.5, ratio: qualityRatio(usefulCount, total, 1) },
-      { key: "conceptImportance", label: "Concept importance", weight: 1.5, ratio: importance },
-      { key: "clarity", label: "Front/back clarity", weight: 1.0, ratio: qualityRatio(clarityCount, total, 1) },
-      { key: "coverage", label: "Concept coverage", weight: 1.0, ratio: coverage },
-      { key: "duplicateControl", label: "Duplicate control", weight: 0.75, ratio: 1 - duplicateRatio },
-      { key: "evidenceTraceability", label: "Evidence traceability", weight: 0.5, ratio: qualityRatio(groundedCount, total, 1) },
-      { key: "deckBalance", label: "Deck balance", weight: 0.25, ratio: difficultyBalance },
+      {
+        key: "grounding",
+        label: "Grounding",
+        weight: 2.0,
+        ratio: qualityRatio(groundedCount, total, 1),
+      },
+      {
+        key: "atomicity",
+        label: "Atomicity",
+        weight: 1.5,
+        ratio: qualityRatio(atomicCount, total, 1),
+      },
+      {
+        key: "recallUsefulness",
+        label: "Recall usefulness",
+        weight: 1.5,
+        ratio: qualityRatio(usefulCount, total, 1),
+      },
+      {
+        key: "conceptImportance",
+        label: "Concept importance",
+        weight: 1.5,
+        ratio: importance,
+      },
+      {
+        key: "clarity",
+        label: "Front/back clarity",
+        weight: 1.0,
+        ratio: qualityRatio(clarityCount, total, 1),
+      },
+      {
+        key: "coverage",
+        label: "Concept coverage",
+        weight: 1.0,
+        ratio: coverage,
+      },
+      {
+        key: "duplicateControl",
+        label: "Duplicate control",
+        weight: 0.75,
+        ratio: 1 - duplicateRatio,
+      },
+      {
+        key: "evidenceTraceability",
+        label: "Evidence traceability",
+        weight: 0.5,
+        ratio: qualityRatio(groundedCount, total, 1),
+      },
+      {
+        key: "deckBalance",
+        label: "Deck balance",
+        weight: 0.25,
+        ratio: difficultyBalance,
+      },
     ],
     hardGates: [
       {
         code: "NON_EMPTY_DECK",
-        message: "A quality-scored flashcard deck must contain at least one validated card.",
+        message:
+          "A quality-scored flashcard deck must contain at least one validated card.",
         passed: total > 0,
       },
       {
         code: "ALL_BACKS_GROUNDED",
-        message: "Every flashcard answer must be supported by document evidence.",
+        message:
+          "Every flashcard answer must be supported by document evidence.",
         passed: groundedCount === total,
       },
       {
@@ -231,8 +300,7 @@ export function flashcardQualityLogContext(
 
   for (const rejection of result.rejected) {
     for (const code of rejection.issueCodes) {
-      rejectionReasonCounts[code] =
-        (rejectionReasonCounts[code] ?? 0) + 1;
+      rejectionReasonCounts[code] = (rejectionReasonCounts[code] ?? 0) + 1;
     }
   }
 
@@ -242,14 +310,22 @@ export function flashcardQualityLogContext(
     rejectionReasonCounts,
     qualityScoreOutOf10: result.contract.scoreOutOf10,
     qualityPassed: result.contract.passed,
-    failedHardGates: result.contract.hardGates.filter((gate) => !gate.passed).map((gate) => gate.code),
+    failedHardGates: result.contract.hardGates
+      .filter((gate) => !gate.passed)
+      .map((gate) => gate.code),
   };
 }
 
 function isClearCard(card: FlashcardQualityDraft): boolean {
   const front = card.front.trim();
   const back = card.back.trim();
-  if (front.length < 6 || front.length > 220 || back.length < 2 || back.length > 450) return false;
+  if (
+    front.length < 6 ||
+    front.length > 220 ||
+    back.length < 2 ||
+    back.length > 450
+  )
+    return false;
   if (/^(?:it|this|that|these|those)\b/iu.test(front)) return false;
   return true;
 }
@@ -283,7 +359,10 @@ function textRepresents(source: string, target: string): boolean {
 
 function average(values: number[], emptyValue: number): number {
   if (values.length === 0) return emptyValue;
-  return Math.max(0, Math.min(1, values.reduce((sum, value) => sum + value, 0) / values.length));
+  return Math.max(
+    0,
+    Math.min(1, values.reduce((sum, value) => sum + value, 0) / values.length),
+  );
 }
 
 function validateCard(
@@ -293,16 +372,9 @@ function validateCard(
   accepted: FlashcardQualityDraft[],
 ): FlashcardQualityIssueCode[] {
   const issues: FlashcardQualityIssueCode[] = [];
-  const backMatch = bestSupportMatch(
-    card.back,
-    card.front,
-    sources,
-  );
+  const backMatch = bestSupportMatch(card.back, card.front, sources);
 
-  if (
-    !backMatch ||
-    !isSupportStrong(card.back, backMatch)
-  ) {
+  if (!backMatch || !isSupportStrong(card.back, backMatch)) {
     issues.push("BACK_NOT_GROUNDED");
     return uniqueIssues(issues);
   }
@@ -316,13 +388,7 @@ function validateCard(
   }
 
   if (
-    !isFrontAnswerable(
-      card.front,
-      card.back,
-      grounding,
-      backMatch,
-      sources,
-    )
+    !isFrontAnswerable(card.front, card.back, grounding, backMatch, sources)
   ) {
     issues.push("FRONT_NOT_ANSWERABLE");
   }
@@ -338,14 +404,10 @@ function validateCard(
   return uniqueIssues(issues);
 }
 
-function buildSupportSources(
-  grounding: GroundedKnowledge,
-): SupportSource[] {
+function buildSupportSources(grounding: GroundedKnowledge): SupportSource[] {
   grounding = toLearningGrounding(grounding);
   const headings = new Map(
-    grounding.sections.map(
-      (section) => [section.sectionId, section.heading],
-    ),
+    grounding.sections.map((section) => [section.sectionId, section.heading]),
   );
   const sources: SupportSource[] = [];
 
@@ -353,10 +415,7 @@ function buildSupportSources(
     if (fact.verificationStatus !== "supported") continue;
 
     sources.push({
-      text: [
-        fact.content,
-        ...fact.evidence.map((item) => item.text),
-      ].join(" "),
+      text: [fact.content, ...fact.evidence.map((item) => item.text)].join(" "),
       sectionId: fact.sourceSectionId,
       heading: headings.get(fact.sourceSectionId) ?? null,
       kind: "fact",
@@ -388,10 +447,9 @@ function buildSupportSources(
         ...concept.evidence.map((item) => item.text),
       ].join(" "),
       sectionId: concept.sourceSectionIds[0] ?? null,
-      heading:
-        concept.sourceSectionIds[0]
-          ? headings.get(concept.sourceSectionIds[0]) ?? null
-          : null,
+      heading: concept.sourceSectionIds[0]
+        ? (headings.get(concept.sourceSectionIds[0]) ?? null)
+        : null,
       kind: "concept",
       label: concept.name,
       importance: concept.importanceScore,
@@ -418,10 +476,7 @@ function bestSupportMatch(
     }
 
     const score = supportScore(back, source.text);
-    const questionRelevance = contextRelevance(
-      front,
-      source,
-    );
+    const questionRelevance = contextRelevance(front, source);
     const candidate: SupportMatch = {
       source,
       score,
@@ -440,23 +495,17 @@ function bestSupportMatch(
   return best;
 }
 
-function isSupportStrong(
-  back: string,
-  match: SupportMatch,
-): boolean {
+function isSupportStrong(back: string, match: SupportMatch): boolean {
   const normalisedBack = normalise(back);
   const normalisedSource = normalise(match.source.text);
 
-  if (
-    normalisedBack &&
-    normalisedSource.includes(normalisedBack)
-  ) {
+  if (normalisedBack && normalisedSource.includes(normalisedBack)) {
     return true;
   }
 
   const tokenCount = meaningfulTokens(back).size;
   if (tokenCount <= 2) return match.score >= 0.88;
-  if (tokenCount <= 5) return match.score >= 0.70;
+  if (tokenCount <= 5) return match.score >= 0.7;
   return match.score >= 0.56;
 }
 
@@ -474,11 +523,8 @@ function isFrontAnswerable(
       (item) => normalise(item.term) === normalise(quoted),
     );
 
-    if (
-      term &&
-      /what does|mean|define|definition/i.test(front)
-    ) {
-      return supportScore(back, term.definition) >= 0.60;
+    if (term && /what does|mean|define|definition/i.test(front)) {
+      return supportScore(back, term.definition) >= 0.6;
     }
 
     const section = grounding.sections.find(
@@ -490,9 +536,7 @@ function isFrontAnswerable(
     }
 
     const conceptOrLabel = sources.find(
-      (source) =>
-        source.label &&
-        normalise(source.label) === normalise(quoted),
+      (source) => source.label && normalise(source.label) === normalise(quoted),
     );
 
     if (conceptOrLabel) {
@@ -503,9 +547,7 @@ function isFrontAnswerable(
     }
   }
 
-  if (
-    SAFE_GENERIC_FRONTS.some((pattern) => pattern.test(front.trim()))
-  ) {
+  if (SAFE_GENERIC_FRONTS.some((pattern) => pattern.test(front.trim()))) {
     return true;
   }
 
@@ -517,9 +559,7 @@ function isAtomic(
   bestMatch: SupportMatch,
   sources: SupportSource[],
 ): boolean {
-  if (
-    /(?:^|\n)\s*(?:[-*•]|\d+[.)])\s+/u.test(back)
-  ) {
+  if (/(?:^|\n)\s*(?:[-*•]|\d+[.)])\s+/u.test(back)) {
     return false;
   }
 
@@ -547,19 +587,13 @@ function isAtomic(
   return true;
 }
 
-function leaksAnswer(
-  front: string,
-  back: string,
-): boolean {
+function leaksAnswer(front: string, back: string): boolean {
   const normalisedBack = normalise(back);
   const normalisedFront = normalise(front);
 
   if (!normalisedBack || normalisedBack.length < 3) return false;
 
-  if (
-    normalisedBack.length <= 80 &&
-    normalisedFront.includes(normalisedBack)
-  ) {
+  if (normalisedBack.length <= 80 && normalisedFront.includes(normalisedBack)) {
     return true;
   }
 
@@ -568,10 +602,7 @@ function leaksAnswer(
     return false;
   }
 
-  return setCoverage(
-    backTokens,
-    meaningfulTokens(front),
-  ) === 1;
+  return setCoverage(backTokens, meaningfulTokens(front)) === 1;
 }
 
 function hasStudyValue(
@@ -582,9 +613,7 @@ function hasStudyValue(
 
   if (
     LOW_VALUE_PATTERNS.some(
-      (pattern) =>
-        pattern.test(card.front.trim()) ||
-        pattern.test(back),
+      (pattern) => pattern.test(card.front.trim()) || pattern.test(back),
     )
   ) {
     return false;
@@ -592,17 +621,11 @@ function hasStudyValue(
 
   if (match.source.kind === "term") return true;
 
-  if (
-    match.source.kind === "fact" &&
-    match.source.importance >= 0.35
-  ) {
+  if (match.source.kind === "fact" && match.source.importance >= 0.35) {
     return true;
   }
 
-  return (
-    match.source.kind === "concept" &&
-    match.source.importance >= 0.50
-  );
+  return match.source.kind === "concept" && match.source.importance >= 0.5;
 }
 
 function isNearDuplicate(
@@ -610,48 +633,28 @@ function isNearDuplicate(
   accepted: FlashcardQualityDraft[],
 ): boolean {
   return accepted.some((existing) => {
-    const frontScore = supportScore(
-      candidate.front,
-      existing.front,
-    );
-    const backScore = supportScore(
-      candidate.back,
-      existing.back,
-    );
+    const frontScore = supportScore(candidate.front, existing.front);
+    const backScore = supportScore(candidate.back, existing.back);
 
-    return (
-      backScore >= 0.93 ||
-      (frontScore >= 0.88 && backScore >= 0.58)
-    );
+    return backScore >= 0.93 || (frontScore >= 0.88 && backScore >= 0.58);
   });
 }
 
-function contextRelevance(
-  front: string,
-  source: SupportSource,
-): number {
+function contextRelevance(front: string, source: SupportSource): number {
   const frontTokens = new Set(
     [...meaningfulTokens(front)].filter(
       (token) => !QUESTION_STOP_WORDS.has(token),
     ),
   );
 
-  const context = [
-    source.label ?? "",
-    source.heading ?? "",
-    source.text,
-  ].join(" ");
-
-  return setCoverage(
-    frontTokens,
-    meaningfulTokens(context),
+  const context = [source.label ?? "", source.heading ?? "", source.text].join(
+    " ",
   );
+
+  return setCoverage(frontTokens, meaningfulTokens(context));
 }
 
-function supportScore(
-  candidate: string,
-  source: string,
-): number {
+function supportScore(candidate: string, source: string): number {
   const left = normalise(candidate);
   const right = normalise(source);
 
@@ -662,39 +665,25 @@ function supportScore(
     meaningfulTokens(left),
     meaningfulTokens(right),
   );
-  const gramScore = characterGramCoverage(
-    compact(left),
-    compact(right),
-    3,
-  );
+  const gramScore = characterGramCoverage(compact(left), compact(right), 3);
 
-  return Math.max(tokenScore, gramScore * 0.90);
+  return Math.max(tokenScore, gramScore * 0.9);
 }
 
-function meaningfulTokens(
-  value: string,
-): Set<string> {
+function meaningfulTokens(value: string): Set<string> {
   return new Set(
     (
-      normalise(value).match(
-        /[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu,
-      ) ?? []
+      normalise(value).match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu) ?? []
     ).filter((token) => token.length >= 2),
   );
 }
 
-function numericTokens(
-  value: string,
-): Set<string> {
+function numericTokens(value: string): Set<string> {
   return new Set(
     (
-      value.normalize("NFKC").match(
-        /[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu,
-      ) ?? []
+      value.normalize("NFKC").match(/[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu) ?? []
     ).map((token) =>
-      token
-        .replace(/\s+/gu, "")
-        .replace(/,(?=\d{3}(?:\D|$))/gu, ""),
+      token.replace(/\s+/gu, "").replace(/,(?=\d{3}(?:\D|$))/gu, ""),
     ),
   );
 }
@@ -726,33 +715,20 @@ function characterGramCoverage(
     return candidate === source ? 1 : 0;
   }
 
-  return setCoverage(
-    grams(candidate, width),
-    grams(source, width),
-  );
+  return setCoverage(grams(candidate, width), grams(source, width));
 }
 
-function grams(
-  value: string,
-  width: number,
-): Set<string> {
+function grams(value: string, width: number): Set<string> {
   const result = new Set<string>();
 
-  for (
-    let index = 0;
-    index <= value.length - width;
-    index += 1
-  ) {
+  for (let index = 0; index <= value.length - width; index += 1) {
     result.add(value.slice(index, index + width));
   }
 
   return result;
 }
 
-function setCoverage(
-  candidate: Set<string>,
-  source: Set<string>,
-): number {
+function setCoverage(candidate: Set<string>, source: Set<string>): number {
   if (candidate.size === 0) return 0;
 
   let matches = 0;
@@ -763,10 +739,7 @@ function setCoverage(
   return matches / candidate.size;
 }
 
-function isSubset(
-  candidate: Set<string>,
-  source: Set<string>,
-): boolean {
+function isSubset(candidate: Set<string>, source: Set<string>): boolean {
   for (const token of candidate) {
     if (!source.has(token)) return false;
   }

@@ -15,7 +15,7 @@ export interface IUser extends Document {
   isActive: boolean;
   emailVerified?: boolean;
   emailVerificationToken: string | null;
-  emailVerificationExpires: Date | null;  // was "emailVerifictionExpires" (typo)
+  emailVerificationExpires: Date | null; // was "emailVerifictionExpires" (typo)
   passwordResetToken: string | null;
   passwordResetExpires: Date | null;
   refreshTokenId: string | null;
@@ -36,8 +36,14 @@ const userSchema = new Schema<IUser>(
       type: String,
       required: [true, "Name is required"],
       trim: true,
-      minlength: [USER_RULES.name.minLength, `Name must be at least ${USER_RULES.name.minLength} characters`], // was "minLenght" + "minLenght" in value
-      maxlength: [USER_RULES.name.maxLength, `Name cannot exceed ${USER_RULES.name.maxLength} characters`],
+      minlength: [
+        USER_RULES.name.minLength,
+        `Name must be at least ${USER_RULES.name.minLength} characters`,
+      ], // was "minLenght" + "minLenght" in value
+      maxlength: [
+        USER_RULES.name.maxLength,
+        `Name cannot exceed ${USER_RULES.name.maxLength} characters`,
+      ],
     },
     email: {
       type: String,
@@ -78,10 +84,11 @@ const userSchema = new Schema<IUser>(
       default: null,
       select: false,
     },
-    emailVerificationExpires: {   // was "emailVerifictionExpires" (typo) — field name must match IUser
+    emailVerificationExpires: {
+      // was "emailVerifictionExpires" (typo) — field name must match IUser
       type: Date,
       default: null,
-      select: false,              // was "selects: false" (typo) — not a valid Mongoose option
+      select: false, // was "selects: false" (typo) — not a valid Mongoose option
     },
     passwordResetToken: {
       type: String,
@@ -101,7 +108,7 @@ const userSchema = new Schema<IUser>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // ─── Password hashing ──────────────────────────────────────────────────────────
@@ -115,7 +122,7 @@ const userSchema = new Schema<IUser>(
 // ─── Instance method — compare password ───────────────────────────────────────
 
 userSchema.methods.comparePassword = async function (
-  candidate: string
+  candidate: string,
 ): Promise<boolean> {
   return bcrypt.compare(candidate, this.passwordHash); // was "this.password" — field doesn't exist, always false
 };

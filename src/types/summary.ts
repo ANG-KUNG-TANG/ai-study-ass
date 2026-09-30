@@ -1,10 +1,6 @@
 import type { GenerationSource } from "@/types/generation";
 
-export const SUMMARY_MODES = [
-  "concise",
-  "comprehensive",
-  "exam",
-] as const;
+export const SUMMARY_MODES = ["concise", "comprehensive", "exam"] as const;
 
 export type SummaryMode = (typeof SUMMARY_MODES)[number];
 

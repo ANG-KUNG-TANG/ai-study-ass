@@ -56,16 +56,9 @@ async function notifyCompletion(
     const note = await noteRepo.findByIdOrThrow(job.data.noteId);
 
     if ((job.data.mode ?? "prepare") === "generate_all") {
-      await notifyTelegramGenerationComplete(
-        chatId,
-        note.toPublic(),
-        state,
-      );
+      await notifyTelegramGenerationComplete(chatId, note.toPublic(), state);
     } else {
-      await notifyTelegramDocumentReady(
-        chatId,
-        note.toPublic(),
-      );
+      await notifyTelegramDocumentReady(chatId, note.toPublic());
     }
   } catch (error) {
     logger.error("[worker] Telegram completion notification failed", {

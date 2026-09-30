@@ -56,9 +56,7 @@ export async function refreshAccessToken(): Promise<boolean> {
         const body = await readJson(response);
         const data = asRecord(body?.data);
         const accessToken =
-          typeof data?.accessToken === "string"
-            ? data.accessToken
-            : null;
+          typeof data?.accessToken === "string" ? data.accessToken : null;
 
         setAccessToken(accessToken);
         return Boolean(accessToken);
@@ -113,9 +111,7 @@ async function rawRequest(
 
   let response = await execute();
 
-  const shouldSkipRefresh =
-    path === "/auth/logout" ||
-    path === "/auth/refresh";
+  const shouldSkipRefresh = path === "/auth/logout" || path === "/auth/refresh";
 
   if (response.status === 401 && !skipAuth && !shouldSkipRefresh) {
     const refreshed = await refreshAccessToken();
@@ -134,15 +130,12 @@ async function rawRequest(
         : `Request failed: ${response.status}`;
 
     const code =
-      typeof error?.code === "string"
-        ? error.code
-        : "REQUEST_FAILED";
+      typeof error?.code === "string" ? error.code : "REQUEST_FAILED";
     const rawFields = asRecord(error?.fields);
     const fields = rawFields
       ? Object.fromEntries(
           Object.entries(rawFields).filter(
-            (entry): entry is [string, string] =>
-              typeof entry[1] === "string",
+            (entry): entry is [string, string] => typeof entry[1] === "string",
           ),
         )
       : undefined;

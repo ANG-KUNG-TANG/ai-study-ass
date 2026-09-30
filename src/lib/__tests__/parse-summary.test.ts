@@ -39,7 +39,9 @@ The goal is to communicate understanding.
     expect(parsed.mode).toBe("exam");
     expect(parsed.title).toBe("Lecture Note");
     expect(parsed.prose).toBe("The goal is to communicate understanding.");
-    expect(parsed.overviewPoints).toEqual(["The goal is to communicate understanding."]);
+    expect(parsed.overviewPoints).toEqual([
+      "The goal is to communicate understanding.",
+    ]);
     expect(parsed.keyPoints).toEqual(["Confirm stakeholder needs. (p. 1)"]);
     expect(parsed.importantConcepts).toEqual([
       "Analysis Phase",
@@ -104,23 +106,35 @@ The goal is to communicate understanding.
     expect(parsed.topics).toEqual([
       {
         heading: "Algorithmic Thinking",
-        explanation: "An algorithm is a set of instructions used to solve a problem. (p. 5)",
+        explanation:
+          "An algorithm is a set of instructions used to solve a problem. (p. 5)",
         keyPoints: [
-          { text: "Solve the problem manually before writing code. (p. 3)", children: [] },
-          { text: "Translate the reasoning into code only after the steps are clear. (p. 3)", children: [] },
+          {
+            text: "Solve the problem manually before writing code. (p. 3)",
+            children: [],
+          },
+          {
+            text: "Translate the reasoning into code only after the steps are clear. (p. 3)",
+            children: [],
+          },
         ],
       },
       {
         heading: "Computer Memory",
-        explanation: "A computer needs memory to retain information while solving a problem. (p. 6)",
+        explanation:
+          "A computer needs memory to retain information while solving a problem. (p. 6)",
         keyPoints: [
-          { text: "Variables provide named storage for remembered information. (p. 7)", children: [] },
+          {
+            text: "Variables provide named storage for remembered information. (p. 7)",
+            children: [],
+          },
         ],
       },
     ]);
-    expect(parsed.sections.map((section) => section.heading)).toEqual(["Key Takeaways"]);
+    expect(parsed.sections.map((section) => section.heading)).toEqual([
+      "Key Takeaways",
+    ]);
   });
-
 
   it("parses v3 semantic-evidence summaries into the same topic UI contract", () => {
     const parsed = parseSummary(`# Research Notes
@@ -147,14 +161,20 @@ The goal is to communicate understanding.
     expect(parsed.topics).toEqual([
       {
         heading: "Bayesian Networks",
-        explanation: "A Bayesian Network is a graph of uncertain variables with associated probability tables. (p. 2)",
+        explanation:
+          "A Bayesian Network is a graph of uncertain variables with associated probability tables. (p. 2)",
         keyPoints: [
           { text: "Nodes represent uncertain variables. (p. 2)", children: [] },
-          { text: "Arcs represent causal or relevance relationships. (p. 2)", children: [] },
+          {
+            text: "Arcs represent causal or relevance relationships. (p. 2)",
+            children: [],
+          },
         ],
       },
     ]);
-    expect(parsed.sections.map((section) => section.heading)).toEqual(["Key Takeaways"]);
+    expect(parsed.sections.map((section) => section.heading)).toEqual([
+      "Key Takeaways",
+    ]);
   });
 
   it("parses v3.1 learner-output summaries without falling back to the old Study Topics contract", () => {
@@ -193,7 +213,8 @@ The goal is to communicate understanding.
     expect(parsed.topics).toEqual([
       {
         heading: "Name Resolution",
-        explanation: "Name resolution maps readable names to network addresses. (p. 1)",
+        explanation:
+          "Name resolution maps readable names to network addresses. (p. 1)",
         keyPoints: [
           {
             text: "Clients use the resolved address to reach the server. (p. 1)",

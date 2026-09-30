@@ -4,9 +4,7 @@ import type {
   QualifiedTerm,
   SectionCoverage,
 } from "@/server/intelligence/grounding";
-import {
-  canonicalStudyConceptKey,
-} from "@/server/intelligence/pipeline/source-hygiene";
+import { canonicalStudyConceptKey } from "@/server/intelligence/pipeline/source-hygiene";
 import type {
   SemanticEvidenceMap,
   SemanticEvidenceUnit,
@@ -69,32 +67,49 @@ interface HeadingCandidate {
   anchorScore: number;
 }
 
-const PRACTICE_HEADING_RE = /\b(?:reflection|chapter\s+challenge|challenge|exercise|activity|worksheet|practice\s+questions?|review\s+questions?|quiz|write\s+your\s+answers?|mentor(?:'s)?\s+note)\b/iu;
-const STRUCTURAL_HEADING_RE = /^(?:introduction|overview|summary|conclusion|learning\s+objectives?|objectives?|chapter\s+goal|chapter\s+takeaway|key\s+takeaways?|takeaways?|before\s+we\s+begin|a\s+note\s+before\s+we\s+begin|why\s+i\s+wrote\s+this\s+book|how\s+to\s+use\s+this\s+book|think|observation|object|discovery|the\s+big\s+idea|final\s+summary)$/iu;
+const PRACTICE_HEADING_RE =
+  /\b(?:reflection|chapter\s+challenge|challenge|exercise|activity|worksheet|practice\s+questions?|review\s+questions?|quiz|write\s+your\s+answers?|mentor(?:'s)?\s+note)\b/iu;
+const STRUCTURAL_HEADING_RE =
+  /^(?:introduction|overview|summary|conclusion|learning\s+objectives?|objectives?|chapter\s+goal|chapter\s+takeaway|key\s+takeaways?|takeaways?|before\s+we\s+begin|a\s+note\s+before\s+we\s+begin|why\s+i\s+wrote\s+this\s+book|how\s+to\s+use\s+this\s+book|think|observation|object|discovery|the\s+big\s+idea|final\s+summary)$/iu;
 const FRAMEWORK_COMPONENT_RE = /^[A-Z]\s*[–—-]\s+(.+)$/u;
-const NUMBERED_PREFIX_RE = /^(?:(?:chapter|section|part|discovery)\s+\d+(?:\.\d+)*\s*[:.\-–—]?\s*|\d+(?:\.\d+)*\s*[:.\-–—]?\s*)/iu;
+const NUMBERED_PREFIX_RE =
+  /^(?:(?:chapter|section|part|discovery)\s+\d+(?:\.\d+)*\s*[:.\-–—]?\s*|\d+(?:\.\d+)*\s*[:.\-–—]?\s*)/iu;
 const DISCOVERING_PREFIX_RE = /^discover(?:ing|y)?\s+/iu;
 const QUESTION_PREFIX_RE = /^(?:why|how|what|where|when)\s+/iu;
-const NON_TOPIC_LABEL_RE = /^(?:n|t|h|i|k|d|s|c|o|v|e|both|there|name|address|value|step|stage|test|phase|part|example|question|answer|my\s+goal|the\s+questions?|the\s+emphasis|the\s+strategy|since\s+the\s+entire\s+book|continue\s+until\s+there)$/iu;
-const NARRATIVE_START_RE = /^(?:i|we|you|my|our|your|they|someone|there|this|that|these|those|both|since)\b/iu;
-const QUESTION_OR_PROMPT_RE = /(?:\?$|(?:\.{3}|…)$)|^(?:q\s*[:;]|write\b|answer\b|imagine\b|suppose\b|think\b|did\s+you\b|do\s+you\b|can\s+you\b|why\b|how\b|what\b|when\b|where\b)/iu;
+const NON_TOPIC_LABEL_RE =
+  /^(?:n|t|h|i|k|d|s|c|o|v|e|both|there|name|address|value|step|stage|test|phase|part|example|question|answer|my\s+goal|the\s+questions?|the\s+emphasis|the\s+strategy|since\s+the\s+entire\s+book|continue\s+until\s+there)$/iu;
+const NARRATIVE_START_RE =
+  /^(?:i|we|you|my|our|your|they|someone|there|this|that|these|those|both|since)\b/iu;
+const QUESTION_OR_PROMPT_RE =
+  /(?:\?$|(?:\.{3}|…)$)|^(?:q\s*[:;]|write\b|answer\b|imagine\b|suppose\b|think\b|did\s+you\b|do\s+you\b|can\s+you\b|why\b|how\b|what\b|when\b|where\b)/iu;
 const FIRST_PERSON_NARRATIVE_RE = /^(?:i|we|my|our|someone|there)\b/iu;
-const LOW_VALUE_POINT_START_RE = /^(?:let(?:'|’)s\b|now\b|then\b|later\b|eventually\b|next\b|notice\b|remember\b|try\b|close\b|pause\b|imagine\b|suppose\b|write\b|answer\b|add\b|move\b|look\b|compare\b|you\b|we\b|i\b|someone\b|rather\s+than\b|in\s+the\s+next\b)/iu;
-const PRONOUN_FRAGMENT_RE = /^(?:it|this|that|these|those|they|them|he|she)\b/iu;
-const INSTRUCTIONAL_HEADING_RE = /^(?:learn|remember|try|practice|write|answer|ask|imagine|look|think)\b/iu;
+const LOW_VALUE_POINT_START_RE =
+  /^(?:let(?:'|’)s\b|now\b|then\b|later\b|eventually\b|next\b|notice\b|remember\b|try\b|close\b|pause\b|imagine\b|suppose\b|write\b|answer\b|add\b|move\b|look\b|compare\b|you\b|we\b|i\b|someone\b|rather\s+than\b|in\s+the\s+next\b)/iu;
+const PRONOUN_FRAGMENT_RE =
+  /^(?:it|this|that|these|those|they|them|he|she)\b/iu;
+const INSTRUCTIONAL_HEADING_RE =
+  /^(?:learn|remember|try|practice|write|answer|ask|imagine|look|think)\b/iu;
 // Some legitimate learner topics are pedagogical principles whose headings are
 // intentionally concise imperatives (for example, "Know Your Audience") and
 // therefore may share few literal words with their explanatory sentence.
 // These are distinct from exercise/task fragments and may use their own
 // section evidence when the evidence is otherwise high-utility and grounded.
-const PEDAGOGICAL_PRINCIPLE_HEADING_RE = /^(?:know|show|explain|use|invite|tell|be|keep|avoid|prefer|understand|confirm|connect|communicate|present|validate|verify|prioriti[sz]e)\b/iu;
-const FRAGMENT_HEADING_RE = /^(?:[-–—>→↓]+\s*)|(?:\b(?:move|place|put|go|click|select|open|add|edit|save)\b.*\b(?:before|after|to|into|on|off)\b)/iu;
-const DISCOURSE_HEADING_RE = /^(?:although|however|therefore|thus|even\s+in|even\s+when|instead|otherwise|meanwhile|because|since|while|when|then|next|finally|also|moreover|furthermore)\b/iu;
-const INCOMPLETE_HEADING_TAIL_RE = /\b(?:it|this|that|these|those|a|an|the|of|to|for|with|by|from|in|on|and|or|but)\s*$/iu;
-const SENTENCE_LIKE_HEADING_RE = /^(?:every|all|most|many|some|few|there|this|that|these|those)\b.*\b(?:is|are|was|were|has|have|contains?|begins?|includes?|shows?|means?|allows?|requires?|uses?)\b/iu;
-const LOW_VALUE_SOURCE_TOPIC_RE = /^(?:data\s+from\b|many\s+of\b|some\s+of\b|a\s+number\s+of\b|toolset\s+provided\s+by\b|contents?\s+of\b|remainder\s+of\b|.+\s+in\s+(?:figure|table|chart|diagram)\s*\d+\b|(?:one|two|three|several|many|few)\s+(?:probabilit(?:y|ies)|values?|things?|items?|forms?|types?|ways?|steps?)\b)/iu;
-const SOURCE_NAVIGATION_POINT_RE = /^(?:the\s+contents?\s+of\s+(?:the\s+)?(?:remainder|rest)|the\s+remainder\s+of\s+the\s+(?:paper|chapter)|in\s+(?:section|chapter)\s+\d+)\b/iu;
-const PREDICATE_RE = /\b(?:is|are|means?|refers?\s+to|uses?|needs?|requires?|allows?|prevents?|contains?|includes?|represents?|stores?|changes?|repeats?|returns?|receives?|performs?|guides?|helps?|explains?|shows?|connects?|translates?|converts?|selects?|compares?|solves?|provides?|organizes?|organises?)\b/iu;
+const PEDAGOGICAL_PRINCIPLE_HEADING_RE =
+  /^(?:know|show|explain|use|invite|tell|be|keep|avoid|prefer|understand|confirm|connect|communicate|present|validate|verify|prioriti[sz]e)\b/iu;
+const FRAGMENT_HEADING_RE =
+  /^(?:[-–—>→↓]+\s*)|(?:\b(?:move|place|put|go|click|select|open|add|edit|save)\b.*\b(?:before|after|to|into|on|off)\b)/iu;
+const DISCOURSE_HEADING_RE =
+  /^(?:although|however|therefore|thus|even\s+in|even\s+when|instead|otherwise|meanwhile|because|since|while|when|then|next|finally|also|moreover|furthermore)\b/iu;
+const INCOMPLETE_HEADING_TAIL_RE =
+  /\b(?:it|this|that|these|those|a|an|the|of|to|for|with|by|from|in|on|and|or|but)\s*$/iu;
+const SENTENCE_LIKE_HEADING_RE =
+  /^(?:every|all|most|many|some|few|there|this|that|these|those)\b.*\b(?:is|are|was|were|has|have|contains?|begins?|includes?|shows?|means?|allows?|requires?|uses?)\b/iu;
+const LOW_VALUE_SOURCE_TOPIC_RE =
+  /^(?:data\s+from\b|many\s+of\b|some\s+of\b|a\s+number\s+of\b|toolset\s+provided\s+by\b|contents?\s+of\b|remainder\s+of\b|.+\s+in\s+(?:figure|table|chart|diagram)\s*\d+\b|(?:one|two|three|several|many|few)\s+(?:probabilit(?:y|ies)|values?|things?|items?|forms?|types?|ways?|steps?)\b)/iu;
+const SOURCE_NAVIGATION_POINT_RE =
+  /^(?:the\s+contents?\s+of\s+(?:the\s+)?(?:remainder|rest)|the\s+remainder\s+of\s+the\s+(?:paper|chapter)|in\s+(?:section|chapter)\s+\d+)\b/iu;
+const PREDICATE_RE =
+  /\b(?:is|are|means?|refers?\s+to|uses?|needs?|requires?|allows?|prevents?|contains?|includes?|represents?|stores?|changes?|repeats?|returns?|receives?|performs?|guides?|helps?|explains?|shows?|connects?|translates?|converts?|selects?|compares?|solves?|provides?|organizes?|organises?)\b/iu;
 const STRONG_FACT_TYPES = new Set<AtomicFact["type"]>([
   "definition",
   "rule",
@@ -127,11 +142,14 @@ export function buildSummaryLearningTopics(
 
   input.sections.forEach((section, sourceOrder) => {
     const rawHeading = cleanHeading(section.heading);
-    const semanticSectionRole = input.semanticMap.sectionRoleById.get(section.sectionId) ?? "content";
+    const semanticSectionRole =
+      input.semanticMap.sectionRoleById.get(section.sectionId) ?? "content";
 
     if (
       section.status !== "covered" ||
-      ["metadata", "reference", "practice", "caution"].includes(semanticSectionRole) ||
+      ["metadata", "reference", "practice", "caution"].includes(
+        semanticSectionRole,
+      ) ||
       isSummaryReferenceHeading(section.heading) ||
       isSummaryCautionHeading(section.heading) ||
       PRACTICE_HEADING_RE.test(rawHeading)
@@ -153,12 +171,18 @@ export function buildSummaryLearningTopics(
       section.factIds
         .map((id) => input.factsById.get(id))
         .filter((fact): fact is AtomicFact => Boolean(fact))
-        .filter((fact) => isTopicFactEligible(fact, section, input.semanticMap)),
+        .filter((fact) =>
+          isTopicFactEligible(fact, section, input.semanticMap),
+        ),
     );
     if (facts.length === 0) return;
 
-    const semanticFrameworkParent = input.semanticMap.frameworkParentBySectionId.get(section.sectionId);
-    if (semanticFrameworkParent && semanticFrameworkParent !== section.sectionId) {
+    const semanticFrameworkParent =
+      input.semanticMap.frameworkParentBySectionId.get(section.sectionId);
+    if (
+      semanticFrameworkParent &&
+      semanticFrameworkParent !== section.sectionId
+    ) {
       const group = input.semanticMap.frameworks.find(
         (item) => item.parentSectionId === semanticFrameworkParent,
       );
@@ -186,7 +210,9 @@ export function buildSummaryLearningTopics(
     }
 
     const frameworkComponent = rawHeading.match(FRAMEWORK_COMPONENT_RE);
-    const explicitStep = /^(?:step|stage|test|phase|part)\s*\d+\b/iu.test(rawHeading);
+    const explicitStep = /^(?:step|stage|test|phase|part)\s*\d+\b/iu.test(
+      rawHeading,
+    );
 
     if (
       activeFramework &&
@@ -227,8 +253,11 @@ export function buildSummaryLearningTopics(
       return;
     }
 
-    const procedureLike = facts.every((fact) => fact.type === "procedure_step") ||
-      /\b(?:process|procedure|workflow|configuration|configure|setup|testing|verification|framework|method)\b/iu.test(rawHeading);
+    const procedureLike =
+      facts.every((fact) => fact.type === "procedure_step") ||
+      /\b(?:process|procedure|workflow|configuration|configure|setup|testing|verification|framework|method)\b/iu.test(
+        rawHeading,
+      );
 
     const heading = chooseTopicHeading(
       section,
@@ -341,59 +370,64 @@ export function buildSummaryLearningTopics(
     })
     .sort((left, right) => right.score - left.score);
 
-  const topics = rankedCandidates.map((draft): SummaryLearningTopic | null => {
-    const explanation = selectExplanation(
-      draft.heading,
-      draft.facts,
-      input.rolesByFactId,
-      input.semanticMap,
-      draft.kind,
-    );
-    if (!explanation) return null;
+  const topics = rankedCandidates
+    .map((draft): SummaryLearningTopic | null => {
+      const explanation = selectExplanation(
+        draft.heading,
+        draft.facts,
+        input.rolesByFactId,
+        input.semanticMap,
+        draft.kind,
+      );
+      if (!explanation) return null;
 
-    const keyPoints = draft.kind === "framework"
-      ? selectFrameworkKeyPoints(
-          draft,
-          explanation,
-          input.rolesByFactId,
-          input.semanticMap,
-          input.pointsPerTopic,
-          input.mode,
-        )
-      : selectTopicKeyPoints(
-          draft.heading,
-          explanation,
-          draft.facts.filter((fact) => fact.id !== explanation.id),
-          input.rolesByFactId,
-          input.semanticMap,
-          input.pointsPerTopic,
-          input.mode,
-          draft.kind === "procedure",
-        );
+      const keyPoints =
+        draft.kind === "framework"
+          ? selectFrameworkKeyPoints(
+              draft,
+              explanation,
+              input.rolesByFactId,
+              input.semanticMap,
+              input.pointsPerTopic,
+              input.mode,
+            )
+          : selectTopicKeyPoints(
+              draft.heading,
+              explanation,
+              draft.facts.filter((fact) => fact.id !== explanation.id),
+              input.rolesByFactId,
+              input.semanticMap,
+              input.pointsPerTopic,
+              input.mode,
+              draft.kind === "procedure",
+            );
 
-    const explanationUnit = input.semanticMap.unitsByFactId.get(explanation.id);
-    if (!explanationUnit) return null;
-    const localPedagogicalRelation =
-      draft.kind === "topic" &&
-      PEDAGOGICAL_PRINCIPLE_HEADING_RE.test(draft.heading) &&
-      draft.sourceSectionIds.includes(explanation.sourceSectionId);
-    const explanationFit = semanticEvidenceExplanationFit({
-      heading: draft.heading,
-      unit: explanationUnit,
-      kind: draft.kind,
-      localPedagogicalRelation,
-    });
-    if (!explanationFit.passed) return null;
+      const explanationUnit = input.semanticMap.unitsByFactId.get(
+        explanation.id,
+      );
+      if (!explanationUnit) return null;
+      const localPedagogicalRelation =
+        draft.kind === "topic" &&
+        PEDAGOGICAL_PRINCIPLE_HEADING_RE.test(draft.heading) &&
+        draft.sourceSectionIds.includes(explanation.sourceSectionId);
+      const explanationFit = semanticEvidenceExplanationFit({
+        heading: draft.heading,
+        unit: explanationUnit,
+        kind: draft.kind,
+        localPedagogicalRelation,
+      });
+      if (!explanationFit.passed) return null;
 
-    return {
-      heading: draft.heading,
-      explanation,
-      keyPoints,
-      sourceSectionIds: draft.sourceSectionIds,
-      score: draft.score,
-      sourceOrder: draft.sourceOrder,
-    };
-  }).filter((topic): topic is SummaryLearningTopic => Boolean(topic));
+      return {
+        heading: draft.heading,
+        explanation,
+        keyPoints,
+        sourceSectionIds: draft.sourceSectionIds,
+        score: draft.score,
+        sourceOrder: draft.sourceOrder,
+      };
+    })
+    .filter((topic): topic is SummaryLearningTopic => Boolean(topic));
 
   // Spend the mode budget only on topics that survived all semantic gates,
   // then restore source order for a natural reading flow.
@@ -450,7 +484,9 @@ function addSemanticAnchorDrafts(input: SemanticAnchorDraftInput): void {
           return section.factIds
             .map((factId) => input.factsById.get(factId))
             .filter((fact): fact is AtomicFact => Boolean(fact))
-            .filter((fact) => isTopicFactEligible(fact, section, input.semanticMap));
+            .filter((fact) =>
+              isTopicFactEligible(fact, section, input.semanticMap),
+            );
         })
         .filter((fact) => {
           const headingAlignment = summaryTopicTextAlignment(
@@ -469,13 +505,17 @@ function addSemanticAnchorDrafts(input: SemanticAnchorDraftInput): void {
     if (facts.length === 0) return;
 
     const sourceOrder = sectionIds.reduce(
-      (best, sectionId) => Math.min(
-        best,
-        sourceOrderBySectionId.get(sectionId) ?? Number.MAX_SAFE_INTEGER,
-      ),
+      (best, sectionId) =>
+        Math.min(
+          best,
+          sourceOrderBySectionId.get(sectionId) ?? Number.MAX_SAFE_INTEGER,
+        ),
       Number.MAX_SAFE_INTEGER,
     );
-    if (!Number.isFinite(sourceOrder) || sourceOrder === Number.MAX_SAFE_INTEGER) {
+    if (
+      !Number.isFinite(sourceOrder) ||
+      sourceOrder === Number.MAX_SAFE_INTEGER
+    ) {
       return;
     }
 
@@ -506,8 +546,9 @@ function addSemanticAnchorDrafts(input: SemanticAnchorDraftInput): void {
     input.drafts.push(draft);
   };
 
-  for (const concept of [...input.concepts]
-    .sort((left, right) => right.importanceScore - left.importanceScore)) {
+  for (const concept of [...input.concepts].sort(
+    (left, right) => right.importanceScore - left.importanceScore,
+  )) {
     addAnchor(
       concept.name,
       concept.sourceSectionIds,
@@ -540,16 +581,26 @@ interface RoleBasedSemanticDraftInput {
 }
 
 function addRoleBasedSemanticDrafts(input: RoleBasedSemanticDraftInput): void {
-  const titleKey = input.documentTitle ? canonicalTopicKey(input.documentTitle) : "";
-  const groups = new Map<string, { heading: string; regionId: string; units: SemanticEvidenceUnit[] }>();
+  const titleKey = input.documentTitle
+    ? canonicalTopicKey(input.documentTitle)
+    : "";
+  const groups = new Map<
+    string,
+    { heading: string; regionId: string; units: SemanticEvidenceUnit[] }
+  >();
 
   for (const unit of input.semanticMap.units) {
     if (!unit.explanationEligible || unit.learningUtility < 0.74) continue;
-    if (!["method", "finding", "cause_effect", "objective"].includes(unit.role)) continue;
+    if (!["method", "finding", "cause_effect", "objective"].includes(unit.role))
+      continue;
     const heading = semanticRoleTopicLabel(unit.role);
     if (!heading) continue;
     const key = `${unit.regionId}:${canonicalTopicKey(heading)}`;
-    const group = groups.get(key) ?? { heading, regionId: unit.regionId, units: [] };
+    const group = groups.get(key) ?? {
+      heading,
+      regionId: unit.regionId,
+      units: [],
+    };
     group.units.push(unit);
     groups.set(key, group);
   }
@@ -560,8 +611,12 @@ function addRoleBasedSemanticDrafts(input: RoleBasedSemanticDraftInput): void {
     if (!key || key === titleKey) continue;
     const facts = uniqueFacts(group.units.map((unit) => unit.fact));
     if (facts.length === 0) continue;
-    const sourceOrder = Math.min(...group.units.map((unit) => unit.sourceOrder));
-    const lastSourceOrder = Math.max(...group.units.map((unit) => unit.sourceOrder));
+    const sourceOrder = Math.min(
+      ...group.units.map((unit) => unit.sourceOrder),
+    );
+    const lastSourceOrder = Math.max(
+      ...group.units.map((unit) => unit.sourceOrder),
+    );
     const sectionIds = [...new Set(group.units.map((unit) => unit.sectionId))];
 
     // A semantic role (for example, research findings) can occur in several
@@ -571,12 +626,14 @@ function addRoleBasedSemanticDrafts(input: RoleBasedSemanticDraftInput): void {
     const existing = input.byKey.get(key);
     if (existing) {
       existing.facts = uniqueFacts([...existing.facts, ...facts]);
-      existing.sourceSectionIds = [...new Set([
-        ...existing.sourceSectionIds,
-        ...sectionIds,
-      ])];
+      existing.sourceSectionIds = [
+        ...new Set([...existing.sourceSectionIds, ...sectionIds]),
+      ];
       existing.sourceOrder = Math.min(existing.sourceOrder, sourceOrder);
-      existing.lastSourceOrder = Math.max(existing.lastSourceOrder, lastSourceOrder);
+      existing.lastSourceOrder = Math.max(
+        existing.lastSourceOrder,
+        lastSourceOrder,
+      );
       existing.score = Math.max(
         existing.score,
         ...group.units.map((unit) => unit.learningUtility),
@@ -602,7 +659,10 @@ function allocateDraftFactsToBestTopics(
   drafts: TopicDraft[],
   semanticMap: SemanticEvidenceMap,
 ): void {
-  const ownersByFactId = new Map<string, Array<{ draft: TopicDraft; score: number }>>();
+  const ownersByFactId = new Map<
+    string,
+    Array<{ draft: TopicDraft; score: number }>
+  >();
 
   for (const draft of drafts) {
     if (draft.kind !== "topic") continue;
@@ -617,7 +677,9 @@ function allocateDraftFactsToBestTopics(
           PEDAGOGICAL_PRINCIPLE_HEADING_RE.test(draft.heading) &&
           draft.sourceSectionIds.includes(fact.sourceSectionId),
       });
-      const score = fit.score + summaryTopicTextAlignment(draft.heading, fact.content) * 0.25;
+      const score =
+        fit.score +
+        summaryTopicTextAlignment(draft.heading, fact.content) * 0.25;
       const list = ownersByFactId.get(fact.id) ?? [];
       list.push({ draft, score });
       ownersByFactId.set(fact.id, list);
@@ -627,12 +689,12 @@ function allocateDraftFactsToBestTopics(
   for (const [factId, owners] of ownersByFactId) {
     if (owners.length <= 1) continue;
     owners.sort((left, right) => right.score - left.score);
-    const allowed = new Set(
-      owners.slice(0, 1).map((owner) => owner.draft),
-    );
+    const allowed = new Set(owners.slice(0, 1).map((owner) => owner.draft));
     for (const owner of owners) {
       if (allowed.has(owner.draft)) continue;
-      owner.draft.facts = owner.draft.facts.filter((fact) => fact.id !== factId);
+      owner.draft.facts = owner.draft.facts.filter(
+        (fact) => fact.id !== factId,
+      );
     }
   }
 }
@@ -657,11 +719,16 @@ function selectCoverageAwareTopics(
   const candidateRegions = semanticMap.regions
     .filter((region) => region.evidenceCount > 0)
     .sort((left, right) => right.evidenceCount - left.evidenceCount);
-  const regionBudget = Math.min(candidateRegions.length, Math.max(2, Math.ceil(limit * 0.5)));
+  const regionBudget = Math.min(
+    candidateRegions.length,
+    Math.max(2, Math.ceil(limit * 0.5)),
+  );
 
   for (const region of candidateRegions.slice(0, regionBudget)) {
-    const candidate = ranked.find((topic) =>
-      regionForTopic(topic) === region.id && !selectedHeadings.has(canonicalTopicKey(topic.heading)),
+    const candidate = ranked.find(
+      (topic) =>
+        regionForTopic(topic) === region.id &&
+        !selectedHeadings.has(canonicalTopicKey(topic.heading)),
     );
     if (!candidate) continue;
     selected.push(candidate);
@@ -701,15 +768,20 @@ function chooseTopicHeading(
   const definitionLabels = facts
     .filter((fact) => fact.type === "definition")
     .map((fact) => definitionSubject(fact.content))
-    .filter((value): value is string => Boolean(value && isSummaryTopicHeadingEligible(value)));
+    .filter((value): value is string =>
+      Boolean(value && isSummaryTopicHeadingEligible(value)),
+    );
 
-  const semanticAnchorKeys = new Set([
-    ...sectionConcepts.map((item) => canonicalTopicKey(item.name)),
-    ...sectionTerms.map((item) => canonicalTopicKey(item.term)),
-    ...definitionLabels.map(canonicalTopicKey),
-  ].filter(Boolean));
+  const semanticAnchorKeys = new Set(
+    [
+      ...sectionConcepts.map((item) => canonicalTopicKey(item.name)),
+      ...sectionTerms.map((item) => canonicalTopicKey(item.term)),
+      ...definitionLabels.map(canonicalTopicKey),
+    ].filter(Boolean),
+  );
 
-  const semanticSectionRole = semanticMap.sectionRoleById.get(section.sectionId) ?? "content";
+  const semanticSectionRole =
+    semanticMap.sectionRoleById.get(section.sectionId) ?? "content";
   if (
     cleaned &&
     semanticSectionRole !== "structural" &&
@@ -719,11 +791,13 @@ function chooseTopicHeading(
   ) {
     const alignment = maxFactAlignment(cleaned, facts);
     const sourceBacked = semanticAnchorKeys.has(canonicalTopicKey(cleaned));
-    const strongAlignedFact = facts.some((fact) =>
-      STRONG_FACT_TYPES.has(fact.type) &&
-      summaryTopicTextAlignment(cleaned, fact.content) >= 0.45,
+    const strongAlignedFact = facts.some(
+      (fact) =>
+        STRONG_FACT_TYPES.has(fact.type) &&
+        summaryTopicTextAlignment(cleaned, fact.content) >= 0.45,
     );
-    const frameworkOrProcedure = /\b(?:framework|process|procedure|workflow|method)\b/iu.test(cleaned);
+    const frameworkOrProcedure =
+      /\b(?:framework|process|procedure|workflow|method)\b/iu.test(cleaned);
 
     if (
       !LOW_VALUE_SOURCE_TOPIC_RE.test(cleaned) &&
@@ -732,7 +806,9 @@ function chooseTopicHeading(
       candidates.push({
         value: cleaned,
         kind: "source",
-        anchorScore: alignment + (sourceBacked ? 0.22 : 0) +
+        anchorScore:
+          alignment +
+          (sourceBacked ? 0.22 : 0) +
           (strongAlignedFact ? 0.16 : 0),
       });
     } else {
@@ -747,7 +823,9 @@ function chooseTopicHeading(
         return Math.max(best, factLearningUtilityScore(fact, role));
       }, 0);
       const usefulFactCount = facts.filter((fact) =>
-        isSummaryTopicPointUseful(fact.content, { allowProcedure: fact.type === "procedure_step" }),
+        isSummaryTopicPointUseful(fact.content, {
+          allowProcedure: fact.type === "procedure_step",
+        }),
       ).length;
 
       if (
@@ -758,7 +836,7 @@ function chooseTopicHeading(
         candidates.push({
           value: cleaned,
           kind: "source",
-          anchorScore: 0.20 + Math.min(0.28, bestUtility * 0.20),
+          anchorScore: 0.2 + Math.min(0.28, bestUtility * 0.2),
         });
       }
     }
@@ -795,17 +873,22 @@ function chooseTopicHeading(
   const ranked = dedupeHeadingCandidates(candidates)
     .filter((candidate) => {
       const alignment = maxFactAlignment(candidate.value, facts);
-      if (/\b(?:framework|process|procedure|workflow|method)\b/iu.test(candidate.value)) {
+      if (
+        /\b(?:framework|process|procedure|workflow|method)\b/iu.test(
+          candidate.value,
+        )
+      ) {
         return true;
       }
       return candidate.kind === "source"
-        ? alignment >= 0.18 || candidate.anchorScore >= 0.30
-        : alignment >= 0.10 || candidate.anchorScore >= 0.30;
+        ? alignment >= 0.18 || candidate.anchorScore >= 0.3
+        : alignment >= 0.1 || candidate.anchorScore >= 0.3;
     })
     .sort((left, right) => {
       const roleBoost = (candidate: HeadingCandidate): number => {
-        const matchingFacts = facts.filter((fact) =>
-          summaryTopicTextAlignment(candidate.value, fact.content) >= 0.2,
+        const matchingFacts = facts.filter(
+          (fact) =>
+            summaryTopicTextAlignment(candidate.value, fact.content) >= 0.2,
         );
         return matchingFacts.reduce((best, fact) => {
           const role = rolesByFactId.get(fact.id) ?? "supporting";
@@ -813,7 +896,8 @@ function chooseTopicHeading(
         }, 0);
       };
       return (
-        right.anchorScore + roleBoost(right) * 0.15 -
+        right.anchorScore +
+        roleBoost(right) * 0.15 -
         (left.anchorScore + roleBoost(left) * 0.15)
       );
     });
@@ -831,7 +915,8 @@ export function isSummaryTopicHeadingEligible(value: string): boolean {
   if (INCOMPLETE_HEADING_TAIL_RE.test(heading)) return false;
   if (SENTENCE_LIKE_HEADING_RE.test(heading)) return false;
   if (LOW_VALUE_SOURCE_TOPIC_RE.test(heading)) return false;
-  if (STRUCTURAL_HEADING_RE.test(heading) || PRACTICE_HEADING_RE.test(heading)) return false;
+  if (STRUCTURAL_HEADING_RE.test(heading) || PRACTICE_HEADING_RE.test(heading))
+    return false;
   if (NON_TOPIC_LABEL_RE.test(heading)) return false;
   if (/^q\s*[:;]/iu.test(heading) || /[.!:]$/u.test(heading)) return false;
   if (FRAGMENT_HEADING_RE.test(heading)) return false;
@@ -852,11 +937,20 @@ export function isSummaryTopicPointUseful(
   if (FIRST_PERSON_NARRATIVE_RE.test(text)) return false;
   if (PRONOUN_FRAGMENT_RE.test(text)) return false;
   if (LOW_VALUE_POINT_START_RE.test(text)) {
-    if (!options.allowProcedure || !/^(?:add|assign|change|check|click|compare|connect|create|disable|enable|enter|open|select|choose|configure|verify|calculate|repeat|return|send|store|set|test|update|identify|define|inspect|solve|capture|organize|organise|express)\b/iu.test(text)) {
+    if (
+      !options.allowProcedure ||
+      !/^(?:add|assign|change|check|click|compare|connect|create|disable|enable|enter|open|select|choose|configure|verify|calculate|repeat|return|send|store|set|test|update|identify|define|inspect|solve|capture|organize|organise|express)\b/iu.test(
+        text,
+      )
+    ) {
       return false;
     }
   }
-  if (/^(?:may\s+be|maybe|yes|no|easy|probably|congratulations|notice\s+something)\b/iu.test(text)) {
+  if (
+    /^(?:may\s+be|maybe|yes|no|easy|probably|congratulations|notice\s+something)\b/iu.test(
+      text,
+    )
+  ) {
     return false;
   }
   if (!PREDICATE_RE.test(text) && text.split(/\s+/u).length < 7) return false;
@@ -881,7 +975,12 @@ function isTopicFactEligible(
   if (!isSummaryFactEligible(fact, section)) return false;
   if (!isSummaryCandidateTextEligible(text)) return false;
   if (text.length < 16 || text.endsWith(":")) return false;
-  if (!isSummaryTopicPointUseful(text, { allowProcedure: fact.type === "procedure_step" })) return false;
+  if (
+    !isSummaryTopicPointUseful(text, {
+      allowProcedure: fact.type === "procedure_step",
+    })
+  )
+    return false;
   return true;
 }
 
@@ -907,7 +1006,9 @@ function canonicalTopicKey(value: string): string {
   return canonicalStudyConceptKey(
     normaliseTopicHeading(value)
       .replace(/\b(?:the|a|an|chapter|topic)\b/giu, " ")
-      .replace(/\b(?:framework|process|procedure)\b/giu, (match) => match.toLocaleLowerCase())
+      .replace(/\b(?:framework|process|procedure)\b/giu, (match) =>
+        match.toLocaleLowerCase(),
+      )
       .replace(/\s+/gu, " ")
       .trim(),
   );
@@ -935,7 +1036,8 @@ function shouldMergeIntoFramework(
   keyTerms: QualifiedTerm[],
   sectionId: string,
 ): boolean {
-  if (draft.kind !== "framework" || sourceOrder - draft.lastSourceOrder > 6) return false;
+  if (draft.kind !== "framework" || sourceOrder - draft.lastSourceOrder > 6)
+    return false;
   if (FRAMEWORK_COMPONENT_RE.test(rawHeading)) return true;
 
   const normalizedHeading = normaliseTopicHeading(rawHeading);
@@ -943,30 +1045,37 @@ function shouldMergeIntoFramework(
   if (words.length === 0 || words.length > 5) return false;
 
   const frameworkComponentSignal =
-    /^(?:understand|identify|name|keep|define|inspect|solve|capture|organize|organise|verify|express|human)\b/iu.test(normalizedHeading) ||
+    /^(?:understand|identify|name|keep|define|inspect|solve|capture|organize|organise|verify|express|human)\b/iu.test(
+      normalizedHeading,
+    ) ||
     facts.some((fact) =>
-      /\b(?:framework|guiding\s+question|questions?|steps?|repeat|process)\b/iu.test(fact.content),
+      /\b(?:framework|guiding\s+question|questions?|steps?|repeat|process)\b/iu.test(
+        fact.content,
+      ),
     );
-  const hasDefinitionAnchor = facts.some((fact) =>
-    fact.type === "definition" && Boolean(definitionSubject(fact.content)),
+  const hasDefinitionAnchor = facts.some(
+    (fact) =>
+      fact.type === "definition" && Boolean(definitionSubject(fact.content)),
   );
 
   if (frameworkComponentSignal && !hasDefinitionAnchor) return true;
 
   const hasIndependentSemanticAnchor =
-    concepts.some((concept) =>
-      concept.sourceSectionIds.includes(sectionId) &&
-      isSummaryTopicHeadingEligible(concept.name) &&
-      maxFactAlignment(concept.name, facts) >= 0.35,
+    concepts.some(
+      (concept) =>
+        concept.sourceSectionIds.includes(sectionId) &&
+        isSummaryTopicHeadingEligible(concept.name) &&
+        maxFactAlignment(concept.name, facts) >= 0.35,
     ) ||
-    keyTerms.some((term) =>
-      term.sourceSectionId === sectionId &&
-      isSummaryTopicHeadingEligible(term.term) &&
-      maxFactAlignment(term.term, facts) >= 0.35,
+    keyTerms.some(
+      (term) =>
+        term.sourceSectionId === sectionId &&
+        isSummaryTopicHeadingEligible(term.term) &&
+        maxFactAlignment(term.term, facts) >= 0.35,
     ) ||
-    facts.some((fact) =>
-      fact.type === "definition" &&
-      Boolean(definitionSubject(fact.content)),
+    facts.some(
+      (fact) =>
+        fact.type === "definition" && Boolean(definitionSubject(fact.content)),
     );
 
   if (hasIndependentSemanticAnchor) return false;
@@ -1006,7 +1115,17 @@ function topicScore(
     .map((fact) => {
       const role = rolesByFactId.get(fact.id) ?? "supporting";
       let score = factLearningUtilityScore(fact, role);
-      if (mode === "exam" && ["definition", "rule", "condition", "formula", "result", "warning"].includes(fact.type)) {
+      if (
+        mode === "exam" &&
+        [
+          "definition",
+          "rule",
+          "condition",
+          "formula",
+          "result",
+          "warning",
+        ].includes(fact.type)
+      ) {
         score += 0.12;
       }
       const alignment = summaryTopicTextAlignment(draft.heading, fact.content);
@@ -1014,10 +1133,17 @@ function topicScore(
     })
     .sort((a, b) => b - a);
   const top = factScores.slice(0, 4);
-  const average = top.reduce((sum, value) => sum + value, 0) / Math.max(1, top.length);
-  const depthBonus = Math.min(0.18, Math.max(0, draft.facts.length - 1) * 0.035);
-  const frameworkBonus = draft.kind === "framework" ? 0.10 : 0;
-  const coherenceBonus = Math.min(0.18, averageFactAlignment(draft.heading, draft.facts) * 0.18);
+  const average =
+    top.reduce((sum, value) => sum + value, 0) / Math.max(1, top.length);
+  const depthBonus = Math.min(
+    0.18,
+    Math.max(0, draft.facts.length - 1) * 0.035,
+  );
+  const frameworkBonus = draft.kind === "framework" ? 0.1 : 0;
+  const coherenceBonus = Math.min(
+    0.18,
+    averageFactAlignment(draft.heading, draft.facts) * 0.18,
+  );
   return average + depthBonus + frameworkBonus + coherenceBonus;
 }
 
@@ -1028,15 +1154,22 @@ function selectExplanation(
   semanticMap: SemanticEvidenceMap,
   kind: TopicDraft["kind"],
 ): AtomicFact | null {
-  const typeRank = new Map(EXPLANATION_TYPE_PRIORITY.map((type, index) => [type, index]));
+  const typeRank = new Map(
+    EXPLANATION_TYPE_PRIORITY.map((type, index) => [type, index]),
+  );
   const candidates = facts
     .map((fact) => ({ fact, unit: semanticMap.unitsByFactId.get(fact.id) }))
-    .filter((item): item is { fact: AtomicFact; unit: SemanticEvidenceUnit } => Boolean(item.unit))
-    .filter(({ fact }) => isSummaryTopicPointUseful(fact.content, { allowProcedure: kind !== "topic" }))
+    .filter((item): item is { fact: AtomicFact; unit: SemanticEvidenceUnit } =>
+      Boolean(item.unit),
+    )
+    .filter(({ fact }) =>
+      isSummaryTopicPointUseful(fact.content, {
+        allowProcedure: kind !== "topic",
+      }),
+    )
     .map(({ fact, unit }) => {
       const localPedagogicalRelation =
-        kind === "topic" &&
-        PEDAGOGICAL_PRINCIPLE_HEADING_RE.test(heading);
+        kind === "topic" && PEDAGOGICAL_PRINCIPLE_HEADING_RE.test(heading);
       const fit = semanticEvidenceExplanationFit({
         heading,
         unit,
@@ -1048,11 +1181,18 @@ function selectExplanation(
       return {
         fact,
         fit,
-        score: fit.score * 0.72 + factLearningUtilityScore(fact, role) * 0.20 + typeValue * 0.08,
+        score:
+          fit.score * 0.72 +
+          factLearningUtilityScore(fact, role) * 0.2 +
+          typeValue * 0.08,
       };
     })
     .filter(({ fit }) => fit.passed)
-    .sort((left, right) => right.score - left.score || left.fact.content.length - right.fact.content.length);
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        left.fact.content.length - right.fact.content.length,
+    );
 
   return candidates[0]?.fact ?? null;
 }
@@ -1068,8 +1208,13 @@ function selectTopicKeyPoints(
   allowProcedure: boolean,
 ): AtomicFact[] {
   return [...facts]
-    .filter((fact) => !["warning", "common_mistake", "limitation"].includes(fact.type))
-    .filter((fact) => isSummaryTopicPointUseful(fact.content, { allowProcedure }))
+    .filter(
+      (fact) =>
+        !["warning", "common_mistake", "limitation"].includes(fact.type),
+    )
+    .filter((fact) =>
+      isSummaryTopicPointUseful(fact.content, { allowProcedure }),
+    )
     .filter((fact) => {
       const unit = semanticMap.unitsByFactId.get(fact.id);
       const explanationUnit = semanticMap.unitsByFactId.get(explanation.id);
@@ -1084,8 +1229,20 @@ function selectTopicKeyPoints(
     .sort((left, right) => {
       const leftRole = rolesByFactId.get(left.id) ?? "supporting";
       const rightRole = rolesByFactId.get(right.id) ?? "supporting";
-      const leftExam = mode === "exam" && ["definition", "rule", "condition", "formula", "result"].includes(left.type) ? 0.12 : 0;
-      const rightExam = mode === "exam" && ["definition", "rule", "condition", "formula", "result"].includes(right.type) ? 0.12 : 0;
+      const leftExam =
+        mode === "exam" &&
+        ["definition", "rule", "condition", "formula", "result"].includes(
+          left.type,
+        )
+          ? 0.12
+          : 0;
+      const rightExam =
+        mode === "exam" &&
+        ["definition", "rule", "condition", "formula", "result"].includes(
+          right.type,
+        )
+          ? 0.12
+          : 0;
       const leftAlignment = Math.max(
         summaryTopicTextAlignment(heading, left.content),
         semanticTextOverlap(explanation.content, left.content),
@@ -1095,8 +1252,12 @@ function selectTopicKeyPoints(
         semanticTextOverlap(explanation.content, right.content),
       );
       return (
-        factLearningUtilityScore(right, rightRole) + rightExam + rightAlignment * 0.18 -
-        (factLearningUtilityScore(left, leftRole) + leftExam + leftAlignment * 0.18)
+        factLearningUtilityScore(right, rightRole) +
+        rightExam +
+        rightAlignment * 0.18 -
+        (factLearningUtilityScore(left, leftRole) +
+          leftExam +
+          leftAlignment * 0.18)
       );
     })
     .slice(0, limit);
@@ -1112,8 +1273,13 @@ function selectFrameworkKeyPoints(
 ): AtomicFact[] {
   const candidates = draft.facts
     .filter((fact) => fact.id !== explanation.id)
-    .filter((fact) => !["warning", "common_mistake", "limitation"].includes(fact.type))
-    .filter((fact) => isSummaryTopicPointUseful(fact.content, { allowProcedure: true }));
+    .filter(
+      (fact) =>
+        !["warning", "common_mistake", "limitation"].includes(fact.type),
+    )
+    .filter((fact) =>
+      isSummaryTopicPointUseful(fact.content, { allowProcedure: true }),
+    );
   const ordered: AtomicFact[] = [];
   const seenSections = new Set<string>();
 
@@ -1123,7 +1289,10 @@ function selectFrameworkKeyPoints(
     ordered.push(fact);
   }
 
-  const frameworkLimit = Math.min(8, Math.max(limit, draft.sourceSectionIds.length));
+  const frameworkLimit = Math.min(
+    8,
+    Math.max(limit, draft.sourceSectionIds.length),
+  );
   if (ordered.length >= frameworkLimit) return ordered.slice(0, frameworkLimit);
 
   const remainder = selectTopicKeyPoints(
@@ -1141,36 +1310,48 @@ function selectFrameworkKeyPoints(
 }
 
 function hasStrongCoreFact(facts: AtomicFact[]): boolean {
-  return facts.some((fact) =>
-    (
-      ["definition", "rule", "relationship", "objective", "result", "formula"].includes(fact.type) &&
-      fact.importanceScore >= 0.84
-    ) || fact.importanceScore >= 0.9,
+  return facts.some(
+    (fact) =>
+      ([
+        "definition",
+        "rule",
+        "relationship",
+        "objective",
+        "result",
+        "formula",
+      ].includes(fact.type) &&
+        fact.importanceScore >= 0.84) ||
+      fact.importanceScore >= 0.9,
   );
 }
 
 function definitionSubject(value: string): string | null {
-  const match = value.trim().match(/^(.{3,70}?)\s+(?:is|are|means|refers\s+to)\s+/iu);
+  const match = value
+    .trim()
+    .match(/^(.{3,70}?)\s+(?:is|are|means|refers\s+to)\s+/iu);
   if (!match?.[1]) return null;
   return cleanHeading(match[1]);
 }
 
 function maxFactAlignment(heading: string, facts: AtomicFact[]): number {
   return facts.reduce(
-    (best, fact) => Math.max(best, summaryTopicTextAlignment(heading, fact.content)),
+    (best, fact) =>
+      Math.max(best, summaryTopicTextAlignment(heading, fact.content)),
     0,
   );
 }
 
 function averageFactAlignment(heading: string, facts: AtomicFact[]): number {
   if (facts.length === 0) return 0;
-  const values = facts.map((fact) => summaryTopicTextAlignment(heading, fact.content));
+  const values = facts.map((fact) =>
+    summaryTopicTextAlignment(heading, fact.content),
+  );
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-
-
-function dedupeHeadingCandidates(candidates: HeadingCandidate[]): HeadingCandidate[] {
+function dedupeHeadingCandidates(
+  candidates: HeadingCandidate[],
+): HeadingCandidate[] {
   const byKey = new Map<string, HeadingCandidate>();
   for (const candidate of candidates) {
     const key = canonicalTopicKey(candidate.value);
@@ -1183,7 +1364,9 @@ function dedupeHeadingCandidates(candidates: HeadingCandidate[]): HeadingCandida
   return [...byKey.values()];
 }
 
-function mergeNearDuplicateTopics(topics: SummaryLearningTopic[]): SummaryLearningTopic[] {
+function mergeNearDuplicateTopics(
+  topics: SummaryLearningTopic[],
+): SummaryLearningTopic[] {
   const output: SummaryLearningTopic[] = [];
 
   for (const topic of topics) {
@@ -1203,10 +1386,9 @@ function mergeNearDuplicateTopics(topics: SummaryLearningTopic[]): SummaryLearni
       continue;
     }
 
-    existing.sourceSectionIds = [...new Set([
-      ...existing.sourceSectionIds,
-      ...topic.sourceSectionIds,
-    ])];
+    existing.sourceSectionIds = [
+      ...new Set([...existing.sourceSectionIds, ...topic.sourceSectionIds]),
+    ];
     existing.keyPoints = uniqueFacts([
       ...existing.keyPoints,
       topic.explanation,

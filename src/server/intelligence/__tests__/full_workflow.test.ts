@@ -68,9 +68,9 @@ describe("Evidence-grounded workflow", () => {
     expect(ontologyCache.resolve("Bayesian Network").concept.id).toBe(
       "bayesian_network",
     );
-    expect(
-      ontologyCache.resolve("software defect prediction").concept.id,
-    ).toBe("software_defect_prediction");
+    expect(ontologyCache.resolve("software defect prediction").concept.id).toBe(
+      "software_defect_prediction",
+    );
   });
 
   test("preserves correlation semantics and exposes every stage", async () => {
@@ -119,8 +119,7 @@ describe("Evidence-grounded workflow", () => {
     expect(
       result.core.claims.some(
         (claim) =>
-          claim.type === "objective" &&
-          claim.extractionSource === "ai",
+          claim.type === "objective" && claim.extractionSource === "ai",
       ),
     ).toBe(true);
     expect(result.aiFallback.used).toBe(true);

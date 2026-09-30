@@ -50,7 +50,14 @@ export function useNotes(params?: NoteListParams): UseNotesResult {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refetchIndex, params?.page, params?.limit, params?.sortBy, params?.fileType, params?.search]);
+  }, [
+    refetchIndex,
+    params?.page,
+    params?.limit,
+    params?.sortBy,
+    params?.fileType,
+    params?.search,
+  ]);
 
   return { notes, meta, isLoading, error, refetch };
 }
@@ -84,7 +91,8 @@ export function useNote(id: string): UseNoteResult {
         const result = await getNoteById(id);
         if (!cancelled) setNoteState(result);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load note");
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Failed to load note");
       } finally {
         if (!cancelled) setIsLoading(false);
       }

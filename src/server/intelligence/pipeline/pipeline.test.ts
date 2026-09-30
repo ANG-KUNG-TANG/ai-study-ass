@@ -41,14 +41,27 @@ REFERENCES
 
 const result = runPipeline(PAPER);
 const core = result.knowledge;
-const validClaims = core.claims.filter((claim) => claim.validationStatus === "valid");
+const validClaims = core.claims.filter(
+  (claim) => claim.validationStatus === "valid",
+);
 
 console.log("Document kind:", core.documentProfile.kind);
 console.log("Method:", core.method);
 console.log("Dataset:", core.dataset);
 console.log("Accuracy:", core.accuracy);
-console.log("Results:", validClaims.filter((claim) => claim.type === "result").map((claim) => ({ metric: claim.metric, value: claim.numericValue })));
-console.log("Concepts:", core.concepts.filter((concept) => concept.valid).slice(0, 12).map((concept) => concept.term));
+console.log(
+  "Results:",
+  validClaims
+    .filter((claim) => claim.type === "result")
+    .map((claim) => ({ metric: claim.metric, value: claim.numericValue })),
+);
+console.log(
+  "Concepts:",
+  core.concepts
+    .filter((concept) => concept.valid)
+    .slice(0, 12)
+    .map((concept) => concept.term),
+);
 console.log("Validation:", core.validation);
 
 const conceptTerms = core.concepts.map((concept) => concept.term.toLowerCase());
@@ -56,16 +69,39 @@ const resultClaims = validClaims.filter((claim) => claim.type === "result");
 
 const checks: Array<[string, boolean]> = [
   ["research paper classified", core.documentProfile.kind === "research_paper"],
-  ["Bayesian Network method extracted", core.method?.toLowerCase().includes("bayesian network") ?? false],
+  [
+    "Bayesian Network method extracted",
+    core.method?.toLowerCase().includes("bayesian network") ?? false,
+  ],
   ["no invented dataset", core.dataset === null],
   ["correlation not converted into accuracy", core.accuracy === null],
-  ["95% correlation preserved", resultClaims.some((claim) => claim.numericValue === 95 && claim.metric?.includes("correlation"))],
-  ["32-project sample extracted", validClaims.some((claim) => claim.type === "sample" && claim.numericValue === 32)],
+  [
+    "95% correlation preserved",
+    resultClaims.some(
+      (claim) =>
+        claim.numericValue === 95 && claim.metric?.includes("correlation"),
+    ),
+  ],
+  [
+    "32-project sample extracted",
+    validClaims.some(
+      (claim) => claim.type === "sample" && claim.numericValue === 32,
+    ),
+  ],
   ["GAN not extracted", !conceptTerms.includes("gan")],
   ["NER not extracted", !conceptTerms.includes("ner")],
-  ["standalone numbers rejected", !conceptTerms.some((term) => /^\d+%?$/.test(term))],
-  ["valid claims are evidence-grounded", validClaims.every((claim) => claim.evidence.length > 0)],
-  ["later results section retained", result.document.sections.some((section) => section.title === "results")],
+  [
+    "standalone numbers rejected",
+    !conceptTerms.some((term) => /^\d+%?$/.test(term)),
+  ],
+  [
+    "valid claims are evidence-grounded",
+    validClaims.every((claim) => claim.evidence.length > 0),
+  ],
+  [
+    "later results section retained",
+    result.document.sections.some((section) => section.title === "results"),
+  ],
 ];
 
 let passed = 0;

@@ -1,6 +1,4 @@
-import type {
-  GroundedKnowledge,
-} from "@/server/intelligence/grounding";
+import type { GroundedKnowledge } from "@/server/intelligence/grounding";
 import type {
   QuizQuestionInput,
   QuestionType,
@@ -49,10 +47,38 @@ interface SupportMatch {
 }
 
 const QUESTION_STOP_WORDS = new Set([
-  "a", "an", "and", "are", "as", "at", "be", "by", "does", "document",
-  "false", "for", "from", "how", "in", "is", "it", "main", "material",
-  "of", "one", "or", "reported", "stated", "the", "this", "to", "true",
-  "uses", "what", "which", "with",
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "does",
+  "document",
+  "false",
+  "for",
+  "from",
+  "how",
+  "in",
+  "is",
+  "it",
+  "main",
+  "material",
+  "of",
+  "one",
+  "or",
+  "reported",
+  "stated",
+  "the",
+  "this",
+  "to",
+  "true",
+  "uses",
+  "what",
+  "which",
+  "with",
 ]);
 
 const GENERIC_ANSWERABLE_QUESTION_PATTERNS = [
@@ -100,8 +126,13 @@ export function assessQuizQualityContract(
   grounding: GroundedKnowledge,
 ): FeatureQualityContractReport {
   const total = questions.length;
-  const concepts = selectLearningConcepts(grounding.concepts, Math.max(4, Math.min(10, total)));
-  const corpus = questions.map((question) => `${question.question} ${question.answer}`).join(" ");
+  const concepts = selectLearningConcepts(
+    grounding.concepts,
+    Math.max(4, Math.min(10, total)),
+  );
+  const corpus = questions
+    .map((question) => `${question.question} ${question.answer}`)
+    .join(" ");
   const conceptCoverage = qualityRatio(
     concepts.filter((concept) => textRepresents(corpus, concept.name)).length,
     concepts.length,
@@ -112,26 +143,40 @@ export function assessQuizQualityContract(
     total,
     1,
   );
-  const mcq = questions.filter((question) => question.questionType === "multiple_choice");
+  const mcq = questions.filter(
+    (question) => question.questionType === "multiple_choice",
+  );
   const distractorQuality = qualityRatio(
     mcq.filter(hasCleanDistractors).length,
     mcq.length,
     1,
   );
   const explanationQuality = qualityRatio(
-    questions.filter((question) => Boolean(question.explanation?.trim()) && /supported|evidence|because|therefore|page\s+\d+/iu.test(question.explanation ?? "")).length,
+    questions.filter(
+      (question) =>
+        Boolean(question.explanation?.trim()) &&
+        /supported|evidence|because|therefore|page\s+\d+/iu.test(
+          question.explanation ?? "",
+        ),
+    ).length,
     total,
     1,
   );
   const citationQuality = qualityRatio(
-    questions.filter((question) => /page\s+\d+|verified\s+(?:document\s+)?evidence/iu.test(question.explanation ?? "")).length,
+    questions.filter((question) =>
+      /page\s+\d+|verified\s+(?:document\s+)?evidence/iu.test(
+        question.explanation ?? "",
+      ),
+    ).length,
     total,
     1,
   );
   const duplicateRatio = nearDuplicateQuestionRatio(questions);
   const variety = cognitiveVarietyRatio(questions);
   const grounded = qualityRatio(
-    questions.filter((question) => questionHasGroundedAnswer(question, grounding)).length,
+    questions.filter((question) =>
+      questionHasGroundedAnswer(question, grounding),
+    ).length,
     total,
     1,
   );
@@ -140,29 +185,72 @@ export function assessQuizQualityContract(
     feature: "quiz",
     dimensions: [
       { key: "grounding", label: "Grounding", weight: 2.0, ratio: grounded },
-      { key: "answerCorrectness", label: "Answer correctness", weight: 2.0, ratio: grounded },
-      { key: "questionClarity", label: "Question clarity", weight: 1.5, ratio: clarity },
-      { key: "distractorQuality", label: "Distractor quality", weight: 1.0, ratio: distractorQuality },
-      { key: "coverage", label: "Concept coverage", weight: 1.0, ratio: conceptCoverage },
-      { key: "difficultyValidity", label: "Difficulty/cognitive variety", weight: 0.75, ratio: variety },
-      { key: "nonDuplication", label: "Non-duplication", weight: 0.5, ratio: 1 - duplicateRatio },
-      { key: "explanations", label: "Explanations", weight: 0.75, ratio: explanationQuality },
-      { key: "citations", label: "Evidence citations", weight: 0.5, ratio: citationQuality },
+      {
+        key: "answerCorrectness",
+        label: "Answer correctness",
+        weight: 2.0,
+        ratio: grounded,
+      },
+      {
+        key: "questionClarity",
+        label: "Question clarity",
+        weight: 1.5,
+        ratio: clarity,
+      },
+      {
+        key: "distractorQuality",
+        label: "Distractor quality",
+        weight: 1.0,
+        ratio: distractorQuality,
+      },
+      {
+        key: "coverage",
+        label: "Concept coverage",
+        weight: 1.0,
+        ratio: conceptCoverage,
+      },
+      {
+        key: "difficultyValidity",
+        label: "Difficulty/cognitive variety",
+        weight: 0.75,
+        ratio: variety,
+      },
+      {
+        key: "nonDuplication",
+        label: "Non-duplication",
+        weight: 0.5,
+        ratio: 1 - duplicateRatio,
+      },
+      {
+        key: "explanations",
+        label: "Explanations",
+        weight: 0.75,
+        ratio: explanationQuality,
+      },
+      {
+        key: "citations",
+        label: "Evidence citations",
+        weight: 0.5,
+        ratio: citationQuality,
+      },
     ],
     hardGates: [
       {
         code: "NON_EMPTY_QUIZ",
-        message: "A quality-scored quiz must contain at least one validated question.",
+        message:
+          "A quality-scored quiz must contain at least one validated question.",
         passed: total > 0,
       },
       {
         code: "ALL_ANSWERS_GROUNDED",
-        message: "Every persisted quiz answer must be supported by document evidence.",
+        message:
+          "Every persisted quiz answer must be supported by document evidence.",
         passed: grounded === 1,
       },
       {
         code: "UNAMBIGUOUS_SINGLE_ANSWER",
-        message: "Every single-answer multiple-choice question must have exactly one defensible answer.",
+        message:
+          "Every single-answer multiple-choice question must have exactly one defensible answer.",
         passed: mcq.every(hasCleanDistractors),
       },
     ],
@@ -225,7 +313,9 @@ export function quizQualityLogContext(
     rejectionReasonCounts: reasonCounts,
     qualityScoreOutOf10: result.contract.scoreOutOf10,
     qualityPassed: result.contract.passed,
-    failedHardGates: result.contract.hardGates.filter((gate) => !gate.passed).map((gate) => gate.code),
+    failedHardGates: result.contract.hardGates
+      .filter((gate) => !gate.passed)
+      .map((gate) => gate.code),
   };
 }
 
@@ -367,7 +457,7 @@ function validateShortAnswer(
     );
 
     if (term && /what does|define|definition|mean/i.test(question.question)) {
-      return supportScore(answer, term.definition) >= 0.60
+      return supportScore(answer, term.definition) >= 0.6
         ? []
         : ["ANSWER_NOT_GROUNDED"];
     }
@@ -380,22 +470,14 @@ function validateShortAnswer(
       const sectionSources = sources.filter(
         (source) => source.sectionId === section.sectionId,
       );
-      const match = bestSupportMatch(
-        answer,
-        question.question,
-        sectionSources,
-      );
+      const match = bestSupportMatch(answer, question.question, sectionSources);
       return match && isAnswerSupportStrong(answer, match)
         ? []
         : ["ANSWER_NOT_GROUNDED"];
     }
   }
 
-  const match = bestSupportMatch(
-    answer,
-    question.question,
-    sources,
-  );
+  const match = bestSupportMatch(answer, question.question, sources);
 
   if (!match || !isAnswerSupportStrong(answer, match)) {
     return ["ANSWER_NOT_GROUNDED"];
@@ -403,7 +485,7 @@ function validateShortAnswer(
 
   if (
     !isGenericAnswerableQuestion(question.question) &&
-    match.questionRelevance < 0.10 &&
+    match.questionRelevance < 0.1 &&
     !questionMentionsConcept(question.question, grounding)
   ) {
     return ["SHORT_ANSWER_NOT_ANSWERABLE"];
@@ -450,7 +532,9 @@ function cognitiveVarietyRatio(questions: QuizQuestionInput[]): number {
   const types = new Set(questions.map((question) => question.questionType));
   if (types.size >= 3) return 1;
   if (types.size === 2) return 0.96;
-  const longAnswers = questions.filter((question) => question.answer.split(/\s+/u).length >= 8).length;
+  const longAnswers = questions.filter(
+    (question) => question.answer.split(/\s+/u).length >= 8,
+  ).length;
   return longAnswers > 0 ? 0.9 : 0.8;
 }
 
@@ -481,19 +565,14 @@ function textRepresents(source: string, target: string): boolean {
   return setCoverage(meaningfulTokens(right), meaningfulTokens(left)) >= 0.8;
 }
 
-function buildSupportSources(
-  grounding: GroundedKnowledge,
-): SupportSource[] {
+function buildSupportSources(grounding: GroundedKnowledge): SupportSource[] {
   grounding = toLearningGrounding(grounding);
   const sources: SupportSource[] = [];
 
   for (const fact of grounding.facts) {
     if (fact.verificationStatus !== "supported") continue;
     sources.push({
-      text: [
-        fact.content,
-        ...fact.evidence.map((item) => item.text),
-      ].join(" "),
+      text: [fact.content, ...fact.evidence.map((item) => item.text)].join(" "),
       sectionId: fact.sourceSectionId,
       pageNumber: fact.evidence[0]?.pageNumber,
     });
@@ -557,10 +636,7 @@ function bestSupportMatch(
   return best;
 }
 
-function isAnswerSupportStrong(
-  answer: string,
-  match: SupportMatch,
-): boolean {
+function isAnswerSupportStrong(answer: string, match: SupportMatch): boolean {
   if (normalise(match.source.text).includes(normalise(answer))) return true;
 
   const tokenCount = meaningfulTokens(answer).size;
@@ -596,7 +672,8 @@ function hasGroundedContradiction(
       if (sourceNumbers.size === 0) continue;
 
       if (
-        supportScore(removeNumbers(statement), removeNumbers(source.text)) >= 0.68 &&
+        supportScore(removeNumbers(statement), removeNumbers(source.text)) >=
+          0.68 &&
         !setsEqual(statementNumbers, sourceNumbers)
       ) {
         return true;
@@ -648,9 +725,7 @@ function buildEvidenceExplanation(
     : "The answer is supported by verified document evidence.";
 }
 
-function extractDefinitionPrompt(
-  question: string,
-): string | null {
+function extractDefinitionPrompt(question: string): string | null {
   const match = question.match(
     /which term is defined as:\s*["“](.+?)["”]\??$/iu,
   );
@@ -667,14 +742,12 @@ function extractQuotedText(question: string): string | null {
 }
 
 function stripTrueFalsePrefix(question: string): string {
-  return question
-    .replace(/^\s*true\s+or\s+false\s*:\s*/iu, "")
-    .trim();
+  return question.replace(/^\s*true\s+or\s+false\s*:\s*/iu, "").trim();
 }
 
 function isGenericAnswerableQuestion(question: string): boolean {
-  return GENERIC_ANSWERABLE_QUESTION_PATTERNS.some(
-    (pattern) => pattern.test(question.trim()),
+  return GENERIC_ANSWERABLE_QUESTION_PATTERNS.some((pattern) =>
+    pattern.test(question.trim()),
   );
 }
 
@@ -689,10 +762,7 @@ function questionMentionsConcept(
   });
 }
 
-function contextRelevance(
-  question: string,
-  source: string,
-): number {
+function contextRelevance(question: string, source: string): number {
   const questionTokens = new Set(
     [...meaningfulTokens(question)].filter(
       (token) => !QUESTION_STOP_WORDS.has(token),
@@ -702,10 +772,7 @@ function contextRelevance(
   return setCoverage(questionTokens, meaningfulTokens(source));
 }
 
-function supportScore(
-  candidate: string,
-  source: string,
-): number {
+function supportScore(candidate: string, source: string): number {
   const candidateNormalised = normalise(candidate);
   const sourceNormalised = normalise(source);
 
@@ -722,38 +789,27 @@ function supportScore(
     3,
   );
 
-  return Math.max(tokenCoverage, gramCoverage * 0.90);
+  return Math.max(tokenCoverage, gramCoverage * 0.9);
 }
 
 function meaningfulTokens(text: string): Set<string> {
   return new Set(
     (
-      normalise(text).match(
-        /[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu,
-      ) ?? []
+      normalise(text).match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu) ?? []
     ).filter((token) => token.length >= 2),
   );
 }
 
 function extractNumericTokens(text: string): Set<string> {
   return new Set(
-    (
-      text.normalize("NFKC").match(
-        /[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu,
-      ) ?? []
-    ).map((value) =>
-      value
-        .replace(/\s+/gu, "")
-        .replace(/,(?=\d{3}(?:\D|$))/gu, ""),
+    (text.normalize("NFKC").match(/[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu) ?? []).map(
+      (value) => value.replace(/\s+/gu, "").replace(/,(?=\d{3}(?:\D|$))/gu, ""),
     ),
   );
 }
 
 function removeNumbers(text: string): string {
-  return text.replace(
-    /[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu,
-    " ",
-  );
+  return text.replace(/[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu, " ");
 }
 
 function hasExplicitNegation(text: string): boolean {
@@ -791,10 +847,7 @@ function characterGramCoverage(
     return candidate === source ? 1 : 0;
   }
 
-  return setCoverage(
-    grams(candidate, width),
-    grams(source, width),
-  );
+  return setCoverage(grams(candidate, width), grams(source, width));
 }
 
 function grams(text: string, width: number): Set<string> {
@@ -807,10 +860,7 @@ function grams(text: string, width: number): Set<string> {
   return values;
 }
 
-function setCoverage(
-  candidate: Set<string>,
-  source: Set<string>,
-): number {
+function setCoverage(candidate: Set<string>, source: Set<string>): number {
   if (candidate.size === 0) return 0;
 
   let matches = 0;
@@ -821,25 +871,17 @@ function setCoverage(
   return matches / candidate.size;
 }
 
-function setIsSubset(
-  candidate: Set<string>,
-  source: Set<string>,
-): boolean {
+function setIsSubset(candidate: Set<string>, source: Set<string>): boolean {
   for (const value of candidate) {
     if (!source.has(value)) return false;
   }
   return true;
 }
 
-function setsEqual(
-  left: Set<string>,
-  right: Set<string>,
-): boolean {
+function setsEqual(left: Set<string>, right: Set<string>): boolean {
   return left.size === right.size && setIsSubset(left, right);
 }
 
-function uniqueIssues(
-  issues: QuizQualityIssueCode[],
-): QuizQualityIssueCode[] {
+function uniqueIssues(issues: QuizQualityIssueCode[]): QuizQualityIssueCode[] {
   return [...new Set(issues)];
 }

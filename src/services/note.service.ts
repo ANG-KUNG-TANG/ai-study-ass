@@ -14,7 +14,7 @@ function buildQuery(params: NoteListParams = {}): string {
 }
 
 export function listNotes(
-  params?: NoteListParams
+  params?: NoteListParams,
 ): Promise<{ data: Note[]; meta: PaginationMeta }> {
   return apiFetchPaginated<Note>(`/notes${buildQuery(params)}`);
 }

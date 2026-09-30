@@ -7,10 +7,7 @@ import {
 } from "@/server/utils/constants";
 import { logger } from "@/server/utils/logger";
 
-function limitExtractedText(
-  text: string,
-  label: "PDF" | "DOCX",
-): string {
+function limitExtractedText(text: string, label: "PDF" | "DOCX"): string {
   if (text.length <= MAX_CONTENT_LENGTH) {
     return text;
   }
@@ -24,12 +21,7 @@ function limitExtractedText(
 }
 
 function validateDocxArchiveLimits(buffer: Buffer): void {
-  const eocdSignature = Buffer.from([
-    0x50,
-    0x4b,
-    0x05,
-    0x06,
-  ]);
+  const eocdSignature = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
   const minEocdSize = 22;
   const maxCommentLength = 65_535;
   const searchStart = Math.max(
@@ -38,20 +30,13 @@ function validateDocxArchiveLimits(buffer: Buffer): void {
   );
   const eocdOffset = buffer.lastIndexOf(eocdSignature);
 
-  if (
-    eocdOffset < searchStart ||
-    eocdOffset + minEocdSize > buffer.length
-  ) {
+  if (eocdOffset < searchStart || eocdOffset + minEocdSize > buffer.length) {
     throw new FileError("Invalid DOCX ZIP directory");
   }
 
   const entryCount = buffer.readUInt16LE(eocdOffset + 10);
-  const centralDirectorySize = buffer.readUInt32LE(
-    eocdOffset + 12,
-  );
-  const centralDirectoryOffset = buffer.readUInt32LE(
-    eocdOffset + 16,
-  );
+  const centralDirectorySize = buffer.readUInt32LE(eocdOffset + 12);
+  const centralDirectoryOffset = buffer.readUInt32LE(eocdOffset + 16);
 
   if (entryCount > MAX_DOCX_ZIP_ENTRIES) {
     throw new FileError(
@@ -59,10 +44,7 @@ function validateDocxArchiveLimits(buffer: Buffer): void {
     );
   }
 
-  if (
-    centralDirectoryOffset + centralDirectorySize >
-    buffer.length
-  ) {
+  if (centralDirectoryOffset + centralDirectorySize > buffer.length) {
     throw new FileError("Invalid DOCX ZIP directory bounds");
   }
 
@@ -74,31 +56,19 @@ function validateDocxArchiveLimits(buffer: Buffer): void {
       cursor + 46 > buffer.length ||
       buffer.readUInt32LE(cursor) !== 0x02014b50
     ) {
-      throw new FileError(
-        "Invalid DOCX ZIP central directory",
-      );
+      throw new FileError("Invalid DOCX ZIP central directory");
     }
 
     const compressedSize = buffer.readUInt32LE(cursor + 20);
-    const uncompressedSize = buffer.readUInt32LE(
-      cursor + 24,
-    );
+    const uncompressedSize = buffer.readUInt32LE(cursor + 24);
 
-    if (
-      compressedSize === 0xffffffff ||
-      uncompressedSize === 0xffffffff
-    ) {
-      throw new FileError(
-        "ZIP64 DOCX files are not supported",
-      );
+    if (compressedSize === 0xffffffff || uncompressedSize === 0xffffffff) {
+      throw new FileError("ZIP64 DOCX files are not supported");
     }
 
     totalUncompressedBytes += uncompressedSize;
 
-    if (
-      totalUncompressedBytes >
-      MAX_DOCX_UNCOMPRESSED_BYTES
-    ) {
+    if (totalUncompressedBytes > MAX_DOCX_UNCOMPRESSED_BYTES) {
       throw new FileError(
         `DOCX expands beyond the ${Math.floor(
           MAX_DOCX_UNCOMPRESSED_BYTES / 1024 / 1024,
@@ -106,27 +76,14 @@ function validateDocxArchiveLimits(buffer: Buffer): void {
       );
     }
 
-    const fileNameLength = buffer.readUInt16LE(
-      cursor + 28,
-    );
+    const fileNameLength = buffer.readUInt16LE(cursor + 28);
     const extraLength = buffer.readUInt16LE(cursor + 30);
-    const commentLength = buffer.readUInt16LE(
-      cursor + 32,
-    );
+    const commentLength = buffer.readUInt16LE(cursor + 32);
 
-    cursor +=
-      46 +
-      fileNameLength +
-      extraLength +
-      commentLength;
+    cursor += 46 + fileNameLength + extraLength + commentLength;
 
-    if (
-      cursor >
-      centralDirectoryOffset + centralDirectorySize
-    ) {
-      throw new FileError(
-        "Invalid DOCX ZIP central directory size",
-      );
+    if (cursor > centralDirectoryOffset + centralDirectorySize) {
+      throw new FileError("Invalid DOCX ZIP central directory size");
     }
   }
 }
@@ -143,9 +100,10 @@ export interface ParsedPDF {
   charCount: number;
 }
 
-export function limitExtractedPages(
-  pages: ParsedPDFPage[],
-): { text: string; pages: ParsedPDFPage[] } {
+export function limitExtractedPages(pages: ParsedPDFPage[]): {
+  text: string;
+  pages: ParsedPDFPage[];
+} {
   const boundedPages: ParsedPDFPage[] = [];
   let remaining = MAX_CONTENT_LENGTH;
 
@@ -186,12 +144,10 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedPDF> {
   let PDFParse: (typeof import("pdf-parse"))["PDFParse"] | undefined;
 
   let PasswordException:
-    | (typeof import("pdf-parse"))["PasswordException"]
-    | undefined;
+    (typeof import("pdf-parse"))["PasswordException"] | undefined;
 
   let CanvasFactory:
-    | (typeof import("pdf-parse/worker"))["CanvasFactory"]
-    | undefined;
+    (typeof import("pdf-parse/worker"))["CanvasFactory"] | undefined;
 
   try {
     // Important:
@@ -326,42 +282,24 @@ export async function renderPDFPages(
     return [];
   }
 
-  let PDFParse:
-    | (typeof import("pdf-parse"))["PDFParse"]
-    | undefined;
+  let PDFParse: (typeof import("pdf-parse"))["PDFParse"] | undefined;
   let CanvasFactory:
-    | (typeof import("pdf-parse/worker"))["CanvasFactory"]
-    | undefined;
+    (typeof import("pdf-parse/worker"))["CanvasFactory"] | undefined;
 
   try {
-    const worker =
-      await import("pdf-parse/worker");
-    CanvasFactory =
-      worker.CanvasFactory;
+    const worker = await import("pdf-parse/worker");
+    CanvasFactory = worker.CanvasFactory;
 
-    const pdfModule =
-      await import("pdf-parse");
-    PDFParse =
-      pdfModule.PDFParse;
+    const pdfModule = await import("pdf-parse");
+    PDFParse = pdfModule.PDFParse;
 
-    if (
-      typeof PDFParse !== "function" ||
-      !CanvasFactory
-    ) {
-      throw new Error(
-        "PDFParse or CanvasFactory is unavailable",
-      );
+    if (typeof PDFParse !== "function" || !CanvasFactory) {
+      throw new Error("PDFParse or CanvasFactory is unavailable");
     }
   } catch (error) {
-    logger.error(
-      "pdf-parse screenshot initialization failed",
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : String(error),
-      },
-    );
+    logger.error("pdf-parse screenshot initialization failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
 
     throw new FileError(
       "PDF renderer not available — check pdf-parse/canvas installation",
@@ -374,61 +312,40 @@ export async function renderPDFPages(
   });
 
   try {
-    const result =
-      await parser.getScreenshot({
-        partial: requested,
-        desiredWidth: Math.max(
-          800,
-          Math.min(
-            2_000,
-            Math.floor(desiredWidth),
-          ),
-        ),
-        imageDataUrl: false,
-        imageBuffer: true,
-      });
+    const result = await parser.getScreenshot({
+      partial: requested,
+      desiredWidth: Math.max(800, Math.min(2_000, Math.floor(desiredWidth))),
+      imageDataUrl: false,
+      imageBuffer: true,
+    });
 
-    return result.pages.flatMap(
-      (page, index) => {
-        const pageNumber =
-          requested[index];
+    return result.pages.flatMap((page, index) => {
+      const pageNumber = requested[index];
 
-        if (
-          !pageNumber ||
-          !page.data
-        ) {
-          return [];
-        }
+      if (!pageNumber || !page.data) {
+        return [];
+      }
 
-        return [{
+      return [
+        {
           pageNumber,
-          png: Buffer.from(
-            page.data,
-          ),
-        }];
-      },
-    );
+          png: Buffer.from(page.data),
+        },
+      ];
+    });
   } catch (error) {
     throw new FileError(
       `Failed to render PDF pages for OCR: ${
-        error instanceof Error
-          ? error.message
-          : "Unknown error"
+        error instanceof Error ? error.message : "Unknown error"
       }`,
     );
   } finally {
     try {
       await parser.destroy();
     } catch (error) {
-      logger.warn(
-        "pdf-parse: failed to destroy screenshot parser instance",
-        {
-          message:
-            error instanceof Error
-              ? error.message
-              : String(error),
-        },
-      );
+      logger.warn("pdf-parse: failed to destroy screenshot parser instance", {
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }
@@ -438,9 +355,7 @@ interface ParsedDOCX {
   charCount: number;
 }
 
-export async function parseDOCX(
-  buffer: Buffer,
-): Promise<ParsedDOCX> {
+export async function parseDOCX(buffer: Buffer): Promise<ParsedDOCX> {
   validateDocxArchiveLimits(buffer);
 
   let mammoth: typeof import("mammoth");
@@ -448,9 +363,7 @@ export async function parseDOCX(
   try {
     mammoth = await import("mammoth");
   } catch {
-    throw new FileError(
-      "DOCX parser not available — run: npm install mammoth",
-    );
+    throw new FileError("DOCX parser not available — run: npm install mammoth");
   }
 
   let result: {

@@ -1,19 +1,11 @@
-import {
-  runPipeline,
-} from "@/server/intelligence/pipeline";
-import {
-  buildGroundedStudyNotes,
-} from "@/server/services/summary/grounded-study-notes.service";
+import { runPipeline } from "@/server/intelligence/pipeline";
+import { buildGroundedStudyNotes } from "@/server/services/summary/grounded-study-notes.service";
 import {
   canonicalizeStudyConceptLabel,
   isValidConcept,
 } from "@/server/intelligence/reliability/concept-validator";
-import {
-  validateSummaryRepairPatch,
-} from "@/server/services/summary/summary-targeted-repair.service";
-import {
-  isSummaryCandidateTextEligible,
-} from "@/server/services/summary/summary-learning-structure.service";
+import { validateSummaryRepairPatch } from "@/server/services/summary/summary-targeted-repair.service";
+import { isSummaryCandidateTextEligible } from "@/server/services/summary/summary-learning-structure.service";
 
 const OOAD_STRUCTURE_SOURCE = `
 A Brief History
@@ -85,9 +77,7 @@ describe("Intelligence learning structure v3.2 learner topics", () => {
     rawText: OOAD_STRUCTURE_SOURCE,
     fileName: "OOAD_Quick_Guide.pdf",
     mimeType: "application/pdf",
-    fileSize: Buffer.byteLength(
-      OOAD_STRUCTURE_SOURCE,
-    ),
+    fileSize: Buffer.byteLength(OOAD_STRUCTURE_SOURCE),
   });
 
   const notes = buildGroundedStudyNotes(
@@ -98,17 +88,17 @@ describe("Intelligence learning structure v3.2 learner topics", () => {
   );
 
   it("uses a document-level title instead of a generic subsection title", () => {
-    expect(
-      result.reliabilityProfile.title.value,
-    ).toMatch(/OOAD|Object-Oriented/i);
-    expect(
-      result.reliabilityProfile.title.value,
-    ).not.toMatch(/^A Brief History$/i);
+    expect(result.reliabilityProfile.title.value).toMatch(
+      /OOAD|Object-Oriented/i,
+    );
+    expect(result.reliabilityProfile.title.value).not.toMatch(
+      /^A Brief History$/i,
+    );
   });
 
   it("recovers grounded key terms directly from explicit definition facts", () => {
-    const terms = result.grounding.keyTerms.map(
-      (term) => term.term.toLowerCase(),
+    const terms = result.grounding.keyTerms.map((term) =>
+      term.term.toLowerCase(),
     );
 
     expect(terms.some((term) => term.includes("encapsulation"))).toBe(true);
@@ -118,42 +108,33 @@ describe("Intelligence learning structure v3.2 learner topics", () => {
   });
 
   it("normalizes OO aliases and rejects sentence-like/example concept labels", () => {
-    expect(
-      canonicalizeStudyConceptLabel("ObjectOriented Analysis"),
-    ).toBe("Object-Oriented Analysis (OOA)");
-    expect(
-      canonicalizeStudyConceptLabel("Object-Oriented Design"),
-    ).toBe("Object-Oriented Design (OOD)");
-    expect(
-      isValidConcept("Physical containment - Example, a computer"),
-    ).toBe(false);
+    expect(canonicalizeStudyConceptLabel("ObjectOriented Analysis")).toBe(
+      "Object-Oriented Analysis (OOA)",
+    );
+    expect(canonicalizeStudyConceptLabel("Object-Oriented Design")).toBe(
+      "Object-Oriented Design (OOD)",
+    );
+    expect(isValidConcept("Physical containment - Example, a computer")).toBe(
+      false,
+    );
     expect(isValidConcept("In OOP, a class")).toBe(false);
   });
 
   it("keeps example-only entities out of student-facing concepts and key terms", () => {
     expect(notes.importantConcepts).not.toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/Savings Account/i),
-      ]),
+      expect.arrayContaining([expect.stringMatching(/Savings Account/i)]),
     );
     expect(notes.importantConcepts).toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/Encapsulation/i),
-      ]),
+      expect.arrayContaining([expect.stringMatching(/Encapsulation/i)]),
     );
     expect(notes.summary).not.toMatch(/\*\*A?\s*Savings Account:/i);
   });
 
   it("consolidates repeated semantic study topics", () => {
-    const encapsulation = notes.summary.match(
-      /^###\s+Encapsulation\b/gm,
-    ) ?? [];
-    const sequence = notes.summary.match(
-      /^###\s+Sequence Diagrams\b/gm,
-    ) ?? [];
-    const stateMachine = notes.summary.match(
-      /^###\s+State Machines?\b/gm,
-    ) ?? [];
+    const encapsulation = notes.summary.match(/^###\s+Encapsulation\b/gm) ?? [];
+    const sequence = notes.summary.match(/^###\s+Sequence Diagrams\b/gm) ?? [];
+    const stateMachine =
+      notes.summary.match(/^###\s+State Machines?\b/gm) ?? [];
 
     expect(encapsulation.length).toBeLessThanOrEqual(1);
     expect(sequence.length).toBeLessThanOrEqual(1);
@@ -169,13 +150,13 @@ describe("Intelligence learning structure v3.2 learner topics", () => {
   it("keeps presentation template scaffolding out of the student summary", () => {
     expect(notes.summary).not.toMatch(/^###\s+Slide\s+\d+\b/gm);
     expect(notes.summary).not.toContain("Course: DTI 312 OOAD");
-    expect(notes.summary).not.toMatch(/^###\s+Student Presentation Template\b/gm);
+    expect(notes.summary).not.toMatch(
+      /^###\s+Student Presentation Template\b/gm,
+    );
   });
 
   it("keeps common mistakes as useful grounded warnings without promoting source debris", () => {
-    expect(notes.summary).toContain(
-      "## Warnings / Common Mistakes",
-    );
+    expect(notes.summary).toContain("## Warnings / Common Mistakes");
     expect(notes.summary).toMatch(
       /Avoid presenting diagrams without explanation\./i,
     );
@@ -198,7 +179,9 @@ Course: DTI 312 OOAD
 
     expect(repaired?.importantConcepts).toContain("Encapsulation");
     expect(repaired?.importantConcepts).not.toContain("Savings Account");
-    expect(repaired?.overviewAdditions ?? []).not.toContain("Course: DTI 312 OOAD");
+    expect(repaired?.overviewAdditions ?? []).not.toContain(
+      "Course: DTI 312 OOAD",
+    );
     expect(repaired?.keyPoints ?? []).not.toContain("Team Members");
   });
 
@@ -210,7 +193,9 @@ Course: DTI 312 OOAD
       isSummaryCandidateTextEligible("Document Processing: complete"),
     ).toBe(false);
     expect(
-      isSummaryCandidateTextEligible("Tabs: Summary | Quiz | Flashcards | Chat | Knowledge"),
+      isSummaryCandidateTextEligible(
+        "Tabs: Summary | Quiz | Flashcards | Chat | Knowledge",
+      ),
     ).toBe(false);
     expect(
       isSummaryCandidateTextEligible(
@@ -220,9 +205,8 @@ Course: DTI 312 OOAD
   });
 
   it("keeps checklist questions out of the overview", () => {
-    const overview = notes.summary
-      .split("## Overview")[1]
-      ?.split(/^## /m)[0] ?? "";
+    const overview =
+      notes.summary.split("## Overview")[1]?.split(/^## /m)[0] ?? "";
     expect(overview).not.toMatch(/Are all .*\?/i);
   });
 
@@ -244,7 +228,7 @@ Course: DTI 312 OOAD
       expect(summary).toContain("## Overview");
       expect(summary).toContain("## Detailed Study Notes");
       expect(summary).toContain("**Simple explanation:**");
-        expect(summary).toContain("## Key Points");
+      expect(summary).toContain("## Key Points");
       expect(summary).toContain("## Key Concepts");
       expect(summary).toContain("## Key Terms");
       expect(summary).not.toContain("## Main Concepts");

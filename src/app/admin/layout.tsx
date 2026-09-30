@@ -1,24 +1,12 @@
 "use client";
 
-import type {
-  ReactNode,
-} from "react";
+import type { ReactNode } from "react";
 
-import {
-  RequireRole,
-} from "@/context/AuthContext";
-import {
-  SidebarProvider,
-} from "@/context/SidebarContext";
-import {
-  Sidebar,
-} from "@/components/layout/Sidebar";
+import { RequireRole } from "@/context/AuthContext";
+import { SidebarProvider } from "@/context/SidebarContext";
+import { Sidebar } from "@/components/layout/Sidebar";
 
-export default function AdminLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <RequireRole section="admin">
       <SidebarProvider>

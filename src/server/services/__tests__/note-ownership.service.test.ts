@@ -44,26 +44,19 @@ describe("note ownership scoping", () => {
     const note = ownedNote();
     jest.mocked(noteRepo.findByIdAndUserId).mockResolvedValue(note);
 
-    await expect(
-      getNoteById("note-1", "user-1"),
-    ).resolves.toEqual({
+    await expect(getNoteById("note-1", "user-1")).resolves.toEqual({
       id: "note-1",
       title: "Security Notes",
     });
 
-    expect(noteRepo.findByIdAndUserId).toHaveBeenCalledWith(
-      "note-1",
-      "user-1",
-    );
+    expect(noteRepo.findByIdAndUserId).toHaveBeenCalledWith("note-1", "user-1");
     expect(noteRepo.findByIdOrThrow).not.toHaveBeenCalled();
   });
 
   it("returns NOT_FOUND when the scoped lookup cannot see the note", async () => {
     jest.mocked(noteRepo.findByIdAndUserId).mockResolvedValue(null);
 
-    await expect(
-      getNoteById("foreign-note", "user-1"),
-    ).rejects.toMatchObject({
+    await expect(getNoteById("foreign-note", "user-1")).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
       message: "Note not found",
@@ -73,9 +66,7 @@ describe("note ownership scoping", () => {
   it("does not delete associated data when ownership lookup fails", async () => {
     jest.mocked(noteRepo.findByIdAndUserId).mockResolvedValue(null);
 
-    await expect(
-      deleteNote("foreign-note", "user-1"),
-    ).rejects.toMatchObject({
+    await expect(deleteNote("foreign-note", "user-1")).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
     });
@@ -92,16 +83,12 @@ describe("note ownership scoping", () => {
     const note = ownedNote();
     jest.mocked(noteRepo.findByIdAndUserId).mockResolvedValue(note);
 
-    await expect(
-      getNoteContent("note-1", "user-1"),
-    ).resolves.toEqual({
+    await expect(getNoteContent("note-1", "user-1")).resolves.toEqual({
       content: "Private study content",
       title: "Security Notes",
     });
 
-    await expect(
-      getGeneratedNotes("note-1", "user-1"),
-    ).resolves.toEqual({
+    await expect(getGeneratedNotes("note-1", "user-1")).resolves.toEqual({
       summary: "Private summary",
       title: "Security Notes",
     });
@@ -113,11 +100,7 @@ describe("note ownership scoping", () => {
     jest.mocked(noteRepo.findByIdAndUserId).mockResolvedValue(null);
 
     await expect(
-      updateNoteSummary(
-        "foreign-note",
-        "user-1",
-        "should not be written",
-      ),
+      updateNoteSummary("foreign-note", "user-1", "should not be written"),
     ).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",

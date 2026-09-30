@@ -1,11 +1,7 @@
 export const FEATURE_QUALITY_TARGET = 9.5 as const;
 
 export type StudyFeatureQualityName =
-  | "summary"
-  | "quiz"
-  | "flashcards"
-  | "knowledge"
-  | "chat";
+  "summary" | "quiz" | "flashcards" | "knowledge" | "chat";
 
 export interface FeatureQualityDimension {
   key: string;
@@ -59,7 +55,9 @@ export function buildFeatureQualityReport(input: {
   );
 
   if (totalWeight <= 0) {
-    throw new Error("Feature quality contract requires at least one positive dimension weight.");
+    throw new Error(
+      "Feature quality contract requires at least one positive dimension weight.",
+    );
   }
 
   const dimensions = input.dimensions.map((dimension) => {

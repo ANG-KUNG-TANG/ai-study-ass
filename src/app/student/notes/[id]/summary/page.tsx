@@ -15,10 +15,7 @@ import { Chip } from "@/components/ui/Chip";
 import { Card } from "@/components/ui/Card";
 import { useLanguage } from "@/context/LanguageContext";
 import type { TranslationKey } from "@/i18n/translations";
-import {
-  SUMMARY_MODES,
-  type SummaryMode,
-} from "@/types/summary";
+import { SUMMARY_MODES, type SummaryMode } from "@/types/summary";
 
 const MODE_LABEL_KEYS: Record<SummaryMode, TranslationKey> = {
   concise: "summary.mode.concise",
@@ -41,23 +38,25 @@ export default function SummaryPage() {
   const parsed = note?.summary ? parseSummary(note.summary) : null;
   const activeMode = parsed?.mode ?? "comprehensive";
   const selectedMode = pendingMode ?? activeMode;
-  const keyTermSections = parsed?.sections.filter(
-    (section) => section.heading.toLocaleLowerCase() === "key terms",
-  ) ?? [];
-  const remainingSections = parsed?.sections.filter(
-    (section) => section.heading.toLocaleLowerCase() !== "key terms",
-  ) ?? [];
+  const keyTermSections =
+    parsed?.sections.filter(
+      (section) => section.heading.toLocaleLowerCase() === "key terms",
+    ) ?? [];
+  const remainingSections =
+    parsed?.sections.filter(
+      (section) => section.heading.toLocaleLowerCase() !== "key terms",
+    ) ?? [];
 
-  const handleGenerate = useCallback(async (
-    force: boolean,
-    mode: SummaryMode,
-  ) => {
-    if (!note) return;
-    setPendingMode(mode);
-    const result = await generate(force, mode);
-    if (result) setNote({ ...note, summary: result.summary });
-    setPendingMode(null);
-  }, [generate, note, setNote]);
+  const handleGenerate = useCallback(
+    async (force: boolean, mode: SummaryMode) => {
+      if (!note) return;
+      setPendingMode(mode);
+      const result = await generate(force, mode);
+      if (result) setNote({ ...note, summary: result.summary });
+      setPendingMode(null);
+    },
+    [generate, note, setNote],
+  );
 
   useEffect(() => {
     if (!note || note.summary || isGenerating || attempted.current) return;
@@ -113,7 +112,9 @@ export default function SummaryPage() {
               disabled={isGenerating}
               className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
             >
-              {isGenerating ? t("summary.regenerating") : t("summary.regenerate")}
+              {isGenerating
+                ? t("summary.regenerating")
+                : t("summary.regenerate")}
             </button>
           </div>
 
@@ -172,7 +173,9 @@ export default function SummaryPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-[13px] leading-7 text-ink-soft">{parsed.prose}</p>
+              <p className="text-[13px] leading-7 text-ink-soft">
+                {parsed.prose}
+              </p>
             )}
           </section>
 
@@ -254,8 +257,11 @@ export default function SummaryPage() {
         </Card>
       )}
 
-      {error && <Card className="border-coral/30"><p className="text-[13px] text-coral">{error}</p></Card>}
-
+      {error && (
+        <Card className="border-coral/30">
+          <p className="text-[13px] text-coral">{error}</p>
+        </Card>
+      )}
     </div>
   );
 }
@@ -307,11 +313,7 @@ function SummaryTopicCard({
   );
 }
 
-function SummarySection({
-  section,
-}: {
-  section: ParsedSummarySection;
-}) {
+function SummarySection({ section }: { section: ParsedSummarySection }) {
   return (
     <section className="mt-7 border-t border-line pt-6">
       <h4 className="font-serif text-[17px] font-semibold text-ink">

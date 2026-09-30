@@ -2,21 +2,19 @@ import {
   GROUNDING_SCHEMA_VERSION,
   type GroundedKnowledge,
 } from "@/server/intelligence/grounding";
-import {
-  assessChatQualityContract,
-} from "@/server/services/chat/chat-quality.service";
-import {
-  assessKnowledgeQualityContract,
-} from "@/server/services/knowledge/knowledge-quality.service";
+import { assessChatQualityContract } from "@/server/services/chat/chat-quality.service";
+import { assessKnowledgeQualityContract } from "@/server/services/knowledge/knowledge-quality.service";
 
 function grounding(): GroundedKnowledge {
-  const evidence = [{
-    id: "e-dns",
-    sectionId: "s1",
-    sectionTitle: "Resolution",
-    pageNumber: 1,
-    text: "DNS resolves a domain name to an IP address.",
-  }];
+  const evidence = [
+    {
+      id: "e-dns",
+      sectionId: "s1",
+      sectionTitle: "Resolution",
+      pageNumber: 1,
+      text: "DNS resolves a domain name to an IP address.",
+    },
+  ];
 
   return {
     schemaVersion: GROUNDING_SCHEMA_VERSION,
@@ -24,36 +22,42 @@ function grounding(): GroundedKnowledge {
     sourceHash: "quality-fixture",
     documentKind: "technical_documentation",
     sourceLanguage: "en",
-    facts: [{
-      id: "f-dns",
-      type: "definition",
-      content: "DNS resolves a domain name to an IP address.",
-      verbatimRequired: false,
-      sourceSectionId: "s1",
-      evidence,
-      evidenceType: "stated",
-      verificationStatus: "supported",
-      confidence: 0.99,
-      importanceScore: 0.99,
-      numericTokens: [],
-    }],
+    facts: [
+      {
+        id: "f-dns",
+        type: "definition",
+        content: "DNS resolves a domain name to an IP address.",
+        verbatimRequired: false,
+        sourceSectionId: "s1",
+        evidence,
+        evidenceType: "stated",
+        verificationStatus: "supported",
+        confidence: 0.99,
+        importanceScore: 0.99,
+        numericTokens: [],
+      },
+    ],
     keyTerms: [],
-    concepts: [{
-      name: "DNS",
-      normalizedName: "dns",
-      explanation: "DNS resolves a domain name to an IP address.",
-      sourceSectionIds: ["s1"],
-      evidence,
-      importanceScore: 0.99,
-    }],
-    sections: [{
-      sectionId: "s1",
-      heading: "Resolution",
-      status: "covered",
-      factIds: ["f-dns"],
-      sourceUnitCount: 1,
-      omittedUnitCount: 0,
-    }],
+    concepts: [
+      {
+        name: "DNS",
+        normalizedName: "dns",
+        explanation: "DNS resolves a domain name to an IP address.",
+        sourceSectionIds: ["s1"],
+        evidence,
+        importanceScore: 0.99,
+      },
+    ],
+    sections: [
+      {
+        sectionId: "s1",
+        heading: "Resolution",
+        status: "covered",
+        factIds: ["f-dns"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+    ],
     quality: {
       score: 1,
       scoreOutOf10: 10,
@@ -77,12 +81,14 @@ describe("knowledge and chat quality contracts", () => {
     const report = assessKnowledgeQualityContract({
       grounding: source,
       graph: {
-        nodes: [{
-          id: "concept-dns",
-          type: "concept",
-          label: "DNS",
-          properties: { evidence },
-        }],
+        nodes: [
+          {
+            id: "concept-dns",
+            type: "concept",
+            label: "DNS",
+            properties: { evidence },
+          },
+        ],
         edges: [],
       },
       graphQuality: {
@@ -110,19 +116,21 @@ describe("knowledge and chat quality contracts", () => {
           graphNodeId: null,
           relationToParent: "root",
           relationEvidenceIds: [],
-          children: [{
-            id: "concept-dns",
-            type: "concept",
-            label: "DNS",
-            description: "DNS resolves a domain name to an IP address.",
-            importance: 0.99,
-            sourceSectionIds: ["s1"],
-            evidenceIds: ["e-dns"],
-            graphNodeId: "concept-dns",
-            relationToParent: "topic_group",
-            relationEvidenceIds: [],
-            children: [],
-          }],
+          children: [
+            {
+              id: "concept-dns",
+              type: "concept",
+              label: "DNS",
+              description: "DNS resolves a domain name to an IP address.",
+              importance: 0.99,
+              sourceSectionIds: ["s1"],
+              evidenceIds: ["e-dns"],
+              graphNodeId: "concept-dns",
+              relationToParent: "topic_group",
+              relationEvidenceIds: [],
+              children: [],
+            },
+          ],
         },
         quality: {
           status: "passed",
@@ -144,7 +152,8 @@ describe("knowledge and chat quality contracts", () => {
 
   it("treats an honest document-grounded abstention as a high-quality chat outcome", () => {
     const report = assessChatQualityContract({
-      answer: "I couldn't find verified evidence in this document that answers that question. I won't guess beyond the uploaded material.",
+      answer:
+        "I couldn't find verified evidence in this document that answers that question. I won't guess beyond the uploaded material.",
       decision: {
         answerability: "NOT_ANSWERABLE",
         confidence: 0.98,

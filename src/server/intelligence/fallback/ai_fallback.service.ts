@@ -34,13 +34,19 @@ export async function completeWithAI(
   if (gaps.missingFields.length === 0) {
     return {
       core,
-      result: { used: false, filledFields: [], skippedReason: "no required fields are missing" },
+      result: {
+        used: false,
+        filledFields: [],
+        skippedReason: "no required fields are missing",
+      },
     };
   }
 
   let response: Awaited<ReturnType<AIGenerateFn>>;
   try {
-    response = await generate(buildPrompt(core, gaps.missingFields, sourceText));
+    response = await generate(
+      buildPrompt(core, gaps.missingFields, sourceText),
+    );
   } catch (error) {
     return {
       core,
@@ -59,7 +65,9 @@ export async function completeWithAI(
   for (const [index, payload] of parsed.entries()) {
     const claim = toGroundedClaim(payload, index, sourceText);
     if (!claim) {
-      rejectedClaims.push(`Claim ${index + 1} was rejected because its evidence was absent or malformed.`);
+      rejectedClaims.push(
+        `Claim ${index + 1} was rejected because its evidence was absent or malformed.`,
+      );
       continue;
     }
     accepted.push(claim);
@@ -102,7 +110,9 @@ export async function completeWithAI(
       raw: response.text,
       provider: response.provider,
       tokensUsed: response.tokensUsed,
-      ...(usable.length === 0 ? { skippedReason: "AI returned no evidence-grounded missing claims" } : {}),
+      ...(usable.length === 0
+        ? { skippedReason: "AI returned no evidence-grounded missing claims" }
+        : {}),
     },
   };
 }
@@ -130,11 +140,8 @@ function buildPrompt(
     "JSON shape:",
     '{"claims":[{"type":"problem|objective|method|tool|data_source|sample|metric|result|contribution|limitation|future_work|definition","subject":"...","predicate":"...","object":"...","metric":null,"numericValue":null,"unit":null,"evidenceText":"exact sentence","pageNumber":null,"confidence":0.0}]}',
     "",
-    buildUntrustedTextBlock(
-      "DOCUMENT_SOURCE",
-      sourceText,
-      MAX_SOURCE_CHARS,
-    ).block,
+    buildUntrustedTextBlock("DOCUMENT_SOURCE", sourceText, MAX_SOURCE_CHARS)
+      .block,
   ].join("\n");
 }
 
@@ -144,7 +151,11 @@ function parseClaims(text: string): AIClaimPayload[] {
     const value = JSON.parse(cleaned) as unknown;
     if (!value || typeof value !== "object") return [];
     const claims = (value as { claims?: unknown }).claims;
-    return Array.isArray(claims) ? claims.filter((item): item is AIClaimPayload => Boolean(item && typeof item === "object")) : [];
+    return Array.isArray(claims)
+      ? claims.filter((item): item is AIClaimPayload =>
+          Boolean(item && typeof item === "object"),
+        )
+      : [];
   } catch {
     return [];
   }
@@ -164,11 +175,16 @@ function toGroundedClaim(
   if (sourceIndex < 0) return null;
 
   const numericValue = asNumber(payload.numericValue);
-  if (numericValue !== undefined && !containsNumber(evidenceText, numericValue)) return null;
+  if (numericValue !== undefined && !containsNumber(evidenceText, numericValue))
+    return null;
 
   const metric = asString(payload.metric) ?? undefined;
   if (metric && !evidenceText.toLowerCase().includes(metric.toLowerCase())) {
-    if (!(metric.toLowerCase() === "accuracy" && /accurate|accuracy/i.test(evidenceText))) return null;
+    if (!(
+      metric.toLowerCase() === "accuracy" &&
+      /accurate|accuracy/i.test(evidenceText)
+    ))
+      return null;
   }
 
   const evidence: EvidenceSpan = {
@@ -192,7 +208,10 @@ function toGroundedClaim(
     unit: asString(payload.unit) ?? undefined,
     evidence: [evidence],
     extractionSource: "ai",
-    confidence: Math.max(0.5, Math.min(0.9, asNumber(payload.confidence) ?? 0.7)),
+    confidence: Math.max(
+      0.5,
+      Math.min(0.9, asNumber(payload.confidence) ?? 0.7),
+    ),
     validationStatus: "pending",
     validationMessages: [],
   };
@@ -200,10 +219,22 @@ function toGroundedClaim(
 
 function asClaimType(value: unknown): ClaimType | null {
   const allowed: ClaimType[] = [
-    "problem", "objective", "method", "tool", "data_source", "sample", "metric", "result",
-    "contribution", "limitation", "future_work", "definition",
+    "problem",
+    "objective",
+    "method",
+    "tool",
+    "data_source",
+    "sample",
+    "metric",
+    "result",
+    "contribution",
+    "limitation",
+    "future_work",
+    "definition",
   ];
-  return typeof value === "string" && allowed.includes(value as ClaimType) ? value as ClaimType : null;
+  return typeof value === "string" && allowed.includes(value as ClaimType)
+    ? (value as ClaimType)
+    : null;
 }
 
 function asString(value: unknown): string | null {

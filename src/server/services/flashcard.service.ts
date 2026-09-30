@@ -6,10 +6,7 @@ import {
   FlashcardEntity,
   type FlashcardDifficulty,
 } from "@/server/entities/flashcard.entity";
-import {
-  BadRequestError,
-  NotFoundError,
-} from "@/server/utils/errors";
+import { BadRequestError, NotFoundError } from "@/server/utils/errors";
 import { logger } from "@/server/utils/logger";
 import type { KnowledgeCore } from "@/server/intelligence/types";
 import { generate } from "@/server/services/ai.service";
@@ -23,18 +20,14 @@ import type {
   GenerationMetadata,
   GenerationSource,
 } from "@/server/types/generation";
-import {
-  buildFlashcardsFromGrounding,
-} from "@/server/services/grounded-artifacts.service";
+import { buildFlashcardsFromGrounding } from "@/server/services/grounded-artifacts.service";
 import {
   buildFlashcardSufficiencyPlan,
   retrieveFlashcardRepairEvidence,
 } from "@/server/services/flashcard/flashcard-sufficiency.service";
 import { z } from "zod";
 import { isIntelligenceV2Enabled } from "@/server/config/intelligence-v2.config";
-import type {
-  GroundedKnowledge,
-} from "@/server/intelligence/grounding";
+import type { GroundedKnowledge } from "@/server/intelligence/grounding";
 import {
   assessFlashcardQualityContract,
   flashcardQualityLogContext,
@@ -47,12 +40,8 @@ import {
   invalidateCachedRepair,
   saveCachedRepair,
 } from "@/server/services/repair-cache.service";
-import {
-  recordRepairTelemetry,
-} from "@/server/services/repair-telemetry.service";
-import {
-  isFeatureQualityImprovement,
-} from "@/server/services/quality/feature-quality.contract";
+import { recordRepairTelemetry } from "@/server/services/repair-telemetry.service";
+import { isFeatureQualityImprovement } from "@/server/services/quality/feature-quality.contract";
 
 interface FlashcardPair {
   front: string;
@@ -60,13 +49,19 @@ interface FlashcardPair {
   difficulty: FlashcardDifficulty;
 }
 
-const flashcardResponseSchema = z.object({
-  flashcards: z.array(z.object({
-    front: z.string().min(1),
-    back: z.string().min(1),
-    difficulty: z.enum(["easy", "medium", "hard"]),
-  }).strict()),
-}).strict();
+const flashcardResponseSchema = z
+  .object({
+    flashcards: z.array(
+      z
+        .object({
+          front: z.string().min(1),
+          back: z.string().min(1),
+          difficulty: z.enum(["easy", "medium", "hard"]),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
 
 export interface FlashcardGenerationResult {
   flashcards: ReturnType<FlashcardEntity["toPublic"]>[];
@@ -146,10 +141,7 @@ function deduplicateCards(cards: FlashcardPair[]): FlashcardPair[] {
   const seen = new Set<string>();
 
   return cards.filter((card) => {
-    const key = card.front
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .trim();
+    const key = card.front.toLowerCase().replace(/\s+/g, " ").trim();
 
     if (!key || !card.back.trim() || seen.has(key)) return false;
     seen.add(key);
@@ -164,19 +156,13 @@ function validateGroundedCards(
 ): FlashcardPair[] {
   if (!grounding) return cards;
 
-  const result = validateGroundedFlashcards(
-    cards,
-    grounding,
-  );
+  const result = validateGroundedFlashcards(cards, grounding);
 
   if (result.rejected.length > 0) {
-    logger.warn(
-      "Flashcards rejected by grounded quality validation",
-      {
-        noteId,
-        ...flashcardQualityLogContext(result),
-      },
-    );
+    logger.warn("Flashcards rejected by grounded quality validation", {
+      noteId,
+      ...flashcardQualityLogContext(result),
+    });
   }
 
   return result.accepted;
@@ -251,9 +237,7 @@ ${documentBlock}
     .replace(/^```json\s*/i, "")
     .replace(/```\s*$/, "");
 
-  const cards = flashcardResponseSchema.parse(
-    JSON.parse(cleaned),
-  ).flashcards;
+  const cards = flashcardResponseSchema.parse(JSON.parse(cleaned)).flashcards;
 
   return {
     cards,
@@ -267,19 +251,13 @@ export async function generateFlashcardsWithMetadata(
   count = DEFAULT_FLASHCARDS,
   options: { force?: boolean } = {},
 ): Promise<FlashcardGenerationResult> {
-  const note = await noteRepo.findByIdAndUserId(
-    noteId,
-    userId,
-  );
+  const note = await noteRepo.findByIdAndUserId(noteId, userId);
 
   if (!note) {
     throw new NotFoundError("Note");
   }
 
-  const existing = await flashcardRepo.findByNoteAndUserId(
-    noteId,
-    userId,
-  );
+  const existing = await flashcardRepo.findByNoteAndUserId(noteId, userId);
 
   if (existing.length > 0 && !options.force) {
     return {
@@ -299,13 +277,12 @@ export async function generateFlashcardsWithMetadata(
     .getOrRunPipeline(noteId)
     .catch(() => null);
   const grounding = isIntelligenceV2Enabled()
-    ? intelligence?.grounding ?? null
+    ? (intelligence?.grounding ?? null)
     : null;
 
-  const coreCards =
-    intelligence?.core
-      ? buildCardsFromCore(intelligence.core, count)
-      : [];
+  const coreCards = intelligence?.core
+    ? buildCardsFromCore(intelligence.core, count)
+    : [];
 
   const groundedCards = grounding
     ? buildFlashcardsFromGrounding(grounding, count)
@@ -313,10 +290,7 @@ export async function generateFlashcardsWithMetadata(
 
   const sourceCards = grounding
     ? []
-    : buildFlashcardsFromSource(
-        note.content,
-        count,
-      );
+    : buildFlashcardsFromSource(note.content, count);
 
   let pairs = deduplicateCards([
     ...groundedCards,
@@ -324,11 +298,7 @@ export async function generateFlashcardsWithMetadata(
     ...sourceCards,
   ]).slice(0, count);
 
-  pairs = validateGroundedCards(
-    noteId,
-    pairs,
-    grounding,
-  );
+  pairs = validateGroundedCards(noteId, pairs, grounding);
 
   const initialFlashcardQuality = grounding
     ? assessFlashcardQualityContract(pairs, grounding)
@@ -339,156 +309,105 @@ export async function generateFlashcardsWithMetadata(
   let aiFallbackUsed = false;
   let tokensUsed = 0;
 
-  const repairStrategyVersion =
-    "flashcard-quality-v2";
+  const repairStrategyVersion = "flashcard-quality-v2";
   let repairAttempted = false;
   let repairCacheHit = false;
   let repairAccepted = false;
   let repairEvidenceCharacters = 0;
 
-  const sufficiency =
-    buildFlashcardSufficiencyPlan({
-      targetCount: count,
-      acceptedCount: pairs.length,
-      qualityValidated:
-        Boolean(grounding && initialFlashcardQuality?.passed),
-      qualityRepairNeeded:
-        Boolean(grounding && initialFlashcardQuality && !initialFlashcardQuality.passed),
-    });
+  const sufficiency = buildFlashcardSufficiencyPlan({
+    targetCount: count,
+    acceptedCount: pairs.length,
+    qualityValidated: Boolean(grounding && initialFlashcardQuality?.passed),
+    qualityRepairNeeded: Boolean(
+      grounding && initialFlashcardQuality && !initialFlashcardQuality.passed,
+    ),
+  });
 
-  if (
-    grounding &&
-    !sufficiency.needsAI &&
-    sufficiency.targetShortfall > 0
-  ) {
+  if (grounding && !sufficiency.needsAI && sufficiency.targetShortfall > 0) {
     logger.info(
       "Returning sufficient grounded flashcard deck without AI target fill",
       {
         noteId,
         targetCount: count,
-        minimumAcceptableCount:
-          sufficiency.minimumAcceptableCount,
-        acceptedCount:
-          pairs.length,
-        targetShortfall:
-          sufficiency.targetShortfall,
+        minimumAcceptableCount: sufficiency.minimumAcceptableCount,
+        acceptedCount: pairs.length,
+        targetShortfall: sufficiency.targetShortfall,
       },
     );
   }
 
   if (sufficiency.needsAI) {
-    const repairEvidence =
-      grounding
-        ? retrieveFlashcardRepairEvidence(
-            grounding,
-            pairs,
-            sufficiency.requestedAIAdditions,
-          )
-        : null;
-    const aiSource =
-      grounding
-        ? repairEvidence?.text ?? ""
-        : note.content;
+    const repairEvidence = grounding
+      ? retrieveFlashcardRepairEvidence(
+          grounding,
+          pairs,
+          sufficiency.requestedAIAdditions,
+        )
+      : null;
+    const aiSource = grounding ? (repairEvidence?.text ?? "") : note.content;
 
-    if (
-      grounding &&
-      !aiSource.trim()
-    ) {
+    if (grounding && !aiSource.trim()) {
       logger.warn(
         "Flashcard AI completion was needed but no targeted grounded evidence was available",
         {
           noteId,
           targetCount: count,
-          minimumAcceptableCount:
-            sufficiency.minimumAcceptableCount,
-          acceptedCount:
-            pairs.length,
-          requestedAIAdditions:
-            sufficiency.requestedAIAdditions,
+          minimumAcceptableCount: sufficiency.minimumAcceptableCount,
+          acceptedCount: pairs.length,
+          requestedAIAdditions: sufficiency.requestedAIAdditions,
         },
       );
     } else {
       try {
-        if (
-          grounding &&
-          repairEvidence
-        ) {
-          repairEvidenceCharacters =
-            repairEvidence.characterCount;
+        if (grounding && repairEvidence) {
+          repairEvidenceCharacters = repairEvidence.characterCount;
 
-          logger.info(
-            "Prepared targeted flashcard repair evidence",
-            {
-              noteId,
-              targetCount: count,
-              minimumAcceptableCount:
-                sufficiency.minimumAcceptableCount,
-              acceptedCount:
-                pairs.length,
-              requestedAIAdditions:
-                sufficiency.requestedAIAdditions,
-              evidenceCharacters:
-                repairEvidence.characterCount,
-              evidenceFacts:
-                repairEvidence.factIds.length,
-              evidenceSections:
-                repairEvidence.sectionIds.length,
-              evidenceTruncated:
-                repairEvidence.wasTruncated,
-            },
-          );
+          logger.info("Prepared targeted flashcard repair evidence", {
+            noteId,
+            targetCount: count,
+            minimumAcceptableCount: sufficiency.minimumAcceptableCount,
+            acceptedCount: pairs.length,
+            requestedAIAdditions: sufficiency.requestedAIAdditions,
+            evidenceCharacters: repairEvidence.characterCount,
+            evidenceFacts: repairEvidence.factIds.length,
+            evidenceSections: repairEvidence.sectionIds.length,
+            evidenceTruncated: repairEvidence.wasTruncated,
+          });
         }
 
-        const cacheDescriptor =
-          grounding
-            ? buildRepairCacheDescriptor({
-                noteId,
-                userId,
-                feature:
-                  "flashcards",
-                sourceText:
-                  note.content,
-                variant:
-                  `count=${count}`,
-                gapParts: [
-                  `requested=${sufficiency.requestedAIAdditions}`,
-                  ...pairs.map(
-                    (pair) =>
-                      `existing=${pair.front}`,
-                  ),
-                ],
-                strategyVersion:
-                  repairStrategyVersion,
-              })
-            : null;
+        const cacheDescriptor = grounding
+          ? buildRepairCacheDescriptor({
+              noteId,
+              userId,
+              feature: "flashcards",
+              sourceText: note.content,
+              variant: `count=${count}`,
+              gapParts: [
+                `requested=${sufficiency.requestedAIAdditions}`,
+                ...pairs.map((pair) => `existing=${pair.front}`),
+              ],
+              strategyVersion: repairStrategyVersion,
+            })
+          : null;
         let cacheApplied = false;
 
-        if (
-          cacheDescriptor &&
-          !options.force
-        ) {
-          const cached =
-            await getCachedRepair<unknown>(
-              cacheDescriptor,
-            );
+        if (cacheDescriptor && !options.force) {
+          const cached = await getCachedRepair<unknown>(cacheDescriptor);
 
           if (cached) {
             try {
               const cachedCards =
-                flashcardResponseSchema.parse(
-                  cached,
-                ).flashcards;
-              const combinedPairs =
-                deduplicateCards([
-                  ...pairs,
-                  ...cachedCards,
-                ]);
-              const validatedPairs =
-                validateGroundedCards(
-                  noteId,
-                  combinedPairs,
-                  grounding,
-                );
+                flashcardResponseSchema.parse(cached).flashcards;
+              const combinedPairs = deduplicateCards([
+                ...pairs,
+                ...cachedCards,
+              ]);
+              const validatedPairs = validateGroundedCards(
+                noteId,
+                combinedPairs,
+                grounding,
+              );
               const candidatePairs = grounding
                 ? selectHighestQualityFlashcardSet(
                     validatedPairs,
@@ -497,16 +416,10 @@ export async function generateFlashcardsWithMetadata(
                   )
                 : validatedPairs.slice(0, count);
               const currentQuality = grounding
-                ? assessFlashcardQualityContract(
-                    pairs,
-                    grounding,
-                  )
+                ? assessFlashcardQualityContract(pairs, grounding)
                 : null;
               const candidateQuality = grounding
-                ? assessFlashcardQualityContract(
-                    candidatePairs,
-                    grounding,
-                  )
+                ? assessFlashcardQualityContract(candidatePairs, grounding)
                 : null;
               const qualityImproved =
                 currentQuality && candidateQuality
@@ -517,116 +430,72 @@ export async function generateFlashcardsWithMetadata(
                   : false;
 
               if (
-                (candidatePairs.length >
-                  pairs.length ||
-                  qualityImproved) &&
-                candidatePairs.length >=
-                  sufficiency.minimumAcceptableCount
+                (candidatePairs.length > pairs.length || qualityImproved) &&
+                candidatePairs.length >= sufficiency.minimumAcceptableCount
               ) {
-                pairs =
-                  candidatePairs;
-                source =
-                  symbolicCount > 0
-                    ? "hybrid"
-                    : "ai_fallback";
-                aiFallbackUsed =
-                  true;
-                repairCacheHit =
-                  true;
-                repairAccepted =
-                  true;
-                cacheApplied =
-                  true;
+                pairs = candidatePairs;
+                source = symbolicCount > 0 ? "hybrid" : "ai_fallback";
+                aiFallbackUsed = true;
+                repairCacheHit = true;
+                repairAccepted = true;
+                cacheApplied = true;
 
-                logger.info(
-                  "Applied cached targeted flashcard repair",
-                  {
-                    noteId,
-                    providerCallAvoided:
-                      true,
-                    acceptedCount:
-                      pairs.length,
-                  },
-                );
+                logger.info("Applied cached targeted flashcard repair", {
+                  noteId,
+                  providerCallAvoided: true,
+                  acceptedCount: pairs.length,
+                });
               }
             } catch (error) {
               logger.warn(
                 "Cached flashcard repair failed validation; invalidating cache entry",
                 {
                   noteId,
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : String(error),
+                  error: error instanceof Error ? error.message : String(error),
                 },
               );
             }
 
             if (!cacheApplied) {
-              await invalidateCachedRepair(
-                cacheDescriptor,
-              );
+              await invalidateCachedRepair(cacheDescriptor);
             }
           }
         }
 
         if (!cacheApplied) {
-          repairAttempted =
-            Boolean(grounding);
+          repairAttempted = Boolean(grounding);
 
-          const ai =
-            await generateCardsViaAI(
-              note.title,
-              aiSource,
-              sufficiency.requestedAIAdditions,
-              userId,
-              noteId,
-            );
+          const ai = await generateCardsViaAI(
+            note.title,
+            aiSource,
+            sufficiency.requestedAIAdditions,
+            userId,
+            noteId,
+          );
 
-          const combinedPairs =
-            deduplicateCards([
-              ...pairs,
-              ...ai.cards,
-            ]);
-          const validatedPairs =
-            validateGroundedCards(
-              noteId,
-              combinedPairs,
-              grounding,
-            );
+          const combinedPairs = deduplicateCards([...pairs, ...ai.cards]);
+          const validatedPairs = validateGroundedCards(
+            noteId,
+            combinedPairs,
+            grounding,
+          );
           const candidatePairs = grounding
-            ? selectHighestQualityFlashcardSet(
-                validatedPairs,
-                grounding,
-                count,
-              )
+            ? selectHighestQualityFlashcardSet(validatedPairs, grounding, count)
             : validatedPairs.slice(0, count);
           const currentQuality = grounding
-            ? assessFlashcardQualityContract(
-                pairs,
-                grounding,
-              )
+            ? assessFlashcardQualityContract(pairs, grounding)
             : null;
           const candidateQuality = grounding
-            ? assessFlashcardQualityContract(
-                candidatePairs,
-                grounding,
-              )
+            ? assessFlashcardQualityContract(candidatePairs, grounding)
             : null;
           const qualityImproved =
             currentQuality && candidateQuality
-              ? isFeatureQualityImprovement(
-                  currentQuality,
-                  candidateQuality,
-                )
+              ? isFeatureQualityImprovement(currentQuality, candidateQuality)
               : false;
           const acceptedAIContent =
-            candidatePairs.length >
-              pairs.length ||
-            qualityImproved;
+            candidatePairs.length > pairs.length || qualityImproved;
           const repairReachedMinimum =
-            candidatePairs.length >=
-            sufficiency.minimumAcceptableCount;
+            candidatePairs.length >= sufficiency.minimumAcceptableCount;
 
           if (acceptedAIContent) {
             pairs = candidatePairs;
@@ -634,29 +503,14 @@ export async function generateFlashcardsWithMetadata(
           tokensUsed = ai.tokensUsed;
 
           if (acceptedAIContent) {
-            source =
-              symbolicCount > 0
-                ? "hybrid"
-                : "ai_fallback";
+            source = symbolicCount > 0 ? "hybrid" : "ai_fallback";
             aiFallbackUsed = true;
-            repairAccepted =
-              Boolean(
-                grounding &&
-                repairReachedMinimum,
-              );
+            repairAccepted = Boolean(grounding && repairReachedMinimum);
 
-            if (
-              cacheDescriptor &&
-              grounding &&
-              repairReachedMinimum
-            ) {
-              await saveCachedRepair(
-                cacheDescriptor,
-                {
-                  flashcards:
-                    ai.cards,
-                },
-              );
+            if (cacheDescriptor && grounding && repairReachedMinimum) {
+              await saveCachedRepair(cacheDescriptor, {
+                flashcards: ai.cards,
+              });
             }
           }
         }
@@ -666,26 +520,17 @@ export async function generateFlashcardsWithMetadata(
           {
             noteId,
             requested: count,
-            minimumAcceptableCount:
-              sufficiency.minimumAcceptableCount,
-            requestedAIAdditions:
-              sufficiency.requestedAIAdditions,
+            minimumAcceptableCount: sufficiency.minimumAcceptableCount,
+            requestedAIAdditions: sufficiency.requestedAIAdditions,
             symbolicCount,
-            error:
-              error instanceof Error
-                ? error.message
-                : String(error),
+            error: error instanceof Error ? error.message : String(error),
           },
         );
       }
     }
   }
 
-  pairs = validateGroundedCards(
-    noteId,
-    pairs,
-    grounding,
-  );
+  pairs = validateGroundedCards(noteId, pairs, grounding);
 
   const finalFlashcardQuality = grounding
     ? assessFlashcardQualityContract(pairs, grounding)
@@ -716,10 +561,10 @@ export async function generateFlashcardsWithMetadata(
 
   const confidence = Math.min(
     1,
-    0.30 +
-      (entities.length / count) * 0.30 +
+    0.3 +
+      (entities.length / count) * 0.3 +
       (intelligence?.confidence ?? 0) * 0.15 +
-      (finalFlashcardQuality?.scoreOutOf10 ?? 10) / 10 * 0.25,
+      ((finalFlashcardQuality?.scoreOutOf10 ?? 10) / 10) * 0.25,
   );
 
   const status =
@@ -728,32 +573,21 @@ export async function generateFlashcardsWithMetadata(
       ? "ready"
       : "partial";
 
-  if (
-    grounding &&
-    sufficiency.needsAI
-  ) {
+  if (grounding && sufficiency.needsAI) {
     repairAccepted =
-      repairAccepted &&
-      entities.length >=
-        sufficiency.minimumAcceptableCount;
+      repairAccepted && entities.length >= sufficiency.minimumAcceptableCount;
 
     await recordRepairTelemetry({
       noteId,
       userId,
-      feature:
-        "flashcards",
-      strategyVersion:
-        repairStrategyVersion,
+      feature: "flashcards",
+      strategyVersion: repairStrategyVersion,
       repairNeeded: true,
       repairAttempted,
       repairCacheHit,
       repairAccepted,
-      providerCallAvoided:
-        repairCacheHit &&
-        repairAccepted &&
-        !repairAttempted,
-      evidenceCharacters:
-        repairEvidenceCharacters,
+      providerCallAvoided: repairCacheHit && repairAccepted && !repairAttempted,
+      evidenceCharacters: repairEvidenceCharacters,
       tokensUsed,
       gapCodes: [
         `TARGET_SHORTFALL_${sufficiency.targetShortfall}`,
@@ -767,8 +601,7 @@ export async function generateFlashcardsWithMetadata(
     userId,
     count: entities.length,
     targetCount: count,
-    minimumAcceptableCount:
-      sufficiency.minimumAcceptableCount,
+    minimumAcceptableCount: sufficiency.minimumAcceptableCount,
     source,
     aiFallbackUsed,
     tokensUsed,
@@ -776,7 +609,9 @@ export async function generateFlashcardsWithMetadata(
       ? {
           qualityScoreOutOf10: finalFlashcardQuality.scoreOutOf10,
           qualityPassed: finalFlashcardQuality.passed,
-          failedHardGates: finalFlashcardQuality.hardGates.filter((gate) => !gate.passed).map((gate) => gate.code),
+          failedHardGates: finalFlashcardQuality.hardGates
+            .filter((gate) => !gate.passed)
+            .map((gate) => gate.code),
         }
       : {}),
   });
@@ -801,33 +636,21 @@ export async function generateFlashcards(
   userId: string,
   count = DEFAULT_FLASHCARDS,
 ): Promise<ReturnType<FlashcardEntity["toPublic"]>[]> {
-  return (
-    await generateFlashcardsWithMetadata(
-      noteId,
-      userId,
-      count,
-    )
-  ).flashcards;
+  return (await generateFlashcardsWithMetadata(noteId, userId, count))
+    .flashcards;
 }
 
 export async function getFlashcardsByNote(
   noteId: string,
   userId: string,
 ): Promise<ReturnType<FlashcardEntity["toPublic"]>[]> {
-  const note = await noteRepo.findByIdAndUserId(
-    noteId,
-    userId,
-  );
+  const note = await noteRepo.findByIdAndUserId(noteId, userId);
 
   if (!note) {
     throw new NotFoundError("Note");
   }
 
-  const flashcards =
-    await flashcardRepo.findByNoteAndUserId(
-      noteId,
-      userId,
-    );
+  const flashcards = await flashcardRepo.findByNoteAndUserId(noteId, userId);
 
   return flashcards.map((card) => card.toPublic());
 }
@@ -837,12 +660,11 @@ export async function updateReview(
   userId: string,
   difficulty: FlashcardDifficulty,
 ): Promise<ReturnType<FlashcardEntity["toPublic"]>> {
-  const flashcard =
-    await flashcardRepo.updateReviewForUser(
-      flashcardId,
-      userId,
-      difficulty,
-    );
+  const flashcard = await flashcardRepo.updateReviewForUser(
+    flashcardId,
+    userId,
+    difficulty,
+  );
 
   if (!flashcard) {
     throw new NotFoundError("Flashcard");
@@ -851,9 +673,7 @@ export async function updateReview(
   return flashcard.toPublic();
 }
 
-export async function deleteForNote(
-  noteId: string,
-): Promise<void> {
+export async function deleteForNote(noteId: string): Promise<void> {
   await flashcardRepo.deleteByNoteId(noteId);
   logger.info("Flashcard data deleted", { noteId });
 }

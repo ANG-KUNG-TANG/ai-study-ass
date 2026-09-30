@@ -11,13 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createStickyNote,
   deleteStickyNote,
@@ -52,7 +46,10 @@ function clampPosition(
   };
 }
 
-function defaultPosition(viewport: { width: number; height: number }): ScreenPosition {
+function defaultPosition(viewport: {
+  width: number;
+  height: number;
+}): ScreenPosition {
   return clampPosition(
     {
       x: viewport.width - BALL_SIZE - 20,
@@ -299,25 +296,15 @@ export function FloatingStudyNoteAssistant() {
     }
 
     const width = Math.min(320, viewport.width - VIEWPORT_MARGIN * 2);
-    const roomAbove = Math.max(
-      0,
-      position.y - PANEL_GAP - VIEWPORT_MARGIN,
-    );
+    const roomAbove = Math.max(0, position.y - PANEL_GAP - VIEWPORT_MARGIN);
     const roomBelow = Math.max(
       0,
-      viewport.height -
-        (position.y + BALL_SIZE + PANEL_GAP + VIEWPORT_MARGIN),
+      viewport.height - (position.y + BALL_SIZE + PANEL_GAP + VIEWPORT_MARGIN),
     );
     const shouldOpenAbove = roomAbove >= roomBelow;
-    const maxHeight = Math.min(
-      440,
-      shouldOpenAbove ? roomAbove : roomBelow,
-    );
+    const maxHeight = Math.min(440, shouldOpenAbove ? roomAbove : roomBelow);
     const left = Math.min(
-      Math.max(
-        VIEWPORT_MARGIN,
-        position.x + BALL_SIZE - width,
-      ),
+      Math.max(VIEWPORT_MARGIN, position.x + BALL_SIZE - width),
       viewport.width - width - VIEWPORT_MARGIN,
     );
     const desiredTop = shouldOpenAbove
@@ -363,7 +350,8 @@ export function FloatingStudyNoteAssistant() {
 
   function handlePointerMove(event: React.PointerEvent<HTMLButtonElement>) {
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId || viewport.width <= 0) return;
+    if (!drag || drag.pointerId !== event.pointerId || viewport.width <= 0)
+      return;
 
     const deltaX = event.clientX - drag.startX;
     const deltaY = event.clientY - drag.startY;
@@ -447,7 +435,12 @@ export function FloatingStudyNoteAssistant() {
         sourcePath: pathname,
       });
 
-      setNotes((current) => [saved, ...current.filter((note) => note.id !== saved.id)].slice(0, RECENT_NOTE_LIMIT));
+      setNotes((current) =>
+        [saved, ...current.filter((note) => note.id !== saved.id)].slice(
+          0,
+          RECENT_NOTE_LIMIT,
+        ),
+      );
       setDraft("");
       window.localStorage.removeItem(DRAFT_KEY);
       setMessage("Note saved");
@@ -559,7 +552,10 @@ export function FloatingStudyNoteAssistant() {
               />
 
               {error ? (
-                <p className="mt-2 text-xs leading-4 text-coral" aria-live="polite">
+                <p
+                  className="mt-2 text-xs leading-4 text-coral"
+                  aria-live="polite"
+                >
                   {error}
                 </p>
               ) : null}
@@ -614,14 +610,20 @@ export function FloatingStudyNoteAssistant() {
               </div>
 
               {notesError ? (
-                <p className="px-3 pb-2 text-xs leading-4 text-coral" aria-live="polite">
+                <p
+                  className="px-3 pb-2 text-xs leading-4 text-coral"
+                  aria-live="polite"
+                >
                   {notesError}
                 </p>
               ) : null}
 
               {isLoading ? (
                 <div className="grid place-items-center px-3 py-8 text-ink-soft">
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                  <LoaderCircle
+                    className="size-4 animate-spin"
+                    aria-hidden="true"
+                  />
                   <span className="sr-only">Loading saved notes</span>
                 </div>
               ) : notes.length === 0 ? (
@@ -717,7 +719,9 @@ export function FloatingStudyNoteAssistant() {
         onPointerCancel={finishPointerDrag}
         onKeyDown={handleBallKeyDown}
         style={position ? { left: position.x, top: position.y } : undefined}
-        aria-label={isOpen ? "Close quick study notes" : "Open quick study notes"}
+        aria-label={
+          isOpen ? "Close quick study notes" : "Open quick study notes"
+        }
         aria-expanded={isOpen}
         title="Quick notes — drag to move"
         className={`fixed z-50 grid size-12 touch-none select-none place-items-center rounded-full border border-white/70 bg-ink/90 text-white shadow-[0_10px_28px_rgba(34,31,26,0.24)] backdrop-blur-md transition-[background-color,box-shadow,transform] duration-200 hover:scale-105 hover:bg-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-yellow/40 active:cursor-grabbing ${position ? "cursor-grab" : "bottom-4 right-3 cursor-grab sm:right-5"}`}

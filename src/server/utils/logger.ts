@@ -49,10 +49,7 @@ function isSensitiveLogKey(key: string): boolean {
 
 function redactSensitiveString(value: string): string {
   return value
-    .replace(
-      /Bearer\s+[A-Za-z0-9._~+\/-]+=*/gi,
-      `Bearer ${REDACTED}`,
-    )
+    .replace(/Bearer\s+[A-Za-z0-9._~+\/-]+=*/gi, `Bearer ${REDACTED}`)
     .replace(
       /(\b(?:token|access_token|refresh_token|verification_token|reset_token|api[_-]?key|key)=)[^&#\s]+/gi,
       `$1${REDACTED}`,
@@ -139,9 +136,10 @@ function safeJson(value: unknown): string {
 function formatDev(entry: LogEntry): string {
   const label = entry.level.toUpperCase().padEnd(5);
   const time = `${DIM}${entry.timestamp.split("T")[1]?.slice(0, 12) ?? entry.timestamp}${RESET}`;
-  const context = entry.context && Object.keys(entry.context).length > 0
-    ? ` ${DIM}${safeJson(entry.context)}${RESET}`
-    : "";
+  const context =
+    entry.context && Object.keys(entry.context).length > 0
+      ? ` ${DIM}${safeJson(entry.context)}${RESET}`
+      : "";
   return `${time} ${COLOURS[entry.level]}${label}${RESET} ${entry.message}${context}`;
 }
 
@@ -160,7 +158,8 @@ function write(level: LogLevel, message: string, context?: LogContext): void {
     ...(sanitizedContext ? { context: sanitizedContext } : {}),
   };
 
-  const output = env.NODE_ENV === "production" ? safeJson(entry) : formatDev(entry);
+  const output =
+    env.NODE_ENV === "production" ? safeJson(entry) : formatDev(entry);
 
   if (level === "error") console.error(output);
   else if (level === "warn") console.warn(output);
@@ -168,8 +167,12 @@ function write(level: LogLevel, message: string, context?: LogContext): void {
 }
 
 export const logger = {
-  debug: (message: string, context?: LogContext) => write("debug", message, context),
-  info: (message: string, context?: LogContext) => write("info", message, context),
-  warn: (message: string, context?: LogContext) => write("warn", message, context),
-  error: (message: string, context?: LogContext) => write("error", message, context),
+  debug: (message: string, context?: LogContext) =>
+    write("debug", message, context),
+  info: (message: string, context?: LogContext) =>
+    write("info", message, context),
+  warn: (message: string, context?: LogContext) =>
+    write("warn", message, context),
+  error: (message: string, context?: LogContext) =>
+    write("error", message, context),
 };

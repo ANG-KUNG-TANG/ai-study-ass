@@ -1,16 +1,7 @@
 "use client";
 
-import {
-  Brain,
-  ChevronRight,
-  FileText,
-  Layers3,
-  Tag,
-} from "lucide-react";
-import type {
-  KnowledgeTreeData,
-  KnowledgeTreeNode,
-} from "./types";
+import { Brain, ChevronRight, FileText, Layers3, Tag } from "lucide-react";
+import type { KnowledgeTreeData, KnowledgeTreeNode } from "./types";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface KnowledgeTreeProps {
@@ -18,16 +9,10 @@ interface KnowledgeTreeProps {
   onOpen: (nodeId: string) => void;
 }
 
-export function KnowledgeTree({
-  tree,
-  onOpen,
-}: KnowledgeTreeProps) {
+export function KnowledgeTree({ tree, onOpen }: KnowledgeTreeProps) {
   const { t } = useLanguage();
 
-  if (
-    !tree?.root ||
-    tree.root.children.length === 0
-  ) {
+  if (!tree?.root || tree.root.children.length === 0) {
     return (
       <div className="rounded-[10px] border border-line bg-paper-raised p-5">
         <h2 className="font-serif text-[18px] font-semibold text-ink">
@@ -44,10 +29,7 @@ export function KnowledgeTree({
     <div className="space-y-4">
       <div className="rounded-[10px] border border-violet/25 bg-violet-soft/45 p-4">
         <div className="flex items-start gap-3">
-          <Brain
-            size={18}
-            className="mt-0.5 shrink-0 text-violet"
-          />
+          <Brain size={18} className="mt-0.5 shrink-0 text-violet" />
           <div>
             <p className="text-[13px] font-semibold text-violet">
               {t("knowledge.grounded")}
@@ -60,11 +42,7 @@ export function KnowledgeTree({
       </div>
 
       <div className="rounded-[10px] border border-line bg-paper-raised p-4 sm:p-5">
-        <TreeBranch
-          node={tree.root}
-          depth={0}
-          onOpen={onOpen}
-        />
+        <TreeBranch node={tree.root} depth={0} onOpen={onOpen} />
       </div>
     </div>
   );
@@ -86,9 +64,7 @@ function TreeBranch({
       <div
         className={[
           "flex items-start gap-2.5 rounded-[8px] px-2.5 py-2",
-          depth === 0
-            ? "bg-violet-soft/35"
-            : "hover:bg-line-soft/60",
+          depth === 0 ? "bg-violet-soft/35" : "hover:bg-line-soft/60",
         ].join(" ")}
       >
         <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-line bg-paper">
@@ -132,7 +108,6 @@ function TreeBranch({
             <span className="rounded-full bg-line-soft px-2 py-0.5 text-[9.5px] font-medium uppercase tracking-[0.05em] text-ink-faint">
               {node.type}
             </span>
-
           </div>
         </div>
       </div>
@@ -156,48 +131,19 @@ function TreeBranch({
   );
 }
 
-function NodeIcon({
-  type,
-}: {
-  type: KnowledgeTreeNode["type"];
-}) {
+function NodeIcon({ type }: { type: KnowledgeTreeNode["type"] }) {
   const className = "text-ink-soft";
 
   switch (type) {
     case "root":
-      return (
-        <Brain
-          size={13}
-          className={className}
-        />
-      );
+      return <Brain size={13} className={className} />;
     case "topic":
-      return (
-        <Layers3
-          size={13}
-          className={className}
-        />
-      );
+      return <Layers3 size={13} className={className} />;
     case "term":
-      return (
-        <Tag
-          size={13}
-          className={className}
-        />
-      );
+      return <Tag size={13} className={className} />;
     case "fact":
-      return (
-        <FileText
-          size={13}
-          className={className}
-        />
-      );
+      return <FileText size={13} className={className} />;
     case "concept":
-      return (
-        <Brain
-          size={13}
-          className={className}
-        />
-      );
+      return <Brain size={13} className={className} />;
   }
 }

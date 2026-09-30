@@ -1,59 +1,36 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getGenerationStatus,
   regenerateStudyMaterials,
 } from "@/services/generation.service";
 import type { StudyGenerationState } from "@/types/generation";
 
-const TERMINAL_STAGES = new Set([
-  "complete",
-  "partial",
-  "failed",
-]);
+const TERMINAL_STAGES = new Set(["complete", "partial", "failed"]);
 
-export function useGenerationStatus(
-  noteId: string,
-  pollIntervalMs = 2_000,
-) {
-  const [status, setStatus] =
-    useState<StudyGenerationState | null>(null);
-  const [isLoading, setIsLoading] =
-    useState(true);
-  const [isRegenerating, setIsRegenerating] =
-    useState(false);
-  const [error, setError] =
-    useState<string | null>(null);
+export function useGenerationStatus(noteId: string, pollIntervalMs = 2_000) {
+  const [status, setStatus] = useState<StudyGenerationState | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const result =
-      await getGenerationStatus(noteId);
+    const result = await getGenerationStatus(noteId);
     setStatus(result);
     return result;
   }, [noteId]);
 
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null =
-      null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     const poll = async () => {
       try {
         const result = await load();
 
-        if (
-          !cancelled &&
-          !TERMINAL_STAGES.has(result.stage)
-        ) {
-          timer = setTimeout(
-            poll,
-            pollIntervalMs,
-          );
+        if (!cancelled && !TERMINAL_STAGES.has(result.stage)) {
+          timer = setTimeout(poll, pollIntervalMs);
         }
       } catch (unknownError) {
         if (!cancelled) {
@@ -83,10 +60,7 @@ export function useGenerationStatus(
     setError(null);
 
     try {
-      await regenerateStudyMaterials(
-        noteId,
-        true,
-      );
+      await regenerateStudyMaterials(noteId, true);
       await load();
     } catch (unknownError) {
       setError(

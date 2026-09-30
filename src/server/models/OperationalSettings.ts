@@ -65,8 +65,7 @@ const operationalSettingsSchema = new Schema<OperationalSettingsPersistence>(
 
 export const OperationalSettings: Model<OperationalSettingsPersistence> =
   (mongoose.models.OperationalSettings as
-    | Model<OperationalSettingsPersistence>
-    | undefined) ??
+    Model<OperationalSettingsPersistence> | undefined) ??
   mongoose.model<OperationalSettingsPersistence>(
     "OperationalSettings",
     operationalSettingsSchema,

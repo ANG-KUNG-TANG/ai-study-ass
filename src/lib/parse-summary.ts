@@ -99,7 +99,7 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
   const marker = markdown.match(STRUCTURED_MARKER_RE);
   const markerMode = marker?.[2];
   const mode: SummaryMode = SUMMARY_MODES.includes(markerMode as SummaryMode)
-    ? markerMode as SummaryMode
+    ? (markerMode as SummaryMode)
     : "comprehensive";
   const lines = markdown
     .replace(/<!--[\s\S]*?-->/g, "")
@@ -156,21 +156,13 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
       preamble.push(content);
     } else if (currentSubsection) {
       if (bulletMatch) {
-        addListItem(
-          currentSubsection.items,
-          content,
-          bulletMatch[1].length,
-        );
+        addListItem(currentSubsection.items, content, bulletMatch[1].length);
       } else {
         currentSubsection.paragraphs.push(content);
       }
     } else {
       if (bulletMatch) {
-        addListItem(
-          currentSection.items,
-          content,
-          bulletMatch[1].length,
-        );
+        addListItem(currentSection.items, content, bulletMatch[1].length);
       } else {
         currentSection.paragraphs.push(content);
       }
@@ -204,9 +196,7 @@ function parseStructuredSummary(markdown: string): ParsedSummary {
     version: marker?.[1]?.toLocaleLowerCase().startsWith("v3") ? "v3" : "v2",
     mode,
     title,
-    prose: [...preamble, ...overviewPoints]
-      .join("\n\n")
-      .trim(),
+    prose: [...preamble, ...overviewPoints].join("\n\n").trim(),
     overviewPoints,
     keyPoints: unique(flattenListItems(keyPoints?.items ?? [])),
     importantConcepts: unique(
@@ -225,9 +215,11 @@ function extractTopicExplanation(paragraphs: string[]): string {
     return explicit.replace(/^simple explanation\s*:\s*/iu, "").trim();
   }
 
-  return paragraphs.find((paragraph) =>
-    !/^important key points\s*:?$/iu.test(paragraph),
-  ) ?? "";
+  return (
+    paragraphs.find(
+      (paragraph) => !/^important key points\s*:?$/iu.test(paragraph),
+    ) ?? ""
+  );
 }
 
 function addListItem(
@@ -251,9 +243,7 @@ function findSection(
   sections: ParsedSummarySection[],
   heading: string,
 ): ParsedSummarySection | undefined {
-  return sections.find(
-    (section) => section.heading.toLowerCase() === heading,
-  );
+  return sections.find((section) => section.heading.toLowerCase() === heading);
 }
 
 function extractConceptLabel(value: string): string {
@@ -289,7 +279,10 @@ function unique(values: string[]): string[] {
   const seen = new Set<string>();
 
   return values.filter((value) => {
-    const key = value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const key = value
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
 
     if (!key || seen.has(key)) return false;
 
@@ -297,7 +290,4 @@ function unique(values: string[]): string[] {
     return true;
   });
 }
-import {
-  SUMMARY_MODES,
-  type SummaryMode,
-} from "@/types/summary";
+import { SUMMARY_MODES, type SummaryMode } from "@/types/summary";

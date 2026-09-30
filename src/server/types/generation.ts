@@ -16,19 +16,10 @@ export const GENERATION_FEATURES = [
 export type GenerationFeature = (typeof GENERATION_FEATURES)[number];
 
 export type FeatureGenerationStatus =
-  | "pending"
-  | "generating"
-  | "ready"
-  | "partial"
-  | "failed";
+  "pending" | "generating" | "ready" | "partial" | "failed";
 
 export type StudyGenerationStage =
-  | "pending"
-  | "analyzing"
-  | "generating"
-  | "complete"
-  | "partial"
-  | "failed";
+  "pending" | "analyzing" | "generating" | "complete" | "partial" | "failed";
 
 export interface GenerationMetadata {
   source: GenerationSource;

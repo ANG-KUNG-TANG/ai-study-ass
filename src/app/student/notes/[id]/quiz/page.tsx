@@ -13,13 +13,7 @@ export default function QuizPage() {
   const { note } = useNoteContext();
   const noteId = note?.id ?? "";
 
-  const {
-    quiz,
-    isLoading,
-    isGenerating,
-    error,
-    generate,
-  } = useQuiz(noteId);
+  const { quiz, isLoading, isGenerating, error, generate } = useQuiz(noteId);
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -36,9 +30,7 @@ export default function QuizPage() {
 
   if (!note) return null;
 
-  async function handleGenerate(
-    force = false,
-  ) {
+  async function handleGenerate(force = false) {
     setAnswers({});
     setSubmitted(false);
 
@@ -73,9 +65,7 @@ export default function QuizPage() {
           {isGenerating ? t("quiz.generating") : t("quiz.generate")}
         </Button>
 
-        {error && (
-          <p className="mt-3 text-[12px] text-coral">{error}</p>
-        )}
+        {error && <p className="mt-3 text-[12px] text-coral">{error}</p>}
       </Card>
     );
   }
@@ -98,10 +88,7 @@ export default function QuizPage() {
           disabled={isGenerating}
           className="flex items-center gap-1.5 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50"
         >
-          <RefreshCw
-            size={14}
-            className={isGenerating ? "animate-spin" : ""}
-          />
+          <RefreshCw size={14} className={isGenerating ? "animate-spin" : ""} />
           {isGenerating ? t("quiz.regenerating") : t("quiz.regenerate")}
         </button>
       </div>
@@ -114,7 +101,10 @@ export default function QuizPage() {
             question.answer.trim().toLowerCase();
 
         return (
-          <Card key={question.id} className="rounded-none border-x-0 bg-transparent px-0 sm:px-2">
+          <Card
+            key={question.id}
+            className="rounded-none border-x-0 bg-transparent px-0 sm:px-2"
+          >
             <div className="mb-3 flex items-start gap-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-line-soft text-[12px] font-semibold">
                 {index + 1}
@@ -191,9 +181,7 @@ export default function QuizPage() {
                 </div>
 
                 {question.explanation && (
-                  <p className="mt-1 leading-relaxed">
-                    {question.explanation}
-                  </p>
+                  <p className="mt-1 leading-relaxed">{question.explanation}</p>
                 )}
               </div>
             )}

@@ -26,11 +26,7 @@ export interface DocumentClassification {
   evidence: string[];
 }
 
-export type TitleSource =
-  | "metadata"
-  | "heading"
-  | "generated"
-  | "filename";
+export type TitleSource = "metadata" | "heading" | "generated" | "filename";
 
 export interface RejectedTitleCandidate {
   value: string;
@@ -85,11 +81,7 @@ export type FinancialUnit =
   | "unknown";
 
 export type FinancialFrequency =
-  | "once"
-  | "daily"
-  | "monthly"
-  | "yearly"
-  | "unknown";
+  "once" | "daily" | "monthly" | "yearly" | "unknown";
 
 export interface FinancialInput {
   label: string;

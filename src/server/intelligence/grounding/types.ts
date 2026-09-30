@@ -1,7 +1,4 @@
-import type {
-  DocumentKind,
-  EvidenceSpan,
-} from "../types";
+import type { DocumentKind, EvidenceSpan } from "../types";
 
 export const GROUNDING_SCHEMA_VERSION = "2.0" as const;
 export const GROUNDING_PIPELINE_VERSION = "intelligence-v2.7" as const;
@@ -23,9 +20,7 @@ export type AtomicFactType =
   | "common_mistake";
 
 export type FactVerificationStatus =
-  | "supported"
-  | "partially_supported"
-  | "unsupported";
+  "supported" | "partially_supported" | "unsupported";
 
 export interface AtomicFact {
   id: string;
@@ -63,10 +58,7 @@ export interface ImportantConcept {
 }
 
 export type SectionCoverageStatus =
-  | "covered"
-  | "no_extractable_knowledge"
-  | "excluded"
-  | "failed";
+  "covered" | "no_extractable_knowledge" | "excluded" | "failed";
 
 export interface SectionCoverage {
   sectionId: string;

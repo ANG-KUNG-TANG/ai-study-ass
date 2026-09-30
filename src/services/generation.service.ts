@@ -21,11 +21,8 @@ export function regenerateStudyMaterials(
     noteId: string;
     stage: "pending";
     message: string;
-  }>(
-    `/notes/${encodeURIComponent(noteId)}/generate`,
-    {
-      method: "POST",
-      body: JSON.stringify({ force }),
-    },
-  );
+  }>(`/notes/${encodeURIComponent(noteId)}/generate`, {
+    method: "POST",
+    body: JSON.stringify({ force }),
+  });
 }

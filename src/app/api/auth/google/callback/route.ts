@@ -25,9 +25,7 @@ type OAuthErrorCode =
   | "not_configured"
   | "rate_limited";
 
-function redirectToLogin(
-  code: OAuthErrorCode,
-): NextResponse {
+function redirectToLogin(code: OAuthErrorCode): NextResponse {
   const url = publicAppUrl("/auth/login");
   url.searchParams.set("oauth_error", code);
 
@@ -48,7 +46,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     await authLimiter(request, "google-oauth-callback");
 
-    const returnedState = request.nextUrl.searchParams.get("state") ?? undefined;
+    const returnedState =
+      request.nextUrl.searchParams.get("state") ?? undefined;
     const providerError = request.nextUrl.searchParams.get("error");
     const code = request.nextUrl.searchParams.get("code");
     const stored = readGoogleOAuthCookies(request);

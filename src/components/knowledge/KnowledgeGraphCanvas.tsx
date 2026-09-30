@@ -17,7 +17,11 @@ import { KnowledgeNode } from "./KnowledgeNode";
 import { layoutKnowledgeGraph } from "./knowledge-graph.layout";
 import { mapKnowledgeGraph } from "./knowledge-graph.mapper";
 import { nodeColor } from "./knowledge-graph.utils";
-import type { GraphDirection, KnowledgeGraphEdge, KnowledgeGraphNode } from "./types";
+import type {
+  GraphDirection,
+  KnowledgeGraphEdge,
+  KnowledgeGraphNode,
+} from "./types";
 import { useLanguage } from "@/context/LanguageContext";
 
 const nodeTypes: NodeTypes = { knowledge: KnowledgeNode };
@@ -79,30 +83,50 @@ function KnowledgeGraphCanvasInner({
         onPaneClick={() => onSelectNode(null)}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#E9E2D2" />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={22}
+          size={1}
+          color="#E9E2D2"
+        />
         <Controls position="bottom-left" showInteractive={false} />
         <MiniMap
           position="bottom-right"
           pannable
           zoomable
-          nodeColor={(node) => nodeColor(String(node.data?.nodeType ?? "concept"))}
+          nodeColor={(node) =>
+            nodeColor(String(node.data?.nodeType ?? "concept"))
+          }
           nodeStrokeWidth={2}
           maskColor="rgba(250, 246, 236, 0.72)"
           className="!border !border-line !bg-paper-raised"
         />
         <Panel position="top-right">
           <div className="flex items-center gap-2 rounded-[8px] border border-line bg-paper-raised/95 p-1.5 backdrop-blur">
-            <button type="button" onClick={fitGraph}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-ink-soft hover:bg-line-soft">
+            <button
+              type="button"
+              onClick={fitGraph}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-ink-soft hover:bg-line-soft"
+            >
               <Maximize2 size={14} /> {t("knowledge.fitGraph")}
             </button>
-            <button type="button" onClick={toggleDirection}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-ink-soft hover:bg-line-soft">
-              {direction === "LR" ? <Columns3 size={14} /> : <Rows3 size={14} />}
+            <button
+              type="button"
+              onClick={toggleDirection}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-ink-soft hover:bg-line-soft"
+            >
+              {direction === "LR" ? (
+                <Columns3 size={14} />
+              ) : (
+                <Rows3 size={14} />
+              )}
               {direction}
             </button>
-            <button type="button" onClick={resetLayout}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-ink-soft hover:bg-line-soft">
+            <button
+              type="button"
+              onClick={resetLayout}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-medium text-ink-soft hover:bg-line-soft"
+            >
               <RotateCcw size={14} /> {t("knowledge.resetGraph")}
             </button>
           </div>

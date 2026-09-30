@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   askQuestion,
@@ -12,9 +8,7 @@ import {
   getChatHistory,
 } from "@/services/chat.service";
 
-import type {
-  ChatMessage,
-} from "@/types/chat";
+import type { ChatMessage } from "@/types/chat";
 
 interface UseChatResult {
   messages: ChatMessage[];
@@ -22,94 +16,50 @@ interface UseChatResult {
   isSending: boolean;
   isClearing: boolean;
   error: string | null;
-  send: (
-    question: string,
-  ) => Promise<ChatMessage | null>;
+  send: (question: string) => Promise<ChatMessage | null>;
   clear: () => Promise<boolean>;
   refetch: () => Promise<void>;
 }
 
-export function useChat(
-  noteId: string,
-): UseChatResult {
-  const [
-    messages,
-    setMessages,
-  ] =
-    useState<ChatMessage[]>([]);
+export function useChat(noteId: string): UseChatResult {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  const [
-    isLoading,
-    setIsLoading,
-  ] =
-    useState(
-      Boolean(noteId),
-    );
+  const [isLoading, setIsLoading] = useState(Boolean(noteId));
 
-  const [
-    isSending,
-    setIsSending,
-  ] =
-    useState(false);
+  const [isSending, setIsSending] = useState(false);
 
-  const [
-    isClearing,
-    setIsClearing,
-  ] =
-    useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
-  const [
-    error,
-    setError,
-  ] =
-    useState<string | null>(
-      null,
-    );
+  const [error, setError] = useState<string | null>(null);
 
-  const load =
-    useCallback(
-      async (): Promise<void> => {
-        if (!noteId) {
-          setMessages([]);
-          setError(null);
-          setIsLoading(false);
-          return;
-        }
+  const load = useCallback(async (): Promise<void> => {
+    if (!noteId) {
+      setMessages([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
 
-        setIsLoading(true);
-        setError(null);
+    setIsLoading(true);
+    setError(null);
 
-        try {
-          const history =
-            await getChatHistory(
-              noteId,
-            );
+    try {
+      const history = await getChatHistory(noteId);
 
-          setMessages(
-            Array.isArray(
-              history,
-            )
-              ? history
-              : [],
-          );
-        } catch (cause) {
-          setMessages([]);
+      setMessages(Array.isArray(history) ? history : []);
+    } catch (cause) {
+      setMessages([]);
 
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Failed to load chat history",
-          );
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      [noteId],
-    );
+      setError(
+        cause instanceof Error ? cause.message : "Failed to load chat history",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [noteId]);
 
   useEffect(() => {
-    let cancelled =
-      false;
+    let cancelled = false;
 
     async function loadSafely() {
       if (!noteId) {
@@ -123,26 +73,13 @@ export function useChat(
       setError(null);
 
       try {
-        const history =
-          await getChatHistory(
-            noteId,
-          );
+        const history = await getChatHistory(noteId);
 
-        if (
-          !cancelled
-        ) {
-          setMessages(
-            Array.isArray(
-              history,
-            )
-              ? history
-              : [],
-          );
+        if (!cancelled) {
+          setMessages(Array.isArray(history) ? history : []);
         }
       } catch (cause) {
-        if (
-          !cancelled
-        ) {
+        if (!cancelled) {
           setMessages([]);
 
           setError(
@@ -152,9 +89,7 @@ export function useChat(
           );
         }
       } finally {
-        if (
-          !cancelled
-        ) {
+        if (!cancelled) {
           setIsLoading(false);
         }
       }
@@ -163,103 +98,64 @@ export function useChat(
     void loadSafely();
 
     return () => {
-      cancelled =
-        true;
+      cancelled = true;
     };
   }, [noteId]);
 
-  const send =
-    useCallback(
-      async (
-        question: string,
-      ): Promise<ChatMessage | null> => {
-        const trimmed =
-          question.trim();
+  const send = useCallback(
+    async (question: string): Promise<ChatMessage | null> => {
+      const trimmed = question.trim();
 
-        if (
-          !noteId ||
-          !trimmed ||
-          isSending
-        ) {
-          return null;
-        }
+      if (!noteId || !trimmed || isSending) {
+        return null;
+      }
 
-        setIsSending(true);
-        setError(null);
+      setIsSending(true);
+      setError(null);
 
-        try {
-          const message =
-            await askQuestion(
-              noteId,
-              trimmed,
-            );
+      try {
+        const message = await askQuestion(noteId, trimmed);
 
-          setMessages(
-            (
-              current,
-            ) => [
-              ...current,
-              message,
-            ],
-          );
+        setMessages((current) => [...current, message]);
 
-          return message;
-        } catch (cause) {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Failed to send message",
-          );
+        return message;
+      } catch (cause) {
+        setError(
+          cause instanceof Error ? cause.message : "Failed to send message",
+        );
 
-          return null;
-        } finally {
-          setIsSending(false);
-        }
-      },
-      [
-        isSending,
-        noteId,
-      ],
-    );
+        return null;
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [isSending, noteId],
+  );
 
-  const clear =
-    useCallback(
-      async (): Promise<boolean> => {
-        if (
-          !noteId ||
-          isClearing
-        ) {
-          return false;
-        }
+  const clear = useCallback(async (): Promise<boolean> => {
+    if (!noteId || isClearing) {
+      return false;
+    }
 
-        setIsClearing(true);
-        setError(null);
+    setIsClearing(true);
+    setError(null);
 
-        try {
-          await clearChatHistory(
-            noteId,
-          );
+    try {
+      await clearChatHistory(noteId);
 
-          setMessages([]);
+      setMessages([]);
 
-          return true;
-        } catch (cause) {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Failed to clear chat history",
-          );
+      return true;
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Failed to clear chat history",
+      );
 
-          return false;
-        } finally {
-          setIsClearing(false);
-        }
-      },
-      [
-        isClearing,
-        noteId,
-      ],
-    );
+      return false;
+    } finally {
+      setIsClearing(false);
+    }
+  }, [isClearing, noteId]);
 
   return {
     messages,
@@ -269,7 +165,6 @@ export function useChat(
     error,
     send,
     clear,
-    refetch:
-      load,
+    refetch: load,
   };
 }

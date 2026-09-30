@@ -1,4 +1,8 @@
-import type { GraphDirection, KnowledgeFlowEdge, KnowledgeFlowNode } from "./types";
+import type {
+  GraphDirection,
+  KnowledgeFlowEdge,
+  KnowledgeFlowNode,
+} from "./types";
 
 const NODE_WIDTH = 228;
 const NODE_HEIGHT = 96;
@@ -21,14 +25,22 @@ export function layoutKnowledgeGraph(
 
   for (const edge of edges) {
     if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) continue;
-    outgoing.set(edge.source, [...(outgoing.get(edge.source) ?? []), edge.target]);
+    outgoing.set(edge.source, [
+      ...(outgoing.get(edge.source) ?? []),
+      edge.target,
+    ]);
     incomingCount.set(edge.target, (incomingCount.get(edge.target) ?? 0) + 1);
   }
 
-  const paperRoots = nodes.filter((node) => node.data.nodeType === "paper").map((node) => node.id);
-  const roots = paperRoots.length > 0
-    ? paperRoots
-    : nodes.filter((node) => (incomingCount.get(node.id) ?? 0) === 0).map((node) => node.id);
+  const paperRoots = nodes
+    .filter((node) => node.data.nodeType === "paper")
+    .map((node) => node.id);
+  const roots =
+    paperRoots.length > 0
+      ? paperRoots
+      : nodes
+          .filter((node) => (incomingCount.get(node.id) ?? 0) === 0)
+          .map((node) => node.id);
 
   if (roots.length === 0 && nodes[0]) roots.push(nodes[0].id);
 
@@ -62,13 +74,17 @@ export function layoutKnowledgeGraph(
   }
 
   const positioned = new Map<string, { x: number; y: number }>();
-  for (const [level, group] of [...groups.entries()].sort(([a], [b]) => a - b)) {
-    const breadth = group.length * NODE_HEIGHT + Math.max(0, group.length - 1) * VERTICAL_GAP;
+  for (const [level, group] of [...groups.entries()].sort(
+    ([a], [b]) => a - b,
+  )) {
+    const breadth =
+      group.length * NODE_HEIGHT + Math.max(0, group.length - 1) * VERTICAL_GAP;
 
     group
       .sort((a, b) => a.data.label.localeCompare(b.data.label))
       .forEach((node, index) => {
-        const breadthOffset = index * (NODE_HEIGHT + VERTICAL_GAP) - breadth / 2;
+        const breadthOffset =
+          index * (NODE_HEIGHT + VERTICAL_GAP) - breadth / 2;
         const depthOffset = level * (NODE_WIDTH + HORIZONTAL_GAP);
 
         positioned.set(

@@ -4,13 +4,56 @@ import type { QuizQuestionInput } from "@/server/entities/quiz.entity";
 import type { FlashcardDifficulty } from "@/server/entities/flashcard.entity";
 
 const STOP_WORDS = new Set([
-  "about", "after", "again", "also", "among", "because", "before", "being",
-  "between", "both", "could", "does", "during", "each", "from", "have",
-  "having", "into", "itself", "more", "most", "other", "over", "same",
-  "should", "some", "such", "than", "that", "their", "them", "then",
-  "there", "these", "they", "this", "those", "through", "under", "using",
-  "very", "were", "what", "when", "where", "which", "while", "with",
-  "would", "your",
+  "about",
+  "after",
+  "again",
+  "also",
+  "among",
+  "because",
+  "before",
+  "being",
+  "between",
+  "both",
+  "could",
+  "does",
+  "during",
+  "each",
+  "from",
+  "have",
+  "having",
+  "into",
+  "itself",
+  "more",
+  "most",
+  "other",
+  "over",
+  "same",
+  "should",
+  "some",
+  "such",
+  "than",
+  "that",
+  "their",
+  "them",
+  "then",
+  "there",
+  "these",
+  "they",
+  "this",
+  "those",
+  "through",
+  "under",
+  "using",
+  "very",
+  "were",
+  "what",
+  "when",
+  "where",
+  "which",
+  "while",
+  "with",
+  "would",
+  "your",
 ]);
 
 export interface SymbolicSummary {
@@ -60,7 +103,9 @@ export function extractMeaningfulSentences(
     )
     .filter((sentence, index, all) => {
       const key = sentence.toLowerCase();
-      return all.findIndex((candidate) => candidate.toLowerCase() === key) === index;
+      return (
+        all.findIndex((candidate) => candidate.toLowerCase() === key) === index
+      );
     })
     .slice(0, limit);
 }
@@ -101,9 +146,7 @@ export function extractDefinitions(
     const definition = match[2].trim();
 
     if (
-      definitions.some(
-        (item) => item.term.toLowerCase() === term.toLowerCase(),
-      )
+      definitions.some((item) => item.term.toLowerCase() === term.toLowerCase())
     ) {
       continue;
     }
@@ -167,7 +210,10 @@ export function buildSymbolicSummary(
     .filter(Boolean)
     .filter((item, index, all) => {
       const lower = item.toLowerCase();
-      return all.findIndex((candidate) => candidate.toLowerCase() === lower) === index;
+      return (
+        all.findIndex((candidate) => candidate.toLowerCase() === lower) ===
+        index
+      );
     })
     .slice(0, 12);
 
@@ -196,10 +242,7 @@ export function buildSymbolicSummary(
     overview,
     details.length ? ["## Important Details", ...details].join("\n") : "",
     keyPoints.length
-      ? [
-          "## Key Points",
-          ...keyPoints.map((point) => `- ${point}`),
-        ].join("\n")
+      ? ["## Key Points", ...keyPoints.map((point) => `- ${point}`)].join("\n")
       : "",
     importantConcepts.length
       ? [
@@ -229,9 +272,7 @@ export function buildSymbolicSummary(
     Math.min(2, headings.length);
 
   const confidence = clamp(
-    0.25 +
-      evidenceCount * 0.055 +
-      Math.min(sourceText.length / 20_000, 0.2),
+    0.25 + evidenceCount * 0.055 + Math.min(sourceText.length / 20_000, 0.2),
   );
 
   return {
@@ -240,9 +281,7 @@ export function buildSymbolicSummary(
     importantConcepts,
     confidence,
     status:
-      summary.length >= 350 && keyPoints.length >= 3
-        ? "ready"
-        : "partial",
+      summary.length >= 350 && keyPoints.length >= 3 ? "ready" : "partial",
   };
 }
 
@@ -263,7 +302,8 @@ export function buildQuestionsFromSource(
         questionType: "short_answer",
         options: [],
         answer: definition.slice(0, 300),
-        explanation: "This definition was extracted from the uploaded document.",
+        explanation:
+          "This definition was extracted from the uploaded document.",
       });
 
       if (questions.length >= count) return questions;
@@ -278,7 +318,8 @@ export function buildQuestionsFromSource(
         questionType: "short_answer",
         options: [],
         answer: answer.slice(0, 300),
-        explanation: "The answer is based on text extracted from that document section.",
+        explanation:
+          "The answer is based on text extracted from that document section.",
       });
 
       if (questions.length >= count) return questions;

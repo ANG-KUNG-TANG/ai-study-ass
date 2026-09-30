@@ -8,9 +8,30 @@ const DEFAULT_MAX_CHARACTERS = 7_000;
 const DEFAULT_MAX_FACTS = 16;
 
 const STOP_WORDS = new Set([
-  "about", "after", "also", "and", "are", "can", "does", "for", "from",
-  "have", "how", "into", "its", "that", "the", "their", "this", "what",
-  "when", "where", "which", "with", "would", "your",
+  "about",
+  "after",
+  "also",
+  "and",
+  "are",
+  "can",
+  "does",
+  "for",
+  "from",
+  "have",
+  "how",
+  "into",
+  "its",
+  "that",
+  "the",
+  "their",
+  "this",
+  "what",
+  "when",
+  "where",
+  "which",
+  "with",
+  "would",
+  "your",
 ]);
 
 export interface GroundedEvidenceRequest {
@@ -80,9 +101,10 @@ export function retrieveGroundedEvidence(
         heading: sectionHeadings.get(fact.sourceSectionId) ?? "",
       }),
     }))
-    .sort((left, right) =>
-      right.score - left.score ||
-      right.fact.importanceScore - left.fact.importanceScore,
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.fact.importanceScore - left.fact.importanceScore,
     );
 
   const selectedFacts: AtomicFact[] = [];
@@ -132,7 +154,9 @@ export function retrieveGroundedEvidence(
 
   const joined = blocks.filter(Boolean).join("\n\n").trim();
   const text = truncateAtBoundary(joined, maxCharacters);
-  const selectedSectionIds = [...new Set(selectedFacts.map((fact) => fact.sourceSectionId))];
+  const selectedSectionIds = [
+    ...new Set(selectedFacts.map((fact) => fact.sourceSectionId)),
+  ];
 
   return {
     text,
@@ -168,7 +192,9 @@ function scoreFact(input: {
 
   if (queryTokens.size > 0) {
     const factTokens = new Set(tokenise(`${heading} ${fact.content}`));
-    const overlap = [...queryTokens].filter((token) => factTokens.has(token)).length;
+    const overlap = [...queryTokens].filter((token) =>
+      factTokens.has(token),
+    ).length;
     score += overlap * 8;
   }
 
@@ -190,8 +216,9 @@ function renderConcept(concept: ImportantConcept): string {
 }
 
 function tokenise(value: string): string[] {
-  return (value.toLocaleLowerCase().match(/[\p{L}\p{N}-]{2,}/gu) ?? [])
-    .filter((token) => !STOP_WORDS.has(token));
+  return (value.toLocaleLowerCase().match(/[\p{L}\p{N}-]{2,}/gu) ?? []).filter(
+    (token) => !STOP_WORDS.has(token),
+  );
 }
 
 function normalise(value: string): string {
@@ -210,7 +237,10 @@ function cleanHeading(value: string): string {
 function truncateAtBoundary(value: string, maxCharacters: number): string {
   if (value.length <= maxCharacters) return value;
   const candidate = value.slice(0, maxCharacters);
-  const boundary = Math.max(candidate.lastIndexOf("\n\n"), candidate.lastIndexOf(". "));
+  const boundary = Math.max(
+    candidate.lastIndexOf("\n\n"),
+    candidate.lastIndexOf(". "),
+  );
   return candidate
     .slice(0, boundary >= maxCharacters * 0.65 ? boundary : candidate.length)
     .trim();

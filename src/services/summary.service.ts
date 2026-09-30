@@ -1,8 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import type {
-  SummaryMode,
-  SummaryResult,
-} from "@/types/summary";
+import type { SummaryMode, SummaryResult } from "@/types/summary";
 
 export function generateSummary(
   noteId: string,

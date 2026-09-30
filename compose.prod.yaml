@@ -32,7 +32,13 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -69,7 +75,8 @@ services:
     container_name: ai-study-pdf-worker
     restart: unless-stopped
     init: true
-    command: ["./node_modules/.bin/tsx", "src/server/workers/pdf-ingestion.worker.ts"]
+    command:
+      ["./node_modules/.bin/tsx", "src/server/workers/pdf-ingestion.worker.ts"]
     security_opt:
       - no-new-privileges:true
     cap_drop:

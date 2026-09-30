@@ -28,7 +28,9 @@ export interface FlashcardProps {
 
 function validateFront(front: string): void {
   if (!front.trim()) {
-    throw new ValidationError("Validation failed", { front: "Front is required" });
+    throw new ValidationError("Validation failed", {
+      front: "Front is required",
+    });
   }
   if (front.length > FLASHCARD_RULES.front.maxLength) {
     throw new ValidationError("Validation failed", {
@@ -39,7 +41,9 @@ function validateFront(front: string): void {
 
 function validateBack(back: string): void {
   if (!back.trim()) {
-    throw new ValidationError("Validation failed", { back: "Back is required" });
+    throw new ValidationError("Validation failed", {
+      back: "Back is required",
+    });
   }
   if (back.length > FLASHCARD_RULES.back.maxLength) {
     throw new ValidationError("Validation failed", {
@@ -75,16 +79,36 @@ export class FlashcardEntity {
     this.#updatedAt = props.updatedAt;
   }
 
-  get id(): FlashcardId { return this.#id; }
-  get noteId(): string { return this.#noteId; }
-  get userId(): string { return this.#userId; }
-  get front(): string { return this.#front; }
-  get back(): string { return this.#back; }
-  get difficulty(): FlashcardDifficulty { return this.#difficulty; }
-  get reviewCount(): number { return this.#reviewCount; }
-  get lastReviewedAt(): Date | null { return this.#lastReviewedAt; }
-  get createdAt(): Date { return this.#createdAt; }
-  get updatedAt(): Date { return this.#updatedAt; }
+  get id(): FlashcardId {
+    return this.#id;
+  }
+  get noteId(): string {
+    return this.#noteId;
+  }
+  get userId(): string {
+    return this.#userId;
+  }
+  get front(): string {
+    return this.#front;
+  }
+  get back(): string {
+    return this.#back;
+  }
+  get difficulty(): FlashcardDifficulty {
+    return this.#difficulty;
+  }
+  get reviewCount(): number {
+    return this.#reviewCount;
+  }
+  get lastReviewedAt(): Date | null {
+    return this.#lastReviewedAt;
+  }
+  get createdAt(): Date {
+    return this.#createdAt;
+  }
+  get updatedAt(): Date {
+    return this.#updatedAt;
+  }
 
   static create(input: {
     id: FlashcardId;

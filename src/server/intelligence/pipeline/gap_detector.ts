@@ -27,16 +27,19 @@ export function detectGaps(
     .filter((expected) => !expected.applicable)
     .map((expected) => expected.field);
 
-  const expectedSections = core.documentProfile.kind === "research_paper"
-    ? RESEARCH_SECTIONS
-    : [];
+  const expectedSections =
+    core.documentProfile.kind === "research_paper" ? RESEARCH_SECTIONS : [];
 
   const missingSections = expectedSections.filter((section) => {
     if (section === "methodology") {
-      return !presentSections.some((present) => ["methodology", "experiments"].includes(present));
+      return !presentSections.some((present) =>
+        ["methodology", "experiments"].includes(present),
+      );
     }
     if (section === "results") {
-      return !presentSections.some((present) => ["results", "discussion", "conclusion"].includes(present));
+      return !presentSections.some((present) =>
+        ["results", "discussion", "conclusion"].includes(present),
+      );
     }
     return !presentSections.includes(section);
   });
@@ -52,7 +55,9 @@ export function detectGaps(
   );
   const domainGaps = ontology
     .filter((resolution) => resolution.matchType !== "unknown")
-    .flatMap((resolution) => resolution.concept.relations.map((relation) => relation.target))
+    .flatMap((resolution) =>
+      resolution.concept.relations.map((relation) => relation.target),
+    )
     .filter((target) => !observedConceptIds.has(target))
     .filter((target, index, values) => values.indexOf(target) === index)
     .slice(0, 12);
@@ -69,7 +74,9 @@ export function detectGaps(
   return {
     missingFields,
     notApplicableFields,
-    structuralGaps: missingFields.map((field) => `Missing required ${field.replace(/_/g, " ")}`),
+    structuralGaps: missingFields.map(
+      (field) => `Missing required ${field.replace(/_/g, " ")}`,
+    ),
     domainGaps,
     missingSections,
     unresolvedEntities,

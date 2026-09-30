@@ -11,19 +11,9 @@ import {
 } from "../reliability/profile";
 import { buildGroundedKnowledge } from "../grounding";
 
-import type {
-  DocumentProfile,
-  KnowledgeCore,
-  NLPResult,
-} from "../types";
-import type {
-  DocumentChunk,
-  RawDocument,
-  SectionedDocument,
-} from "./types";
-import type {
-  ReliableDocumentProfile,
-} from "../reliability/types";
+import type { DocumentProfile, KnowledgeCore, NLPResult } from "../types";
+import type { DocumentChunk, RawDocument, SectionedDocument } from "./types";
+import type { ReliableDocumentProfile } from "../reliability/types";
 import type { GroundedKnowledge } from "../grounding";
 
 export interface PipelineResult {
@@ -40,50 +30,29 @@ export interface PipelineResult {
  * Synchronous compatibility runner. The full engine invokes the same functions
  * individually so it can publish user-visible progress after every stage.
  */
-export function runPipeline(
-  raw: RawDocument,
-): PipelineResult {
-  const cleaned =
-    cleanDocument(raw);
+export function runPipeline(raw: RawDocument): PipelineResult {
+  const cleaned = cleanDocument(raw);
 
-  const document =
-    detectSections(cleaned);
+  const document = detectSections(cleaned);
 
-  const profile =
-    classifyDocument(document);
+  const profile = classifyDocument(document);
 
-  const chunks =
-    buildDocumentChunks(document);
+  const chunks = buildDocumentChunks(document);
 
-  const nlp =
-    runNLPPipeline(document);
+  const nlp = runNLPPipeline(document);
 
-  const extracted =
-    extractKnowledge(
-      document,
-      nlp,
-      profile,
-    );
+  const extracted = extractKnowledge(document, nlp, profile);
 
-  const validated =
-    validateKnowledge(
-      extracted,
-    );
+  const validated = validateKnowledge(extracted);
 
-  const reliabilityProfile =
-    buildReliableProfile({
-      raw,
-      document,
-      nlp,
-      core:
-        validated,
-    });
+  const reliabilityProfile = buildReliableProfile({
+    raw,
+    document,
+    nlp,
+    core: validated,
+  });
 
-  const knowledge =
-    attachReliableProfile(
-      validated,
-      reliabilityProfile,
-    );
+  const knowledge = attachReliableProfile(validated, reliabilityProfile);
 
   const grounding = buildGroundedKnowledge({
     document,
@@ -112,11 +81,7 @@ export {
   validateKnowledge,
 };
 
-export type {
-  RawDocument,
-  SectionedDocument,
-  DocumentChunk,
-} from "./types";
+export type { RawDocument, SectionedDocument, DocumentChunk } from "./types";
 
 export type {
   NLPResult,
@@ -125,6 +90,4 @@ export type {
   DocumentProfile,
 } from "../types";
 
-export type {
-  ReliableDocumentProfile,
-} from "../reliability/types";
+export type { ReliableDocumentProfile } from "../reliability/types";

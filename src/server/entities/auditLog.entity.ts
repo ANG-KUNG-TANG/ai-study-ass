@@ -57,7 +57,10 @@ export type AuditActorRole = "user" | "admin" | "system";
 export function categoryForAuditAction(action: AuditAction): AuditCategory {
   if (action.startsWith("auth.")) return "authentication";
   if (action === "rate_limit.hit") return "security";
-  if (action.startsWith("admin.settings") || action.startsWith("admin.retention")) {
+  if (
+    action.startsWith("admin.settings") ||
+    action.startsWith("admin.retention")
+  ) {
     return "settings";
   }
   if (action.startsWith("admin.ai") || action.startsWith("admin.provider")) {
@@ -87,14 +90,14 @@ export function categoryForAuditAction(action: AuditAction): AuditCategory {
 
 export interface AuditLogProps {
   id: string;
-  actorId: string | null;     // null for unauthenticated/system events
-  actorEmail: string | null;  // denormalized snapshot — stays readable even
-                               // if the actor's account is later deleted
+  actorId: string | null; // null for unauthenticated/system events
+  actorEmail: string | null; // denormalized snapshot — stays readable even
+  // if the actor's account is later deleted
   actorRole?: AuditActorRole;
   action: AuditAction;
   category?: AuditCategory;
   status?: AuditStatus;
-  targetType?: string;        // e.g. "note", "user", "quiz"
+  targetType?: string; // e.g. "note", "user", "quiz"
   targetId?: string;
   metadata?: Record<string, unknown>;
   reason?: string;
@@ -120,7 +123,7 @@ export class AuditLogEntity {
     public readonly ipAddress: string | undefined,
     public readonly userAgent: string | undefined,
     public readonly requestId: string | undefined,
-    public readonly createdAt: Date
+    public readonly createdAt: Date,
   ) {}
 
   static fromPersistence(props: AuditLogProps): AuditLogEntity {
@@ -139,7 +142,7 @@ export class AuditLogEntity {
       props.ipAddress,
       props.userAgent,
       props.requestId,
-      props.createdAt
+      props.createdAt,
     );
   }
 
@@ -148,26 +151,42 @@ export class AuditLogEntity {
   describe(): string {
     const who = this.actorEmail ?? "System";
     switch (this.action) {
-      case "auth.login": return `${who} logged in`;
-      case "auth.login_failed": return `Failed login attempt for ${who}`;
-      case "auth.logout": return `${who} logged out`;
-      case "auth.register": return `${who} registered an account`;
-      case "auth.email_verified": return `${who} verified their email`;
-      case "auth.password_changed": return `${who} changed their password`;
-      case "auth.password_reset": return `${who} reset their password`;
-      case "auth.sessions_revoked": return `${who} signed out all sessions`;
-      case "auth.refresh_reuse_detected": return `Refresh-token reuse detected for ${who}`;
-      case "note.uploaded": return `${who} uploaded a new note`;
-      case "note.deleted": return `${who} deleted a note`;
-      case "quiz.generated": return `${who} generated a quiz`;
+      case "auth.login":
+        return `${who} logged in`;
+      case "auth.login_failed":
+        return `Failed login attempt for ${who}`;
+      case "auth.logout":
+        return `${who} logged out`;
+      case "auth.register":
+        return `${who} registered an account`;
+      case "auth.email_verified":
+        return `${who} verified their email`;
+      case "auth.password_changed":
+        return `${who} changed their password`;
+      case "auth.password_reset":
+        return `${who} reset their password`;
+      case "auth.sessions_revoked":
+        return `${who} signed out all sessions`;
+      case "auth.refresh_reuse_detected":
+        return `Refresh-token reuse detected for ${who}`;
+      case "note.uploaded":
+        return `${who} uploaded a new note`;
+      case "note.deleted":
+        return `${who} deleted a note`;
+      case "quiz.generated":
+        return `${who} generated a quiz`;
       case "flashcards.generated": {
         const count = this.metadata?.cardCount;
         return `${who} generated a flashcard deck${count ? ` (${count} cards)` : ""}`;
       }
-      case "summary.generated": return `${who} generated a summary`;
-      case "feedback.submitted": return `${who} submitted product feedback`;
-      case "user.profile_updated": return `${who} updated their profile`;
-      case "user.account_deleted": return `${who} deleted their account`;
+      case "summary.generated":
+        return `${who} generated a summary`;
+      case "feedback.submitted":
+        return `${who} submitted product feedback`;
+      case "user.profile_updated":
+        return `${who} updated their profile`;
+      case "user.account_deleted":
+        return `${who} deleted their account`;
       case "rate_limit.hit": {
         const route = this.metadata?.route ?? "an endpoint";
         const ip = this.metadata?.ip ?? "unknown IP";
@@ -190,18 +209,30 @@ export class AuditLogEntity {
         const target = this.metadata?.targetEmail ?? this.targetId ?? "a user";
         return `${who} deleted ${target}`;
       }
-      case "admin.sessions_revoked": return `${who} revoked a user's sessions`;
-      case "admin.content_retried": return `${who} retried content processing`;
-      case "admin.content_cancelled": return `${who} cancelled content processing`;
-      case "admin.content_quarantined": return `${who} quarantined uploaded content`;
-      case "admin.content_restored": return `${who} restored quarantined content`;
-      case "admin.ai_policy_changed": return `${who} changed a user's AI policy`;
-      case "admin.settings_changed": return `${who} changed operational settings`;
-      case "admin.retention_executed": return `${who} executed the retention policy`;
-      case "admin.provider_tested": return `${who} tested the AI provider`;
-      case "admin.feedback_updated": return `${who} updated a feedback submission`;
-      case "admin.feedback_exported": return `${who} exported user feedback`;
-      default: return `${who} performed ${this.action}`;
+      case "admin.sessions_revoked":
+        return `${who} revoked a user's sessions`;
+      case "admin.content_retried":
+        return `${who} retried content processing`;
+      case "admin.content_cancelled":
+        return `${who} cancelled content processing`;
+      case "admin.content_quarantined":
+        return `${who} quarantined uploaded content`;
+      case "admin.content_restored":
+        return `${who} restored quarantined content`;
+      case "admin.ai_policy_changed":
+        return `${who} changed a user's AI policy`;
+      case "admin.settings_changed":
+        return `${who} changed operational settings`;
+      case "admin.retention_executed":
+        return `${who} executed the retention policy`;
+      case "admin.provider_tested":
+        return `${who} tested the AI provider`;
+      case "admin.feedback_updated":
+        return `${who} updated a feedback submission`;
+      case "admin.feedback_exported":
+        return `${who} exported user feedback`;
+      default:
+        return `${who} performed ${this.action}`;
     }
   }
 }

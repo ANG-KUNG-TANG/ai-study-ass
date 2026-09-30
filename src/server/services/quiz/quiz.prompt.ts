@@ -11,12 +11,12 @@ import {
   MIN_QUESTIONS_PER_QUIZ,
   MAX_QUESTIONS_PER_QUIZ,
   type QuestionType,
-} from '@/server/entities/quiz.entity';
-import { DEFAULT_QUIZ_QUESTIONS } from '@/server/utils/constants';
+} from "@/server/entities/quiz.entity";
+import { DEFAULT_QUIZ_QUESTIONS } from "@/server/utils/constants";
 import {
   appendUntrustedContentRules,
   buildUntrustedTextBlock,
-} from '@/server/utils/prompt-security';
+} from "@/server/utils/prompt-security";
 
 const MAX_CONTENT_CHARS = 24_000; // same reasoning as summary.prompt.ts
 
@@ -24,7 +24,10 @@ const MAX_CONTENT_CHARS = 24_000; // same reasoning as summary.prompt.ts
 // DEFAULT_QUIZ_QUESTIONS (10) — a no-args generateQuiz() call was getting a
 // smaller quiz than the constants file promised. Imported instead of
 // redeclared, same fix pattern as quiz.entity.ts's MAX_QUESTIONS_PER_QUIZ.
-const DEFAULT_QUESTION_TYPES: QuestionType[] = ['multiple_choice', 'true_false'];
+const DEFAULT_QUESTION_TYPES: QuestionType[] = [
+  "multiple_choice",
+  "true_false",
+];
 
 export interface QuizPromptOptions {
   questionCount?: number;
@@ -46,17 +49,31 @@ export interface QuizPromptResult {
  * defaults for anything invalid rather than throwing — a caller passing
  * questionCount: 500 should get a smaller quiz, not a 500-error.
  */
-export function resolveOptions(options: QuizPromptOptions): { count: number; types: QuestionType[] } {
+export function resolveOptions(options: QuizPromptOptions): {
+  count: number;
+  types: QuestionType[];
+} {
   const requestedCount = options.questionCount ?? DEFAULT_QUIZ_QUESTIONS;
-  const count = Math.min(Math.max(requestedCount, MIN_QUESTIONS_PER_QUIZ), MAX_QUESTIONS_PER_QUIZ);
+  const count = Math.min(
+    Math.max(requestedCount, MIN_QUESTIONS_PER_QUIZ),
+    MAX_QUESTIONS_PER_QUIZ,
+  );
 
-  const requestedTypes = options.questionTypes?.filter((t) => QUESTION_TYPES.includes(t));
-  const types = requestedTypes && requestedTypes.length > 0 ? requestedTypes : DEFAULT_QUESTION_TYPES;
+  const requestedTypes = options.questionTypes?.filter((t) =>
+    QUESTION_TYPES.includes(t),
+  );
+  const types =
+    requestedTypes && requestedTypes.length > 0
+      ? requestedTypes
+      : DEFAULT_QUESTION_TYPES;
 
   return { count, types };
 }
 
-export function buildQuizPrompt(noteContent: string, options: QuizPromptOptions = {}): QuizPromptResult {
+export function buildQuizPrompt(
+  noteContent: string,
+  options: QuizPromptOptions = {},
+): QuizPromptResult {
   const { count, types } = resolveOptions(options);
   const material = buildUntrustedTextBlock(
     "STUDY_MATERIAL",
@@ -65,19 +82,20 @@ export function buildQuizPrompt(noteContent: string, options: QuizPromptOptions 
   );
   const wasTruncated = material.wasTruncated;
 
-  const systemPrompt = appendUntrustedContentRules(`You are a study assistant that writes quiz questions from study material.
+  const systemPrompt =
+    appendUntrustedContentRules(`You are a study assistant that writes quiz questions from study material.
 Respond with ONLY a single valid JSON object — no markdown fences, no prose before or after it.
 The JSON object must have exactly one key, "questions", an array of exactly ${count} question objects.
 Each question object must have exactly these keys:
   "question": the question text.
-  "questionType": one of ${types.map((t) => `"${t}"`).join(', ')}.
+  "questionType": one of ${types.map((t) => `"${t}"`).join(", ")}.
   "options": for "multiple_choice", an array of 2-6 plausible answer strings (including the correct one).
              for "true_false", the array ["True", "False"].
              for "short_answer", an empty array [].
   "answer": the exact correct answer. For multiple_choice, it must exactly match one of "options".
             For true_false, it must be exactly "True" or "False".
   "explanation": one sentence explaining why the answer is correct.
-Only use question types from this list: ${types.join(', ')}.
+Only use question types from this list: ${types.join(", ")}.
 For multiple_choice, exactly one option must be defensibly correct from the material; distractors must not also be supported as correct answers to the same question.
 For true_false, use False only when the material directly disproves the statement; missing evidence alone is not enough to mark a statement False.
 For short_answer, the answer must be directly supported by the supplied material and must not require outside knowledge.
@@ -93,5 +111,11 @@ Do not reveal the answer in the question text. Base every question strictly on t
     material.block,
   ].join("\n\n");
 
-  return { systemPrompt, prompt, wasTruncated, resolvedCount: count, resolvedTypes: types };
+  return {
+    systemPrompt,
+    prompt,
+    wasTruncated,
+    resolvedCount: count,
+    resolvedTypes: types,
+  };
 }

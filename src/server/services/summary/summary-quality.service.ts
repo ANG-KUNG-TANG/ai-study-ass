@@ -106,7 +106,7 @@ const MODE_POLICIES: Record<SummaryMode, ModePolicy> = {
     sectionLimit: 5,
     majorFactLimit: 6,
     conceptLimit: 8,
-    minimumMajorFactCoverage: 0.60,
+    minimumMajorFactCoverage: 0.6,
     minimumSectionCoverage: 0.75,
     minimumConceptCoverage: 0.75,
   },
@@ -115,8 +115,8 @@ const MODE_POLICIES: Record<SummaryMode, ModePolicy> = {
     majorFactLimit: 12,
     conceptLimit: 16,
     minimumMajorFactCoverage: 0.75,
-    minimumSectionCoverage: 0.80,
-    minimumConceptCoverage: 0.80,
+    minimumSectionCoverage: 0.8,
+    minimumConceptCoverage: 0.8,
   },
   exam: {
     sectionLimit: 8,
@@ -135,10 +135,38 @@ const TOPIC_COUNT_RANGES: Record<SummaryMode, { min: number; max: number }> = {
 };
 
 const ENGLISH_STOP_WORDS = new Set([
-  "a", "an", "and", "are", "as", "at", "be", "been", "being", "by",
-  "for", "from", "has", "have", "in", "into", "is", "it", "of", "on",
-  "or", "that", "the", "their", "these", "this", "those", "to", "was",
-  "were", "will", "with",
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "been",
+  "being",
+  "by",
+  "for",
+  "from",
+  "has",
+  "have",
+  "in",
+  "into",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "that",
+  "the",
+  "their",
+  "these",
+  "this",
+  "those",
+  "to",
+  "was",
+  "were",
+  "will",
+  "with",
 ]);
 
 const EXAM_FACT_TYPES = new Set<AtomicFact["type"]>([
@@ -198,10 +226,7 @@ export function assessSummaryQuality(input: {
     learningProfile.concepts,
     policy.conceptLimit,
   );
-  const learningKeyTerms = selectSummaryKeyTerms(
-    learningProfile.keyTerms,
-    16,
-  );
+  const learningKeyTerms = selectSummaryKeyTerms(learningProfile.keyTerms, 16);
   // Faithfulness and learning eligibility are different domains. A fact can
   // be valid grounded evidence even when its source section is not suitable
   // as a learner topic (for example Abstract results, warnings, figure-linked
@@ -239,7 +264,7 @@ export function assessSummaryQuality(input: {
     policy.majorFactLimit,
   );
   const majorFactCoveredCount = majorFacts.filter((fact) =>
-    factIsRepresented(fact, artifact.summary, factualUnits)
+    factIsRepresented(fact, artifact.summary, factualUnits),
   ).length;
 
   const requiredSections = selectRequiredSections(
@@ -249,7 +274,12 @@ export function assessSummaryQuality(input: {
     policy.sectionLimit,
   );
   const representedSectionCount = requiredSections.filter((section) =>
-    sectionIsRepresented(section, artifact.summary, learningSupportedFacts, factualUnits)
+    sectionIsRepresented(
+      section,
+      artifact.summary,
+      learningSupportedFacts,
+      factualUnits,
+    ),
   ).length;
 
   const targetConcepts = learningConcepts.slice(0, policy.conceptLimit);
@@ -261,27 +291,19 @@ export function assessSummaryQuality(input: {
     const name = normalise(concept.name);
     return Boolean(
       name &&
-      (representedConcepts.has(name) || normalisedSummary.includes(name))
+      (representedConcepts.has(name) || normalisedSummary.includes(name)),
     );
   }).length;
 
   const factualUnitCount = supportedUnits.length + unsupportedUnits.length;
   const unsupportedRatio = ratio(unsupportedUnits.length, factualUnitCount, 0);
-  const majorFactCoverage = ratio(
-    majorFactCoveredCount,
-    majorFacts.length,
-    1,
-  );
+  const majorFactCoverage = ratio(majorFactCoveredCount, majorFacts.length, 1);
   const sectionCoverage = ratio(
     representedSectionCount,
     requiredSections.length,
     1,
   );
-  const conceptCoverage = ratio(
-    conceptCoveredCount,
-    targetConcepts.length,
-    1,
-  );
+  const conceptCoverage = ratio(conceptCoveredCount, targetConcepts.length, 1);
 
   const issues: SummaryQualityIssue[] = [];
 
@@ -294,7 +316,8 @@ export function assessSummaryQuality(input: {
     });
   }
 
-  const strictSemanticSafety = /<!--\s*intelligence-engine:v3\.(?:0|1|2);/iu.test(artifact.summary);
+  const strictSemanticSafety =
+    /<!--\s*intelligence-engine:v3\.(?:0|1|2);/iu.test(artifact.summary);
   if (strictSemanticSafety && unsupportedUnits.length > 0) {
     issues.push({
       code: "UNSUPPORTED_FACTUAL_CONTENT",
@@ -390,8 +413,8 @@ export function assessSummaryQuality(input: {
     1,
   );
   const duplicateRatio = duplicateTextRatio(factualUnits);
-  const keyPointSupported = artifact.keyPoints.filter((point) =>
-    bestSupport(point, supportSources).supported,
+  const keyPointSupported = artifact.keyPoints.filter(
+    (point) => bestSupport(point, supportSources).supported,
   ).length;
   const keyPointQuality = qualityRatio(
     keyPointSupported,
@@ -408,25 +431,24 @@ export function assessSummaryQuality(input: {
     .map((id) => grounding.facts.find((fact) => fact.id === id))
     .filter((fact): fact is AtomicFact => Boolean(fact))
     .some((fact) =>
-      factualUnits.some((unit) =>
-        !isCorrectionOrWarningText(unit) &&
-        bestSupport(unit, [factSupportSource(fact)]).supported,
+      factualUnits.some(
+        (unit) =>
+          !isCorrectionOrWarningText(unit) &&
+          bestSupport(unit, [factSupportSource(fact)]).supported,
       ),
     );
   const publishedTopicBlocks = extractStudyTopicBlocks(artifact.summary);
   const parsedTopics = publishedTopicBlocks.map(parseQualityTopicBlock);
   const topicHeadingQuality = qualityRatio(
-    parsedTopics.filter((topic) => isSummaryTopicHeadingEligible(topic.heading)).length,
+    parsedTopics.filter((topic) => isSummaryTopicHeadingEligible(topic.heading))
+      .length,
     parsedTopics.length,
     1,
   );
   const topicExplanationScores = parsedTopics.map((topic) =>
     topicExplanationSemanticScore(topic, semanticMap),
   );
-  const topicExplanationQuality = averageQuality(
-    topicExplanationScores,
-    1,
-  );
+  const topicExplanationQuality = averageQuality(topicExplanationScores, 1);
   const topicExplanationPassRatio = qualityRatio(
     topicExplanationScores.filter((score) => score >= 0.58).length,
     topicExplanationScores.length,
@@ -436,7 +458,9 @@ export function assessSummaryQuality(input: {
     topic.keyPoints.map((point) => ({ topic, point })),
   );
   const topicPointUtility = qualityRatio(
-    topicPoints.filter(({ point }) => isSummaryTopicPointUseful(point, { allowProcedure: true })).length,
+    topicPoints.filter(({ point }) =>
+      isSummaryTopicPointUseful(point, { allowProcedure: true }),
+    ).length,
     topicPoints.length,
     1,
   );
@@ -460,67 +484,95 @@ export function assessSummaryQuality(input: {
     warningItems.length,
     1,
   );
-  const globalKeyPointItems = extractSectionBullets(artifact.summary, "Key Points");
-  const legacyTakeawayItems = extractSectionBullets(artifact.summary, "Key Takeaways");
-  const globalLearningPointItems = globalKeyPointItems.length > 0
-    ? globalKeyPointItems
-    : legacyTakeawayItems;
+  const globalKeyPointItems = extractSectionBullets(
+    artifact.summary,
+    "Key Points",
+  );
+  const legacyTakeawayItems = extractSectionBullets(
+    artifact.summary,
+    "Key Takeaways",
+  );
+  const globalLearningPointItems =
+    globalKeyPointItems.length > 0 ? globalKeyPointItems : legacyTakeawayItems;
   const globalLearningPointUtility = qualityRatio(
-    globalLearningPointItems.filter((item) => isSummaryTopicPointUseful(item)).length,
+    globalLearningPointItems.filter((item) => isSummaryTopicPointUseful(item))
+      .length,
     globalLearningPointItems.length,
     1,
   );
   const publishedSectionHeadings = extractSectionNoteHeadings(artifact.summary);
-  const targetSectionKeys = new Set(requiredSections.map((section) => normalise(section.heading)));
-  const sectionPrecision = publishedTopicBlocks.length > 0
-    ? qualityRatio(
-        publishedTopicBlocks.filter((topic) =>
-          extractFactualUnits({
-            summary: topic.body,
-            keyPoints: [],
-            importantConcepts: [],
-          }).some((unit) => bestSupport(unit, supportSources).supported),
-        ).length,
-        publishedTopicBlocks.length,
-        1,
-      )
-    : qualityRatio(
-        publishedSectionHeadings.filter((heading) => targetSectionKeys.has(normalise(heading))).length,
-        publishedSectionHeadings.length,
-        1,
-      );
+  const targetSectionKeys = new Set(
+    requiredSections.map((section) => normalise(section.heading)),
+  );
+  const sectionPrecision =
+    publishedTopicBlocks.length > 0
+      ? qualityRatio(
+          publishedTopicBlocks.filter((topic) =>
+            extractFactualUnits({
+              summary: topic.body,
+              keyPoints: [],
+              importantConcepts: [],
+            }).some((unit) => bestSupport(unit, supportSources).supported),
+          ).length,
+          publishedTopicBlocks.length,
+          1,
+        )
+      : qualityRatio(
+          publishedSectionHeadings.filter((heading) =>
+            targetSectionKeys.has(normalise(heading)),
+          ).length,
+          publishedSectionHeadings.length,
+          1,
+        );
   const topicRange = TOPIC_COUNT_RANGES[mode];
-  const legacyTopicContractRequired = /<!--\s*intelligence-engine:(?:v2\.(?:12|13|14)|v3\.0);/iu.test(artifact.summary);
-  const learnerOutputContractRequired = /<!--\s*intelligence-engine:v3\.(?:1|2);/iu.test(artifact.summary);
-  const topicContractRequired = legacyTopicContractRequired || learnerOutputContractRequired;
-  const semanticEvidenceContractRequired = /<!--\s*intelligence-engine:v3\.(?:0|1|2);/iu.test(artifact.summary);
+  const legacyTopicContractRequired =
+    /<!--\s*intelligence-engine:(?:v2\.(?:12|13|14)|v3\.0);/iu.test(
+      artifact.summary,
+    );
+  const learnerOutputContractRequired =
+    /<!--\s*intelligence-engine:v3\.(?:1|2);/iu.test(artifact.summary);
+  const topicContractRequired =
+    legacyTopicContractRequired || learnerOutputContractRequired;
+  const semanticEvidenceContractRequired =
+    /<!--\s*intelligence-engine:v3\.(?:0|1|2);/iu.test(artifact.summary);
   const detailedTopicTargetSectionCount = requiredSections.filter((section) =>
     section.factIds.some((id) => {
       const fact = sourceFactsById.get(id);
       return Boolean(
         fact &&
-        !["procedure_step", "warning", "common_mistake", "limitation", "example", "number", "formula"].includes(fact.type)
+        ![
+          "procedure_step",
+          "warning",
+          "common_mistake",
+          "limitation",
+          "example",
+          "number",
+          "formula",
+        ].includes(fact.type),
       );
-    })
+    }),
   ).length;
   const minimumTopicCount = learnerOutputContractRequired
-    ? Math.min(
-        mode === "concise" ? 2 : 3,
-        detailedTopicTargetSectionCount,
-      )
-    : Math.min(
-        topicRange.min,
-        Math.max(1, requiredSections.length),
-      );
-  const topicCountQuality = publishedTopicBlocks.length === 0
-    ? (topicContractRequired && minimumTopicCount > 0 ? 0 : 1)
-    : publishedTopicBlocks.length > topicRange.max
-      ? topicRange.max / publishedTopicBlocks.length
-      : minimumTopicCount === 0
-        ? 1
-        : Math.min(1, publishedTopicBlocks.length / minimumTopicCount);
-  const hasLegacyTopicFirstSections = /^(?:##\s+(?:Key Points|Main Concepts|Section Notes))\s*$/gimu.test(artifact.summary);
-  const hasOldSummaryLayoutSections = /^(?:##\s+(?:Study Topics|Main Concepts|Section Notes|Key Takeaways))\s*$/gimu.test(artifact.summary);
+    ? Math.min(mode === "concise" ? 2 : 3, detailedTopicTargetSectionCount)
+    : Math.min(topicRange.min, Math.max(1, requiredSections.length));
+  const topicCountQuality =
+    publishedTopicBlocks.length === 0
+      ? topicContractRequired && minimumTopicCount > 0
+        ? 0
+        : 1
+      : publishedTopicBlocks.length > topicRange.max
+        ? topicRange.max / publishedTopicBlocks.length
+        : minimumTopicCount === 0
+          ? 1
+          : Math.min(1, publishedTopicBlocks.length / minimumTopicCount);
+  const hasLegacyTopicFirstSections =
+    /^(?:##\s+(?:Key Points|Main Concepts|Section Notes))\s*$/gimu.test(
+      artifact.summary,
+    );
+  const hasOldSummaryLayoutSections =
+    /^(?:##\s+(?:Study Topics|Main Concepts|Section Notes|Key Takeaways))\s*$/gimu.test(
+      artifact.summary,
+    );
   const hasLearnerCoreSections = [
     "Overview",
     "Key Points",
@@ -528,104 +580,190 @@ export function assessSummaryQuality(input: {
     "Key Terms",
     "Detailed Study Notes",
   ].every((heading) => hasSectionHeading(artifact.summary, heading));
-  const topicStructurePassed = !topicContractRequired || (
-    publishedTopicBlocks.length >= minimumTopicCount &&
-    publishedTopicBlocks.length <= topicRange.max &&
-    (!legacyTopicContractRequired || !hasLegacyTopicFirstSections) &&
-    (!learnerOutputContractRequired || (hasLearnerCoreSections && !hasOldSummaryLayoutSections))
-  );
-  const topicSemanticPassed = !topicContractRequired || (
-    topicHeadingQuality >= 0.95 &&
-    topicExplanationQuality >= 0.82 &&
-    coherentTopicRatio >= 0.82
-  );
+  const topicStructurePassed =
+    !topicContractRequired ||
+    (publishedTopicBlocks.length >= minimumTopicCount &&
+      publishedTopicBlocks.length <= topicRange.max &&
+      (!legacyTopicContractRequired || !hasLegacyTopicFirstSections) &&
+      (!learnerOutputContractRequired ||
+        (hasLearnerCoreSections && !hasOldSummaryLayoutSections)));
+  const topicSemanticPassed =
+    !topicContractRequired ||
+    (topicHeadingQuality >= 0.95 &&
+      topicExplanationQuality >= 0.82 &&
+      coherentTopicRatio >= 0.82);
   const learningPointQuality = Math.min(
     keyPointQuality,
     topicPointUtility,
     topicPointAlignment,
     globalLearningPointUtility,
   );
-  const warningPrecisionPassed = warningItems.length === 0 || warningPrecision >= 0.8;
+  const warningPrecisionPassed =
+    warningItems.length === 0 || warningPrecision >= 0.8;
   const summaryTitle = extractSummaryTitle(artifact.summary);
-  const sourceStructureSeparationPassed = !semanticEvidenceContractRequired || parsedTopics.every((topic) =>
-    !isStructuralSemanticHeading(topic.heading) &&
-    (!summaryTitle || normalise(topic.heading) !== normalise(summaryTitle)),
+  const sourceStructureSeparationPassed =
+    !semanticEvidenceContractRequired ||
+    parsedTopics.every(
+      (topic) =>
+        !isStructuralSemanticHeading(topic.heading) &&
+        (!summaryTitle || normalise(topic.heading) !== normalise(summaryTitle)),
+    );
+  const topicExplanationAlignmentPassed =
+    !semanticEvidenceContractRequired ||
+    (topicExplanationPassRatio >= 0.95 && topicExplanationQuality >= 0.72);
+  const frameworkIntegrity = frameworkIntegrityQuality(
+    parsedTopics,
+    semanticMap,
   );
-  const topicExplanationAlignmentPassed = !semanticEvidenceContractRequired || (
-    topicExplanationPassRatio >= 0.95 &&
-    topicExplanationQuality >= 0.72
-  );
-  const frameworkIntegrity = frameworkIntegrityQuality(parsedTopics, semanticMap);
 
   const contract = buildFeatureQualityReport({
     feature: "summary",
     dimensions: [
-      { key: "grounding", label: "Factual grounding", weight: 2.0, ratio: factualGrounding },
-      { key: "conceptCoverage", label: "Important concept coverage", weight: 1.5, ratio: conceptCoverage },
-      { key: "learningStructure", label: "Learning structure", weight: 1.5, ratio: Math.min(sectionCoverage, sectionPrecision, topicCountQuality, coherentTopicRatio) },
-      { key: "topicExplanationAlignment", label: "Topic-explanation alignment", weight: 1.5, ratio: topicExplanationQuality },
-      { key: "keyPointQuality", label: "Key-point quality", weight: 1.0, ratio: learningPointQuality },
-      { key: "frameworkIntegrity", label: "Framework integrity", weight: 0.75, ratio: frameworkIntegrity },
-      { key: "conceptPrecision", label: "Concept precision", weight: 1.0, ratio: conceptPrecision },
-      { key: "sectionRelevance", label: "Section relevance", weight: 1.0, ratio: Math.min(sectionPrecision, topicHeadingQuality, topicPointAlignment) },
-      { key: "correctionHandling", label: "Warning/correction handling", weight: 0.75, ratio: Math.min(warningCoverage, warningPrecision) },
-      { key: "redundancyControl", label: "Redundancy control", weight: 0.5, ratio: 1 - duplicateRatio },
-      { key: "modeQuality", label: "Mode quality", weight: 0.5, ratio: modeQuality },
-      { key: "readability", label: "Readability", weight: 0.25, ratio: readability },
+      {
+        key: "grounding",
+        label: "Factual grounding",
+        weight: 2.0,
+        ratio: factualGrounding,
+      },
+      {
+        key: "conceptCoverage",
+        label: "Important concept coverage",
+        weight: 1.5,
+        ratio: conceptCoverage,
+      },
+      {
+        key: "learningStructure",
+        label: "Learning structure",
+        weight: 1.5,
+        ratio: Math.min(
+          sectionCoverage,
+          sectionPrecision,
+          topicCountQuality,
+          coherentTopicRatio,
+        ),
+      },
+      {
+        key: "topicExplanationAlignment",
+        label: "Topic-explanation alignment",
+        weight: 1.5,
+        ratio: topicExplanationQuality,
+      },
+      {
+        key: "keyPointQuality",
+        label: "Key-point quality",
+        weight: 1.0,
+        ratio: learningPointQuality,
+      },
+      {
+        key: "frameworkIntegrity",
+        label: "Framework integrity",
+        weight: 0.75,
+        ratio: frameworkIntegrity,
+      },
+      {
+        key: "conceptPrecision",
+        label: "Concept precision",
+        weight: 1.0,
+        ratio: conceptPrecision,
+      },
+      {
+        key: "sectionRelevance",
+        label: "Section relevance",
+        weight: 1.0,
+        ratio: Math.min(
+          sectionPrecision,
+          topicHeadingQuality,
+          topicPointAlignment,
+        ),
+      },
+      {
+        key: "correctionHandling",
+        label: "Warning/correction handling",
+        weight: 0.75,
+        ratio: Math.min(warningCoverage, warningPrecision),
+      },
+      {
+        key: "redundancyControl",
+        label: "Redundancy control",
+        weight: 0.5,
+        ratio: 1 - duplicateRatio,
+      },
+      {
+        key: "modeQuality",
+        label: "Mode quality",
+        weight: 0.5,
+        ratio: modeQuality,
+      },
+      {
+        key: "readability",
+        label: "Readability",
+        weight: 0.25,
+        ratio: readability,
+      },
     ],
     hardGates: [
       {
         code: "TOPIC_FIRST_STRUCTURE",
-        message: "Summary structure must follow its versioned learner-output contract while keeping detailed topics within the mode-specific topic budget.",
+        message:
+          "Summary structure must follow its versioned learner-output contract while keeping detailed topics within the mode-specific topic budget.",
         passed: topicStructurePassed,
       },
       {
         code: "TOPIC_SEMANTIC_COHERENCE",
-        message: "Every published topic must have a meaningful heading, an explanation about that topic, and locally relevant key points.",
+        message:
+          "Every published topic must have a meaningful heading, an explanation about that topic, and locally relevant key points.",
         passed: topicSemanticPassed,
       },
       {
         code: "TOPIC_EXPLANATION_ALIGNMENT",
-        message: "An important grounded fact may explain a topic only when its semantic evidence role and source evidence actually align with that topic; importance alone is never sufficient.",
+        message:
+          "An important grounded fact may explain a topic only when its semantic evidence role and source evidence actually align with that topic; importance alone is never sufficient.",
         passed: topicExplanationAlignmentPassed,
       },
       {
         code: "SOURCE_STRUCTURE_SEPARATION",
-        message: "Document metadata and structural labels such as titles, Abstract, Introduction, References, exercises, and chapter scaffolding must not become learner topics.",
+        message:
+          "Document metadata and structural labels such as titles, Abstract, Introduction, References, exercises, and chapter scaffolding must not become learner topics.",
         passed: sourceStructureSeparationPassed,
       },
       {
         code: "FRAMEWORK_INTEGRITY",
-        message: "When a detected framework is published as a topic, its supported components must remain grouped under that framework instead of being fragmented or silently dropped.",
+        message:
+          "When a detected framework is published as a topic, its supported components must remain grouped under that framework instead of being fragmented or silently dropped.",
         passed: !semanticEvidenceContractRequired || frameworkIntegrity >= 0.8,
       },
       {
         code: "LEARNING_POINT_UTILITY",
-        message: "Global key points and detailed-topic points must be standalone learning statements rather than prompts, narrative transitions, or exercise fragments.",
-        passed: !topicContractRequired || (
-          topicPointUtility >= 0.85 &&
-          topicPointAlignment >= 0.78 &&
-          globalLearningPointUtility >= 0.8
-        ),
+        message:
+          "Global key points and detailed-topic points must be standalone learning statements rather than prompts, narrative transitions, or exercise fragments.",
+        passed:
+          !topicContractRequired ||
+          (topicPointUtility >= 0.85 &&
+            topicPointAlignment >= 0.78 &&
+            globalLearningPointUtility >= 0.8),
       },
       {
         code: "WARNING_PRECISION",
-        message: "The warnings section may contain only actionable warnings, corrections, limitations, or genuine common mistakes.",
+        message:
+          "The warnings section may contain only actionable warnings, corrections, limitations, or genuine common mistakes.",
         passed: warningPrecisionPassed,
       },
       {
         code: "NO_UNSUPPORTED_FACTS",
-        message: "Every factual summary unit must be supported by grounded evidence.",
+        message:
+          "Every factual summary unit must be supported by grounded evidence.",
         passed: unsupportedUnits.length === 0,
       },
       {
         code: "NUMERIC_EXACTNESS",
-        message: "Every numeric statement must preserve grounded source values.",
+        message:
+          "Every numeric statement must preserve grounded source values.",
         passed: unsupportedNumericUnits.length === 0,
       },
       {
         code: "CORRECTION_PRECEDENCE",
-        message: "A raw fact qualified or corrected by the source must not be presented as the current rule.",
+        message:
+          "A raw fact qualified or corrected by the source must not be presented as the current rule.",
         passed: !qualifiedFactLeak,
       },
     ],
@@ -638,13 +776,11 @@ export function assessSummaryQuality(input: {
     contract,
     faithful: !issues.some(
       (issue) =>
-        issue.severity === "error" &&
-        faithfulnessCodes.includes(issue.code),
+        issue.severity === "error" && faithfulnessCodes.includes(issue.code),
     ),
     coverageSufficient: !issues.some(
       (issue) =>
-        issue.severity === "error" &&
-        coverageCodes.includes(issue.code),
+        issue.severity === "error" && coverageCodes.includes(issue.code),
     ),
     issues,
     diagnostics: {
@@ -666,9 +802,7 @@ export function assessSummaryQuality(input: {
   };
 }
 
-export function summaryQualityWarnings(
-  report: SummaryQualityReport,
-): string[] {
+export function summaryQualityWarnings(report: SummaryQualityReport): string[] {
   return report.issues
     .filter((issue) => issue.severity === "warning")
     .map((issue) => issue.message);
@@ -688,10 +822,8 @@ export function summaryQualityLogContext(
     failedHardGates: report.contract.hardGates
       .filter((gate) => !gate.passed)
       .map((gate) => gate.code),
-    unsupportedFactualUnits:
-      report.diagnostics?.unsupportedFactualUnits ?? [],
-    unsupportedNumericUnits:
-      report.diagnostics?.unsupportedNumericUnits ?? [],
+    unsupportedFactualUnits: report.diagnostics?.unsupportedFactualUnits ?? [],
+    unsupportedNumericUnits: report.diagnostics?.unsupportedNumericUnits ?? [],
   };
 }
 
@@ -759,10 +891,7 @@ function buildSupportSources(
   return sources;
 }
 
-function addSupportSource(
-  sources: SupportSource[],
-  text: string,
-): void {
+function addSupportSource(sources: SupportSource[], text: string): void {
   const cleaned = stripPresentation(text);
   if (!cleaned) return;
 
@@ -772,9 +901,7 @@ function addSupportSource(
   });
 }
 
-function extractFactualUnits(
-  artifact: SummaryArtifactForValidation,
-): string[] {
+function extractFactualUnits(artifact: SummaryArtifactForValidation): string[] {
   const units = new Set<string>();
 
   for (const keyPoint of artifact.keyPoints) {
@@ -873,29 +1000,22 @@ function compactNormalised(text: string): string {
 
 function meaningfulTokens(text: string): Set<string> {
   const tokens =
-    normalise(text).match(
-      /[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu,
-    ) ?? [];
+    normalise(text).match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu) ?? [];
 
   return new Set(
     tokens.filter(
-      (token) =>
-        token.length >= 2 && !ENGLISH_STOP_WORDS.has(token),
+      (token) => token.length >= 2 && !ENGLISH_STOP_WORDS.has(token),
     ),
   );
 }
 
 function extractNumericTokens(text: string): Set<string> {
   const matches =
-    stripPresentation(text).match(
-      /[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu,
-    ) ?? [];
+    stripPresentation(text).match(/[-+]?\d+(?:[.,]\d+)*(?:\s*%)?/gu) ?? [];
 
   return new Set(
     matches.map((value) =>
-      value
-        .replace(/\s+/gu, "")
-        .replace(/,(?=\d{3}(?:\D|$))/gu, "")
+      value.replace(/\s+/gu, "").replace(/,(?=\d{3}(?:\D|$))/gu, ""),
     ),
   );
 }
@@ -960,7 +1080,7 @@ function similarity(candidate: string, source: string): number {
     3,
   );
 
-  return Math.max(tokenCoverage, gramCoverage * 0.90);
+  return Math.max(tokenCoverage, gramCoverage * 0.9);
 }
 
 function characterGramCoverage(
@@ -972,10 +1092,7 @@ function characterGramCoverage(
     return candidate === source ? 1 : 0;
   }
 
-  return setCoverage(
-    grams(candidate, width),
-    grams(source, width),
-  );
+  return setCoverage(grams(candidate, width), grams(source, width));
 }
 
 function grams(text: string, width: number): Set<string> {
@@ -986,10 +1103,7 @@ function grams(text: string, width: number): Set<string> {
   return output;
 }
 
-function setCoverage(
-  candidate: Set<string>,
-  source: Set<string>,
-): number {
+function setCoverage(candidate: Set<string>, source: Set<string>): number {
   if (candidate.size === 0) return 0;
 
   let matches = 0;
@@ -1000,10 +1114,7 @@ function setCoverage(
   return matches / candidate.size;
 }
 
-function setIsSubset(
-  candidate: Set<string>,
-  source: Set<string>,
-): boolean {
+function setIsSubset(candidate: Set<string>, source: Set<string>): boolean {
   for (const value of candidate) {
     if (!source.has(value)) return false;
   }
@@ -1015,9 +1126,10 @@ function selectMajorFacts(
   mode: SummaryMode,
   limit: number,
 ): AtomicFact[] {
-  let candidates = mode === "exam"
-    ? facts.filter((fact) => EXAM_FACT_TYPES.has(fact.type))
-    : facts.filter((fact) => fact.type !== "example");
+  let candidates =
+    mode === "exam"
+      ? facts.filter((fact) => EXAM_FACT_TYPES.has(fact.type))
+      : facts.filter((fact) => fact.type !== "example");
 
   if (candidates.length === 0) candidates = facts;
 
@@ -1055,9 +1167,7 @@ function selectRequiredSections(
   mode: SummaryMode,
   limit: number,
 ): SectionCoverage[] {
-  const factsById = new Map(
-    supportedFacts.map((fact) => [fact.id, fact]),
-  );
+  const factsById = new Map(supportedFacts.map((fact) => [fact.id, fact]));
   const visible = sections.filter(
     (section) =>
       section.status === "covered" &&
@@ -1068,14 +1178,15 @@ function selectRequiredSections(
     return visible;
   }
 
-  const candidates = mode === "exam"
-    ? visible.filter((section) =>
-        section.factIds.some((id) => {
-          const fact = factsById.get(id);
-          return fact ? EXAM_FACT_TYPES.has(fact.type) : false;
-        }),
-      )
-    : visible;
+  const candidates =
+    mode === "exam"
+      ? visible.filter((section) =>
+          section.factIds.some((id) => {
+            const fact = factsById.get(id);
+            return fact ? EXAM_FACT_TYPES.has(fact.type) : false;
+          }),
+        )
+      : visible;
   const source = candidates.length > 0 ? candidates : visible;
 
   if (source.length <= limit) return source;
@@ -1084,9 +1195,7 @@ function selectRequiredSections(
   const selectedIndexes = new Set<number>();
   for (let index = 0; index < limit; index += 1) {
     selectedIndexes.add(
-      Math.round(
-        (index * (source.length - 1)) / (limit - 1),
-      ),
+      Math.round((index * (source.length - 1)) / (limit - 1)),
     );
   }
 
@@ -1104,25 +1213,17 @@ function factIsRepresented(
   const factNumbers = extractNumericTokens(fact.content);
   const summaryNumbers = extractNumericTokens(summary);
 
-  if (
-    factNumbers.size > 0 &&
-    !setIsSubset(factNumbers, summaryNumbers)
-  ) {
+  if (factNumbers.size > 0 && !setIsSubset(factNumbers, summaryNumbers)) {
     return false;
   }
 
   const normalisedFact = normalise(fact.content);
-  if (
-    normalisedFact &&
-    normalise(summary).includes(normalisedFact)
-  ) {
+  if (normalisedFact && normalise(summary).includes(normalisedFact)) {
     return true;
   }
 
   return factualUnits.some(
-    (unit) =>
-      similarity(fact.content, unit) >=
-      supportThreshold(fact.content),
+    (unit) => similarity(fact.content, unit) >= supportThreshold(fact.content),
   );
 }
 
@@ -1165,9 +1266,10 @@ interface QualityTopicBlock {
   keyPoints: string[];
 }
 
-function parseQualityTopicBlock(
-  block: { heading: string; body: string },
-): QualityTopicBlock {
+function parseQualityTopicBlock(block: {
+  heading: string;
+  body: string;
+}): QualityTopicBlock {
   const lines = block.body
     .split(/\r?\n/u)
     .map((line) => line.trim())
@@ -1200,41 +1302,49 @@ function parseQualityTopicBlock(
 
 function topicIsCoherent(topic: QualityTopicBlock): boolean {
   if (!isSummaryTopicHeadingEligible(topic.heading)) return false;
-  if (!topic.explanation || !isSummaryTopicPointUseful(topic.explanation)) return false;
+  if (!topic.explanation || !isSummaryTopicPointUseful(topic.explanation))
+    return false;
 
   const explanationAlignment = summaryTopicTextAlignment(
     topic.heading,
     topic.explanation,
   );
-  const frameworkLike = /\b(?:framework|process|procedure|workflow|method)\b/iu.test(topic.heading);
+  const frameworkLike =
+    /\b(?:framework|process|procedure|workflow|method)\b/iu.test(topic.heading);
   if (!frameworkLike && explanationAlignment < 0.14) return false;
 
   if (topic.keyPoints.length === 0) return true;
   const useful = topic.keyPoints.filter((point) =>
     isSummaryTopicPointUseful(point, { allowProcedure: frameworkLike }),
   ).length;
-  const aligned = topic.keyPoints.filter((point) =>
-    Math.max(
-      summaryTopicTextAlignment(topic.heading, point),
-      semanticTextOverlap(topic.explanation, point),
-    ) >= 0.12,
+  const aligned = topic.keyPoints.filter(
+    (point) =>
+      Math.max(
+        summaryTopicTextAlignment(topic.heading, point),
+        semanticTextOverlap(topic.explanation, point),
+      ) >= 0.12,
   ).length;
 
-  return useful / topic.keyPoints.length >= 0.7 &&
-    aligned / topic.keyPoints.length >= 0.6;
+  return (
+    useful / topic.keyPoints.length >= 0.7 &&
+    aligned / topic.keyPoints.length >= 0.6
+  );
 }
 
 function topicExplanationSemanticScore(
   topic: QualityTopicBlock,
   semanticMap: SemanticEvidenceMap,
 ): number {
-  if (!topic.explanation || !isSummaryTopicPointUseful(topic.explanation)) return 0;
+  if (!topic.explanation || !isSummaryTopicPointUseful(topic.explanation))
+    return 0;
   const unit = findBestSemanticUnit(topic.explanation, semanticMap);
   const kind = topicKind(topic.heading);
   if (unit) {
     const sourceHeading = unit.sectionHeading;
     const localPedagogicalRelation =
-      normalise(sourceHeading.replace(/^(?:\d+(?:\.\d+)*)\s*[:.\-–—]?\s*/u, "")) === normalise(topic.heading);
+      normalise(
+        sourceHeading.replace(/^(?:\d+(?:\.\d+)*)\s*[:.\-–—]?\s*/u, ""),
+      ) === normalise(topic.heading);
     const fit = semanticEvidenceExplanationFit({
       heading: topic.heading,
       unit,
@@ -1258,12 +1368,14 @@ function topicPointSemanticScore(
   const pointUnit = findBestSemanticUnit(point, semanticMap);
   const explanationUnit = findBestSemanticUnit(topic.explanation, semanticMap);
   if (pointUnit && explanationUnit) {
-    const framework = semanticMap.frameworks.find((item) =>
-      semanticTopicTextAlignment(topic.heading, item.name) >= 0.6,
+    const framework = semanticMap.frameworks.find(
+      (item) => semanticTopicTextAlignment(topic.heading, item.name) >= 0.6,
     );
     const sameFramework = Boolean(
       framework &&
-      [framework.parentSectionId, ...framework.componentSectionIds].includes(pointUnit.sectionId),
+      [framework.parentSectionId, ...framework.componentSectionIds].includes(
+        pointUnit.sectionId,
+      ),
     );
     const fit = semanticEvidencePointFit({
       heading: topic.heading,
@@ -1291,7 +1403,11 @@ function findBestSemanticUnit(
   let bestScore = 0;
 
   for (const unit of semanticMap.units) {
-    if (numbers.size > 0 && !setIsSubset(numbers, new Set(unit.fact.numericTokens))) continue;
+    if (
+      numbers.size > 0 &&
+      !setIsSubset(numbers, new Set(unit.fact.numericTokens))
+    )
+      continue;
     const score = similarity(text, unit.fact.content);
     if (score > bestScore) {
       bestScore = score;
@@ -1315,21 +1431,33 @@ function frameworkIntegrityQuality(
   const publishedFrameworks = semanticMap.frameworks
     .map((framework) => ({
       framework,
-      topic: topics.find((topic) =>
-        semanticTopicTextAlignment(topic.heading, framework.name) >= 0.6,
+      topic: topics.find(
+        (topic) =>
+          semanticTopicTextAlignment(topic.heading, framework.name) >= 0.6,
       ),
     }))
-    .filter((item): item is { framework: SemanticEvidenceMap["frameworks"][number]; topic: QualityTopicBlock } => Boolean(item.topic));
+    .filter(
+      (
+        item,
+      ): item is {
+        framework: SemanticEvidenceMap["frameworks"][number];
+        topic: QualityTopicBlock;
+      } => Boolean(item.topic),
+    );
 
   if (publishedFrameworks.length === 0) return 1;
   const scores = publishedFrameworks.map(({ framework, topic }) => {
     const body = [topic.explanation, ...topic.keyPoints].join(" ");
-    const componentUnits = semanticMap.units.filter((unit) =>
-      framework.componentSectionIds.includes(unit.sectionId) && unit.pointEligible,
+    const componentUnits = semanticMap.units.filter(
+      (unit) =>
+        framework.componentSectionIds.includes(unit.sectionId) &&
+        unit.pointEligible,
     );
     if (componentUnits.length === 0) return 1;
-    const represented = componentUnits.filter((unit) =>
-      similarity(unit.fact.content, body) >= Math.min(0.45, supportThreshold(unit.fact.content)),
+    const represented = componentUnits.filter(
+      (unit) =>
+        similarity(unit.fact.content, body) >=
+        Math.min(0.45, supportThreshold(unit.fact.content)),
     ).length;
     return represented / componentUnits.length;
   });
@@ -1392,7 +1520,9 @@ function extractSectionBullets(summary: string, heading: string): string[] {
   return output;
 }
 
-function extractStudyTopicBlocks(summary: string): Array<{ heading: string; body: string }> {
+function extractStudyTopicBlocks(
+  summary: string,
+): Array<{ heading: string; body: string }> {
   const lines = summary.split(/\r?\n/u);
   const output: Array<{ heading: string; body: string }> = [];
   let inTopics = false;
@@ -1482,7 +1612,5 @@ function ratio(
   denominator: number,
   emptyValue: number,
 ): number {
-  return denominator === 0
-    ? emptyValue
-    : numerator / denominator;
+  return denominator === 0 ? emptyValue : numerator / denominator;
 }

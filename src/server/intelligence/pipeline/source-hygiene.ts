@@ -1,9 +1,5 @@
-import type {
-  DocumentSection,
-} from "./types";
-import type {
-  TextUnitKind,
-} from "./text-units";
+import type { DocumentSection } from "./types";
+import type { TextUnitKind } from "./text-units";
 
 const ADMIN_METADATA_RE =
   /^(?:student(?:\s+(?:name|id))?|course(?:\s+code)?|section|class|lecturer|instructor|teacher|date)\s*[:#-]\s*/iu;
@@ -63,14 +59,12 @@ const PRESENTATION_ARTIFACT_RE =
 const GENERIC_STRUCTURAL_HEADING_RE =
   /^(?:example|examples|illustration|illustrations|figure|figures|diagram|diagrams)$/iu;
 
-const TRAILING_PARENT_RE =
-  /(?:[:：]|[-–—−])\s*$/u;
+const TRAILING_PARENT_RE = /(?:[:：]|[-–—−])\s*$/u;
 
 const RELATIVE_FRAGMENT_RE =
   /^[^,]{1,48},\s+(?:which|that)\s+(?:is|are|was|were|can|may|will|has|have)\b/iu;
 
-const SUBORDINATE_START_RE =
-  /^(?:although|though|because|while|whereas)\b/iu;
+const SUBORDINATE_START_RE = /^(?:although|though|because|while|whereas)\b/iu;
 
 const FINITE_VERB_RE =
   /\b(?:is|are|was|were|means|refers|defines|describes|shows|uses|allows|requires|provides|contains|includes|connects|represents|models|depicts|has|have|can|may|must|should|will|does|do)\b/iu;
@@ -136,7 +130,10 @@ const TECHNICAL_TAILS = new Set([
 
 const CONCEPT_KEY_ALIASES = new Map<string, string>([
   ["ooad", "object oriented analysis and design"],
-  ["object oriented analysis and design", "object oriented analysis and design"],
+  [
+    "object oriented analysis and design",
+    "object oriented analysis and design",
+  ],
   ["ooa", "object oriented analysis"],
   ["objectoriented analysis", "object oriented analysis"],
   ["object oriented analysis", "object oriented analysis"],
@@ -170,23 +167,14 @@ const PLURAL_CANONICAL = new Map<string, string>([
   ["accounts", "account"],
 ]);
 
-export function cleanStudyAnalysisText(
-  value: string,
-): string {
+export function cleanStudyAnalysisText(value: string): string {
   const kept: string[] = [];
 
-  for (const rawLine of value
-    .replace(/\r\n?/gu, "\n")
-    .split("\n")) {
-    const line = rawLine
-      .replace(/[ \t]+/gu, " ")
-      .trim();
+  for (const rawLine of value.replace(/\r\n?/gu, "\n").split("\n")) {
+    const line = rawLine.replace(/[ \t]+/gu, " ").trim();
 
     if (!line) {
-      if (
-        kept.length > 0 &&
-        kept.at(-1) !== ""
-      ) {
+      if (kept.length > 0 && kept.at(-1) !== "") {
         kept.push("");
       }
       continue;
@@ -205,13 +193,8 @@ export function cleanStudyAnalysisText(
     .trim();
 }
 
-export function isStudyNoiseLine(
-  value: string,
-): boolean {
-  const text = value
-    .normalize("NFKC")
-    .replace(/\s+/gu, " ")
-    .trim();
+export function isStudyNoiseLine(value: string): boolean {
+  const text = value.normalize("NFKC").replace(/\s+/gu, " ").trim();
 
   if (!text) return true;
 
@@ -223,10 +206,7 @@ export function isStudyNoiseLine(
     return true;
   }
 
-  if (
-    PROMOTION_PRIMARY_RE.test(text) &&
-    PROMOTION_SECONDARY_RE.test(text)
-  ) {
+  if (PROMOTION_PRIMARY_RE.test(text) && PROMOTION_SECONDARY_RE.test(text)) {
     return true;
   }
 
@@ -241,18 +221,10 @@ export function isStudyNoiseLine(
   return false;
 }
 
-export function looksLikeNavigationCluster(
-  value: string,
-): boolean {
-  const text = value
-    .normalize("NFKC")
-    .replace(/\s+/gu, " ")
-    .trim();
+export function looksLikeNavigationCluster(value: string): boolean {
+  const text = value.normalize("NFKC").replace(/\s+/gu, " ").trim();
 
-  if (
-    !text ||
-    /[.!?]/u.test(text)
-  ) {
+  if (!text || /[.!?]/u.test(text)) {
     return false;
   }
 
@@ -269,33 +241,23 @@ export function looksLikeNavigationCluster(
     return false;
   }
 
-  const navigationCount =
-    tokens.filter((token) =>
-      NAVIGATION_TOKENS.has(token),
-    ).length;
+  const navigationCount = tokens.filter((token) =>
+    NAVIGATION_TOKENS.has(token),
+  ).length;
 
   if (navigationCount >= 3) {
     return true;
   }
 
-  const technologyCount =
-    tokens.filter((token) =>
-      WEB_TECH_TOKENS.has(token),
-    ).length;
+  const technologyCount = tokens.filter((token) =>
+    WEB_TECH_TOKENS.has(token),
+  ).length;
 
-  return (
-    tokens.length >= 7 &&
-    technologyCount / tokens.length >= 0.72
-  );
+  return tokens.length >= 7 && technologyCount / tokens.length >= 0.72;
 }
 
-export function isIncompleteStudyUnit(
-  value: string,
-): boolean {
-  const text = value
-    .normalize("NFKC")
-    .replace(/\s+/gu, " ")
-    .trim();
+export function isIncompleteStudyUnit(value: string): boolean {
+  const text = value.normalize("NFKC").replace(/\s+/gu, " ").trim();
 
   if (!text) return true;
 
@@ -305,17 +267,11 @@ export function isIncompleteStudyUnit(
 
   if (RELATIVE_FRAGMENT_RE.test(text)) {
     const commaIndex = text.indexOf(",");
-    const tail = commaIndex >= 0
-      ? text.slice(commaIndex + 1)
-      : text;
+    const tail = commaIndex >= 0 ? text.slice(commaIndex + 1) : text;
 
-    const secondClause =
-      tail.match(/,\s+(.+)$/u)?.[1] ?? "";
+    const secondClause = tail.match(/,\s+(.+)$/u)?.[1] ?? "";
 
-    if (
-      !secondClause ||
-      !FINITE_VERB_RE.test(secondClause)
-    ) {
+    if (!secondClause || !FINITE_VERB_RE.test(secondClause)) {
       return true;
     }
   }
@@ -327,8 +283,7 @@ export function isIncompleteStudyUnit(
       return true;
     }
 
-    const mainClause =
-      text.slice(commaIndex + 1).trim();
+    const mainClause = text.slice(commaIndex + 1).trim();
 
     if (
       mainClause.split(/\s+/u).length < 4 ||
@@ -345,55 +300,32 @@ export function isStudyEligibleUnit(
   value: string,
   _kind?: TextUnitKind,
 ): boolean {
-  const text = value
-    .normalize("NFKC")
-    .replace(/\s+/gu, " ")
-    .trim();
+  const text = value.normalize("NFKC").replace(/\s+/gu, " ").trim();
 
-  if (
-    text.length < 4 ||
-    !/\p{L}/u.test(text)
-  ) {
+  if (text.length < 4 || !/\p{L}/u.test(text)) {
     return false;
   }
 
-  return (
-    !isStudyNoiseLine(text) &&
-    !isIncompleteStudyUnit(text)
-  );
+  return !isStudyNoiseLine(text) && !isIncompleteStudyUnit(text);
 }
 
-export function isGenericStructuralHeading(
-  value: string,
-): boolean {
-  return GENERIC_STRUCTURAL_HEADING_RE.test(
-    value.trim(),
-  );
+export function isGenericStructuralHeading(value: string): boolean {
+  return GENERIC_STRUCTURAL_HEADING_RE.test(value.trim());
 }
 
-export function hasSubstantiveStudyText(
-  value: string,
-): boolean {
-  const cleaned =
-    cleanStudyAnalysisText(value);
+export function hasSubstantiveStudyText(value: string): boolean {
+  const cleaned = cleanStudyAnalysisText(value);
 
   if (!cleaned) return false;
 
-  return cleaned
-    .split(/\n+/u)
-    .some((line) => {
-      const text = line.trim();
+  return cleaned.split(/\n+/u).some((line) => {
+    const text = line.trim();
 
-      return (
-        text.length >= 12 &&
-        isStudyEligibleUnit(text)
-      );
-    });
+    return text.length >= 12 && isStudyEligibleUnit(text);
+  });
 }
 
-export function canonicalStudyConceptKey(
-  value: string,
-): string {
+export function canonicalStudyConceptKey(value: string): string {
   let cleaned = value
     .normalize("NFKC")
     .replace(/\([^)]*\)/gu, " ")
@@ -409,50 +341,32 @@ export function canonicalStudyConceptKey(
     .replace(/\s+/gu, " ")
     .trim();
 
-  const alias =
-    CONCEPT_KEY_ALIASES.get(cleaned);
+  const alias = CONCEPT_KEY_ALIASES.get(cleaned);
 
   if (alias) return alias;
 
   const words = cleaned.split(" ");
   const last = words.at(-1);
 
-  if (
-    last &&
-    PLURAL_CANONICAL.has(last)
-  ) {
-    words[words.length - 1] =
-      PLURAL_CANONICAL.get(last)!;
+  if (last && PLURAL_CANONICAL.has(last)) {
+    words[words.length - 1] = PLURAL_CANONICAL.get(last)!;
   }
 
   return words.join(" ");
 }
 
-export function looksLikePersonName(
-  value: string,
-): boolean {
-  const words = value
-    .trim()
-    .split(/\s+/u)
-    .filter(Boolean);
+export function looksLikePersonName(value: string): boolean {
+  const words = value.trim().split(/\s+/u).filter(Boolean);
 
-  if (
-    words.length < 2 ||
-    words.length > 3
-  ) {
+  if (words.length < 2 || words.length > 3) {
     return false;
   }
 
-  if (
-    !words.every((word) =>
-      /^[A-Z][A-Za-z'’-]+$/u.test(word),
-    )
-  ) {
+  if (!words.every((word) => /^[A-Z][A-Za-z'’-]+$/u.test(word))) {
     return false;
   }
 
-  const last =
-    words.at(-1)!.toLocaleLowerCase();
+  const last = words.at(-1)!.toLocaleLowerCase();
 
   return !TECHNICAL_TAILS.has(last);
 }
@@ -461,53 +375,31 @@ export function normaliseStudySections(
   sections: DocumentSection[],
 ): DocumentSection[] {
   const output: DocumentSection[] = [];
-  const seenExact =
-    new Set<string>();
+  const seenExact = new Set<string>();
 
   for (const original of sections) {
     const section: DocumentSection = {
       ...original,
-      analysisBody:
-        cleanStudyAnalysisText(
-          original.analysisBody,
-        ),
+      analysisBody: cleanStudyAnalysisText(original.analysisBody),
     };
 
-    const substantive =
-      hasSubstantiveStudyText(
-        section.analysisBody,
-      );
-    const noisyHeading =
-      isStudyNoiseLine(
-        section.rawHeading,
-      );
-    const genericHeading =
-      isGenericStructuralHeading(
-        section.rawHeading,
-      );
+    const substantive = hasSubstantiveStudyText(section.analysisBody);
+    const noisyHeading = isStudyNoiseLine(section.rawHeading);
+    const genericHeading = isGenericStructuralHeading(section.rawHeading);
 
-    const sectionIndex =
-      sections.indexOf(original);
-    const nextSection =
-      sections[sectionIndex + 1];
+    const sectionIndex = sections.indexOf(original);
+    const nextSection = sections[sectionIndex + 1];
     const structuralParent =
       !substantive &&
       !noisyHeading &&
       !genericHeading &&
       Boolean(
         nextSection &&
-        nextSection.level >
-          section.level &&
-        (
-          !section.headingNumber ||
+        nextSection.level > section.level &&
+        (!section.headingNumber ||
           !nextSection.headingNumber ||
-          nextSection.headingNumber.startsWith(
-            `${section.headingNumber}.`,
-          )
-        ) &&
-        hasSubstantiveStudyText(
-          nextSection.analysisBody,
-        ),
+          nextSection.headingNumber.startsWith(`${section.headingNumber}.`)) &&
+        hasSubstantiveStudyText(nextSection.analysisBody),
       );
 
     if (
@@ -524,58 +416,33 @@ export function normaliseStudySections(
       continue;
     }
 
-    if (
-      !substantive &&
-      !structuralParent
-    ) {
+    if (!substantive && !structuralParent) {
       continue;
     }
 
-    if (
-      noisyHeading ||
-      genericHeading
-    ) {
-      const previous =
-        output.at(-1);
+    if (noisyHeading || genericHeading) {
+      const previous = output.at(-1);
 
       if (previous) {
-        previous.body =
-          [previous.body, section.body]
-            .filter(Boolean)
-            .join("\n");
-        previous.analysisBody =
-          [
-            previous.analysisBody,
-            section.analysisBody,
-          ]
-            .filter(Boolean)
-            .join("\n");
-        previous.endOffset =
-          Math.max(
-            previous.endOffset,
-            section.endOffset,
-          );
-        previous.pageEnd =
-          section.pageEnd ??
-          previous.pageEnd;
+        previous.body = [previous.body, section.body]
+          .filter(Boolean)
+          .join("\n");
+        previous.analysisBody = [previous.analysisBody, section.analysisBody]
+          .filter(Boolean)
+          .join("\n");
+        previous.endOffset = Math.max(previous.endOffset, section.endOffset);
+        previous.pageEnd = section.pageEnd ?? previous.pageEnd;
         continue;
       }
 
-      section.rawHeading =
-        "Document";
-      section.title =
-        "other";
-      section.semanticRole =
-        "other";
+      section.rawHeading = "Document";
+      section.title = "other";
+      section.semanticRole = "other";
     }
 
     const exactKey = [
-      canonicalHeading(
-        section.rawHeading,
-      ),
-      normaliseForExact(
-        section.analysisBody,
-      ),
+      canonicalHeading(section.rawHeading),
+      normaliseForExact(section.analysisBody),
     ].join("|");
 
     if (seenExact.has(exactKey)) {
@@ -589,9 +456,7 @@ export function normaliseStudySections(
   return output;
 }
 
-function canonicalHeading(
-  value: string,
-): string {
+function canonicalHeading(value: string): string {
   return value
     .normalize("NFKC")
     .toLocaleLowerCase()
@@ -600,9 +465,7 @@ function canonicalHeading(
     .trim();
 }
 
-function normaliseForExact(
-  value: string,
-): string {
+function normaliseForExact(value: string): string {
   return value
     .normalize("NFKC")
     .toLocaleLowerCase()

@@ -19,11 +19,7 @@ export const createFeedbackSchema = z.object({
     .min(FEEDBACK_RULES.MESSAGE_MIN)
     .max(FEEDBACK_RULES.MESSAGE_MAX),
   rating: z.number().int().min(1).max(5).nullable().optional(),
-  sourcePath: z
-    .string()
-    .trim()
-    .max(FEEDBACK_RULES.SOURCE_PATH_MAX)
-    .optional(),
+  sourcePath: z.string().trim().max(FEEDBACK_RULES.SOURCE_PATH_MAX).optional(),
 });
 
 export const userFeedbackQuerySchema = z.object({

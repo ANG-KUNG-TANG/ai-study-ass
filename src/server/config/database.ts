@@ -9,7 +9,6 @@ interface MongooseCache {
 }
 
 declare global {
-   
   var __mongoose: MongooseCache | undefined;
 }
 
@@ -70,13 +69,17 @@ export async function connectDb(): Promise<typeof mongoose> {
   cache.promise = (async () => {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
       try {
-        const connection = await mongoose.connect(env.MONGODB_URI, CONNECTION_OPTIONS);
+        const connection = await mongoose.connect(
+          env.MONGODB_URI,
+          CONNECTION_OPTIONS,
+        );
         cache.conn = connection;
         return connection;
       } catch (unknownError) {
-        const error = unknownError instanceof Error
-          ? unknownError
-          : new Error(String(unknownError));
+        const error =
+          unknownError instanceof Error
+            ? unknownError
+            : new Error(String(unknownError));
 
         if (attempt === MAX_RETRIES) {
           cache.promise = null;
@@ -141,9 +144,10 @@ export async function checkDBHealth(): Promise<{
   } catch (unknownError) {
     return {
       status: "error",
-      message: unknownError instanceof Error
-        ? unknownError.message
-        : String(unknownError),
+      message:
+        unknownError instanceof Error
+          ? unknownError.message
+          : String(unknownError),
     };
   }
 }

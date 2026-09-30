@@ -1,17 +1,9 @@
 import type { Edge, Node } from "@xyflow/react";
 
-export type KnowledgeStatus =
-  | "not_generated"
-  | "ready"
-  | "partial"
-  | "failed";
+export type KnowledgeStatus = "not_generated" | "ready" | "partial" | "failed";
 
 export type KnowledgeTab =
-  | "learn"
-  | "tree"
-  | "concept-map"
-  | "concepts"
-  | "evidence";
+  "learn" | "tree" | "concept-map" | "concepts" | "evidence";
 
 export type GraphDirection = "LR" | "TB";
 
@@ -30,8 +22,6 @@ export interface KnowledgeGraphEdge {
   evidenceIds?: string[];
 }
 
-
-
 export interface KnowledgeGraphQuality {
   status: "passed" | "warning" | "failed";
   semanticNodeCount: number;
@@ -47,17 +37,10 @@ export interface KnowledgeGraphQuality {
 }
 
 export type KnowledgeTreeNodeType =
-  | "root"
-  | "topic"
-  | "concept"
-  | "term"
-  | "fact";
+  "root" | "topic" | "concept" | "term" | "fact";
 
 export type KnowledgeTreeRelation =
-  | "root"
-  | "topic_group"
-  | "explicit_hierarchy"
-  | "supporting_fact";
+  "root" | "topic_group" | "explicit_hierarchy" | "supporting_fact";
 
 export interface KnowledgeTreeNode {
   id: string;
@@ -141,10 +124,7 @@ export interface KnowledgeNodeData extends Record<string, unknown> {
   dimmed?: boolean;
 }
 
-export type KnowledgeFlowNode = Node<
-  KnowledgeNodeData,
-  "knowledge"
->;
+export type KnowledgeFlowNode = Node<KnowledgeNodeData, "knowledge">;
 
 export type KnowledgeFlowEdge = Edge<{
   relationType: string;

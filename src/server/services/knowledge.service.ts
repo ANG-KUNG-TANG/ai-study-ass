@@ -215,23 +215,15 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
       ? "failed"
       : "partial";
 
-  const grounding = normalizeGrounding(
-    raw.grounding,
-  );
-  const learningGrounding = grounding
-    ? toLearningGrounding(grounding)
-    : null;
+  const grounding = normalizeGrounding(raw.grounding);
+  const learningGrounding = grounding ? toLearningGrounding(grounding) : null;
 
   const groundedGraphResult = learningGrounding
-    ? buildGroundedKnowledgeGraphResult(
-        learningGrounding,
-      )
+    ? buildGroundedKnowledgeGraphResult(learningGrounding)
     : null;
 
   const conceptMap = learningGrounding
-    ? buildGroundedConceptMap(
-        learningGrounding,
-      )
+    ? buildGroundedConceptMap(learningGrounding)
     : normalizeGraph(raw.graph);
 
   const props: KnowledgeProps = {
@@ -296,8 +288,7 @@ function mapIntelligence(noteId: string, value: unknown): KnowledgeView {
 
     tree,
 
-    graphQuality:
-      groundedGraphResult?.quality ?? null,
+    graphQuality: groundedGraphResult?.quality ?? null,
 
     qualityContract,
 

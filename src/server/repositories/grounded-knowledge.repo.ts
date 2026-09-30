@@ -29,10 +29,9 @@ export async function upsert(
 export async function findByNoteId(
   noteId: string,
 ): Promise<GroundedKnowledge | null> {
-  const document = await GroundedKnowledgeModel.findOne(
-    { noteId },
-    { data: 1 },
-  ).lean().exec();
+  const document = await GroundedKnowledgeModel.findOne({ noteId }, { data: 1 })
+    .lean()
+    .exec();
 
   if (!document?.data) return null;
 

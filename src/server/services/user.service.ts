@@ -19,9 +19,7 @@ export type AccountProfile = ReturnType<UserEntity["toPublic"]> & {
   googleConnected: boolean;
 };
 
-export async function getProfile(
-  userId: string,
-): Promise<AccountProfile> {
+export async function getProfile(userId: string): Promise<AccountProfile> {
   const user = await userRepo.findById(userId, { withGoogleSubject: true });
   if (!user) throw new NotFoundError("User");
   return {
@@ -52,10 +50,7 @@ export async function deleteAccount(
   const user = await userRepo.findById(userId, { withPassword: true });
   if (!user) throw new NotFoundError("User");
 
-  const match = await bcrypt.compare(
-    passwordConfirmation,
-    user.passwordHash,
-  );
+  const match = await bcrypt.compare(passwordConfirmation, user.passwordHash);
   if (!match) throw new ForbiddenError("Password confirmation failed");
 
   const noteIds = await noteRepo.findIdsByUserId(userId);

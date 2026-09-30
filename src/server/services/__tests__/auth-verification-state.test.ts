@@ -29,10 +29,7 @@ jest.mock("@/server/utils/logger", () => ({
 
 import bcrypt from "bcryptjs";
 
-import {
-  UserEntity,
-  type UserProps,
-} from "@/server/entities/user.entity";
+import { UserEntity, type UserProps } from "@/server/entities/user.entity";
 import * as userRepo from "@/server/repositories/user.repo";
 import {
   login,
@@ -97,9 +94,9 @@ describe("email verification and account state", () => {
   });
 
   it("does not reveal verification state until the password is correct", async () => {
-    jest.mocked(userRepo.findByEmail).mockResolvedValue(
-      user({ emailVerified: false }),
-    );
+    jest
+      .mocked(userRepo.findByEmail)
+      .mockResolvedValue(user({ emailVerified: false }));
     jest.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
     await expect(
@@ -111,9 +108,9 @@ describe("email verification and account state", () => {
   });
 
   it("returns a dedicated error after an unverified user proves the password", async () => {
-    jest.mocked(userRepo.findByEmail).mockResolvedValue(
-      user({ emailVerified: false }),
-    );
+    jest
+      .mocked(userRepo.findByEmail)
+      .mockResolvedValue(user({ emailVerified: false }));
 
     await expect(
       login({ email: "ada@example.com", password: "correct" }),

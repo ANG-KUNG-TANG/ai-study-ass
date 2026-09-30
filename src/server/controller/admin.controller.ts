@@ -84,7 +84,10 @@ export async function listContent(
   _context: RouteContext,
   _auth: AuthContext,
 ): Promise<NextResponse> {
-  const query = validateQuery(req, adminContentQuerySchema) as AdminContentQueryInput;
+  const query = validateQuery(
+    req,
+    adminContentQuerySchema,
+  ) as AdminContentQueryInput;
   const result = await adminService.listContent({
     page: query.page,
     limit: query.limit,
@@ -103,7 +106,10 @@ export async function deleteContent(
   context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
   const noteId = await getRouteId(context);
   const deleted = await adminService.deleteContent(auth.userId, noteId);
 
@@ -128,7 +134,9 @@ export async function getContent(
   context: RouteContext,
   _auth: AuthContext,
 ): Promise<NextResponse> {
-  return successResponse(await adminService.getContentById(await getRouteId(context)));
+  return successResponse(
+    await adminService.getContentById(await getRouteId(context)),
+  );
 }
 
 export async function retryContent(
@@ -137,7 +145,10 @@ export async function retryContent(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const noteId = await getRouteId(context);
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
   const result = await adminService.retryContent(auth.userId, noteId);
   await logActivity({
     ...auditContext(req, auth),
@@ -147,7 +158,10 @@ export async function retryContent(
     reason,
     metadata: { ...result },
   });
-  return successResponse(result, { status: 202, message: "Content retry queued" });
+  return successResponse(result, {
+    status: 202,
+    message: "Content retry queued",
+  });
 }
 
 export async function cancelContent(
@@ -156,8 +170,14 @@ export async function cancelContent(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const noteId = await getRouteId(context);
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
-  const result = await adminService.cancelContentProcessing(auth.userId, noteId);
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
+  const result = await adminService.cancelContentProcessing(
+    auth.userId,
+    noteId,
+  );
   await logActivity({
     ...auditContext(req, auth),
     action: "admin.content_cancelled",
@@ -175,8 +195,15 @@ export async function quarantineContent(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const noteId = await getRouteId(context);
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
-  const result = await adminService.quarantineContent(auth.userId, noteId, reason);
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
+  const result = await adminService.quarantineContent(
+    auth.userId,
+    noteId,
+    reason,
+  );
   await logActivity({
     ...auditContext(req, auth),
     action: "admin.content_quarantined",
@@ -193,7 +220,10 @@ export async function restoreContent(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const noteId = await getRouteId(context);
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
   const result = await adminService.restoreContent(auth.userId, noteId);
   await logActivity({
     ...auditContext(req, auth),
@@ -220,7 +250,9 @@ export async function getUserAIPolicy(
   context: RouteContext,
   _auth: AuthContext,
 ): Promise<NextResponse> {
-  return successResponse(await adminService.getUserAIAdminPolicy(await getTargetUserId(context)));
+  return successResponse(
+    await adminService.getUserAIAdminPolicy(await getTargetUserId(context)),
+  );
 }
 
 export async function updateUserAIPolicy(
@@ -229,12 +261,19 @@ export async function updateUserAIPolicy(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const userId = await getTargetUserId(context);
-  const input = await validateBody(req, userAIPolicySchema) as UserAIPolicyInput;
-  const result = await adminService.updateUserAIAdminPolicy(auth.userId, userId, {
-    enabled: input.enabled,
-    dailyRequestLimit: input.dailyRequestLimit,
-    dailyTokenLimit: input.dailyTokenLimit,
-  });
+  const input = (await validateBody(
+    req,
+    userAIPolicySchema,
+  )) as UserAIPolicyInput;
+  const result = await adminService.updateUserAIAdminPolicy(
+    auth.userId,
+    userId,
+    {
+      enabled: input.enabled,
+      dailyRequestLimit: input.dailyRequestLimit,
+      dailyTokenLimit: input.dailyTokenLimit,
+    },
+  );
   await logActivity({
     ...auditContext(req, auth),
     action: "admin.ai_policy_changed",
@@ -252,7 +291,10 @@ export async function revokeUserSessions(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const userId = await getTargetUserId(context);
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
   await adminService.revokeUserSessions(auth.userId, userId);
   await logActivity({
     ...auditContext(req, auth),
@@ -280,7 +322,10 @@ export async function updateUserRole(
   auth: AuthContext,
 ): Promise<NextResponse> {
   const targetId = await getTargetUserId(context);
-  const { role, reason } = await validateBody(req, updateRoleSchema) as UpdateRoleInput;
+  const { role, reason } = (await validateBody(
+    req,
+    updateRoleSchema,
+  )) as UpdateRoleInput;
   await adminService.updateUserRole(auth.userId, targetId, role);
   const target = await adminService.getUserById(targetId);
 
@@ -302,7 +347,10 @@ export async function banUser(
   context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
   const targetId = await getTargetUserId(context);
   const target = await adminService.getUserById(targetId);
   await adminService.banUser(auth.userId, targetId);
@@ -325,7 +373,10 @@ export async function unbanUser(
   context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
   const targetId = await getTargetUserId(context);
   const target = await adminService.getUserById(targetId);
   await adminService.unbanUser(auth.userId, targetId);
@@ -348,7 +399,10 @@ export async function deleteUser(
   context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
   const targetId = await getTargetUserId(context);
   const target = await adminService.getUserById(targetId);
   await adminService.deleteUser(auth.userId, targetId);
@@ -410,7 +464,9 @@ export async function exportActivity(
 ): Promise<NextResponse> {
   const query = validateQuery(req, activityQuerySchema) as ActivityQueryInput;
   const { page: _page, limit: _limit, ...filters } = query;
-  return successResponse({ csv: await auditLogService.exportActivityCsv(filters) });
+  return successResponse({
+    csv: await auditLogService.exportActivityCsv(filters),
+  });
 }
 
 // GET /api/admin/security?window=15
@@ -419,17 +475,13 @@ export async function getSecurityReport(
   _context: RouteContext,
   _auth: AuthContext,
 ): Promise<NextResponse> {
-  const rawWindow = Number(
-    req.nextUrl.searchParams.get("window") ?? 15,
-  );
+  const rawWindow = Number(req.nextUrl.searchParams.get("window") ?? 15);
 
   const windowMinutes = Number.isFinite(rawWindow)
     ? Math.min(1_440, Math.max(5, Math.floor(rawWindow)))
     : 15;
 
-  return successResponse(
-    await buildSecurityReport(windowMinutes),
-  );
+  return successResponse(await buildSecurityReport(windowMinutes));
 }
 
 export async function getSettings(
@@ -445,7 +497,10 @@ export async function updateSettings(
   _context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const input = await validateBody(req, operationalSettingsSchema) as OperationalSettingsInput;
+  const input = (await validateBody(
+    req,
+    operationalSettingsSchema,
+  )) as OperationalSettingsInput;
   const { reason, ...settings } = input;
   const result = await adminService.updateSettings(auth.userId, settings);
   await logActivity({
@@ -472,7 +527,10 @@ export async function executeRetention(
   _context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
   const result = await adminService.executeRetention(auth.userId);
   await logActivity({
     ...auditContext(req, auth),
@@ -490,7 +548,10 @@ export async function testAIProvider(
   _context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const { reason } = await validateBody(req, adminReasonSchema) as AdminReasonInput;
+  const { reason } = (await validateBody(
+    req,
+    adminReasonSchema,
+  )) as AdminReasonInput;
   const result = await adminService.testAIProvider(auth.userId);
   await logActivity({
     ...auditContext(req, auth),

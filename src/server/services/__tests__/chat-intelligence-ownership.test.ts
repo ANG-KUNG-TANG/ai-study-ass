@@ -12,9 +12,7 @@ import {
   getChatHistory,
   clearChatHistory,
 } from "@/server/services/chat/chat.service";
-import {
-  getIntelligenceStatus,
-} from "@/server/controller/intelligence.controller";
+import { getIntelligenceStatus } from "@/server/controller/intelligence.controller";
 import {
   getKnowledgeByNote,
   deleteKnowledgeByNote,
@@ -47,14 +45,9 @@ describe("chat / intelligence ownership scoping", () => {
     } as never);
     jest.mocked(chatRepo.findByNoteIdAndUserId).mockResolvedValue([]);
 
-    await expect(
-      getChatHistory("note-1", "user-1"),
-    ).resolves.toEqual([]);
+    await expect(getChatHistory("note-1", "user-1")).resolves.toEqual([]);
 
-    expect(noteRepo.findByIdAndUserId).toHaveBeenCalledWith(
-      "note-1",
-      "user-1",
-    );
+    expect(noteRepo.findByIdAndUserId).toHaveBeenCalledWith("note-1", "user-1");
   });
 
   it("does not clear chat history for an inaccessible note", async () => {
@@ -67,65 +60,45 @@ describe("chat / intelligence ownership scoping", () => {
       code: "NOT_FOUND",
     });
 
-    expect(
-      chatRepo.deleteByNoteIdAndUserId,
-    ).not.toHaveBeenCalled();
+    expect(chatRepo.deleteByNoteIdAndUserId).not.toHaveBeenCalled();
   });
 
   it("does not expose intelligence status for an inaccessible note", async () => {
     jest.mocked(noteRepo.findByIdAndUserId).mockResolvedValue(null);
 
     await expect(
-      getIntelligenceStatus(
-        new Request("http://localhost"),
-        context,
-        auth,
-      ),
+      getIntelligenceStatus(new Request("http://localhost"), context, auth),
     ).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
     });
 
-    expect(
-      intelligenceService.getStatus,
-    ).not.toHaveBeenCalled();
+    expect(intelligenceService.getStatus).not.toHaveBeenCalled();
   });
 
   it("does not expose knowledge for an inaccessible note", async () => {
     jest.mocked(noteRepo.findByIdAndUserId).mockResolvedValue(null);
 
     await expect(
-      getKnowledgeByNote(
-        new Request("http://localhost"),
-        context,
-        auth,
-      ),
+      getKnowledgeByNote(new Request("http://localhost"), context, auth),
     ).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
     });
 
-    expect(
-      knowledgeService.getKnowledge,
-    ).not.toHaveBeenCalled();
+    expect(knowledgeService.getKnowledge).not.toHaveBeenCalled();
   });
 
   it("does not delete knowledge for an inaccessible note", async () => {
     jest.mocked(noteRepo.findByIdAndUserId).mockResolvedValue(null);
 
     await expect(
-      deleteKnowledgeByNote(
-        new Request("http://localhost"),
-        context,
-        auth,
-      ),
+      deleteKnowledgeByNote(new Request("http://localhost"), context, auth),
     ).rejects.toMatchObject({
       statusCode: 404,
       code: "NOT_FOUND",
     });
 
-    expect(
-      knowledgeService.deleteKnowledge,
-    ).not.toHaveBeenCalled();
+    expect(knowledgeService.deleteKnowledge).not.toHaveBeenCalled();
   });
 });

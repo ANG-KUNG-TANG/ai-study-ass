@@ -136,7 +136,11 @@ export function NoteCard({
           <span className="font-mono text-[10.5px] text-ink-faint">
             {timeAgo}
           </span>
-          <ArrowRight className="text-ink-faint transition-transform group-hover:translate-x-0.5" size={15} strokeWidth={1.7} />
+          <ArrowRight
+            className="text-ink-faint transition-transform group-hover:translate-x-0.5"
+            size={15}
+            strokeWidth={1.7}
+          />
         </div>
       </Link>
 
@@ -150,7 +154,11 @@ export function NoteCard({
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-faint transition hover:bg-coral-soft hover:text-coral focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral/30 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isDeleting ? (
-            <LoaderCircle className="animate-spin" size={15} strokeWidth={1.8} />
+            <LoaderCircle
+              className="animate-spin"
+              size={15}
+              strokeWidth={1.8}
+            />
           ) : (
             <Trash2 size={15} strokeWidth={1.8} />
           )}

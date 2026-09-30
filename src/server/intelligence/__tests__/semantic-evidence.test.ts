@@ -21,13 +21,15 @@ function makeFact(input: {
     content: input.content,
     verbatimRequired: false,
     sourceSectionId: input.sectionId,
-    evidence: [{
-      id: `e-${input.id}`,
-      sectionId: input.sectionId,
-      sectionTitle: input.sectionId,
-      pageNumber: 1,
-      text: input.content,
-    }],
+    evidence: [
+      {
+        id: `e-${input.id}`,
+        sectionId: input.sectionId,
+        sectionTitle: input.sectionId,
+        pageNumber: 1,
+        text: input.content,
+      },
+    ],
     evidenceType: "stated",
     verificationStatus: "supported",
     confidence: 0.96,
@@ -41,35 +43,78 @@ function grounding(): GroundedKnowledge {
     makeFact({
       id: "authors",
       sectionId: "title",
-      content: "Martin Neil and Norman Fenton (Agena Ltd and Queen Mary, University of London)",
+      content:
+        "Martin Neil and Norman Fenton (Agena Ltd and Queen Mary, University of London)",
       importance: 0.99,
     }),
     makeFact({
       id: "result",
       sectionId: "abstract",
       type: "result",
-      content: "The validation found 95% correlation between actual and predicted defects.",
+      content:
+        "The validation found 95% correlation between actual and predicted defects.",
       importance: 0.99,
     }),
     makeFact({
       id: "method",
       sectionId: "method",
-      content: "The defect model was built using a mixture of project data and expert judgements.",
+      content:
+        "The defect model was built using a mixture of project data and expert judgements.",
       importance: 0.97,
     }),
     makeFact({
       id: "cause",
       sectionId: "method",
       type: "relationship",
-      content: "Understanding cause and effect is a basic form of human knowledge underlying our decisions.",
+      content:
+        "Understanding cause and effect is a basic form of human knowledge underlying our decisions.",
       importance: 0.99,
     }),
-    makeFact({ id: "think-intro", sectionId: "think", content: "The THINK Framework uses five questions to guide problem solving.", importance: 0.96 }),
-    makeFact({ id: "t", sectionId: "think-t", type: "objective", content: "Understand the Task before deciding how to solve it.", importance: 0.92 }),
-    makeFact({ id: "h", sectionId: "think-h", type: "objective", content: "Human Solution asks how the problem would be solved without programming.", importance: 0.92 }),
-    makeFact({ id: "i", sectionId: "think-i", type: "objective", content: "Identify Important Information that must be remembered while solving the problem.", importance: 0.92 }),
-    makeFact({ id: "n", sectionId: "think-n", type: "objective", content: "Name the Memory by choosing variables or data structures for remembered information.", importance: 0.92 }),
-    makeFact({ id: "k", sectionId: "think-k", type: "objective", content: "Keep Processing until the task is complete.", importance: 0.92 }),
+    makeFact({
+      id: "think-intro",
+      sectionId: "think",
+      content:
+        "The THINK Framework uses five questions to guide problem solving.",
+      importance: 0.96,
+    }),
+    makeFact({
+      id: "t",
+      sectionId: "think-t",
+      type: "objective",
+      content: "Understand the Task before deciding how to solve it.",
+      importance: 0.92,
+    }),
+    makeFact({
+      id: "h",
+      sectionId: "think-h",
+      type: "objective",
+      content:
+        "Human Solution asks how the problem would be solved without programming.",
+      importance: 0.92,
+    }),
+    makeFact({
+      id: "i",
+      sectionId: "think-i",
+      type: "objective",
+      content:
+        "Identify Important Information that must be remembered while solving the problem.",
+      importance: 0.92,
+    }),
+    makeFact({
+      id: "n",
+      sectionId: "think-n",
+      type: "objective",
+      content:
+        "Name the Memory by choosing variables or data structures for remembered information.",
+      importance: 0.92,
+    }),
+    makeFact({
+      id: "k",
+      sectionId: "think-k",
+      type: "objective",
+      content: "Keep Processing until the task is complete.",
+      importance: 0.92,
+    }),
   ];
 
   return {
@@ -82,15 +127,78 @@ function grounding(): GroundedKnowledge {
     keyTerms: [],
     concepts: [],
     sections: [
-      { sectionId: "title", heading: "Improved Software Defect Prediction", status: "covered", factIds: ["authors"], sourceUnitCount: 1, omittedUnitCount: 0 },
-      { sectionId: "abstract", heading: "Abstract", status: "covered", factIds: ["result"], sourceUnitCount: 1, omittedUnitCount: 0 },
-      { sectionId: "method", heading: "2.2 Building the BN Model", status: "covered", factIds: ["method", "cause"], sourceUnitCount: 2, omittedUnitCount: 0 },
-      { sectionId: "think", heading: "The THINK Framework", status: "covered", factIds: ["think-intro"], sourceUnitCount: 1, omittedUnitCount: 0 },
-      { sectionId: "think-t", heading: "T", status: "covered", factIds: ["t"], sourceUnitCount: 1, omittedUnitCount: 0 },
-      { sectionId: "think-h", heading: "Human Solution", status: "covered", factIds: ["h"], sourceUnitCount: 1, omittedUnitCount: 0 },
-      { sectionId: "think-i", heading: "Identify Important Information", status: "covered", factIds: ["i"], sourceUnitCount: 1, omittedUnitCount: 0 },
-      { sectionId: "think-n", heading: "N", status: "covered", factIds: ["n"], sourceUnitCount: 1, omittedUnitCount: 0 },
-      { sectionId: "think-k", heading: "Keep Processing", status: "covered", factIds: ["k"], sourceUnitCount: 1, omittedUnitCount: 0 },
+      {
+        sectionId: "title",
+        heading: "Improved Software Defect Prediction",
+        status: "covered",
+        factIds: ["authors"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+      {
+        sectionId: "abstract",
+        heading: "Abstract",
+        status: "covered",
+        factIds: ["result"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+      {
+        sectionId: "method",
+        heading: "2.2 Building the BN Model",
+        status: "covered",
+        factIds: ["method", "cause"],
+        sourceUnitCount: 2,
+        omittedUnitCount: 0,
+      },
+      {
+        sectionId: "think",
+        heading: "The THINK Framework",
+        status: "covered",
+        factIds: ["think-intro"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+      {
+        sectionId: "think-t",
+        heading: "T",
+        status: "covered",
+        factIds: ["t"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+      {
+        sectionId: "think-h",
+        heading: "Human Solution",
+        status: "covered",
+        factIds: ["h"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+      {
+        sectionId: "think-i",
+        heading: "Identify Important Information",
+        status: "covered",
+        factIds: ["i"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+      {
+        sectionId: "think-n",
+        heading: "N",
+        status: "covered",
+        factIds: ["n"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
+      {
+        sectionId: "think-k",
+        heading: "Keep Processing",
+        status: "covered",
+        factIds: ["k"],
+        sourceUnitCount: 1,
+        omittedUnitCount: 0,
+      },
     ],
     quality: {
       score: 0.98,
@@ -136,16 +244,20 @@ describe("semantic evidence map", () => {
     const cause = map.unitsByFactId.get("cause")!;
     const method = map.unitsByFactId.get("method")!;
 
-    expect(semanticEvidenceExplanationFit({
-      heading: "Building the BN Model",
-      unit: cause,
-      kind: "topic",
-    }).passed).toBe(false);
-    expect(semanticEvidenceExplanationFit({
-      heading: "Building the BN Model",
-      unit: method,
-      kind: "topic",
-    }).passed).toBe(true);
+    expect(
+      semanticEvidenceExplanationFit({
+        heading: "Building the BN Model",
+        unit: cause,
+        kind: "topic",
+      }).passed,
+    ).toBe(false);
+    expect(
+      semanticEvidenceExplanationFit({
+        heading: "Building the BN Model",
+        unit: method,
+        kind: "topic",
+      }).passed,
+    ).toBe(true);
   });
 
   it("groups framework components under their parent framework", () => {
@@ -156,7 +268,9 @@ describe("semantic evidence map", () => {
       concepts: source.concepts,
       keyTerms: source.keyTerms,
     });
-    const think = map.frameworks.find((item) => item.parentSectionId === "think");
+    const think = map.frameworks.find(
+      (item) => item.parentSectionId === "think",
+    );
 
     expect(think?.componentSectionIds).toEqual([
       "think-t",
@@ -178,23 +292,30 @@ describe("semantic evidence map", () => {
     });
     const method = map.unitsByFactId.get("method")!;
 
-    expect(semanticEvidenceExplanationFit({
-      heading: "Phase Model",
-      unit: method,
-      kind: "topic",
-    }).passed).toBe(false);
+    expect(
+      semanticEvidenceExplanationFit({
+        heading: "Phase Model",
+        unit: method,
+        kind: "topic",
+      }).passed,
+    ).toBe(false);
   });
 
   it("does not classify prose about a formula language as mathematical formula evidence", () => {
     const source = grounding();
-    source.facts.push(makeFact({
-      id: "formula-prose",
-      sectionId: "method",
-      type: "formula",
-      content: "The formula language of the toolset makes custom quality indicators feasible.",
-      importance: 0.93,
-    }));
-    source.sections.find((section) => section.sectionId === "method")!.factIds.push("formula-prose");
+    source.facts.push(
+      makeFact({
+        id: "formula-prose",
+        sectionId: "method",
+        type: "formula",
+        content:
+          "The formula language of the toolset makes custom quality indicators feasible.",
+        importance: 0.93,
+      }),
+    );
+    source.sections
+      .find((section) => section.sectionId === "method")!
+      .factIds.push("formula-prose");
 
     const map = buildSemanticEvidenceMap({
       sections: source.sections,
@@ -208,13 +329,18 @@ describe("semantic evidence map", () => {
 
   it("classifies section-navigation prose as transition rather than learning evidence", () => {
     const source = grounding();
-    source.facts.push(makeFact({
-      id: "navigation",
-      sectionId: "method",
-      content: "An experimental validation of defect predictions is described in Section 6.",
-      importance: 0.95,
-    }));
-    source.sections.find((section) => section.sectionId === "method")!.factIds.push("navigation");
+    source.facts.push(
+      makeFact({
+        id: "navigation",
+        sectionId: "method",
+        content:
+          "An experimental validation of defect predictions is described in Section 6.",
+        importance: 0.95,
+      }),
+    );
+    source.sections
+      .find((section) => section.sectionId === "method")!
+      .factIds.push("navigation");
 
     const map = buildSemanticEvidenceMap({
       sections: source.sections,
@@ -225,5 +351,4 @@ describe("semantic evidence map", () => {
 
     expect(map.unitsByFactId.get("navigation")?.role).toBe("transition");
   });
-
 });

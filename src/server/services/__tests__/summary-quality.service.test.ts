@@ -5,9 +5,7 @@ import {
   type ImportantConcept,
   type SectionCoverage,
 } from "@/server/intelligence/grounding";
-import {
-  assessSummaryQuality,
-} from "@/server/services/summary/summary-quality.service";
+import { assessSummaryQuality } from "@/server/services/summary/summary-quality.service";
 
 function makeFact(input: {
   id: string;
@@ -23,13 +21,15 @@ function makeFact(input: {
     content: input.content,
     verbatimRequired: false,
     sourceSectionId: input.sectionId,
-    evidence: [{
-      id: `evidence-${input.id}`,
-      sectionId: input.sectionId,
-      sectionTitle: input.sectionId,
-      pageNumber: input.page ?? 1,
-      text: input.content,
-    }],
+    evidence: [
+      {
+        id: `evidence-${input.id}`,
+        sectionId: input.sectionId,
+        sectionTitle: input.sectionId,
+        pageNumber: input.page ?? 1,
+        text: input.content,
+      },
+    ],
     evidenceType: "stated",
     verificationStatus: "supported",
     confidence: 0.95,
@@ -63,13 +63,15 @@ function makeConcept(
     normalizedName: name.toLocaleLowerCase(),
     explanation: `${name} is an important topic in the source.`,
     sourceSectionIds: [sectionId],
-    evidence: [{
-      id: `concept-${name}`,
-      sectionId,
-      sectionTitle: sectionId,
-      pageNumber: 1,
-      text: `${name} is an important topic in the source.`,
-    }],
+    evidence: [
+      {
+        id: `concept-${name}`,
+        sectionId,
+        sectionTitle: sectionId,
+        pageNumber: 1,
+        text: `${name} is an important topic in the source.`,
+      },
+    ],
     importanceScore: importance,
   };
 }
@@ -98,7 +100,7 @@ function makeGrounding(): GroundedKnowledge {
       content:
         "PortFast should be enabled only on access ports connected to end devices.",
       type: "warning",
-      importance: 0.90,
+      importance: 0.9,
       page: 2,
     }),
     makeFact({
@@ -140,7 +142,7 @@ function makeGrounding(): GroundedKnowledge {
     concepts: [
       makeConcept("Spanning Tree Protocol", "s1", 0.99),
       makeConcept("Root Bridge", "s1", 0.95),
-      makeConcept("PortFast", "s2", 0.90),
+      makeConcept("PortFast", "s2", 0.9),
       makeConcept("BPDU Guard", "s2", 0.88),
     ],
     sections: [
@@ -278,9 +280,7 @@ describe("summary quality validation", () => {
     const artifact = goodArtifact();
     artifact.summary +=
       "\n\n- The default STP bridge priority is 99999. (p. 3)";
-    artifact.keyPoints.push(
-      "The default STP bridge priority is 99999.",
-    );
+    artifact.keyPoints.push("The default STP bridge priority is 99999.");
 
     const report = assessSummaryQuality({
       artifact,
@@ -372,10 +372,9 @@ describe("summary quality validation", () => {
         makeFact({
           id: factId,
           sectionId,
-          content:
-            `Section ${index} explains a supported networking rule for redundant switch design.`,
+          content: `Section ${index} explains a supported networking rule for redundant switch design.`,
           type: "rule",
-          importance: 0.60 - index * 0.01,
+          importance: 0.6 - index * 0.01,
           page: index,
         }),
       );
@@ -404,8 +403,7 @@ describe("summary quality validation", () => {
     expect(
       report.issues.some(
         (issue) =>
-          issue.code === "LOW_SECTION_COVERAGE" &&
-          issue.severity === "error",
+          issue.code === "LOW_SECTION_COVERAGE" && issue.severity === "error",
       ),
     ).toBe(false);
   });
@@ -518,7 +516,11 @@ it("v3 hard-fails a grounded explanation that does not explain its published top
     ],
   };
 
-  const report = assessSummaryQuality({ artifact, grounding, mode: "comprehensive" });
+  const report = assessSummaryQuality({
+    artifact,
+    grounding,
+    mode: "comprehensive",
+  });
 
   expect(report.faithful).toBe(true);
   expect(report.contractPassed).toBe(false);
@@ -559,10 +561,19 @@ it("v3 hard-fails source-structure labels used as learner topics", () => {
       "PortFast should be enabled only on access ports connected to end devices.",
       "The default STP bridge priority is 32768.",
     ],
-    importantConcepts: ["Spanning Tree Protocol", "Root Bridge", "PortFast", "BPDU Guard"],
+    importantConcepts: [
+      "Spanning Tree Protocol",
+      "Root Bridge",
+      "PortFast",
+      "BPDU Guard",
+    ],
   };
 
-  const report = assessSummaryQuality({ artifact, grounding, mode: "comprehensive" });
+  const report = assessSummaryQuality({
+    artifact,
+    grounding,
+    mode: "comprehensive",
+  });
 
   expect(report.faithful).toBe(true);
   expect(report.contract.hardGates).toEqual(
@@ -604,10 +615,19 @@ it("v3 treats even one unsupported factual unit as a faithfulness failure", () =
       "PortFast should be enabled only on access ports connected to end devices.",
       "The default STP bridge priority is 32768.",
     ],
-    importantConcepts: ["Spanning Tree Protocol", "Root Bridge", "PortFast", "BPDU Guard"],
+    importantConcepts: [
+      "Spanning Tree Protocol",
+      "Root Bridge",
+      "PortFast",
+      "BPDU Guard",
+    ],
   };
 
-  const report = assessSummaryQuality({ artifact, grounding, mode: "comprehensive" });
+  const report = assessSummaryQuality({
+    artifact,
+    grounding,
+    mode: "comprehensive",
+  });
 
   expect(report.faithful).toBe(false);
   expect(report.status).toBe("failed");

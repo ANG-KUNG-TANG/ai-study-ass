@@ -15,9 +15,7 @@ import * as flashcardService from "@/server/services/flashcard.service";
 import * as chatService from "@/server/services/chat/chat.service";
 import { generateStudyMaterials } from "@/server/services/study-material-generation.service";
 
-const feature = (
-  status: "ready" | "failed",
-) => ({
+const feature = (status: "ready" | "failed") => ({
   status,
   source: status === "failed" ? null : "symbolic",
   confidence: status === "failed" ? null : 0.8,
@@ -41,25 +39,19 @@ describe("study-material-generation.service", () => {
       belongsTo: (userId: string) => userId === "user-1",
     } as never);
 
-    jest.mocked(generationRepo.initialise).mockResolvedValue(
-      {} as never,
-    );
+    jest.mocked(generationRepo.initialise).mockResolvedValue({} as never);
     jest.mocked(generationRepo.updateStage).mockResolvedValue(undefined);
     jest.mocked(generationRepo.updateFeature).mockResolvedValue(undefined);
 
-    jest.mocked(
-      intelligenceService.toRawDocument,
-    ).mockReturnValue({} as never);
-    jest.mocked(
-      intelligenceService.runAndPersistPipeline,
-    ).mockResolvedValue({} as never);
-    jest.mocked(
-      intelligenceService.getOrRunPipeline,
-    ).mockResolvedValue({} as never);
+    jest.mocked(intelligenceService.toRawDocument).mockReturnValue({} as never);
+    jest
+      .mocked(intelligenceService.runAndPersistPipeline)
+      .mockResolvedValue({} as never);
+    jest
+      .mocked(intelligenceService.getOrRunPipeline)
+      .mockResolvedValue({} as never);
 
-    jest.mocked(
-      summaryService.generateSummary,
-    ).mockResolvedValue({
+    jest.mocked(summaryService.generateSummary).mockResolvedValue({
       summary: "Summary",
       mode: "comprehensive",
       keyPoints: ["Point"],
@@ -73,9 +65,7 @@ describe("study-material-generation.service", () => {
       tokensUsed: 0,
     });
 
-    jest.mocked(
-      quizService.generateQuizWithMetadata,
-    ).mockResolvedValue({
+    jest.mocked(quizService.generateQuizWithMetadata).mockResolvedValue({
       quiz: {} as never,
       metadata: {
         source: "symbolic",
@@ -86,22 +76,20 @@ describe("study-material-generation.service", () => {
       },
     });
 
-    jest.mocked(
-      flashcardService.generateFlashcardsWithMetadata,
-    ).mockResolvedValue({
-      flashcards: [],
-      metadata: {
-        source: "symbolic",
-        confidence: 0.8,
-        aiFallbackUsed: false,
-        status: "ready",
-        itemCount: 8,
-      },
-    });
+    jest
+      .mocked(flashcardService.generateFlashcardsWithMetadata)
+      .mockResolvedValue({
+        flashcards: [],
+        metadata: {
+          source: "symbolic",
+          confidence: 0.8,
+          aiFallbackUsed: false,
+          status: "ready",
+          itemCount: 8,
+        },
+      });
 
-    jest.mocked(
-      chatService.prepareChatKnowledge,
-    ).mockResolvedValue({
+    jest.mocked(chatService.prepareChatKnowledge).mockResolvedValue({
       source: "symbolic",
       confidence: 0.8,
       aiFallbackUsed: false,
@@ -111,7 +99,8 @@ describe("study-material-generation.service", () => {
   });
 
   it("runs all four features after intelligence", async () => {
-    jest.mocked(generationRepo.findByNoteId)
+    jest
+      .mocked(generationRepo.findByNoteId)
       .mockResolvedValueOnce({
         noteId: "note-1",
         userId: "user-1",
@@ -149,28 +138,19 @@ describe("study-material-generation.service", () => {
     });
 
     expect(result.stage).toBe("complete");
-    expect(
-      summaryService.generateSummary,
-    ).toHaveBeenCalled();
-    expect(
-      quizService.generateQuizWithMetadata,
-    ).toHaveBeenCalled();
-    expect(
-      flashcardService.generateFlashcardsWithMetadata,
-    ).toHaveBeenCalled();
-    expect(
-      chatService.prepareChatKnowledge,
-    ).toHaveBeenCalled();
+    expect(summaryService.generateSummary).toHaveBeenCalled();
+    expect(quizService.generateQuizWithMetadata).toHaveBeenCalled();
+    expect(flashcardService.generateFlashcardsWithMetadata).toHaveBeenCalled();
+    expect(chatService.prepareChatKnowledge).toHaveBeenCalled();
   });
 
   it("continues when one feature fails", async () => {
-    jest.mocked(
-      quizService.generateQuizWithMetadata,
-    ).mockRejectedValue(
-      new Error("quiz failed"),
-    );
+    jest
+      .mocked(quizService.generateQuizWithMetadata)
+      .mockRejectedValue(new Error("quiz failed"));
 
-    jest.mocked(generationRepo.findByNoteId)
+    jest
+      .mocked(generationRepo.findByNoteId)
       .mockResolvedValueOnce({
         noteId: "note-1",
         userId: "user-1",
@@ -208,11 +188,7 @@ describe("study-material-generation.service", () => {
     });
 
     expect(result.stage).toBe("partial");
-    expect(
-      flashcardService.generateFlashcardsWithMetadata,
-    ).toHaveBeenCalled();
-    expect(
-      chatService.prepareChatKnowledge,
-    ).toHaveBeenCalled();
+    expect(flashcardService.generateFlashcardsWithMetadata).toHaveBeenCalled();
+    expect(chatService.prepareChatKnowledge).toHaveBeenCalled();
   });
 });

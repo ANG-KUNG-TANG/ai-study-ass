@@ -2,9 +2,7 @@ import type { NextResponse } from "next/server";
 import { connectDb } from "@/server/config/database";
 import { authLimiter } from "@/server/middleware/rate_limiter.middleware";
 import { createdResponse } from "@/server/utils/response";
-import {
-  extractFileFromRequest,
-} from "@/server/services/upload.service";
+import { extractFileFromRequest } from "@/server/services/upload.service";
 import { ingestDocument } from "@/server/services/document-ingestion.service";
 import type {
   AuthContext,
@@ -19,10 +17,7 @@ export async function uploadNoteController(
   _context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  await authLimiter(
-    req,
-    `upload:${auth.userId}`,
-  );
+  await authLimiter(req, `upload:${auth.userId}`);
 
   await connectDb();
 

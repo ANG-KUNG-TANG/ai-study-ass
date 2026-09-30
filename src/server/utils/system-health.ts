@@ -1,7 +1,4 @@
-export type SystemHealthStatus =
-  | "healthy"
-  | "degraded"
-  | "unhealthy";
+export type SystemHealthStatus = "healthy" | "degraded" | "unhealthy";
 
 export function deriveSystemHealthStatus(input: {
   databaseConnected: boolean;

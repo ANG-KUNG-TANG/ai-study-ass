@@ -111,11 +111,51 @@ const EXAMPLE_ONLY_EVIDENCE_RE =
   /(?:^(?:for example|for instance)\b|\b(?:used (?:here )?only as an example|is (?:used )?(?:here )?only as an example|is (?:only )?an example of|serves? as an example|example only)\b)/iu;
 
 const KNOWN_TECHNICAL_ACRONYMS = new Set([
-  "ai", "api", "cpu", "css", "csv", "dbms", "dhcp", "dns", "ftp",
-  "gpu", "html", "http", "https", "ip", "irr", "json", "lan", "ml",
-  "nlp", "npv", "ooad", "ooa", "ood", "os", "pdf", "ram", "rdbms",
-  "roc", "rom", "sql", "srs", "ssh", "ssl", "stp", "tcp", "tls",
-  "udp", "ui", "uml", "url", "ux", "vlan", "vpn", "wan", "xml",
+  "ai",
+  "api",
+  "cpu",
+  "css",
+  "csv",
+  "dbms",
+  "dhcp",
+  "dns",
+  "ftp",
+  "gpu",
+  "html",
+  "http",
+  "https",
+  "ip",
+  "irr",
+  "json",
+  "lan",
+  "ml",
+  "nlp",
+  "npv",
+  "ooad",
+  "ooa",
+  "ood",
+  "os",
+  "pdf",
+  "ram",
+  "rdbms",
+  "roc",
+  "rom",
+  "sql",
+  "srs",
+  "ssh",
+  "ssl",
+  "stp",
+  "tcp",
+  "tls",
+  "udp",
+  "ui",
+  "uml",
+  "url",
+  "ux",
+  "vlan",
+  "vpn",
+  "wan",
+  "xml",
 ]);
 
 const ALIASES = new Map<string, string>([
@@ -152,8 +192,8 @@ function canonicalConcept(value: string): string {
   const normalizedAliasKey = cleaned
     .toLowerCase()
     .replace(/\s*\((?:ooa|ood|npv|irr|roc)\)\s*$/i, "");
-  const alias = ALIASES.get(cleaned.toLowerCase()) ??
-    ALIASES.get(normalizedAliasKey);
+  const alias =
+    ALIASES.get(cleaned.toLowerCase()) ?? ALIASES.get(normalizedAliasKey);
   if (alias) return alias;
 
   // Outside explicit aliases, preserve the source's meaningful casing.
@@ -162,7 +202,8 @@ function canonicalConcept(value: string): string {
   return cleaned
     .split(/\s+/)
     .map((word) =>
-      KNOWN_TECHNICAL_ACRONYMS.has(word.toLowerCase()) || /^(tpr|fpr)$/i.test(word)
+      KNOWN_TECHNICAL_ACRONYMS.has(word.toLowerCase()) ||
+      /^(tpr|fpr)$/i.test(word)
         ? word.toUpperCase()
         : word,
     )
@@ -198,17 +239,28 @@ export function isValidConcept(term: string): boolean {
     !isStudyNoiseLine(normalized) &&
     !/^(?:figure\s+shows?|following\s+figure|example)$/i.test(normalized) &&
     !/^in\s+(?:oop|object[- ]oriented\s+programming)\b/i.test(normalized) &&
-    !/\b(?:for example|for instance|example of|example only)\b/i.test(normalized) &&
+    !/\b(?:for example|for instance|example of|example only)\b/i.test(
+      normalized,
+    ) &&
     !/[,;]/.test(normalized) &&
     !/^\d+(?:\.\d+)?%?$/.test(normalized) &&
     !/[.!?]/.test(normalized) &&
     !/^(year|page|table|figure)\s+\d+$/i.test(normalized) &&
     !/^slide\s+\d+/i.test(normalized) &&
     !/^(?:step|stage|test|phase|part)\s*\d+(?:\b|\s*[:\-])/i.test(normalized) &&
-    !/^(?:there|name|address|value|item|details?|information|data|content|notes?|what|when|where|why|how)$/i.test(normalized) &&
+    !/^(?:there|name|address|value|item|details?|information|data|content|notes?|what|when|where|why|how)$/i.test(
+      normalized,
+    ) &&
     !/^["“”'‘’]/u.test(normalized) &&
-    !/^the\s+.+\b(?:is|are|uses?|translates?|converts?|connects?|sends?|receives?|shows?|explains?|provides?)\b/i.test(normalized) &&
-    !(words.length >= 3 && /\b(?:is|are|was|were|has|have|does|do|uses?|translates?|converts?|connects?|sends?|receives?|shows?|explains?|provides?|contains?|includes?|requires?|allows?|ensures?|prevents?|represents?|displays?)\b/i.test(normalized)) &&
+    !/^the\s+.+\b(?:is|are|uses?|translates?|converts?|connects?|sends?|receives?|shows?|explains?|provides?)\b/i.test(
+      normalized,
+    ) &&
+    !(
+      words.length >= 3 &&
+      /\b(?:is|are|was|were|has|have|does|do|uses?|translates?|converts?|connects?|sends?|receives?|shows?|explains?|provides?|contains?|includes?|requires?|allows?|ensures?|prevents?|represents?|displays?)\b/i.test(
+        normalized,
+      )
+    ) &&
     !/\b(?:insert|placeholder)\b/i.test(normalized) &&
     !/\bdiagram\s+insert\s+diagram\b/i.test(normalized) &&
     /[a-z]/i.test(normalized)
@@ -228,13 +280,22 @@ function evidenceSentence(text: string, phrase: string): string | undefined {
     .find((sentence) => sentence.toLowerCase().includes(lowerPhrase));
 }
 
-function categoryFor(term: string, classification: DocumentClassification): string {
+function categoryFor(
+  term: string,
+  classification: DocumentClassification,
+): string {
   const lower = term.toLowerCase();
-  if (/npv|irr|cash flow|capital|working capital|salvage|discount|tax|depreciation/.test(lower)) {
+  if (
+    /npv|irr|cash flow|capital|working capital|salvage|discount|tax|depreciation/.test(
+      lower,
+    )
+  ) {
     return "finance";
   }
   if (/scenario|sensitivity/.test(lower)) return "analysis";
-  if (/dataset|model|algorithm|prediction|classification|roc|rate/.test(lower)) {
+  if (
+    /dataset|model|algorithm|prediction|classification|roc|rate/.test(lower)
+  ) {
     return classification.domain;
   }
   return "concept";
@@ -286,50 +347,39 @@ export function extractValidatedConcepts(
   const output: StudyConcept[] = [];
   const seen = new Set<string>();
 
-  for (const candidate of candidates.sort((a, b) => b.confidence - a.confidence)) {
+  for (const candidate of candidates.sort(
+    (a, b) => b.confidence - a.confidence,
+  )) {
     if (!isValidConcept(candidate.term)) continue;
     if (
       candidate.source !== "domain" &&
       candidate.evidence &&
-      (
-        /(?:@|orcid|university|institute|received:|accepted:|communicated by|telephone|tel\.?)/i.test(candidate.evidence) ||
-        (
-          isExampleOnlyConceptEvidence(candidate.evidence) &&
-          phraseFrequency(text, candidate.term) <= 2
-        )
-      )
+      (/(?:@|orcid|university|institute|received:|accepted:|communicated by|telephone|tel\.?)/i.test(
+        candidate.evidence,
+      ) ||
+        (isExampleOnlyConceptEvidence(candidate.evidence) &&
+          phraseFrequency(text, candidate.term) <= 2))
     ) {
       continue;
     }
 
-    const rawWords = normalizeConcept(candidate.term).split(/\s+/).filter(Boolean);
+    const rawWords = normalizeConcept(candidate.term)
+      .split(/\s+/)
+      .filter(Boolean);
     if (candidate.source === "keyword" && rawWords.length === 1) continue;
 
-    const term =
-      canonicalConcept(
-        candidate.term,
-      );
-    const normalized =
-      canonicalStudyConceptKey(
-        term,
-      );
+    const term = canonicalConcept(candidate.term);
+    const normalized = canonicalStudyConceptKey(term);
 
     if (
-      candidate.source !==
-        "domain" &&
+      candidate.source !== "domain" &&
       looksLikePersonName(term) &&
-      phraseFrequency(
-        text,
-        term,
-      ) < 2
+      phraseFrequency(text, term) < 2
     ) {
       continue;
     }
 
-    if (
-      !normalized ||
-      seen.has(normalized)
-    ) {
+    if (!normalized || seen.has(normalized)) {
       continue;
     }
 
@@ -393,9 +443,10 @@ export function extractValidatedKeyTerms(
     const key = term.toLowerCase();
     if (seen.has(key)) continue;
 
-    const conceptMatch = concepts.some((concept) =>
-      concept.normalized.includes(rawTerm.toLowerCase()) ||
-      rawTerm.toLowerCase().includes(concept.normalized),
+    const conceptMatch = concepts.some(
+      (concept) =>
+        concept.normalized.includes(rawTerm.toLowerCase()) ||
+        rawTerm.toLowerCase().includes(concept.normalized),
     );
 
     seen.add(key);

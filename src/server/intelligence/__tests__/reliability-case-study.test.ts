@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { runPipeline } from "../pipeline";
 
-const corruptHeader =
-  "ͺΟΥΖΣΟΒΥΚΠΟΒΝ ΃ΖΤΖΒΣΔΙ ͻΠΦΣΟΒΝ ΠΗ AΡΡΝΚΖΕ FΚΟΒΟΔΖ";
+const corruptHeader = "ͺΟΥΖΣΟΒΥΚΠΟΒΝ ΃ΖΤΖΒΣΔΙ ͻΠΦΣΟΒΝ ΠΗ AΡΡΝΚΖΕ FΚΟΒΟΔΖ";
 
 const caseText = [
   `${corruptHeader}\nCase Study Series Case Study Series Case\nPage 1\nExplore Café is an 80-seat restaurant owned by Samantha Myers and Grant Patrick. They are considering installing a brewpub system. Should Explore Café invest in the proposed brewpub system? The project must be evaluated using incremental cash flow, net present value (NPV), internal rate of return (IRR), scenario analysis and sensitivity analysis.`,
@@ -26,10 +25,7 @@ describe("case-study reliability", () => {
 
     assert.equal(profile.classification.kind, "case_study");
     assert.equal(profile.classification.domain, "finance");
-    assert.equal(
-      profile.classification.taskType,
-      "capital_budgeting_decision",
-    );
+    assert.equal(profile.classification.taskType, "capital_budgeting_decision");
     assert.match(
       profile.title.value,
       /Explore Café Brewpub Investment Case Study/i,
@@ -44,7 +40,9 @@ describe("case-study reliability", () => {
       ),
     );
     assert.ok(
-      profile.concepts.some((concept) => /Net Present Value/.test(concept.term)),
+      profile.concepts.some((concept) =>
+        /Net Present Value/.test(concept.term),
+      ),
     );
     assert.ok(profile.caseStudy);
     assert.ok(profile.caseStudy.financialInputs.length >= 12);

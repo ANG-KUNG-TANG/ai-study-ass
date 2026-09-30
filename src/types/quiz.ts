@@ -1,4 +1,8 @@
-export const QUESTION_TYPES = ["multiple_choice", "true_false", "short_answer"] as const;
+export const QUESTION_TYPES = [
+  "multiple_choice",
+  "true_false",
+  "short_answer",
+] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 export interface QuizQuestion {

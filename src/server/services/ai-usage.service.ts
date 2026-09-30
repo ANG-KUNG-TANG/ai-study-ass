@@ -10,9 +10,7 @@ import * as aiUsageRepo from "@/server/repositories/ai-usage.repo";
 
 import { logger } from "@/server/utils/logger";
 
-import {
-  getUserAIQuotaSnapshot,
-} from "@/server/services/ai-quota.service";
+import { getUserAIQuotaSnapshot } from "@/server/services/ai-quota.service";
 
 export interface RecordAIUsageInput {
   userId?: string | null;
@@ -171,170 +169,92 @@ export interface StudentAIUsageSummary {
   }>;
 }
 
-function beginningOfUtcDay(
-  date: Date,
-): Date {
+function beginningOfUtcDay(date: Date): Date {
   return new Date(
-    Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-    ),
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
   );
 }
 
-function averageUsageNumber(
-  values: number[],
-): number {
+function averageUsageNumber(values: number[]): number {
   if (values.length === 0) {
     return 0;
   }
 
   return Math.round(
-    values.reduce(
-      (sum, value) =>
-        sum + value,
-      0,
-    ) / values.length,
+    values.reduce((sum, value) => sum + value, 0) / values.length,
   );
 }
 
 export async function getUserAIUsageSummary(
   userId: string,
 ): Promise<StudentAIUsageSummary> {
-  const now =
-    new Date();
+  const now = new Date();
 
-  const today =
-    beginningOfUtcDay(now);
+  const today = beginningOfUtcDay(now);
 
-  const sevenDaysStart =
-    new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() - 6,
+  const sevenDaysStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6),
+  );
+
+  const [events, quota] = await Promise.all([
+    getUserUsageSince(userId, sevenDaysStart),
+
+    getUserAIQuotaSnapshot(userId, now),
+  ]);
+
+  const todayEvents = events.filter((event) => event.createdAt >= today);
+
+  const successesToday = todayEvents.filter((event) => event.success);
+
+  const failuresToday = todayEvents.filter((event) => !event.success);
+
+  const providers: AIUsageProvider[] = ["openai", "gemini"];
+
+  const providerUsage = providers.map((provider) => {
+    const providerEvents = events.filter(
+      (event) => event.provider === provider,
+    );
+
+    return {
+      provider,
+
+      requests: providerEvents.length,
+
+      successes: providerEvents.filter((event) => event.success).length,
+
+      failures: providerEvents.filter((event) => !event.success).length,
+
+      tokens: providerEvents.reduce((sum, event) => sum + event.tokensUsed, 0),
+
+      averageLatencyMs: averageUsageNumber(
+        providerEvents.map((event) => event.latencyMs),
       ),
-    );
+    };
+  });
 
-  const [
-    events,
-    quota,
-  ] =
-    await Promise.all([
-      getUserUsageSince(
-        userId,
-        sevenDaysStart,
-      ),
+  const featureMap = new Map<
+    string,
+    {
+      label: string;
+      requests: number;
+      successes: number;
+      failures: number;
+      tokens: number;
+    }
+  >();
 
-      getUserAIQuotaSnapshot(
-        userId,
-        now,
-      ),
-    ]);
-
-  const todayEvents =
-    events.filter(
-      (event) =>
-        event.createdAt >= today,
-    );
-
-  const successesToday =
-    todayEvents.filter(
-      (event) =>
-        event.success,
-    );
-
-  const failuresToday =
-    todayEvents.filter(
-      (event) =>
-        !event.success,
-    );
-
-  const providers:
-    AIUsageProvider[] = [
-      "openai",
-      "gemini",
-    ];
-
-  const providerUsage =
-    providers.map(
-      (provider) => {
-        const providerEvents =
-          events.filter(
-            (event) =>
-              event.provider ===
-              provider,
-          );
-
-        return {
-          provider,
-
-          requests:
-            providerEvents.length,
-
-          successes:
-            providerEvents.filter(
-              (event) =>
-                event.success,
-            ).length,
-
-          failures:
-            providerEvents.filter(
-              (event) =>
-                !event.success,
-            ).length,
-
-          tokens:
-            providerEvents.reduce(
-              (sum, event) =>
-                sum +
-                event.tokensUsed,
-              0,
-            ),
-
-          averageLatencyMs:
-            averageUsageNumber(
-              providerEvents.map(
-                (event) =>
-                  event.latencyMs,
-              ),
-            ),
-        };
-      },
-    );
-
-  const featureMap =
-    new Map<
-      string,
-      {
-        label: string;
-        requests: number;
-        successes: number;
-        failures: number;
-        tokens: number;
-      }
-    >();
-
-  for (
-    const event of events
-  ) {
-    const current =
-      featureMap.get(
-        event.usageLabel,
-      ) ?? {
-        label:
-          event.usageLabel,
-        requests: 0,
-        successes: 0,
-        failures: 0,
-        tokens: 0,
-      };
+  for (const event of events) {
+    const current = featureMap.get(event.usageLabel) ?? {
+      label: event.usageLabel,
+      requests: 0,
+      successes: 0,
+      failures: 0,
+      tokens: 0,
+    };
 
     current.requests += 1;
 
-    current.tokens +=
-      event.tokensUsed;
+    current.tokens += event.tokensUsed;
 
     if (event.success) {
       current.successes += 1;
@@ -342,222 +262,135 @@ export async function getUserAIUsageSummary(
       current.failures += 1;
     }
 
-    featureMap.set(
-      event.usageLabel,
-      current,
-    );
+    featureMap.set(event.usageLabel, current);
   }
 
-  const weekday =
-    new Intl.DateTimeFormat(
-      "en",
-      {
-        weekday: "short",
-        timeZone: "UTC",
-      },
-    );
+  const weekday = new Intl.DateTimeFormat("en", {
+    weekday: "short",
+    timeZone: "UTC",
+  });
 
-  const lastSevenDays =
-    Array.from(
-      {
-        length: 7,
-      },
-      (_, index) => {
-        const day =
-          new Date(
-            Date.UTC(
-              now.getUTCFullYear(),
-              now.getUTCMonth(),
-              now.getUTCDate() -
-                (6 - index),
-            ),
-          );
+  const lastSevenDays = Array.from(
+    {
+      length: 7,
+    },
+    (_, index) => {
+      const day = new Date(
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          now.getUTCDate() - (6 - index),
+        ),
+      );
 
-        const nextDay =
-          new Date(
-            day.getTime() +
-              86_400_000,
-          );
+      const nextDay = new Date(day.getTime() + 86_400_000);
 
-        const dayEvents =
-          events.filter(
-            (event) =>
-              event.createdAt >=
-                day &&
-              event.createdAt <
-                nextDay,
-          );
+      const dayEvents = events.filter(
+        (event) => event.createdAt >= day && event.createdAt < nextDay,
+      );
 
-        return {
-          date:
-            day
-              .toISOString()
-              .slice(0, 10),
+      return {
+        date: day.toISOString().slice(0, 10),
 
-          label:
-            weekday.format(day),
+        label: weekday.format(day),
 
-          requests:
-            dayEvents.length,
+        requests: dayEvents.length,
 
-          tokens:
-            dayEvents.reduce(
-              (sum, event) =>
-                sum +
-                event.tokensUsed,
-              0,
-            ),
-        };
-      },
-    );
+        tokens: dayEvents.reduce((sum, event) => sum + event.tokensUsed, 0),
+      };
+    },
+  );
 
   return {
     summary: {
-      requestsToday:
-        todayEvents.length,
+      requestsToday: todayEvents.length,
 
-      successesToday:
-        successesToday.length,
+      successesToday: successesToday.length,
 
-      failuresToday:
-        failuresToday.length,
+      failuresToday: failuresToday.length,
 
-      tokensToday:
-        todayEvents.reduce(
-          (sum, event) =>
-            sum +
-            event.tokensUsed,
-          0,
-        ),
+      tokensToday: todayEvents.reduce(
+        (sum, event) => sum + event.tokensUsed,
+        0,
+      ),
 
-      estimatedCostToday:
-        todayEvents.reduce(
-          (sum, event) => sum + event.estimatedCostUsd,
-          0,
-        ),
+      estimatedCostToday: todayEvents.reduce(
+        (sum, event) => sum + event.estimatedCostUsd,
+        0,
+      ),
 
-      averageLatencyMs:
-        averageUsageNumber(
-          todayEvents.map(
-            (event) =>
-              event.latencyMs,
-          ),
-        ),
+      averageLatencyMs: averageUsageNumber(
+        todayEvents.map((event) => event.latencyMs),
+      ),
 
       successRate:
-        todayEvents.length ===
-        0
+        todayEvents.length === 0
           ? 0
-          : (
-              successesToday.length /
-              todayEvents.length
-            ) *
-            100,
+          : (successesToday.length / todayEvents.length) * 100,
 
-      quotaExceededToday:
-        todayEvents.filter(
-          (event) =>
-            event.quotaExceeded,
-        ).length,
+      quotaExceededToday: todayEvents.filter((event) => event.quotaExceeded)
+        .length,
     },
 
     quota: {
-      enabled:
-        quota.enabled,
+      enabled: quota.enabled,
 
-      providerAccessEnabled:
-        quota.providerAccessEnabled,
+      providerAccessEnabled: quota.providerAccessEnabled,
 
-      source:
-        quota.source,
+      source: quota.source,
 
-      requestLimit:
-        quota.requestLimit,
+      requestLimit: quota.requestLimit,
 
-      tokenLimit:
-        quota.tokenLimit,
+      tokenLimit: quota.tokenLimit,
 
-      requestsUsed:
-        quota.requestsUsed,
+      requestsUsed: quota.requestsUsed,
 
-      tokensUsed:
-        quota.tokensUsed,
+      tokensUsed: quota.tokensUsed,
 
-      estimatedCostUsd:
-        todayEvents.reduce(
-          (sum, event) => sum + event.estimatedCostUsd,
-          0,
-        ),
+      estimatedCostUsd: todayEvents.reduce(
+        (sum, event) => sum + event.estimatedCostUsd,
+        0,
+      ),
 
-      requestsRemaining:
-        quota.requestsRemaining,
+      requestsRemaining: quota.requestsRemaining,
 
-      tokensRemaining:
-        quota.tokensRemaining,
+      tokensRemaining: quota.tokensRemaining,
 
-      requestLimitReached:
-        quota.requestLimitReached,
+      requestLimitReached: quota.requestLimitReached,
 
-      tokenLimitReached:
-        quota.tokenLimitReached,
+      tokenLimitReached: quota.tokenLimitReached,
 
-      allowed:
-        quota.allowed,
+      allowed: quota.allowed,
 
-      resetsAt:
-        quota.resetsAt
-          .toISOString(),
+      resetsAt: quota.resetsAt.toISOString(),
     },
 
-    providers:
-      providerUsage,
+    providers: providerUsage,
 
-    features:
-      Array.from(
-        featureMap.values(),
-      ).sort(
-        (left, right) =>
-          right.requests -
-          left.requests,
-      ),
+    features: Array.from(featureMap.values()).sort(
+      (left, right) => right.requests - left.requests,
+    ),
 
     lastSevenDays,
 
-    recentActivity:
-      [...events]
-        .sort(
-          (left, right) =>
-            right.createdAt.getTime() -
-            left.createdAt.getTime(),
-        )
-        .slice(0, 20)
-        .map(
-          (event) => ({
-            id: event.id,
-            noteId:
-              event.noteId,
-            provider:
-              event.provider,
-            model:
-              event.model,
-            usageLabel:
-              event.usageLabel,
-            success:
-              event.success,
-            tokensUsed:
-              event.tokensUsed,
-            estimatedCostUsd:
-              event.estimatedCostUsd,
-            latencyMs:
-              event.latencyMs,
-            statusCode:
-              event.statusCode,
-            quotaExceeded:
-              event.quotaExceeded,
-            createdAt:
-              event.createdAt
-                .toISOString(),
-          }),
-        ),
+    recentActivity: [...events]
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
+      .slice(0, 20)
+      .map((event) => ({
+        id: event.id,
+        noteId: event.noteId,
+        provider: event.provider,
+        model: event.model,
+        usageLabel: event.usageLabel,
+        success: event.success,
+        tokensUsed: event.tokensUsed,
+        estimatedCostUsd: event.estimatedCostUsd,
+        latencyMs: event.latencyMs,
+        statusCode: event.statusCode,
+        quotaExceeded: event.quotaExceeded,
+        createdAt: event.createdAt.toISOString(),
+      })),
   };
 }

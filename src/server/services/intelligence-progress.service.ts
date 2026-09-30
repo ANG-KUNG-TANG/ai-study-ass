@@ -21,12 +21,12 @@ const TTL_MS = 60 * 60 * 1000;
 type ProgressStore = Map<string, IntelligenceProgressSnapshot>;
 
 declare global {
-   
   var __intelligenceProgressStore: ProgressStore | undefined;
 }
 
 const store: ProgressStore =
-  globalThis.__intelligenceProgressStore ?? new Map<string, IntelligenceProgressSnapshot>();
+  globalThis.__intelligenceProgressStore ??
+  new Map<string, IntelligenceProgressSnapshot>();
 
 if (process.env.NODE_ENV !== "production") {
   globalThis.__intelligenceProgressStore = store;
@@ -55,7 +55,9 @@ export function record(
   event: IntelligenceStageProgress,
 ): IntelligenceProgressSnapshot {
   const current = store.get(noteId) ?? begin(noteId);
-  const index = current.stages.findIndex((stage) => stage.stage === event.stage);
+  const index = current.stages.findIndex(
+    (stage) => stage.stage === event.stage,
+  );
   const stages = [...current.stages];
   const serialized = cloneStage(event);
 
@@ -68,11 +70,14 @@ export function record(
     ...current,
     state: failed ? "failed" : terminal ? "complete" : "running",
     currentStage: event.stage,
-    overallProgress: event.status === "running"
-      ? Math.max(0, event.progress - 3)
-      : event.progress,
+    overallProgress:
+      event.status === "running"
+        ? Math.max(0, event.progress - 3)
+        : event.progress,
     stages,
-    error: failed ? event.message ?? "Intelligence processing failed." : current.error,
+    error: failed
+      ? (event.message ?? "Intelligence processing failed.")
+      : current.error,
     updatedAt: new Date().toISOString(),
     completedAt: terminal || failed ? new Date().toISOString() : null,
   };
@@ -80,7 +85,10 @@ export function record(
   return next;
 }
 
-export function fail(noteId: string, error: string): IntelligenceProgressSnapshot {
+export function fail(
+  noteId: string,
+  error: string,
+): IntelligenceProgressSnapshot {
   const current = store.get(noteId) ?? begin(noteId);
   const next: IntelligenceProgressSnapshot = {
     ...current,
@@ -116,7 +124,9 @@ export function clear(noteId: string): void {
   store.delete(noteId);
 }
 
-function cloneStage(stage: IntelligenceStageProgress): IntelligenceStageProgress {
+function cloneStage(
+  stage: IntelligenceStageProgress,
+): IntelligenceStageProgress {
   return {
     ...stage,
     startedAt: stage.startedAt ? new Date(stage.startedAt) : undefined,

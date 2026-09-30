@@ -57,8 +57,9 @@ export function IntelligenceProgressPanel({
           `/api/notes/${encodeURIComponent(noteId)}/intelligence/status`,
           { cache: "no-store" },
         );
-        if (!response.ok) throw new Error(`Status request failed (${response.status})`);
-        const next = await response.json() as StatusResponse;
+        if (!response.ok)
+          throw new Error(`Status request failed (${response.status})`);
+        const next = (await response.json()) as StatusResponse;
         if (cancelled) return;
         setData(next);
         setRequestError(null);
@@ -68,7 +69,8 @@ export function IntelligenceProgressPanel({
           next.hasFailed ||
           next.progress?.state === "complete" ||
           next.progress?.state === "failed";
-        if (next.isComplete || next.progress?.state === "complete") onComplete?.();
+        if (next.isComplete || next.progress?.state === "complete")
+          onComplete?.();
         if (!terminal) timer = setTimeout(load, pollIntervalMs);
       } catch (error) {
         if (cancelled) return;
@@ -92,10 +94,15 @@ export function IntelligenceProgressPanel({
 
   if (!progress && data?.isComplete) {
     return (
-      <section className="rounded-xl border bg-background p-5" aria-live="polite">
+      <section
+        className="rounded-xl border bg-background p-5"
+        aria-live="polite"
+      >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold">{t("intelligence.title")}</h2>
+            <h2 className="text-base font-semibold">
+              {t("intelligence.title")}
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {t("intelligence.completedExpired")}
             </p>
@@ -115,7 +122,10 @@ export function IntelligenceProgressPanel({
 
   if (!progress && data?.hasFailed) {
     return (
-      <section className="rounded-xl border bg-background p-5" aria-live="polite">
+      <section
+        className="rounded-xl border bg-background p-5"
+        aria-live="polite"
+      >
         <h2 className="text-base font-semibold">{t("intelligence.title")}</h2>
         <p className="mt-2 text-sm text-destructive">
           {t("intelligence.failed")}
@@ -153,7 +163,9 @@ export function IntelligenceProgressPanel({
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-foreground transition-[width] duration-500"
-          style={{ width: `${Math.max(0, Math.min(100, progress?.overallProgress ?? 0))}%` }}
+          style={{
+            width: `${Math.max(0, Math.min(100, progress?.overallProgress ?? 0))}%`,
+          }}
         />
       </div>
 
@@ -182,7 +194,9 @@ export function IntelligenceProgressPanel({
               </p>
               {stage.warnings.length > 0 ? (
                 <ul className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                  {stage.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                  {stage.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
                 </ul>
               ) : null}
             </div>
@@ -203,11 +217,17 @@ export function IntelligenceProgressPanel({
 
 function StageMarker({ status }: { status: StageView["status"] }) {
   const symbol =
-    status === "complete" ? "✓" :
-    status === "partial" ? "!" :
-    status === "failed" ? "×" :
-    status === "running" ? "•" :
-    status === "skipped" ? "–" : "○";
+    status === "complete"
+      ? "✓"
+      : status === "partial"
+        ? "!"
+        : status === "failed"
+          ? "×"
+          : status === "running"
+            ? "•"
+            : status === "skipped"
+              ? "–"
+              : "○";
 
   return (
     <span

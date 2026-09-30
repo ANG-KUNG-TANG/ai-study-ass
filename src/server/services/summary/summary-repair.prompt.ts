@@ -19,7 +19,8 @@ export interface SummaryRepairPromptResult {
   wasTruncated: boolean;
 }
 
-const SYSTEM_PROMPT = appendUntrustedContentRules(`You repair missing coverage in evidence-grounded study notes.
+const SYSTEM_PROMPT =
+  appendUntrustedContentRules(`You repair missing coverage in evidence-grounded study notes.
 Return ONLY one valid JSON object and no markdown fences.
 
 Required keys:
