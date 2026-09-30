@@ -14,11 +14,13 @@ export function buildDocumentChunks(
   options: ChunkOptions = {},
 ): DocumentChunk[] {
   const maxChars = options.maxChars ?? DEFAULT_MAX_CHARS;
-  const overlapSentences = options.overlapSentences ?? DEFAULT_OVERLAP_SENTENCES;
+  const overlapSentences =
+    options.overlapSentences ?? DEFAULT_OVERLAP_SENTENCES;
   const chunks: DocumentChunk[] = [];
 
   for (const section of doc.sections) {
-    if (section.semanticRole === "references" || !section.analysisBody.trim()) continue;
+    if (section.semanticRole === "references" || !section.analysisBody.trim())
+      continue;
 
     const sentences = splitTextUnits(section.analysisBody)
       .map((unit) => unit.text)
@@ -35,7 +37,8 @@ export function buildDocumentChunks(
 
       while (end < sentences.length) {
         const sentence = sentences[end];
-        const nextLength = charCount + sentence.length + (selected.length > 0 ? 1 : 0);
+        const nextLength =
+          charCount + sentence.length + (selected.length > 0 ? 1 : 0);
         if (selected.length > 0 && nextLength > maxChars) break;
         selected.push(sentence);
         charCount = nextLength;

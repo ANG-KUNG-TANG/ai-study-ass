@@ -4,9 +4,7 @@ import type {
   QualifiedTerm,
   SectionCoverage,
 } from "@/server/intelligence/grounding";
-import {
-  canonicalStudyConceptKey,
-} from "@/server/intelligence/pipeline/source-hygiene";
+import { canonicalStudyConceptKey } from "@/server/intelligence/pipeline/source-hygiene";
 
 export type SemanticEvidenceRole =
   | "definition"
@@ -88,46 +86,108 @@ export interface BuildSemanticEvidenceMapInput {
   documentTitle?: string;
 }
 
-const STRUCTURAL_HEADING_RE = /^(?:abstract|introduction|overview|background|summary|conclusion|conclusions|discussion|methodology|methods?|results?|references?|bibliography|learning\s+objectives?|objectives?|chapter\s+goal|chapter\s+takeaway|key\s+takeaways?|takeaways?|why\s+i\s+wrote\s+this\s+book|how\s+to\s+use\s+this\s+book|before\s+we\s+begin|a\s+note\s+before\s+we\s+begin|final\s+summary)$/iu;
-const REFERENCE_HEADING_RE = /^(?:references?|bibliography|works\s+cited|further\s+reading|appendix(?:\s+[a-z0-9]+)?|student\s+presentation\s+template|slide\s+\d+\b.*)$/iu;
-const METADATA_HEADING_RE = /^(?:title|authors?|affiliations?|document\s+information|cover|front\s+matter|project\s+name|team\s+members?)$/iu;
-const PRACTICE_HEADING_RE = /\b(?:reflection|challenge|exercise|activity|worksheet|practice\s+questions?|review\s+questions?|quiz|chapter\s+challenge|mentor(?:'s)?\s+note)\b/iu;
-const CAUTION_HEADING_RE = /^(?:common\s+mistakes?(?:\s+students?\s+make)?|warnings?|pitfalls?|limitations?|important\s+(?:practical\s+)?note)$/iu;
+const STRUCTURAL_HEADING_RE =
+  /^(?:abstract|introduction|overview|background|summary|conclusion|conclusions|discussion|methodology|methods?|results?|references?|bibliography|learning\s+objectives?|objectives?|chapter\s+goal|chapter\s+takeaway|key\s+takeaways?|takeaways?|why\s+i\s+wrote\s+this\s+book|how\s+to\s+use\s+this\s+book|before\s+we\s+begin|a\s+note\s+before\s+we\s+begin|final\s+summary)$/iu;
+const REFERENCE_HEADING_RE =
+  /^(?:references?|bibliography|works\s+cited|further\s+reading|appendix(?:\s+[a-z0-9]+)?|student\s+presentation\s+template|slide\s+\d+\b.*)$/iu;
+const METADATA_HEADING_RE =
+  /^(?:title|authors?|affiliations?|document\s+information|cover|front\s+matter|project\s+name|team\s+members?)$/iu;
+const PRACTICE_HEADING_RE =
+  /\b(?:reflection|challenge|exercise|activity|worksheet|practice\s+questions?|review\s+questions?|quiz|chapter\s+challenge|mentor(?:'s)?\s+note)\b/iu;
+const CAUTION_HEADING_RE =
+  /^(?:common\s+mistakes?(?:\s+students?\s+make)?|warnings?|pitfalls?|limitations?|important\s+(?:practical\s+)?note)$/iu;
 const FRAMEWORK_HEADING_RE = /\b(?:framework|taxonomy|model\s+framework)\b/iu;
-const PROCEDURE_HEADING_RE = /^(?:step|stage|phase|part)\s*\d+\b|\b(?:procedure|workflow|configuration|setup|verification\s+process)\b/iu;
-const NUMBERED_PREFIX_RE = /^(?:(?:chapter|section|part)\s+\d+(?:\.\d+)*\s*[:.\-–—]?\s*|\d+(?:\.\d+)*\s*[:.\-–—]?\s*)/iu;
+const PROCEDURE_HEADING_RE =
+  /^(?:step|stage|phase|part)\s*\d+\b|\b(?:procedure|workflow|configuration|setup|verification\s+process)\b/iu;
+const NUMBERED_PREFIX_RE =
+  /^(?:(?:chapter|section|part)\s+\d+(?:\.\d+)*\s*[:.\-–—]?\s*|\d+(?:\.\d+)*\s*[:.\-–—]?\s*)/iu;
 const TOP_LEVEL_NUMBER_RE = /^(?:chapter|part)\s+(\d+)\b|^(\d+)(?:\.|\s)/iu;
-const MAJOR_STRUCTURAL_REGION_RE = /^(?:abstract|introduction|background|methodology|methods?|results?|discussion|conclusions?|validation|application\s+methodology)$/iu;
+const MAJOR_STRUCTURAL_REGION_RE =
+  /^(?:abstract|introduction|background|methodology|methods?|results?|discussion|conclusions?|validation|application\s+methodology)$/iu;
 const FRAMEWORK_COMPONENT_LABEL_RE = /^(?:[A-Z]|[A-Z]\s*[–—-]\s+.+)$/u;
-const META_TEXT_RE = /^(?:authors?|affiliations?|course|student|lecturer|instructor|teacher|project\s+name|team\s+members?|date)\s*:/iu;
-const AFFILIATION_RE = /\b(?:university|institute|department|faculty|school\s+of|ltd\.?|limited|inc\.?|corporation|company|laboratory|lab\b)\b/iu;
-const TRANSITION_RE = /^(?:in\s+this\s+(?:section|chapter|paper)|the\s+(?:remainder|rest)\s+of\s+(?:this\s+)?(?:paper|chapter)|the\s+next\s+section|we\s+(?:then|next)\s+(?:describe|show|present|discuss)|this\s+paper\s+is\s+organized)/iu;
-const NAVIGATION_TEXT_RE = /\b(?:described|discussed|shown|presented|covered|introduced|explained)(?:\s+in\s+detail)?\s+(?:in|by)\s+(?:section|chapter|figure|table|page)\s*\d+/iu;
-const EXERCISE_RE = /(?:\?$)|^(?:try|write|answer|calculate|count|imagine|suppose|practice|solve\s+this|your\s+turn|close\s+this\s+book|now\s+try)\b/iu;
+const META_TEXT_RE =
+  /^(?:authors?|affiliations?|course|student|lecturer|instructor|teacher|project\s+name|team\s+members?|date)\s*:/iu;
+const AFFILIATION_RE =
+  /\b(?:university|institute|department|faculty|school\s+of|ltd\.?|limited|inc\.?|corporation|company|laboratory|lab\b)\b/iu;
+const TRANSITION_RE =
+  /^(?:in\s+this\s+(?:section|chapter|paper)|the\s+(?:remainder|rest)\s+of\s+(?:this\s+)?(?:paper|chapter)|the\s+next\s+section|we\s+(?:then|next)\s+(?:describe|show|present|discuss)|this\s+paper\s+is\s+organized)/iu;
+const NAVIGATION_TEXT_RE =
+  /\b(?:described|discussed|shown|presented|covered|introduced|explained)(?:\s+in\s+detail)?\s+(?:in|by)\s+(?:section|chapter|figure|table|page)\s*\d+/iu;
+const EXERCISE_RE =
+  /(?:\?$)|^(?:try|write|answer|calculate|count|imagine|suppose|practice|solve\s+this|your\s+turn|close\s+this\s+book|now\s+try)\b/iu;
 const FIRST_PERSON_RE = /^(?:i|my|we|our)\b/iu;
-const METHOD_RE = /\b(?:approach|method|methodology|model\s+was\s+built|built\s+using|we\s+use|we\s+used|uses?\s+.+\s+to|combine[sd]?|incorporat(?:e|es|ed)|calibrat(?:e|es|ed)|validation\s+method|trial\s+used|data\s+was\s+collected)\b/iu;
-const FINDING_RE = /\b(?:result|results|found|showed|shows|demonstrated|achieved|correlation|accuracy|inaccuracy|improvement|outperformed|confirmed|validation\s+confirm|significant)\b/iu;
-const CAUSAL_RE = /\b(?:cause|causes|causal|effect|affects?|influences?|increases?|decreases?|reduces?|depends?\s+on|determines?|leads?\s+to|results?\s+in|because|therefore)\b/iu;
-const MECHANISM_RE = /\b(?:works?\s+by|process|translates?|converts?|maps?|stores?|updates?|passes?|links?|connects?|represents?|uses?\s+.+\s+to|allows?\s+.+\s+to)\b/iu;
-const PRINCIPLE_RE = /\b(?:should|must|must\s+not|should\s+not|avoid|never|always|required|prefer(?:red)?|only\s+when|rule|principle)\b/iu;
-const WARNING_RE = /\b(?:warning|avoid|do\s+not|don'?t|never|invalid|incorrect|pitfall|common\s+mistake)\b/iu;
-const LIMITATION_RE = /\b(?:limitation|limited\s+to|cannot|can't|does\s+not\s+support|unsupported|constraint)\b/iu;
-const PREDICATE_RE = /\b(?:is|are|means?|refers?\s+to|uses?|requires?|allows?|contains?|includes?|represents?|stores?|changes?|depends?|determines?|influences?|predicts?|models?|combines?|provides?|shows?|finds?|reduces?|increases?)\b/iu;
-const GENERIC_STRUCTURE_TOKEN_RE = /^(?:abstract|introduction|overview|background|summary|conclusion|discussion|methodology|method|results?|references?)$/iu;
+const METHOD_RE =
+  /\b(?:approach|method|methodology|model\s+was\s+built|built\s+using|we\s+use|we\s+used|uses?\s+.+\s+to|combine[sd]?|incorporat(?:e|es|ed)|calibrat(?:e|es|ed)|validation\s+method|trial\s+used|data\s+was\s+collected)\b/iu;
+const FINDING_RE =
+  /\b(?:result|results|found|showed|shows|demonstrated|achieved|correlation|accuracy|inaccuracy|improvement|outperformed|confirmed|validation\s+confirm|significant)\b/iu;
+const CAUSAL_RE =
+  /\b(?:cause|causes|causal|effect|affects?|influences?|increases?|decreases?|reduces?|depends?\s+on|determines?|leads?\s+to|results?\s+in|because|therefore)\b/iu;
+const MECHANISM_RE =
+  /\b(?:works?\s+by|process|translates?|converts?|maps?|stores?|updates?|passes?|links?|connects?|represents?|uses?\s+.+\s+to|allows?\s+.+\s+to)\b/iu;
+const PRINCIPLE_RE =
+  /\b(?:should|must|must\s+not|should\s+not|avoid|never|always|required|prefer(?:red)?|only\s+when|rule|principle)\b/iu;
+const WARNING_RE =
+  /\b(?:warning|avoid|do\s+not|don'?t|never|invalid|incorrect|pitfall|common\s+mistake)\b/iu;
+const LIMITATION_RE =
+  /\b(?:limitation|limited\s+to|cannot|can't|does\s+not\s+support|unsupported|constraint)\b/iu;
+const PREDICATE_RE =
+  /\b(?:is|are|means?|refers?\s+to|uses?|requires?|allows?|contains?|includes?|represents?|stores?|changes?|depends?|determines?|influences?|predicts?|models?|combines?|provides?|shows?|finds?|reduces?|increases?)\b/iu;
+const GENERIC_STRUCTURE_TOKEN_RE =
+  /^(?:abstract|introduction|overview|background|summary|conclusion|discussion|methodology|method|results?|references?)$/iu;
 const TOPIC_STOP_WORDS = new Set([
-  "a", "an", "and", "are", "as", "at", "be", "by", "for", "from",
-  "how", "in", "into", "is", "it", "of", "on", "or", "the", "their",
-  "this", "to", "what", "when", "where", "why", "with", "your", "chapter",
-  "section", "topic",
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "for",
+  "from",
+  "how",
+  "in",
+  "into",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "the",
+  "their",
+  "this",
+  "to",
+  "what",
+  "when",
+  "where",
+  "why",
+  "with",
+  "your",
+  "chapter",
+  "section",
+  "topic",
   // Generic academic/technical container words are weak evidence of semantic
   // identity. Without this guard, labels such as "Causal Model" and
   // "Phase Model" can appear aligned merely because both contain "model".
-  "model", "models", "system", "systems", "process", "processes",
-  "method", "methods", "approach", "approaches", "software", "project",
-  "projects", "paper", "document",
+  "model",
+  "models",
+  "system",
+  "systems",
+  "process",
+  "processes",
+  "method",
+  "methods",
+  "approach",
+  "approaches",
+  "software",
+  "project",
+  "projects",
+  "paper",
+  "document",
 ]);
 
-const FORMULA_EVIDENCE_RE = /(?:[\p{L}\p{N})]\s*=\s*[\p{L}\p{N}(]|\b(?:P|B|TNormal)\s*\([^)]*\)|[+\-*/^]\s*\p{N})/u;
+const FORMULA_EVIDENCE_RE =
+  /(?:[\p{L}\p{N})]\s*=\s*[\p{L}\p{N}(]|\b(?:P|B|TNormal)\s*\([^)]*\)|[+\-*/^]\s*\p{N})/u;
 
 export function buildSemanticEvidenceMap(
   input: BuildSemanticEvidenceMapInput,
@@ -155,11 +215,7 @@ export function buildSemanticEvidenceMap(
       const fact = factsById.get(factId);
       if (!fact) continue;
 
-      const role = classifySemanticEvidenceRole(
-        fact,
-        section,
-        sectionRole,
-      );
+      const role = classifySemanticEvidenceRole(fact, section, sectionRole);
       const unit: SemanticEvidenceUnit = {
         fact,
         factId: fact.id,
@@ -259,32 +315,48 @@ export function classifySemanticEvidenceRole(
   if (looksLikeMetadata(text, sectionRole)) return "metadata";
   if (sectionRole === "practice" && EXERCISE_RE.test(text)) return "exercise";
   if (fact.type === "example") return "example";
-  if (fact.type === "warning" || fact.type === "common_mistake" || WARNING_RE.test(text)) {
+  if (
+    fact.type === "warning" ||
+    fact.type === "common_mistake" ||
+    WARNING_RE.test(text)
+  ) {
     return "warning";
   }
-  if (fact.type === "limitation" || LIMITATION_RE.test(text)) return "limitation";
+  if (fact.type === "limitation" || LIMITATION_RE.test(text))
+    return "limitation";
   if (fact.type === "procedure_step") return "procedure";
   // Some extractors label any sentence containing the word "formula" as a
   // formula. Require actual mathematical structure before granting the
   // high-utility formula role; prose about a formula language remains prose.
-  if (fact.type === "formula" && FORMULA_EVIDENCE_RE.test(text)) return "formula";
+  if (fact.type === "formula" && FORMULA_EVIDENCE_RE.test(text))
+    return "formula";
   if (fact.type === "definition") return "definition";
   if (fact.type === "objective") return "objective";
   if (NAVIGATION_TEXT_RE.test(text)) return "transition";
-  if (fact.type === "result" || (fact.type === "number" && FINDING_RE.test(text))) {
+  if (
+    fact.type === "result" ||
+    (fact.type === "number" && FINDING_RE.test(text))
+  ) {
     return "finding";
   }
   if (TRANSITION_RE.test(text)) return "transition";
   if (FINDING_RE.test(text) && fact.importanceScore >= 0.72) return "finding";
   if (METHOD_RE.test(text)) return "method";
   if (CAUSAL_RE.test(text)) return "cause_effect";
-  if (fact.type === "relationship" || MECHANISM_RE.test(text)) return "mechanism";
-  if (fact.type === "rule" || fact.type === "condition" || PRINCIPLE_RE.test(text)) {
+  if (fact.type === "relationship" || MECHANISM_RE.test(text))
+    return "mechanism";
+  if (
+    fact.type === "rule" ||
+    fact.type === "condition" ||
+    PRINCIPLE_RE.test(text)
+  ) {
     return "principle";
   }
   if (EXERCISE_RE.test(text)) return "exercise";
-  if (FIRST_PERSON_RE.test(text) && !PREDICATE_RE.test(text)) return "narrative";
-  if (FIRST_PERSON_RE.test(text) && fact.importanceScore < 0.88) return "narrative";
+  if (FIRST_PERSON_RE.test(text) && !PREDICATE_RE.test(text))
+    return "narrative";
+  if (FIRST_PERSON_RE.test(text) && fact.importanceScore < 0.88)
+    return "narrative";
   return "supporting";
 }
 
@@ -304,9 +376,7 @@ export function semanticRoleAllowsExplanation(
   ].includes(role);
 }
 
-export function semanticRoleAllowsPoint(
-  role: SemanticEvidenceRole,
-): boolean {
+export function semanticRoleAllowsPoint(role: SemanticEvidenceRole): boolean {
   return ![
     "metadata",
     "narrative",
@@ -321,29 +391,35 @@ export function semanticLearningUtility(
   role: SemanticEvidenceRole,
 ): number {
   const roleBoost: Record<SemanticEvidenceRole, number> = {
-    definition: 0.20,
+    definition: 0.2,
     principle: 0.16,
     mechanism: 0.15,
     cause_effect: 0.17,
     method: 0.16,
     finding: 0.19,
     objective: 0.12,
-    procedure: 0.10,
+    procedure: 0.1,
     framework_component: 0.14,
     formula: 0.17,
     warning: 0.12,
-    limitation: 0.10,
+    limitation: 0.1,
     supporting: 0.02,
     example: -0.12,
-    exercise: -0.30,
+    exercise: -0.3,
     metadata: -0.55,
     narrative: -0.22,
     transition: -0.35,
   };
   const length = cleanText(fact.content).length;
   const standaloneBoost = PREDICATE_RE.test(fact.content) ? 0.05 : 0;
-  const shortPenalty = length < 24 ? 0.10 : 0;
-  return fact.importanceScore + fact.confidence * 0.06 + roleBoost[role] + standaloneBoost - shortPenalty;
+  const shortPenalty = length < 24 ? 0.1 : 0;
+  return (
+    fact.importanceScore +
+    fact.confidence * 0.06 +
+    roleBoost[role] +
+    standaloneBoost -
+    shortPenalty
+  );
 }
 
 export function semanticTopicTextAlignment(
@@ -371,7 +447,8 @@ export function semanticTopicTextAlignment(
   const reverseMatches = [...textTokens].filter((token) =>
     [...headingTokens].some((item) => stemsMatch(item, token)),
   ).length;
-  const textCoverage = reverseMatches / Math.max(1, Math.min(textTokens.size, 8));
+  const textCoverage =
+    reverseMatches / Math.max(1, Math.min(textTokens.size, 8));
   return Math.min(1, headingCoverage * 0.82 + textCoverage * 0.18);
 }
 
@@ -395,7 +472,8 @@ export function semanticEvidenceTopicAlignment(
   const roleTopicLabel = semanticRoleTopicLabel(unit.role);
   if (
     roleTopicLabel &&
-    canonicalStudyConceptKey(roleTopicLabel) === canonicalStudyConceptKey(heading)
+    canonicalStudyConceptKey(roleTopicLabel) ===
+      canonicalStudyConceptKey(heading)
   ) {
     // Role-derived topics deliberately summarize semantically equivalent
     // evidence whose wording may never contain the synthetic learner label
@@ -408,7 +486,8 @@ export function semanticEvidenceTopicAlignment(
   }
   if (unit.role === "definition") {
     const subject = definitionSubject(unit.fact.content);
-    if (subject) score = Math.max(score, semanticTopicTextAlignment(heading, subject));
+    if (subject)
+      score = Math.max(score, semanticTopicTextAlignment(heading, subject));
   }
   return Math.min(1, score);
 }
@@ -420,28 +499,62 @@ export function semanticEvidenceExplanationFit(input: {
   localPedagogicalRelation?: boolean;
 }): { passed: boolean; score: number } {
   const { heading, unit, kind } = input;
-  if (!unit.explanationEligible && kind === "topic") return { passed: false, score: 0 };
-  if (["metadata", "narrative", "transition", "exercise", "example", "warning", "limitation"].includes(unit.role)) {
+  if (!unit.explanationEligible && kind === "topic")
+    return { passed: false, score: 0 };
+  if (
+    [
+      "metadata",
+      "narrative",
+      "transition",
+      "exercise",
+      "example",
+      "warning",
+      "limitation",
+    ].includes(unit.role)
+  ) {
     return { passed: false, score: 0 };
   }
 
   const alignment = semanticEvidenceTopicAlignment(heading, unit);
   const roleScore = explanationRoleScore(unit.role);
-  const localFramework = kind !== "topic" && ["procedure", "framework_component", "principle", "objective", "supporting", "method"].includes(unit.role);
-  const localSourceRelation = sourceHeadingRoleFit(heading, unit.sectionHeading, unit.role);
+  const localFramework =
+    kind !== "topic" &&
+    [
+      "procedure",
+      "framework_component",
+      "principle",
+      "objective",
+      "supporting",
+      "method",
+    ].includes(unit.role);
+  const localSourceRelation = sourceHeadingRoleFit(
+    heading,
+    unit.sectionHeading,
+    unit.role,
+  );
   const localPedagogical = Boolean(
     input.localPedagogicalRelation &&
-    ["principle", "objective", "mechanism", "method", "supporting"].includes(unit.role),
+    ["principle", "objective", "mechanism", "method", "supporting"].includes(
+      unit.role,
+    ),
   );
   // For ordinary learner topics, a single generic-token overlap is not enough
   // to let an important fact become the explanation. Synthetic role topics
   // receive a strong semantic anchor in semanticEvidenceTopicAlignment(),
   // while source/framework relations remain explicit escape hatches.
-  const passed = alignment >= 0.34 || localFramework || localSourceRelation || localPedagogical;
+  const passed =
+    alignment >= 0.34 ||
+    localFramework ||
+    localSourceRelation ||
+    localPedagogical;
   const score = Math.min(
     1,
-    alignment * 0.68 + roleScore * 0.22 + Math.max(0, Math.min(1, unit.learningUtility)) * 0.10 +
-      (localFramework ? 0.10 : 0) + (localSourceRelation ? 0.10 : 0) + (localPedagogical ? 0.08 : 0),
+    alignment * 0.68 +
+      roleScore * 0.22 +
+      Math.max(0, Math.min(1, unit.learningUtility)) * 0.1 +
+      (localFramework ? 0.1 : 0) +
+      (localSourceRelation ? 0.1 : 0) +
+      (localPedagogical ? 0.08 : 0),
   );
   return { passed, score };
 }
@@ -455,7 +568,11 @@ export function semanticEvidencePointFit(input: {
 }): { passed: boolean; score: number } {
   const { heading, explanation, unit, kind } = input;
   if (!unit.pointEligible) return { passed: false, score: 0 };
-  if (["metadata", "narrative", "transition", "exercise", "example"].includes(unit.role)) {
+  if (
+    ["metadata", "narrative", "transition", "exercise", "example"].includes(
+      unit.role,
+    )
+  ) {
     return { passed: false, score: 0 };
   }
 
@@ -465,17 +582,18 @@ export function semanticEvidencePointFit(input: {
     unit.fact.content,
   );
   const structuralRelation = Boolean(
-    input.sameFramework ||
-    (kind === "procedure" && unit.role === "procedure"),
+    input.sameFramework || (kind === "procedure" && unit.role === "procedure"),
   );
   const alignment = Math.max(topicAlignment, explanationAlignment);
   // Key points must belong to the learner topic, not merely share one broad
   // word with the explanation. This prevents facts from neighbouring source
   // sections leaking into otherwise coherent cards.
-  const passed = topicAlignment >= 0.30 || explanationAlignment >= 0.34 || structuralRelation;
+  const passed =
+    topicAlignment >= 0.3 || explanationAlignment >= 0.34 || structuralRelation;
   const score = Math.min(
     1,
-    alignment * 0.72 + Math.max(0, Math.min(1, unit.learningUtility)) * 0.18 +
+    alignment * 0.72 +
+      Math.max(0, Math.min(1, unit.learningUtility)) * 0.18 +
       (structuralRelation ? 0.16 : 0),
   );
   return { passed, score };
@@ -483,11 +601,13 @@ export function semanticEvidencePointFit(input: {
 
 export function isStructuralSemanticHeading(value: string): boolean {
   const heading = stripNumbering(normaliseHeading(value));
-  return STRUCTURAL_HEADING_RE.test(heading) ||
+  return (
+    STRUCTURAL_HEADING_RE.test(heading) ||
     REFERENCE_HEADING_RE.test(heading) ||
     METADATA_HEADING_RE.test(heading) ||
     PRACTICE_HEADING_RE.test(heading) ||
-    GENERIC_STRUCTURE_TOKEN_RE.test(heading);
+    GENERIC_STRUCTURE_TOKEN_RE.test(heading)
+  );
 }
 
 export function semanticRoleTopicLabel(
@@ -521,9 +641,7 @@ function collectConceptLabels(
   return output;
 }
 
-function collectTermLabels(
-  terms: QualifiedTerm[],
-): Map<string, string[]> {
+function collectTermLabels(terms: QualifiedTerm[]): Map<string, string[]> {
   const output = new Map<string, string[]>();
   for (const term of terms) {
     const list = output.get(term.sourceSectionId) ?? [];
@@ -554,17 +672,28 @@ function detectFrameworkGroups(
     const name = stripNumbering(normaliseHeading(section.heading));
     const componentSectionIds: string[] = [];
 
-    for (let cursor = index + 1; cursor < sections.length && cursor <= index + 8; cursor += 1) {
+    for (
+      let cursor = index + 1;
+      cursor < sections.length && cursor <= index + 8;
+      cursor += 1
+    ) {
       const candidate = sections[cursor];
       if (!candidate) break;
-      const candidateRole = sectionRoleById.get(candidate.sectionId) ?? "content";
-      if (["reference", "caution", "practice", "metadata", "framework"].includes(candidateRole)) break;
+      const candidateRole =
+        sectionRoleById.get(candidate.sectionId) ?? "content";
+      if (
+        ["reference", "caution", "practice", "metadata", "framework"].includes(
+          candidateRole,
+        )
+      )
+        break;
       if (candidateRole === "structural") break;
 
       const candidateUnits = candidate.factIds
         .map((id) => unitsByFactId.get(id))
         .filter((unit): unit is SemanticEvidenceUnit => Boolean(unit));
-      if (!looksLikeFrameworkComponent(candidate.heading, candidateUnits)) break;
+      if (!looksLikeFrameworkComponent(candidate.heading, candidateUnits))
+        break;
       componentSectionIds.push(candidate.sectionId);
     }
 
@@ -592,16 +721,19 @@ function looksLikeFrameworkComponent(
   if (FRAMEWORK_COMPONENT_LABEL_RE.test(heading)) return true;
   if (isStructuralSemanticHeading(heading)) return false;
 
-  const independentDefinition = units.some((unit) =>
-    unit.role === "definition" &&
-    semanticTopicTextAlignment(heading, unit.fact.content) >= 0.35,
+  const independentDefinition = units.some(
+    (unit) =>
+      unit.role === "definition" &&
+      semanticTopicTextAlignment(heading, unit.fact.content) >= 0.35,
   );
   if (independentDefinition) return false;
 
   const componentLikeFacts = units.filter((unit) =>
     ["objective", "principle", "procedure", "supporting"].includes(unit.role),
   );
-  return componentLikeFacts.length > 0 && componentLikeFacts.length === units.length;
+  return (
+    componentLikeFacts.length > 0 && componentLikeFacts.length === units.length
+  );
 }
 
 function buildRegionAssignments(
@@ -652,13 +784,14 @@ function summariseRegions(
       evidenceCount: 0,
     };
     existing.sectionIds.push(section.sectionId);
-    existing.evidenceCount += units.filter((unit) =>
-      unit.sectionId === section.sectionId &&
-      unit.pointEligible,
+    existing.evidenceCount += units.filter(
+      (unit) => unit.sectionId === section.sectionId && unit.pointEligible,
     ).length;
     byId.set(id, existing);
   });
-  return [...byId.values()].sort((left, right) => left.sourceOrder - right.sourceOrder);
+  return [...byId.values()].sort(
+    (left, right) => left.sourceOrder - right.sourceOrder,
+  );
 }
 
 function looksLikeMetadata(
@@ -672,7 +805,11 @@ function looksLikeMetadata(
   // conference front page). Do not erase the fact merely because of the
   // container; only metadata-like, non-predicative text inherits the role.
   if (sectionRole === "metadata" && !PREDICATE_RE.test(text)) return true;
-  if (/^(?:[\p{Lu}][\p{L}'’-]+\s+){1,4}(?:and\s+)?(?:[\p{Lu}][\p{L}'’-]+)(?:\s*\([^)]*(?:university|institute|ltd\.?|department)[^)]*\))?$/u.test(text)) {
+  if (
+    /^(?:[\p{Lu}][\p{L}'’-]+\s+){1,4}(?:and\s+)?(?:[\p{Lu}][\p{L}'’-]+)(?:\s*\([^)]*(?:university|institute|ltd\.?|department)[^)]*\))?$/u.test(
+      text,
+    )
+  ) {
     return true;
   }
   return false;
@@ -685,21 +822,36 @@ function sourceHeadingRoleFit(
 ): boolean {
   const topic = stripNumbering(normaliseHeading(topicHeading));
   const source = stripNumbering(normaliseHeading(sourceHeading));
-  if (!topic || canonicalStudyConceptKey(topic) !== canonicalStudyConceptKey(source)) return false;
+  if (
+    !topic ||
+    canonicalStudyConceptKey(topic) !== canonicalStudyConceptKey(source)
+  )
+    return false;
 
   switch (role) {
     case "method":
-      return /\b(?:build|building|method|approach|model|methodology|implementation)\b/iu.test(topic);
+      return /\b(?:build|building|method|approach|model|methodology|implementation)\b/iu.test(
+        topic,
+      );
     case "mechanism":
     case "cause_effect":
-      return /\b(?:how|mechanism|relationship|cause|effect|process|interaction|operation)\b/iu.test(topic);
+      return /\b(?:how|mechanism|relationship|cause|effect|process|interaction|operation)\b/iu.test(
+        topic,
+      );
     case "finding":
-      return /\b(?:result|finding|validation|evaluation|outcome|performance)\b/iu.test(topic);
+      return /\b(?:result|finding|validation|evaluation|outcome|performance)\b/iu.test(
+        topic,
+      );
     case "objective":
-      return /\b(?:goal|objective|purpose|aim|understand|identify|define|verify|validate)\b/iu.test(topic);
+      return /\b(?:goal|objective|purpose|aim|understand|identify|define|verify|validate)\b/iu.test(
+        topic,
+      );
     case "principle":
-      return /^(?:know|show|explain|use|invite|tell|be|keep|avoid|prefer|understand|confirm|connect|communicate|present|validate|verify|prioriti[sz]e)\b/iu.test(topic) ||
-        /\b(?:principle|rule|guideline|best\s+practice)\b/iu.test(topic);
+      return (
+        /^(?:know|show|explain|use|invite|tell|be|keep|avoid|prefer|understand|confirm|connect|communicate|present|validate|verify|prioriti[sz]e)\b/iu.test(
+          topic,
+        ) || /\b(?:principle|rule|guideline|best\s+practice)\b/iu.test(topic)
+      );
     default:
       return false;
   }
@@ -711,12 +863,12 @@ function explanationRoleScore(role: SemanticEvidenceRole): number {
     cause_effect: 0.95,
     mechanism: 0.92,
     method: 0.92,
-    principle: 0.90,
+    principle: 0.9,
     objective: 0.86,
     finding: 0.82,
     formula: 0.78,
     supporting: 0.55,
-    procedure: 0.40,
+    procedure: 0.4,
     framework_component: 0.35,
     warning: 0,
     limitation: 0,
@@ -730,15 +882,18 @@ function explanationRoleScore(role: SemanticEvidenceRole): number {
 }
 
 function definitionSubject(value: string): string | null {
-  const match = cleanText(value).match(/^(.{3,80}?)\s+(?:is|are|means|refers\s+to)\s+/iu);
+  const match = cleanText(value).match(
+    /^(.{3,80}?)\s+(?:is|are|means|refers\s+to)\s+/iu,
+  );
   return match?.[1] ? normaliseHeading(match[1]) : null;
 }
 
 function meaningfulTokens(value: string): Set<string> {
-  const tokens = value
-    .normalize("NFKC")
-    .toLocaleLowerCase()
-    .match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu) ?? [];
+  const tokens =
+    value
+      .normalize("NFKC")
+      .toLocaleLowerCase()
+      .match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}_-]{1,}/gu) ?? [];
   return new Set(
     tokens
       .map((token) => token.replace(/(?:ing|ed|es|s)$/u, ""))

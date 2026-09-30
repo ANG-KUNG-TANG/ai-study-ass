@@ -1,88 +1,39 @@
 "use client";
 
-import {
-  Check,
-  Copy,
-  FileText,
-} from "lucide-react";
-import {
-  useMemo,
-  useState,
-} from "react";
+import { Check, Copy, FileText } from "lucide-react";
+import { useMemo, useState } from "react";
 
-import {
-  Card,
-} from "@/components/ui/Card";
-import {
-  useNoteContext,
-} from "@/context/NoteContext";
-import {
-  useLanguage,
-} from "@/context/LanguageContext";
+import { Card } from "@/components/ui/Card";
+import { useNoteContext } from "@/context/NoteContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function OriginalTextPage() {
-  const {
-    note,
-  } = useNoteContext();
-  const {
-    t,
-  } = useLanguage();
+  const { note } = useNoteContext();
+  const { t } = useLanguage();
 
-  const [
-    copied,
-    setCopied,
-  ] =
-    useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const content =
-    note?.content?.trim() ??
-    "";
+  const content = note?.content?.trim() ?? "";
 
-  const wordCount =
-    useMemo(
-      () =>
-        content
-          ? content
-              .split(
-                /\s+/,
-              )
-              .filter(
-                Boolean,
-              ).length
-          : 0,
-      [
-        content,
-      ],
-    );
+  const wordCount = useMemo(
+    () => (content ? content.split(/\s+/).filter(Boolean).length : 0),
+    [content],
+  );
 
-  if (
-    !note
-  ) {
+  if (!note) {
     return null;
   }
 
   async function copyText() {
-    if (
-      !content
-    ) {
+    if (!content) {
       return;
     }
 
-    await navigator.clipboard.writeText(
-      content,
-    );
+    await navigator.clipboard.writeText(content);
 
-    setCopied(
-      true,
-    );
+    setCopied(true);
 
-    window.setTimeout(
-      () =>
-        setCopied(
-          false,
-        ),
-      1_500,
-    );
+    window.setTimeout(() => setCopied(false), 1_500);
   }
 
   return (
@@ -91,10 +42,7 @@ export default function OriginalTextPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-              <FileText
-                size={14}
-                aria-hidden="true"
-              />
+              <FileText size={14} aria-hidden="true" />
 
               {t("original.source")}
             </div>
@@ -110,29 +58,17 @@ export default function OriginalTextPage() {
 
           <button
             type="button"
-            onClick={() =>
-              void copyText()
-            }
-            disabled={
-              !content
-            }
+            onClick={() => void copyText()}
+            disabled={!content}
             className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-[12px] font-medium text-ink-soft transition hover:bg-line-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             {copied ? (
-              <Check
-                size={14}
-                aria-hidden="true"
-              />
+              <Check size={14} aria-hidden="true" />
             ) : (
-              <Copy
-                size={14}
-                aria-hidden="true"
-              />
+              <Copy size={14} aria-hidden="true" />
             )}
 
-            {copied
-              ? t("common.copied")
-              : t("common.copy")}
+            {copied ? t("common.copied") : t("common.copy")}
           </button>
         </div>
 
@@ -141,9 +77,7 @@ export default function OriginalTextPage() {
             {t("common.words", { count: wordCount.toLocaleString() })}
           </span>
 
-          <span aria-hidden="true">
-            ·
-          </span>
+          <span aria-hidden="true">·</span>
 
           <span>
             {t("common.characters", {
@@ -161,11 +95,7 @@ export default function OriginalTextPage() {
         </Card>
       ) : (
         <Card className="flex min-h-[220px] flex-col items-center justify-center rounded-none border-x-0 text-center">
-          <FileText
-            size={24}
-            className="text-ink-faint"
-            aria-hidden="true"
-          />
+          <FileText size={24} className="text-ink-faint" aria-hidden="true" />
 
           <h3 className="mt-3 font-serif text-[16px] font-semibold">
             {t("original.empty")}

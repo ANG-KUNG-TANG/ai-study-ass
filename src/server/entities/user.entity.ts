@@ -15,17 +15,18 @@ export const USER_RULES = {
   },
   password: {
     minLength: 8,
-    maxLength: 72,          // bcrypt hard limit — was 78 in your version, must be 72
+    maxLength: 72, // bcrypt hard limit — was 78 in your version, must be 72
     requireLowercase: true,
     requireUppercase: true,
     requireNumber: true,
-    requireSpecial: true,    // was "requiredNumber" (typo) in your version
+    requireSpecial: true, // was "requiredNumber" (typo) in your version
   },
-  emailVerification: {      // was "emailVerificaition" (typo) in your version
+  emailVerification: {
+    // was "emailVerificaition" (typo) in your version
     expiresInMs: 24 * 60 * 60 * 1000,
   },
   passwordReset: {
-    expiresInMs: 60 * 60 * 1000,  // 1 hour
+    expiresInMs: 60 * 60 * 1000, // 1 hour
   },
 } as const;
 
@@ -48,7 +49,7 @@ export interface UserProps {
   passwordConfigured?: boolean;
   role: UserRole;
   /** Administrative account state (for example, banned/unbanned). */
-  isActive: boolean;              // was Boolean (capital B) — use primitive boolean
+  isActive: boolean; // was Boolean (capital B) — use primitive boolean
   /** Separate from isActive so email verification cannot undo an admin ban. */
   emailVerified?: boolean;
   emailVerificationToken: string | null;
@@ -69,7 +70,7 @@ export interface UserPublicProfile {
   emailVerified: boolean;
   passwordConfigured: boolean;
   createdAt: Date;
-  updatedAt: Date;              // was "updateAt" (typo) in your version
+  updatedAt: Date; // was "updateAt" (typo) in your version
 }
 
 // ─── Domain validation ────────────────────────────────────────────────────────
@@ -118,7 +119,8 @@ export function validatePasswordStrength(password: string): void {
       password: "Password must contain at least one uppercase letter",
     });
   }
-  if (USER_RULES.password.requireNumber && !/[0-9]/.test(password)) {  // was "requiredNumber"
+  if (USER_RULES.password.requireNumber && !/[0-9]/.test(password)) {
+    // was "requiredNumber"
     throw new ValidationError("Validation failed", {
       password: "Password must contain at least one number",
     });
@@ -144,7 +146,7 @@ export class UserEntity {
   readonly #emailVerified: boolean;
   readonly #emailVerificationToken: string | null;
   readonly #emailVerificationExpires: Date | null;
-  readonly #passwordResetToken: string | null;    // was Date | null — wrong type
+  readonly #passwordResetToken: string | null; // was Date | null — wrong type
   readonly #passwordResetExpires: Date | null;
   readonly #refreshTokenId: string | null;
   readonly #createdAt: Date;
@@ -156,8 +158,7 @@ export class UserEntity {
     this.#email = props.email;
     this.#passwordHash = props.passwordHash;
     this.#googleSubject = props.googleSubject ?? null;
-    this.#passwordConfigured =
-      props.passwordConfigured ?? !props.googleSubject;
+    this.#passwordConfigured = props.passwordConfigured ?? !props.googleSubject;
     this.#role = props.role;
     this.#isActive = props.isActive;
     // Existing records used isActive as the verification flag. Active legacy
@@ -175,22 +176,54 @@ export class UserEntity {
 
   // ─── Getters ──────────────────────────────────────────────────────────────────
 
-  get id(): UserId { return this.#id; }               // was "if" (typo) — would never work
-  get name(): string { return this.#name; }
-  get email(): string { return this.#email; }          // was "return this.email" — infinite loop
-  get passwordHash(): string { return this.#passwordHash; }
-  get googleSubject(): string | null { return this.#googleSubject; }
-  get passwordConfigured(): boolean { return this.#passwordConfigured; }
-  get role(): UserRole { return this.#role; }
-  get isActive(): boolean { return this.#isActive; }
-  get emailVerified(): boolean { return this.#emailVerified; }
-  get emailVerificationToken(): string | null { return this.#emailVerificationToken; }
-  get emailVerificationExpires(): Date | null { return this.#emailVerificationExpires; } // was string | null — wrong type
-  get passwordResetToken(): string | null { return this.#passwordResetToken; }
-  get passwordResetExpires(): Date | null { return this.#passwordResetExpires; }
-  get refreshTokenId(): string | null { return this.#refreshTokenId; }
-  get createdAt(): Date { return this.#createdAt; }
-  get updatedAt(): Date { return this.#updatedAt; }
+  get id(): UserId {
+    return this.#id;
+  } // was "if" (typo) — would never work
+  get name(): string {
+    return this.#name;
+  }
+  get email(): string {
+    return this.#email;
+  } // was "return this.email" — infinite loop
+  get passwordHash(): string {
+    return this.#passwordHash;
+  }
+  get googleSubject(): string | null {
+    return this.#googleSubject;
+  }
+  get passwordConfigured(): boolean {
+    return this.#passwordConfigured;
+  }
+  get role(): UserRole {
+    return this.#role;
+  }
+  get isActive(): boolean {
+    return this.#isActive;
+  }
+  get emailVerified(): boolean {
+    return this.#emailVerified;
+  }
+  get emailVerificationToken(): string | null {
+    return this.#emailVerificationToken;
+  }
+  get emailVerificationExpires(): Date | null {
+    return this.#emailVerificationExpires;
+  } // was string | null — wrong type
+  get passwordResetToken(): string | null {
+    return this.#passwordResetToken;
+  }
+  get passwordResetExpires(): Date | null {
+    return this.#passwordResetExpires;
+  }
+  get refreshTokenId(): string | null {
+    return this.#refreshTokenId;
+  }
+  get createdAt(): Date {
+    return this.#createdAt;
+  }
+  get updatedAt(): Date {
+    return this.#updatedAt;
+  }
 
   // ─── Factory: new registration ────────────────────────────────────────────────
 
@@ -199,13 +232,13 @@ export class UserEntity {
     name: string;
     email: string;
     passwordHash: string;
-    emailVerificationToken: string;   // was "emailVerificaitonToken" (typo)
+    emailVerificationToken: string; // was "emailVerificaitonToken" (typo)
   }): UserEntity {
     validateName(input.name);
     validateEmail(input.email);
 
     const expiresAt = new Date(
-      Date.now() + USER_RULES.emailVerification.expiresInMs  // was "emailVerificaition"
+      Date.now() + USER_RULES.emailVerification.expiresInMs, // was "emailVerificaition"
     );
 
     return new UserEntity({
@@ -301,7 +334,8 @@ export class UserEntity {
   }
 
   isVerificationTokenValid(tokenHash: string): boolean {
-    if (!this.#emailVerificationToken || !this.#emailVerificationExpires) return false;
+    if (!this.#emailVerificationToken || !this.#emailVerificationExpires)
+      return false;
     if (this.#emailVerificationToken !== tokenHash) return false;
     if (new Date() > this.#emailVerificationExpires) return false;
     return true;
@@ -326,7 +360,7 @@ export class UserEntity {
       emailVerified: this.#emailVerified,
       passwordConfigured: this.#passwordConfigured,
       createdAt: this.#createdAt,
-      updatedAt: this.#updatedAt,   // was "updateAt" (typo) + was this.createdAt (wrong field)
+      updatedAt: this.#updatedAt, // was "updateAt" (typo) + was this.createdAt (wrong field)
     };
   }
 
@@ -339,11 +373,11 @@ export class UserEntity {
       googleSubject: this.#googleSubject,
       passwordConfigured: this.#passwordConfigured,
       role: this.#role,
-      isActive: this.#isActive,           // was this.isActive (getter) instead of #isActive
+      isActive: this.#isActive, // was this.isActive (getter) instead of #isActive
       emailVerified: this.#emailVerified,
       emailVerificationToken: this.#emailVerificationToken,
       emailVerificationExpires: this.#emailVerificationExpires,
-      passwordResetToken: this.#passwordResetToken,   // was this.passwordResetToken (getter)
+      passwordResetToken: this.#passwordResetToken, // was this.passwordResetToken (getter)
       passwordResetExpires: this.#passwordResetExpires, // was this.passwordHash — completely wrong
       refreshTokenId: this.#refreshTokenId,
       createdAt: this.#createdAt,

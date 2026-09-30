@@ -170,7 +170,10 @@ const DOMAIN_SIGNALS: Array<SignalGroup<DocumentDomain>> = [
   },
 ];
 
-function phraseScore(text: string, phrases: string[]): {
+function phraseScore(
+  text: string,
+  phrases: string[],
+): {
   score: number;
   evidence: string[];
 } {

@@ -329,11 +329,7 @@ export interface NLPResult {
 // ─── Gap detection ───────────────────────────────────────────────────────────
 
 export type ExpectedSection =
-  | "abstract"
-  | "methodology"
-  | "experiments"
-  | "results"
-  | "conclusion";
+  "abstract" | "methodology" | "experiments" | "results" | "conclusion";
 
 export interface KnowledgeGap {
   missingFields: ExpectedField[];
@@ -422,12 +418,7 @@ export type IntelligenceStageId =
   | "complete";
 
 export type IntelligenceStageStatus =
-  | "pending"
-  | "running"
-  | "complete"
-  | "partial"
-  | "failed"
-  | "skipped";
+  "pending" | "running" | "complete" | "partial" | "failed" | "skipped";
 
 export interface IntelligenceStageProgress {
   stage: IntelligenceStageId;

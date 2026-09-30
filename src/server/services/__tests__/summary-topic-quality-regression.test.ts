@@ -1,6 +1,4 @@
-import {
-  isSummaryTopicHeadingEligible,
-} from "@/server/services/summary/summary-topic-learning.service";
+import { isSummaryTopicHeadingEligible } from "@/server/services/summary/summary-topic-learning.service";
 
 describe("summary v3.2 learner topic qualification", () => {
   it("rejects source fragments that are supported but are not useful learner topics", () => {

@@ -1,22 +1,73 @@
-import type {
-  NamedEntity,
-  NLPResult,
-  NLPSentence,
-  POS,
-  Token,
-} from "../types";
+import type { NamedEntity, NLPResult, NLPSentence, POS, Token } from "../types";
 import type { SectionedDocument } from "./types";
 import { splitTextUnits } from "./text-units";
-import {
-  isStudyEligibleUnit,
-} from "./source-hygiene";
+import { isStudyEligibleUnit } from "./source-hygiene";
 
 const STOP_WORDS = new Set([
-  "a", "an", "the", "and", "or", "but", "if", "then", "than", "to", "of", "in", "on", "for",
-  "with", "by", "from", "as", "at", "into", "through", "during", "is", "are", "was", "were", "be",
-  "been", "being", "this", "that", "these", "those", "we", "our", "they", "their", "it", "its", "can",
-  "may", "might", "will", "would", "should", "could", "not", "no", "also", "using", "used", "use",
-  "such", "which", "who", "what", "when", "where", "how", "more", "most", "other", "each", "all",
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "but",
+  "if",
+  "then",
+  "than",
+  "to",
+  "of",
+  "in",
+  "on",
+  "for",
+  "with",
+  "by",
+  "from",
+  "as",
+  "at",
+  "into",
+  "through",
+  "during",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "this",
+  "that",
+  "these",
+  "those",
+  "we",
+  "our",
+  "they",
+  "their",
+  "it",
+  "its",
+  "can",
+  "may",
+  "might",
+  "will",
+  "would",
+  "should",
+  "could",
+  "not",
+  "no",
+  "also",
+  "using",
+  "used",
+  "use",
+  "such",
+  "which",
+  "who",
+  "what",
+  "when",
+  "where",
+  "how",
+  "more",
+  "most",
+  "other",
+  "each",
+  "all",
 ]);
 
 const METHOD_TERMS = [
@@ -38,7 +89,16 @@ const METHOD_TERMS = [
 ];
 
 const DATASET_TERMS = [
-  "cifar-10", "cifar-100", "imagenet", "mnist", "coco", "pascal voc", "squad", "glue", "conll", "imdb",
+  "cifar-10",
+  "cifar-100",
+  "imagenet",
+  "mnist",
+  "coco",
+  "pascal voc",
+  "squad",
+  "glue",
+  "conll",
+  "imdb",
 ];
 
 const METRIC_TERMS = [
@@ -61,11 +121,23 @@ const METRIC_TERMS = [
 ];
 
 const TOOL_TERMS = [
-  "AgenaRisk", "AID", "TensorFlow", "PyTorch", "Scikit-learn", "MATLAB", "SPSS", "Docker", "Kubernetes",
+  "AgenaRisk",
+  "AID",
+  "TensorFlow",
+  "PyTorch",
+  "Scikit-learn",
+  "MATLAB",
+  "SPSS",
+  "Docker",
+  "Kubernetes",
 ];
 
 const ORG_TERMS = [
-  "Philips Consumer Electronics", "Philips", "Queen Mary University of London", "QinetiQ", "Israel Aircraft Industries",
+  "Philips Consumer Electronics",
+  "Philips",
+  "Queen Mary University of London",
+  "QinetiQ",
+  "Israel Aircraft Industries",
 ];
 
 const DOMAIN_PHRASES = [
@@ -94,21 +166,12 @@ export function runNLPPipeline(doc: SectionedDocument): NLPResult {
 
   for (const section of doc.sections) {
     if (section.semanticRole === "references") continue;
-    const rawSentences =
-      splitTextUnits(
-        section.analysisBody,
+    const rawSentences = splitTextUnits(section.analysisBody)
+      .filter(
+        (unit) =>
+          unit.text.length >= 8 && isStudyEligibleUnit(unit.text, unit.kind),
       )
-        .filter(
-          (unit) =>
-            unit.text.length >= 8 &&
-            isStudyEligibleUnit(
-              unit.text,
-              unit.kind,
-            ),
-        )
-        .map(
-          (unit) => unit.text,
-        );
+      .map((unit) => unit.text);
 
     rawSentences.forEach((text, index) => {
       const tokens = tokeniseAndTag(text);
@@ -126,14 +189,18 @@ export function runNLPPipeline(doc: SectionedDocument): NLPResult {
     });
   }
 
-  const sentenceScores = rankSentences(sentences.map((sentence) => sentence.text));
+  const sentenceScores = rankSentences(
+    sentences.map((sentence) => sentence.text),
+  );
   sentences.forEach((sentence, index) => {
     sentence.score = sentenceScores[index] ?? 0;
   });
 
   const keyPhrases = extractKeyPhrases(sentences);
   const keywords = extractKeywords(sentences, keyPhrases);
-  const entities = deduplicateEntities(sentences.flatMap((sentence) => sentence.entities));
+  const entities = deduplicateEntities(
+    sentences.flatMap((sentence) => sentence.entities),
+  );
   const topSentences = [...sentences]
     .sort((a, b) => b.score - a.score)
     .slice(0, 8)
@@ -166,7 +233,12 @@ export function tagPOS(word: string): POS {
   if (/ly$/.test(lower)) return "RB";
   if (/(al|ive|ous|ful|less|ic|able|ible|ent|ant)$/.test(lower)) return "JJ";
   if (/s$/.test(lower) && lower.length > 3) return "NNS";
-  if (STOP_WORDS.has(lower)) return ["in", "on", "at", "to", "for", "of", "with", "by", "from"].includes(lower) ? "IN" : "DT";
+  if (STOP_WORDS.has(lower))
+    return ["in", "on", "at", "to", "for", "of", "with", "by", "from"].includes(
+      lower,
+    )
+      ? "IN"
+      : "DT";
   return "NN";
 }
 
@@ -188,7 +260,8 @@ export function extractEntities(text: string, tokens: Token[]): NamedEntity[] {
   addTerms(text, ORG_TERMS, "ORG", add);
   addTerms(text, DOMAIN_PHRASES, "CONCEPT", add);
 
-  const acronymDefinition = /\b([A-Z][A-Za-z-]+(?:\s+[A-Z]?[A-Za-z-]+){1,6})\s*\(([A-Z][A-Z0-9]{1,8})\)/g;
+  const acronymDefinition =
+    /\b([A-Z][A-Za-z-]+(?:\s+[A-Z]?[A-Za-z-]+){1,6})\s*\(([A-Z][A-Z0-9]{1,8})\)/g;
   for (const match of text.matchAll(acronymDefinition)) {
     add(match[1].trim(), "CONCEPT");
     add(match[2], "ACRONYM");
@@ -228,17 +301,24 @@ function extractKeyPhrases(sentences: NLPSentence[]): string[] {
 
   for (const sentence of sentences) {
     for (const entity of sentence.entities) {
-      if (!["NUMBER", "METRIC", "ORG"].includes(entity.type)) add(entity.text, 4);
+      if (!["NUMBER", "METRIC", "ORG"].includes(entity.type))
+        add(entity.text, 4);
     }
 
     const content = sentence.tokens.filter(
-      (token) => !token.isStopWord && !NUMBER_RE.test(token.text) && token.lower.length >= 3,
+      (token) =>
+        !token.isStopWord &&
+        !NUMBER_RE.test(token.text) &&
+        token.lower.length >= 3,
     );
 
     for (let size = 2; size <= 4; size += 1) {
       for (let index = 0; index <= content.length - size; index += 1) {
         const slice = content.slice(index, index + size);
-        if (slice.some((token) => ["VB", "VBG", "VBN", "RB"].includes(token.pos))) continue;
+        if (
+          slice.some((token) => ["VB", "VBG", "VBN", "RB"].includes(token.pos))
+        )
+          continue;
         add(slice.map((token) => token.lower).join(" "));
       }
     }
@@ -251,11 +331,19 @@ function extractKeyPhrases(sentences: NLPSentence[]): string[] {
     .map(([phrase]) => phrase);
 }
 
-function extractKeywords(sentences: NLPSentence[], keyPhrases: string[]): string[] {
+function extractKeywords(
+  sentences: NLPSentence[],
+  keyPhrases: string[],
+): string[] {
   const counts = new Map<string, number>();
   for (const sentence of sentences) {
     for (const token of sentence.tokens) {
-      if (token.isStopWord || NUMBER_RE.test(token.text) || token.lower.length < 3) continue;
+      if (
+        token.isStopWord ||
+        NUMBER_RE.test(token.text) ||
+        token.lower.length < 3
+      )
+        continue;
       counts.set(token.lower, (counts.get(token.lower) ?? 0) + 1);
     }
   }
@@ -282,13 +370,20 @@ function rankSentences(sentences: string[]): number[] {
   if (sentences.length === 1) return [1];
 
   const sets = sentences.map(
-    (sentence) => new Set(tokeniseWords(sentence).map((word) => word.toLowerCase()).filter((word) => !STOP_WORDS.has(word) && word.length > 2)),
+    (sentence) =>
+      new Set(
+        tokeniseWords(sentence)
+          .map((word) => word.toLowerCase())
+          .filter((word) => !STOP_WORDS.has(word) && word.length > 2),
+      ),
   );
   const scores = sentences.map((_, index) => {
     let score = 0;
     for (let other = 0; other < sets.length; other += 1) {
       if (other === index) continue;
-      const intersection = [...sets[index]].filter((word) => sets[other].has(word)).length;
+      const intersection = [...sets[index]].filter((word) =>
+        sets[other].has(word),
+      ).length;
       const union = new Set([...sets[index], ...sets[other]]).size;
       score += union === 0 ? 0 : intersection / union;
     }

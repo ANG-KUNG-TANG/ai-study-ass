@@ -1,6 +1,4 @@
-import type {
-  SummaryQualityReport,
-} from "@/server/services/summary/summary-quality.service";
+import type { SummaryQualityReport } from "@/server/services/summary/summary-quality.service";
 
 export interface SummaryCandidatePreference {
   faithful: number;
@@ -27,7 +25,8 @@ export function summaryCandidatePreference(
     contractPassed: quality.contractPassed ? 1 : 0,
     coverageSufficient: quality.coverageSufficient ? 1 : 0,
     hardGatePassed: quality.contract.hardGatePassed ? 1 : 0,
-    hardGateRatio: hardGates.length > 0 ? passedHardGates / hardGates.length : 1,
+    hardGateRatio:
+      hardGates.length > 0 ? passedHardGates / hardGates.length : 1,
     majorFactCoverage: ratio(
       quality.metrics.majorFactCoveredCount,
       quality.metrics.majorFactTargetCount,

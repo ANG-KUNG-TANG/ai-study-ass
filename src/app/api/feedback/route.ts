@@ -1,4 +1,7 @@
-import { createFeedback, listOwnFeedback } from "@/server/controller/feedback.controller";
+import {
+  createFeedback,
+  listOwnFeedback,
+} from "@/server/controller/feedback.controller";
 import { withAuth } from "@/server/middleware/auth.middleware";
 import { apiLimiter } from "@/server/middleware/rate_limiter.middleware";
 

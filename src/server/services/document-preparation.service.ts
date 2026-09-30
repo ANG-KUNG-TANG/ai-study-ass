@@ -30,9 +30,7 @@ function intelligenceHasFailed(value: unknown): boolean {
   return false;
 }
 
-function safeMessage(
-  error: unknown,
-): string {
+function safeMessage(error: unknown): string {
   return error instanceof Error
     ? error.message.slice(0, 500)
     : String(error).slice(0, 500);
@@ -41,40 +39,25 @@ function safeMessage(
 async function generateAutomaticSummary(
   input: PrepareDocumentInput,
 ): Promise<void> {
-  await generationRepo.updateFeature(
-    input.noteId,
-    "summary",
-    {
-      status: "generating",
-      error: null,
-    },
-  );
+  await generationRepo.updateFeature(input.noteId, "summary", {
+    status: "generating",
+    error: null,
+  });
 
   try {
-    const summary =
-      await summaryService.generateSummary(
-        input.noteId,
-        {
-          force: input.force,
-          mode: "comprehensive",
-        },
-      );
+    const summary = await summaryService.generateSummary(input.noteId, {
+      force: input.force,
+      mode: "comprehensive",
+    });
 
-    await generationRepo.updateFeature(
-      input.noteId,
-      "summary",
-      {
-        status: summary.status,
-        source: summary.source,
-        confidence:
-          summary.confidence,
-        aiFallbackUsed:
-          summary.aiFallbackUsed,
-        itemCount:
-          summary.itemCount ?? 1,
-        error: null,
-      },
-    );
+    await generationRepo.updateFeature(input.noteId, "summary", {
+      status: summary.status,
+      source: summary.source,
+      confidence: summary.confidence,
+      aiFallbackUsed: summary.aiFallbackUsed,
+      itemCount: summary.itemCount ?? 1,
+      error: null,
+    });
 
     logger.info(
       "Automatic comprehensive Summary generated after document preparation",
@@ -82,30 +65,22 @@ async function generateAutomaticSummary(
         noteId: input.noteId,
         userId: input.userId,
         source: summary.source,
-        aiFallbackUsed:
-          summary.aiFallbackUsed,
-        tokensUsed:
-          summary.tokensUsed ?? 0,
+        aiFallbackUsed: summary.aiFallbackUsed,
+        tokensUsed: summary.tokensUsed ?? 0,
       },
     );
   } catch (error) {
-    await generationRepo.updateFeature(
-      input.noteId,
-      "summary",
-      {
-        status: "failed",
-        error:
-          safeMessage(error),
-      },
-    );
+    await generationRepo.updateFeature(input.noteId, "summary", {
+      status: "failed",
+      error: safeMessage(error),
+    });
 
     logger.warn(
       "Automatic Summary generation failed; document remains available for retry",
       {
         noteId: input.noteId,
         userId: input.userId,
-        error:
-          safeMessage(error),
+        error: safeMessage(error),
       },
     );
   }
@@ -122,10 +97,7 @@ async function generateAutomaticSummary(
 export async function prepareDocumentForStudy(
   input: PrepareDocumentInput,
 ): Promise<StudyGenerationState> {
-  const note = await noteRepo.findByIdAndUserId(
-    input.noteId,
-    input.userId,
-  );
+  const note = await noteRepo.findByIdAndUserId(input.noteId, input.userId);
 
   if (!note) {
     throw new NotFoundError("Note");
@@ -137,10 +109,7 @@ export async function prepareDocumentForStudy(
     Boolean(input.force),
   );
 
-  await generationRepo.updateStage(
-    input.noteId,
-    "analyzing",
-  );
+  await generationRepo.updateStage(input.noteId, "analyzing");
 
   const document = intelligenceService.toRawDocument({
     content: note.content,
@@ -151,39 +120,27 @@ export async function prepareDocumentForStudy(
     pages: note.sourcePages,
   });
 
-  const intelligence =
-    await intelligenceService.runAndPersistPipeline(
-      input.noteId,
-      document,
-      { allowAIRepair: false },
-    );
+  const intelligence = await intelligenceService.runAndPersistPipeline(
+    input.noteId,
+    document,
+    { allowAIRepair: false },
+  );
 
   if (intelligenceHasFailed(intelligence)) {
-    await generationRepo.updateStage(
-      input.noteId,
-      "failed",
-    );
+    await generationRepo.updateStage(input.noteId, "failed");
 
     throw new Error(
       "Document preparation stopped because deterministic intelligence did not complete successfully.",
     );
   }
 
-  await generateAutomaticSummary(
-    input,
-  );
+  await generateAutomaticSummary(input);
 
   // `complete` means document preparation plus the automatic Summary attempt
   // has finished. Quiz, flashcards and chat intentionally remain on demand.
-  await generationRepo.updateStage(
-    input.noteId,
-    "complete",
-  );
+  await generationRepo.updateStage(input.noteId, "complete");
 
-  const state =
-    await generationRepo.findByNoteId(
-      input.noteId,
-    );
+  const state = await generationRepo.findByNoteId(input.noteId);
 
   if (!state) {
     throw new Error(
@@ -191,23 +148,17 @@ export async function prepareDocumentForStudy(
     );
   }
 
-  logger.info(
-    "Document prepared and automatic Summary generation finished",
-    {
-      noteId: input.noteId,
-      userId: input.userId,
-      stage: state.stage,
-      featureStatuses:
-        Object.fromEntries(
-          Object.entries(state.features).map(
-            ([name, value]) => [
-              name,
-              value.status,
-            ],
-          ),
-        ),
-    },
-  );
+  logger.info("Document prepared and automatic Summary generation finished", {
+    noteId: input.noteId,
+    userId: input.userId,
+    stage: state.stage,
+    featureStatuses: Object.fromEntries(
+      Object.entries(state.features).map(([name, value]) => [
+        name,
+        value.status,
+      ]),
+    ),
+  });
 
   return state;
 }

@@ -6,9 +6,7 @@ interface GoogleAuthButtonProps {
   label?: string;
 }
 
-export function GoogleAuthButton({
-  label,
-}: GoogleAuthButtonProps) {
+export function GoogleAuthButton({ label }: GoogleAuthButtonProps) {
   const { t } = useLanguage();
 
   return (

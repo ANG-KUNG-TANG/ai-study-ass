@@ -3,9 +3,9 @@ import type {
   OntologyDomain,
   OntologyRelation,
   ResolvedConcept,
-} from '../types';
+} from "../types";
 
-import { ONTOLOGY_MAP } from './cs_ontology';
+import { ONTOLOGY_MAP } from "./cs_ontology";
 
 // ─── Levenshtein distance (iterative, no recursion) ───────────────────────────
 
@@ -30,13 +30,7 @@ function levenshtein(a: string, b: string): number {
       if (a[i - 1] === b[j - 1]) {
         curr[j] = prev[j - 1]!;
       } else {
-        curr[j] =
-          1 +
-          Math.min(
-            prev[j]!,
-            curr[j - 1]!,
-            prev[j - 1]!,
-          );
+        curr[j] = 1 + Math.min(prev[j]!, curr[j - 1]!, prev[j - 1]!);
       }
     }
 
@@ -50,12 +44,12 @@ function levenshtein(a: string, b: string): number {
 
 function makeUnknownConcept(raw: string): OntologyConcept {
   return {
-    id: `unknown:${raw.toLowerCase().replace(/\s+/g, '_')}`,
+    id: `unknown:${raw.toLowerCase().replace(/\s+/g, "_")}`,
     label: raw,
     aliases: [],
     ancestors: [],
     relations: [],
-    domain: 'general',
+    domain: "general",
   };
 }
 
@@ -115,7 +109,7 @@ class OntologyCache {
         return {
           concept,
           confidence: isExactId ? 1.0 : 0.85,
-          matchType: isExactId ? 'exact' : 'alias',
+          matchType: isExactId ? "exact" : "alias",
           rawInput: raw,
         };
       }
@@ -127,7 +121,7 @@ class OntologyCache {
 
     for (const id of this.byId.keys()) {
       const dist = levenshtein(key, id);
-      if (dist < bestDist || (dist === bestDist && id < (bestId ?? ''))) {
+      if (dist < bestDist || (dist === bestDist && id < (bestId ?? ""))) {
         bestDist = dist;
         bestId = id;
       }
@@ -138,7 +132,7 @@ class OntologyCache {
       return {
         concept: fuzzyConcept,
         confidence: 0.6,
-        matchType: 'fuzzy',
+        matchType: "fuzzy",
         rawInput: raw,
       };
     }
@@ -147,9 +141,9 @@ class OntologyCache {
     return {
       concept: makeUnknownConcept(raw),
       confidence: 0.0,
-      matchType: 'unknown',
+      matchType: "unknown",
       rawInput: raw,
-      status: 'unresolved',
+      status: "unresolved",
     };
   }
 
@@ -160,21 +154,23 @@ class OntologyCache {
    */
   resolveFromText(raw: string): ResolvedConcept {
     const direct = this.resolve(raw);
-    if (direct.matchType !== 'unknown') return direct;
+    if (direct.matchType !== "unknown") return direct;
 
     const lower = raw.toLowerCase();
-    const candidates = [...this.byAlias.entries()].sort((a, b) => b[0].length - a[0].length);
+    const candidates = [...this.byAlias.entries()].sort(
+      (a, b) => b[0].length - a[0].length,
+    );
     for (const [alias, conceptId] of candidates) {
       if (alias.length < 3) continue;
-      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`, 'i');
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`, "i");
       if (!pattern.test(lower)) continue;
       const concept = this.byId.get(conceptId);
       if (!concept) continue;
       return {
         concept,
         confidence: alias === concept.id.toLowerCase() ? 0.8 : 0.75,
-        matchType: 'alias',
+        matchType: "alias",
         rawInput: raw,
       };
     }
@@ -254,15 +250,26 @@ class OntologyCache {
     // collision visible in the data itself, not just downstream in Prolog
     // source — useful when adding new concepts/relations to cs_ontology.ts.
     const reservedFunctorRelations: string[] = [];
-    const RESERVED_PAPER_FUNCTORS = new Set(['paper', 'method', 'dataset', 'accuracy', 'solves', 'mentions']);
+    const RESERVED_PAPER_FUNCTORS = new Set([
+      "paper",
+      "method",
+      "dataset",
+      "accuracy",
+      "solves",
+      "mentions",
+    ]);
 
     for (const concept of this.byId.values()) {
       for (const rel of concept.relations) {
         if (!this.byId.has(rel.target)) {
-          danglingRelations.push(`${concept.id} -[${rel.type}]-> ${rel.target}`);
+          danglingRelations.push(
+            `${concept.id} -[${rel.type}]-> ${rel.target}`,
+          );
         }
         if (RESERVED_PAPER_FUNCTORS.has(rel.type)) {
-          reservedFunctorRelations.push(`${concept.id} -[${rel.type}]-> ${rel.target}`);
+          reservedFunctorRelations.push(
+            `${concept.id} -[${rel.type}]-> ${rel.target}`,
+          );
         }
       }
       for (const ancestorId of concept.ancestors) {
@@ -280,8 +287,8 @@ class OntologyCache {
   private assertLoaded(): void {
     if (!this.loaded) {
       throw new Error(
-        'OntologyCache: call load() before using the cache. ' +
-          'In intelligence/engine.ts: ontologyCache.load() must run before runPipeline().',
+        "OntologyCache: call load() before using the cache. " +
+          "In intelligence/engine.ts: ontologyCache.load() must run before runPipeline().",
       );
     }
   }

@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useCallback,
+  useRef,
+} from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, refreshAccessToken } from "@/lib/api";
 import { setAccessToken } from "@/lib/auth-token-store";
@@ -59,11 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // useAuth.ts's loginAndRedirect/logoutAndRedirect — keeping one owner
   // for route decisions instead of two callbacks racing each other.
   const login = useCallback(async (email: string, password: string) => {
-    const result = await apiFetch<{ accessToken: string; user: User }>("/auth/login", {
-      method: "POST",
-      skipAuth: true,
-      body: JSON.stringify({ email, password }),
-    });
+    const result = await apiFetch<{ accessToken: string; user: User }>(
+      "/auth/login",
+      {
+        method: "POST",
+        skipAuth: true,
+        body: JSON.stringify({ email, password }),
+      },
+    );
     setAccessToken(result.accessToken);
     setUser(result.user);
     return result.user;
@@ -113,7 +124,13 @@ export function sectionForRole(role: User["role"]): Section {
 
 // Wrap admin/student layouts with this. Redirects unauthenticated users to
 // /auth/login and wrong-section users back to their own dashboard.
-export function RequireRole({ section, children }: { section: Section; children: ReactNode }) {
+export function RequireRole({
+  section,
+  children,
+}: {
+  section: Section;
+  children: ReactNode;
+}) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
@@ -124,7 +141,11 @@ export function RequireRole({ section, children }: { section: Section; children:
       return;
     }
     if (sectionForRole(user.role) !== section) {
-      router.replace(sectionForRole(user.role) === "admin" ? "/admin/dashboard" : "/student/dashboard");
+      router.replace(
+        sectionForRole(user.role) === "admin"
+          ? "/admin/dashboard"
+          : "/student/dashboard",
+      );
     }
   }, [isLoading, user, section, router]);
 

@@ -8,9 +8,7 @@ import type {
 
 export type { PipelineStage };
 export type ConfidenceMode =
-  | "SYMBOLIC_ONLY"
-  | "SYMBOLIC_WITH_OPTIONAL_AI_POLISH"
-  | "AI_REQUIRED";
+  "SYMBOLIC_ONLY" | "SYMBOLIC_WITH_OPTIONAL_AI_POLISH" | "AI_REQUIRED";
 
 export interface OntologyMatchRef {
   conceptId: string;
@@ -34,24 +32,13 @@ export interface GraphEdgeData {
   evidenceIds?: string[];
 }
 
-
 export type KnowledgeTreeNodeType =
-  | "root"
-  | "topic"
-  | "concept"
-  | "term"
-  | "fact";
+  "root" | "topic" | "concept" | "term" | "fact";
 
 export type KnowledgeTreeRelation =
-  | "root"
-  | "topic_group"
-  | "explicit_hierarchy"
-  | "supporting_fact";
+  "root" | "topic_group" | "explicit_hierarchy" | "supporting_fact";
 
-export type KnowledgeTreeQualityStatus =
-  | "passed"
-  | "warning"
-  | "failed";
+export type KnowledgeTreeQualityStatus = "passed" | "warning" | "failed";
 
 export interface KnowledgeTreeNodeData {
   id: string;
@@ -84,11 +71,7 @@ export interface KnowledgeTreeData {
   quality: KnowledgeTreeQuality;
 }
 
-
-export type KnowledgeGraphQualityStatus =
-  | "passed"
-  | "warning"
-  | "failed";
+export type KnowledgeGraphQualityStatus = "passed" | "warning" | "failed";
 
 export interface KnowledgeGraphQuality {
   status: KnowledgeGraphQualityStatus;

@@ -1,11 +1,6 @@
-export const REPAIR_FEATURES = [
-  "summary",
-  "quiz",
-  "flashcards",
-] as const;
+export const REPAIR_FEATURES = ["summary", "quiz", "flashcards"] as const;
 
-export type RepairFeature =
-  (typeof REPAIR_FEATURES)[number];
+export type RepairFeature = (typeof REPAIR_FEATURES)[number];
 
 export interface RepairCacheDescriptor {
   key: string;

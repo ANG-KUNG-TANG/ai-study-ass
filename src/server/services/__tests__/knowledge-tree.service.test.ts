@@ -5,12 +5,8 @@ import {
   type ImportantConcept,
   type QualifiedTerm,
 } from "@/server/intelligence/grounding";
-import {
-  buildGroundedKnowledgeTree,
-} from "@/server/services/knowledge/knowledge-tree.service";
-import type {
-  KnowledgeTreeNodeData,
-} from "@/server/types/Knowledge";
+import { buildGroundedKnowledgeTree } from "@/server/services/knowledge/knowledge-tree.service";
+import type { KnowledgeTreeNodeData } from "@/server/types/Knowledge";
 
 function makeFact(input: {
   id: string;
@@ -26,18 +22,17 @@ function makeFact(input: {
     content: input.content,
     verbatimRequired: false,
     sourceSectionId: input.sectionId,
-    evidence: [{
-      id: `e-${input.id}`,
-      sectionId: input.sectionId,
-      sectionTitle: input.sectionId,
-      pageNumber: 1,
-      text: input.content,
-    }],
+    evidence: [
+      {
+        id: `e-${input.id}`,
+        sectionId: input.sectionId,
+        sectionTitle: input.sectionId,
+        pageNumber: 1,
+        text: input.content,
+      },
+    ],
     evidenceType: "stated",
-    verificationStatus:
-      input.supported === false
-        ? "unsupported"
-        : "supported",
+    verificationStatus: input.supported === false ? "unsupported" : "supported",
     confidence: 0.95,
     importanceScore: input.importance ?? 0.9,
     numericTokens: [],
@@ -60,13 +55,15 @@ function makeConcept(input: {
     evidence:
       input.evidence === false
         ? []
-        : [{
-            id: `concept-${input.name}`,
-            sectionId: sectionIds[0] ?? "s1",
-            sectionTitle: sectionIds[0] ?? "s1",
-            pageNumber: 1,
-            text: `${input.name} is discussed here.`,
-          }],
+        : [
+            {
+              id: `concept-${input.name}`,
+              sectionId: sectionIds[0] ?? "s1",
+              sectionTitle: sectionIds[0] ?? "s1",
+              pageNumber: 1,
+              text: `${input.name} is discussed here.`,
+            },
+          ],
     importanceScore: input.importance ?? 0.9,
   };
 }
@@ -80,13 +77,15 @@ function makeTerm(
     term: name,
     definition,
     sourceSectionId: sectionId,
-    evidence: [{
-      id: `term-${name}`,
-      sectionId,
-      sectionTitle: sectionId,
-      pageNumber: 1,
-      text: `${name}: ${definition}`,
-    }],
+    evidence: [
+      {
+        id: `term-${name}`,
+        sectionId,
+        sectionTitle: sectionId,
+        pageNumber: 1,
+        text: `${name}: ${definition}`,
+      },
+    ],
     qualification: "explicit_definition",
     confidence: 0.95,
   };
@@ -99,8 +98,7 @@ function makeGrounding(
     makeFact({
       id: "f1",
       sectionId: "s1",
-      content:
-        "Spanning Tree Protocol prevents Layer 2 switching loops.",
+      content: "Spanning Tree Protocol prevents Layer 2 switching loops.",
       type: "definition",
       importance: 0.95,
     }),
@@ -126,11 +124,7 @@ function makeGrounding(
         "STP",
         "Spanning Tree Protocol prevents Layer 2 switching loops.",
       ),
-      makeTerm(
-        "PortFast",
-        "An edge-port feature used on access ports.",
-        "s2",
-      ),
+      makeTerm("PortFast", "An edge-port feature used on access ports.", "s2"),
     ],
     concepts: [
       makeConcept({
@@ -174,48 +168,35 @@ function makeGrounding(
   };
 }
 
-function flatten(
-  root: KnowledgeTreeNodeData | null,
-): KnowledgeTreeNodeData[] {
+function flatten(root: KnowledgeTreeNodeData | null): KnowledgeTreeNodeData[] {
   if (!root) return [];
 
-  return [
-    root,
-    ...root.children.flatMap((child) =>
-      flatten(child),
-    ),
-  ];
+  return [root, ...root.children.flatMap((child) => flatten(child))];
 }
 
 function findNode(
   root: KnowledgeTreeNodeData | null,
   label: string,
 ): KnowledgeTreeNodeData | undefined {
-  return flatten(root).find(
-    (node) => node.label === label,
-  );
+  return flatten(root).find((node) => node.label === label);
 }
 
 describe("grounded Knowledge Tree", () => {
   it("builds a connected root -> topic -> grounded knowledge tree", () => {
-    const tree = buildGroundedKnowledgeTree(
-      makeGrounding(),
-    );
+    const tree = buildGroundedKnowledgeTree(makeGrounding());
     const nodes = flatten(tree.root);
 
     expect(tree.root?.type).toBe("root");
     expect(
       nodes.some(
         (node) =>
-          node.type === "topic" &&
-          node.label === "Switching Fundamentals",
+          node.type === "topic" && node.label === "Switching Fundamentals",
       ),
     ).toBe(true);
     expect(
       nodes.some(
         (node) =>
-          node.type === "concept" &&
-          node.label === "Spanning Tree Protocol",
+          node.type === "concept" && node.label === "Spanning Tree Protocol",
       ),
     ).toBe(true);
     expect(tree.quality.orphanCount).toBe(0);
@@ -223,20 +204,14 @@ describe("grounded Knowledge Tree", () => {
   });
 
   it("merges acronym aliases instead of creating duplicate concept branches", () => {
-    const tree = buildGroundedKnowledgeTree(
-      makeGrounding(),
-    );
+    const tree = buildGroundedKnowledgeTree(makeGrounding());
     const nodes = flatten(tree.root);
     const stpNodes = nodes.filter(
-      (node) =>
-        node.label === "STP" ||
-        node.label === "Spanning Tree Protocol",
+      (node) => node.label === "STP" || node.label === "Spanning Tree Protocol",
     );
 
     expect(stpNodes).toHaveLength(1);
-    expect(
-      tree.quality.duplicateAliasCount,
-    ).toBeGreaterThanOrEqual(1);
+    expect(tree.quality.duplicateAliasCount).toBeGreaterThanOrEqual(1);
   });
 
   it("creates a broader-to-narrower edge only when a supported fact states it", () => {
@@ -265,26 +240,17 @@ describe("grounded Knowledge Tree", () => {
       ],
     });
 
-    const parent = findNode(
-      tree.root,
-      "Spanning Tree Protocol",
-    );
-    const child = findNode(
-      tree.root,
-      "Rapid Spanning Tree Protocol",
-    );
+    const parent = findNode(tree.root, "Spanning Tree Protocol");
+    const child = findNode(tree.root, "Rapid Spanning Tree Protocol");
 
     expect(
       parent?.children.some(
         (node) =>
           node.id === child?.id &&
-          node.relationToParent ===
-            "explicit_hierarchy",
+          node.relationToParent === "explicit_hierarchy",
       ),
     ).toBe(true);
-    expect(
-      child?.relationEvidenceIds,
-    ).toContain("e-hierarchy");
+    expect(child?.relationEvidenceIds).toContain("e-hierarchy");
   });
 
   it("does not invent hierarchy from simple co-occurrence", () => {
@@ -314,20 +280,11 @@ describe("grounded Knowledge Tree", () => {
     });
 
     const vlan = findNode(tree.root, "VLAN");
-    const stp = findNode(
-      tree.root,
-      "Spanning Tree Protocol",
-    );
+    const stp = findNode(tree.root, "Spanning Tree Protocol");
 
-    expect(vlan?.relationToParent).toBe(
-      "topic_group",
-    );
-    expect(stp?.relationToParent).toBe(
-      "topic_group",
-    );
-    expect(
-      tree.quality.explicitHierarchyCount,
-    ).toBe(0);
+    expect(vlan?.relationToParent).toBe("topic_group");
+    expect(stp?.relationToParent).toBe("topic_group");
+    expect(tree.quality.explicitHierarchyCount).toBe(0);
   });
 
   it("excludes unsupported facts from the tree", () => {
@@ -335,8 +292,7 @@ describe("grounded Knowledge Tree", () => {
     const unsupported = makeFact({
       id: "unsupported",
       sectionId: "s1",
-      content:
-        "An unsupported networking claim should never be shown.",
+      content: "An unsupported networking claim should never be shown.",
       importance: 0.99,
       supported: false,
     });
@@ -346,11 +302,9 @@ describe("grounded Knowledge Tree", () => {
       facts: [...base.facts, unsupported],
     });
 
-    expect(
-      flatten(tree.root).some(
-        (node) => node.id === "unsupported",
-      ),
-    ).toBe(false);
+    expect(flatten(tree.root).some((node) => node.id === "unsupported")).toBe(
+      false,
+    );
   });
 
   it("omits low-importance facts while retaining major concepts", () => {
@@ -367,20 +321,9 @@ describe("grounded Knowledge Tree", () => {
       facts: [...base.facts, minor],
     });
 
-    expect(
-      flatten(tree.root).some(
-        (node) => node.id === "minor",
-      ),
-    ).toBe(false);
-    expect(
-      findNode(
-        tree.root,
-        "Spanning Tree Protocol",
-      ),
-    ).toBeDefined();
-    expect(
-      tree.quality.majorConceptCoverage,
-    ).toBe(1);
+    expect(flatten(tree.root).some((node) => node.id === "minor")).toBe(false);
+    expect(findNode(tree.root, "Spanning Tree Protocol")).toBeDefined();
+    expect(tree.quality.majorConceptCoverage).toBe(1);
   });
 
   it("omits an important concept that has no evidence and reports the quality warning", () => {
@@ -398,15 +341,8 @@ describe("grounded Knowledge Tree", () => {
       ],
     });
 
-    expect(
-      findNode(
-        tree.root,
-        "Ungrounded Major Concept",
-      ),
-    ).toBeUndefined();
-    expect(
-      tree.quality.omittedUngroundedCount,
-    ).toBeGreaterThan(0);
+    expect(findNode(tree.root, "Ungrounded Major Concept")).toBeUndefined();
+    expect(tree.quality.omittedUngroundedCount).toBeGreaterThan(0);
   });
 
   it("keeps knowledge connected even when its source section is not visible", () => {
@@ -422,19 +358,14 @@ describe("grounded Knowledge Tree", () => {
       ],
     });
 
-    const node = findNode(
-      tree.root,
-      "Grounded Orphan Candidate",
-    );
+    const node = findNode(tree.root, "Grounded Orphan Candidate");
 
     expect(node).toBeDefined();
     expect(tree.quality.orphanCount).toBe(0);
     expect(
       flatten(tree.root).some(
         (item) =>
-          item.type === "topic" &&
-          item.label ===
-            "Other grounded knowledge",
+          item.type === "topic" && item.label === "Other grounded knowledge",
       ),
     ).toBe(true);
   });
@@ -453,16 +384,14 @@ describe("grounded Knowledge Tree", () => {
     const first = makeFact({
       id: "r1",
       sectionId: "s1",
-      content:
-        "Child Concept is a type of Parent Concept.",
+      content: "Child Concept is a type of Parent Concept.",
       type: "relationship",
       importance: 0.95,
     });
     const second = makeFact({
       id: "r2",
       sectionId: "s1",
-      content:
-        "Parent Concept is a type of Child Concept.",
+      content: "Parent Concept is a type of Child Concept.",
       type: "relationship",
       importance: 0.95,
     });
@@ -475,12 +404,8 @@ describe("grounded Knowledge Tree", () => {
     });
 
     expect(tree.quality.orphanCount).toBe(0);
-    expect(tree.quality.maxDepth).toBeLessThanOrEqual(
-      4,
-    );
-    expect(
-      tree.quality.skippedHierarchyCount,
-    ).toBeGreaterThanOrEqual(1);
+    expect(tree.quality.maxDepth).toBeLessThanOrEqual(4);
+    expect(tree.quality.skippedHierarchyCount).toBeGreaterThanOrEqual(1);
   });
 
   it("supports Unicode concept labels and source topics", () => {
@@ -488,17 +413,17 @@ describe("grounded Knowledge Tree", () => {
     const thaiConcept: ImportantConcept = {
       name: "โปรโตคอลต้นไม้ครอบคลุม",
       normalizedName: "โปรโตคอลต้นไม้ครอบคลุม",
-      explanation:
-        "แนวคิดสำหรับป้องกันลูปในเครือข่าย",
+      explanation: "แนวคิดสำหรับป้องกันลูปในเครือข่าย",
       sourceSectionIds: ["thai"],
-      evidence: [{
-        id: "thai-evidence",
-        sectionId: "thai",
-        sectionTitle: "การสวิตช์",
-        pageNumber: 1,
-        text:
-          "โปรโตคอลต้นไม้ครอบคลุมช่วยป้องกันลูปในเครือข่าย",
-      }],
+      evidence: [
+        {
+          id: "thai-evidence",
+          sectionId: "thai",
+          sectionTitle: "การสวิตช์",
+          pageNumber: 1,
+          text: "โปรโตคอลต้นไม้ครอบคลุมช่วยป้องกันลูปในเครือข่าย",
+        },
+      ],
       importanceScore: 0.9,
     };
 
@@ -508,22 +433,19 @@ describe("grounded Knowledge Tree", () => {
       facts: [],
       keyTerms: [],
       concepts: [thaiConcept],
-      sections: [{
-        sectionId: "thai",
-        heading: "การสวิตช์",
-        status: "covered",
-        factIds: [],
-        sourceUnitCount: 1,
-        omittedUnitCount: 0,
-      }],
+      sections: [
+        {
+          sectionId: "thai",
+          heading: "การสวิตช์",
+          status: "covered",
+          factIds: [],
+          sourceUnitCount: 1,
+          omittedUnitCount: 0,
+        },
+      ],
     });
 
-    expect(
-      findNode(
-        tree.root,
-        "โปรโตคอลต้นไม้ครอบคลุม",
-      ),
-    ).toBeDefined();
+    expect(findNode(tree.root, "โปรโตคอลต้นไม้ครอบคลุม")).toBeDefined();
     expect(tree.quality.status).toBe("passed");
   });
 });

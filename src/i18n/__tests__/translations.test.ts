@@ -1,8 +1,4 @@
-import {
-  isLocale,
-  translate,
-  type TranslationKey,
-} from "@/i18n/translations";
+import { isLocale, translate, type TranslationKey } from "@/i18n/translations";
 
 describe("language translations", () => {
   it("supports the configured English and Myanmar locales", () => {
@@ -35,9 +31,7 @@ describe("language translations", () => {
     expect(
       translate("my", "flashcards.position", { current: 2, total: 10 }),
     ).toBe("ကတ် 2 / 10");
-    expect(
-      translate("en", "knowledge.page", { page: 4 }),
-    ).toBe("Page 4");
+    expect(translate("en", "knowledge.page", { page: 4 })).toBe("Page 4");
   });
 
   it("translates the current usage and observability screens", () => {
@@ -53,13 +47,11 @@ describe("language translations", () => {
   });
 
   it("translates account verification, profile, and settings screens", () => {
-    expect(translate("en", "settings.signOutAll")).toBe(
-      "Sign out all devices",
-    );
+    expect(translate("en", "settings.signOutAll")).toBe("Sign out all devices");
     expect(translate("my", "nav.profile")).toBe("ပရိုဖိုင်");
-    expect(
-      translate("en", "verify.resendCooldown", { seconds: 12 }),
-    ).toBe("Try again in 12s");
+    expect(translate("en", "verify.resendCooldown", { seconds: 12 })).toBe(
+      "Try again in 12s",
+    );
   });
 
   it("translates the account menu and application information page", () => {

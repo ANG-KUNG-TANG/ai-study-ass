@@ -25,13 +25,16 @@ describe("deriveSystemHealthStatus", () => {
     [false, true],
     [true, false],
     [false, false],
-  ])("returns unhealthy when a core dependency is unavailable", (databaseConnected, redisReachable) => {
-    expect(
-      deriveSystemHealthStatus({
-        databaseConnected,
-        redisReachable,
-        aiConfigured: true,
-      }),
-    ).toBe("unhealthy");
-  });
+  ])(
+    "returns unhealthy when a core dependency is unavailable",
+    (databaseConnected, redisReachable) => {
+      expect(
+        deriveSystemHealthStatus({
+          databaseConnected,
+          redisReachable,
+          aiConfigured: true,
+        }),
+      ).toBe("unhealthy");
+    },
+  );
 });

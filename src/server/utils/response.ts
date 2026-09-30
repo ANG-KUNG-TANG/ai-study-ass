@@ -41,12 +41,12 @@ export interface SuccessResponseOptions {
 
 export function successResponse<T>(
   data: T,
-  options?: SuccessResponseOptions
+  options?: SuccessResponseOptions,
 ): NextResponse<ApiSuccess<T>> {
   const { message, status = 200 } = options ?? {};
   return NextResponse.json(
     { success: true, data, ...(message ? { message } : {}) },
-    { status }
+    { status },
   );
 }
 
@@ -54,7 +54,7 @@ export function successResponse<T>(
 
 export function createdResponse<T>(
   data: T,
-  message?: string
+  message?: string,
 ): NextResponse<ApiSuccess<T>> {
   return successResponse(data, { message, status: 201 });
 }
@@ -70,11 +70,11 @@ export function noContentResponse(): NextResponse {
 export function paginatedResponse<T>(
   data: T[],
   meta: PaginationMeta,
-  message?: string
+  message?: string,
 ): NextResponse<ApiPaginated<T>> {
   return NextResponse.json(
     { success: true, data, meta, ...(message ? { message } : {}) },
-    { status: 200 }
+    { status: 200 },
   );
 }
 
@@ -84,7 +84,7 @@ export function errorResponse(
   code: string,
   message: string,
   status: number,
-  fields?: Record<string, string>
+  fields?: Record<string, string>,
 ): NextResponse<ApiError> {
   return NextResponse.json(
     {
@@ -95,7 +95,7 @@ export function errorResponse(
         ...(fields ? { fields } : {}),
       },
     },
-    { status }
+    { status },
   );
 }
 
@@ -126,7 +126,7 @@ export function handleError(err: unknown): NextResponse<ApiError> {
         err.code,
         err.message,
         err.statusCode,
-        (err as { fields?: Record<string, string> }).fields
+        (err as { fields?: Record<string, string> }).fields,
       );
     }
 
@@ -139,9 +139,11 @@ export function handleError(err: unknown): NextResponse<ApiError> {
     err.constructor.name === "ZodError" &&
     "issues" in err
   ) {
-    const issues = (err as { issues: Array<{ path: (string | number)[]; message: string }> }).issues;
+    const issues = (
+      err as { issues: Array<{ path: (string | number)[]; message: string }> }
+    ).issues;
     const fields = Object.fromEntries(
-      issues.map((i) => [i.path.join("."), i.message])
+      issues.map((i) => [i.path.join("."), i.message]),
     );
     return errorResponse("VALIDATION_ERROR", "Validation failed", 422, fields);
   }
@@ -182,11 +184,11 @@ export function handleError(err: unknown): NextResponse<ApiError> {
 
 type RouteHandler<T = unknown> = (
   req: Request,
-  context: { params: Promise<Record<string, string>> }
+  context: { params: Promise<Record<string, string>> },
 ) => Promise<NextResponse<T>>;
 
 export function withErrorHandler<T>(
-  handler: RouteHandler<T>
+  handler: RouteHandler<T>,
 ): RouteHandler<T | ApiError> {
   return async (req, context) => {
     try {
@@ -203,7 +205,7 @@ export function withErrorHandler<T>(
 export function buildPaginationMeta(
   total: number,
   page: number,
-  limit: number
+  limit: number,
 ): PaginationMeta {
   const totalPages = Math.ceil(total / limit);
   return {

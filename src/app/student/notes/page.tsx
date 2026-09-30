@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  FilePlus,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, FilePlus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { NoteCard } from "@/components/notes/NoteCard";
 import { DeleteNoteDialog } from "@/components/notes/DeleteNoteDialog";
@@ -86,9 +82,7 @@ export default function NotesPage() {
     meta && meta.total > 0 ? (meta.page - 1) * meta.limit + 1 : 0;
 
   const lastVisible =
-    meta && meta.total > 0
-      ? Math.min(meta.page * meta.limit, meta.total)
-      : 0;
+    meta && meta.total > 0 ? Math.min(meta.page * meta.limit, meta.total) : 0;
 
   return (
     <>
@@ -115,14 +109,23 @@ export default function NotesPage() {
 
           <p className="mt-1 text-[12px] text-ink-soft">
             {meta
-              ? t(meta.total === 1 ? "notes.libraryCountOne" : "notes.libraryCount", { count: meta.total })
+              ? t(
+                  meta.total === 1
+                    ? "notes.libraryCountOne"
+                    : "notes.libraryCount",
+                  { count: meta.total },
+                )
               : t("notes.yourPapers")}
           </p>
         </div>
 
         {meta && meta.total > 0 && (
           <p className="font-mono text-[10.5px] text-ink-faint">
-            {t("notes.showing", { first: firstVisible, last: lastVisible, total: meta.total })}
+            {t("notes.showing", {
+              first: firstVisible,
+              last: lastVisible,
+              total: meta.total,
+            })}
           </p>
         )}
       </div>
@@ -161,9 +164,7 @@ export default function NotesPage() {
           </h3>
 
           <p className="mt-1 text-sm text-ink-soft">
-            {search.trim()
-              ? t("notes.trySearch")
-              : t("notes.uploadFirst")}
+            {search.trim() ? t("notes.trySearch") : t("notes.uploadFirst")}
           </p>
         </div>
       )}
@@ -204,9 +205,7 @@ export default function NotesPage() {
                 type="button"
                 disabled={!meta.hasNext || isLoading}
                 onClick={() =>
-                  setPage((current) =>
-                    Math.min(meta.totalPages, current + 1),
-                  )
+                  setPage((current) => Math.min(meta.totalPages, current + 1))
                 }
                 className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-paper-raised px-3 py-2 text-[12px] font-medium text-ink transition hover:bg-line-soft disabled:cursor-not-allowed disabled:opacity-40"
               >

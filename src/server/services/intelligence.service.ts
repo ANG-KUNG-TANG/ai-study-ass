@@ -101,8 +101,14 @@ export async function runAndPersistPipeline(
 
     const stillExists = await noteRepo.findById(noteId);
     if (!stillExists) {
-      logger.warn("Note deleted during intelligence processing; discarding result", { noteId });
-      progressService.fail(noteId, "The note was deleted while it was being analysed.");
+      logger.warn(
+        "Note deleted during intelligence processing; discarding result",
+        { noteId },
+      );
+      progressService.fail(
+        noteId,
+        "The note was deleted while it was being analysed.",
+      );
       return null;
     }
 
@@ -140,12 +146,20 @@ export async function runAndPersistPipeline(
     const message = error instanceof Error ? error.message : String(error);
 
     progressService.fail(noteId, message);
-    logger.error("Intelligence processing failed", { noteId, stage, error: message });
+    logger.error("Intelligence processing failed", {
+      noteId,
+      stage,
+      error: message,
+    });
 
     const stillExists = await noteRepo.findById(noteId);
     if (!stillExists) return null;
 
-    const failedEntity = IntelligenceResultEntity.createFailed(noteId, stage, message);
+    const failedEntity = IntelligenceResultEntity.createFailed(
+      noteId,
+      stage,
+      message,
+    );
     await intelligenceRepo.upsertFailed(failedEntity);
     return failedEntity;
   }
@@ -174,19 +188,13 @@ export async function getOrRunPipeline(
   const existing = await intelligenceRepo.findByNoteId(noteId);
   const isCurrent =
     existing?.isComplete() &&
-    (
-      !isIntelligenceV2Enabled() ||
-      existing.grounding?.pipelineVersion === GROUNDING_PIPELINE_VERSION
-    );
+    (!isIntelligenceV2Enabled() ||
+      existing.grounding?.pipelineVersion === GROUNDING_PIPELINE_VERSION);
 
   if (isCurrent && existing) {
-    const missingFields =
-      existing.gaps?.missingFields ?? [];
+    const missingFields = existing.gaps?.missingFields ?? [];
 
-    if (
-      !options.repairMissingFields ||
-      missingFields.length === 0
-    ) {
+    if (!options.repairMissingFields || missingFields.length === 0) {
       return existing;
     }
 
@@ -210,7 +218,8 @@ export async function getOrRunPipeline(
   });
 
   const result = await runAndPersistPipeline(noteId, document);
-  if (!result) throw new Error(`Intelligence result was not created for note ${noteId}`);
+  if (!result)
+    throw new Error(`Intelligence result was not created for note ${noteId}`);
   return result;
 }
 
@@ -251,7 +260,9 @@ export async function getStatus(noteId: string): Promise<{
   };
 }
 
-export async function getResultOrThrow(noteId: string): Promise<IntelligenceResultEntity> {
+export async function getResultOrThrow(
+  noteId: string,
+): Promise<IntelligenceResultEntity> {
   return intelligenceRepo.findByNoteIdOrThrow(noteId);
 }
 

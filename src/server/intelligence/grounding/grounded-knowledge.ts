@@ -5,10 +5,7 @@ import type {
   KnowledgeCore,
   NLPResult,
 } from "../types";
-import type {
-  DocumentSection,
-  SectionedDocument,
-} from "../pipeline/types";
+import type { DocumentSection, SectionedDocument } from "../pipeline/types";
 import { splitTextUnits, type TextUnit } from "../pipeline/text-units";
 import {
   canonicalStudyConceptKey,
@@ -16,9 +13,7 @@ import {
   isStudyNoiseLine,
   looksLikePersonName,
 } from "../pipeline/source-hygiene";
-import {
-  getReliableProfile,
-} from "../reliability/profile";
+import { getReliableProfile } from "../reliability/profile";
 import {
   canonicalizeStudyConceptLabel,
   isExampleOnlyConceptEvidence,
@@ -33,18 +28,20 @@ import type {
   QualifiedTerm,
   SectionCoverage,
 } from "./types";
-import {
-  GROUNDING_PIPELINE_VERSION,
-  GROUNDING_SCHEMA_VERSION,
-} from "./types";
+import { GROUNDING_PIPELINE_VERSION, GROUNDING_SCHEMA_VERSION } from "./types";
 
 const MAX_FACTS_PER_SECTION = 24;
 
-const PLACEHOLDER_RE = /^(?:\(?\s*insert\s+(?:a\s+)?(?:diagram|image|figure|chart)\s*\)?|placeholder|n\/?a)$/i;
-const UI_ARTIFACT_RE = /^(?:svg\s*regenerate|regenerate\s+svg|generated\s+study\s+notes)$/i;
-const PAGE_ARTIFACT_RE = /^(?:(?:[-–—]{1,2}\s*)?(?:page\s*)?\d+(?:\s+(?:of|\/)\s+\d+)(?:\s*[-–—]{1,2})?)$/i;
-const SUBORDINATE_TERM_RE = /^(?:once|when|while|because|after|before|although|if|students?|the\s+goal|the\s+presentation)\b/i;
-const TERM_VERB_RE = /\b(?:must|should|completed|finished|understand|presenting|communicate|showing|insert)\b/i;
+const PLACEHOLDER_RE =
+  /^(?:\(?\s*insert\s+(?:a\s+)?(?:diagram|image|figure|chart)\s*\)?|placeholder|n\/?a)$/i;
+const UI_ARTIFACT_RE =
+  /^(?:svg\s*regenerate|regenerate\s+svg|generated\s+study\s+notes)$/i;
+const PAGE_ARTIFACT_RE =
+  /^(?:(?:[-–—]{1,2}\s*)?(?:page\s*)?\d+(?:\s+(?:of|\/)\s+\d+)(?:\s*[-–—]{1,2})?)$/i;
+const SUBORDINATE_TERM_RE =
+  /^(?:once|when|while|because|after|before|although|if|students?|the\s+goal|the\s+presentation)\b/i;
+const TERM_VERB_RE =
+  /\b(?:must|should|completed|finished|understand|presenting|communicate|showing|insert)\b/i;
 
 export interface BuildGroundedKnowledgeInput {
   document: SectionedDocument;
@@ -76,37 +73,23 @@ export function buildGroundedKnowledge(
       continue;
     }
 
-    const sectionUnits =
-      splitTextUnits(
-        section.analysisBody,
-      );
+    const sectionUnits = splitTextUnits(section.analysisBody);
 
-    const units =
-      sectionUnits.filter(
-        (unit, index) =>
-          isMeaningfulUnit(
-            unit.text,
-          ) &&
-          (
-            isStudyEligibleUnit(
-              unit.text,
-              unit.kind,
-            ) ||
-            isStructuredListParent(
-              unit,
-              index,
-              sectionUnits,
-            )
-          ),
-      );
+    const units = sectionUnits.filter(
+      (unit, index) =>
+        isMeaningfulUnit(unit.text) &&
+        (isStudyEligibleUnit(unit.text, unit.kind) ||
+          isStructuredListParent(unit, index, sectionUnits)),
+    );
     const sectionFacts = extractSectionFacts(section, units, input.document);
     facts.push(...sectionFacts);
 
-    const status: SectionCoverage["status"] = sectionFacts.length > 0
-      ? "covered"
-      : units.length === 0
-        ? "no_extractable_knowledge"
-        : "failed";
+    const status: SectionCoverage["status"] =
+      sectionFacts.length > 0
+        ? "covered"
+        : units.length === 0
+          ? "no_extractable_knowledge"
+          : "failed";
 
     sections.push({
       sectionId: section.id,
@@ -118,7 +101,10 @@ export function buildGroundedKnowledge(
       sourceUnitCount: units.length,
       omittedUnitCount: Math.max(0, units.length - sectionFacts.length),
       ...(status === "failed"
-        ? { reason: "Meaningful source text was present, but no grounded facts were produced." }
+        ? {
+            reason:
+              "Meaningful source text was present, but no grounded facts were produced.",
+          }
         : {}),
     });
   }
@@ -127,14 +113,8 @@ export function buildGroundedKnowledge(
     (claim) => claim.validationStatus === "valid",
   );
   const keyTerms = mergeQualifiedTerms(
-    qualifyTerms(
-      input.document,
-      input.core,
-      claims,
-    ),
-    deriveQualifiedTermsFromFacts(
-      facts,
-    ),
+    qualifyTerms(input.document, input.core, claims),
+    deriveQualifiedTermsFromFacts(facts),
     12,
   );
   const concepts = buildImportantConcepts(input.document, input.core, keyTerms);
@@ -162,11 +142,19 @@ function classifySection(section: DocumentSection): {
   reason?: string;
 } {
   if (section.semanticRole === "references") {
-    return { excluded: true, reason: "Reference material is retained in the source but excluded from study-note synthesis." };
+    return {
+      excluded: true,
+      reason:
+        "Reference material is retained in the source but excluded from study-note synthesis.",
+    };
   }
 
   if (section.semanticRole === "title" || section.id === "section-preamble") {
-    return { excluded: true, reason: "Document metadata is used for identification, not as study content." };
+    return {
+      excluded: true,
+      reason:
+        "Document metadata is used for identification, not as study content.",
+    };
   }
 
   if (
@@ -175,35 +163,28 @@ function classifySection(section: DocumentSection): {
       section.rawHeading,
     )
   ) {
-    return { excluded: true, reason: "The opening document title is metadata rather than study content." };
+    return {
+      excluded: true,
+      reason:
+        "The opening document title is metadata rather than study content.",
+    };
   }
 
-  const units =
-    splitTextUnits(
-      section.analysisBody,
-    )
-      .filter(
-        (unit) =>
-          isStudyEligibleUnit(
-            unit.text,
-            unit.kind,
-          ),
-      )
-      .map(
-        (unit) => unit.text,
-      )
-      .filter(Boolean);
+  const units = splitTextUnits(section.analysisBody)
+    .filter((unit) => isStudyEligibleUnit(unit.text, unit.kind))
+    .map((unit) => unit.text)
+    .filter(Boolean);
 
   // Empty sections that survived section normalization are intentional
   // structural parents (for example "4. Principles..." above 4.1-4.6).
   // Keep them as no_extractable_knowledge so Comprehensive notes retain the
   // meaningful document hierarchy. Empty noise headings were already removed
   // by normaliseStudySections().
-  if (
-    units.length > 0 &&
-    units.every(isPlaceholderOrArtifact)
-  ) {
-    return { excluded: true, reason: "The section contains only placeholders or processing artifacts." };
+  if (units.length > 0 && units.every(isPlaceholderOrArtifact)) {
+    return {
+      excluded: true,
+      reason: "The section contains only placeholders or processing artifacts.",
+    };
   }
 
   return { excluded: false };
@@ -216,10 +197,7 @@ function isStructuredListParent(
 ): boolean {
   const text = unit.text.trim();
 
-  if (
-    !/[:：]$/u.test(text) ||
-    isStudyNoiseLine(text)
-  ) {
+  if (!/[:：]$/u.test(text) || isStudyNoiseLine(text)) {
     return false;
   }
 
@@ -227,14 +205,8 @@ function isStructuredListParent(
 
   return Boolean(
     next &&
-    (
-      next.kind === "bullet" ||
-      next.kind === "numbered"
-    ) &&
-    isStudyEligibleUnit(
-      next.text,
-      next.kind,
-    ),
+    (next.kind === "bullet" || next.kind === "numbered") &&
+    isStudyEligibleUnit(next.text, next.kind),
   );
 }
 
@@ -248,26 +220,35 @@ function extractSectionFacts(
     const content = normaliseText(unit.text);
     const evidence = createEvidence(section, content, index, document);
     const numericTokens = extractNumericTokens(content);
-    const supported = evidence.text.length > 0 && evidenceIsPresent(evidence, section);
+    const supported =
+      evidence.text.length > 0 && evidenceIsPresent(evidence, section);
     const numericSupported = numericTokens.every((token) =>
       evidence.text.includes(token),
     );
-    const verificationStatus = supported && numericSupported
-      ? "supported" as const
-      : supported
-        ? "partially_supported" as const
-        : "unsupported" as const;
+    const verificationStatus =
+      supported && numericSupported
+        ? ("supported" as const)
+        : supported
+          ? ("partially_supported" as const)
+          : ("unsupported" as const);
 
     return {
       id: `fact-${safeId(section.id)}-${index + 1}`,
       type,
       content,
-      verbatimRequired: ["definition", "number", "result", "formula"].includes(type),
+      verbatimRequired: ["definition", "number", "result", "formula"].includes(
+        type,
+      ),
       sourceSectionId: section.id,
       evidence: [evidence],
       evidenceType: "stated" as const,
       verificationStatus,
-      confidence: verificationStatus === "supported" ? 0.96 : verificationStatus === "partially_supported" ? 0.62 : 0.2,
+      confidence:
+        verificationStatus === "supported"
+          ? 0.96
+          : verificationStatus === "partially_supported"
+            ? 0.62
+            : 0.2,
       importanceScore: importanceScore(type, unit, section),
       numericTokens,
       sourceOrder: index,
@@ -279,9 +260,10 @@ function extractSectionFacts(
   }
 
   const selected = [...candidates]
-    .sort((left, right) =>
-      right.importanceScore - left.importanceScore ||
-      left.sourceOrder - right.sourceOrder,
+    .sort(
+      (left, right) =>
+        right.importanceScore - left.importanceScore ||
+        left.sourceOrder - right.sourceOrder,
     )
     .slice(0, MAX_FACTS_PER_SECTION)
     .sort((left, right) => left.sourceOrder - right.sourceOrder);
@@ -293,36 +275,67 @@ function classifyFact(text: string, kind: TextUnit["kind"]): AtomicFactType {
   const value = text.trim();
   const lower = value.toLowerCase();
 
-  if (/\b(common mistakes?|mistakes? students? make|forgetting|ignoring|overloading)\b/.test(lower)) {
+  if (
+    /\b(common mistakes?|mistakes? students? make|forgetting|ignoring|overloading)\b/.test(
+      lower,
+    )
+  ) {
     return "common_mistake";
   }
-  if (/\b(warning|avoid|do not|don't|never|incorrect|be careful|caution)\b/.test(lower)) {
+  if (
+    /\b(warning|avoid|do not|don't|never|incorrect|be careful|caution)\b/.test(
+      lower,
+    )
+  ) {
     return "warning";
   }
-  if (/\b(limitation|limited by|cannot|could not|restricted|caveat)\b/.test(lower)) {
+  if (
+    /\b(limitation|limited by|cannot|could not|restricted|caveat)\b/.test(lower)
+  ) {
     return "limitation";
   }
   if (looksLikeDefinition(value)) return "definition";
   if (looksLikeFormula(value)) return "formula";
-  if (/\b(result|found|achieved|reported|improved|outperform|accuracy|precision|recall|f1|auc|rmse)\b/.test(lower) && extractNumericTokens(value).length > 0) {
+  if (
+    /\b(result|found|achieved|reported|improved|outperform|accuracy|precision|recall|f1|auc|rmse)\b/.test(
+      lower,
+    ) &&
+    extractNumericTokens(value).length > 0
+  ) {
     return "result";
   }
-  if (extractNumericTokens(value).length > 0 && /\b(percent|percentage|rate|score|sample|participants?|projects?|years?|days?)\b|%/.test(lower)) {
+  if (
+    extractNumericTokens(value).length > 0 &&
+    /\b(percent|percentage|rate|score|sample|participants?|projects?|years?|days?)\b|%/.test(
+      lower,
+    )
+  ) {
     return "number";
   }
   if (/\b(objective|goal|purpose|aims? to|must understand)\b/.test(lower)) {
     return "objective";
   }
-  if (/\b(if|when|unless|only when|before|after|must|should|needs? to|required to|ensure)\b/.test(lower)) {
+  if (
+    /\b(if|when|unless|only when|before|after|must|should|needs? to|required to|ensure)\b/.test(
+      lower,
+    )
+  ) {
     return "condition";
   }
-  if (/\b(consists? of|contains?|includes?|depends? on|related to|associated with|maps? to|connects?)\b/.test(lower)) {
+  if (
+    /\b(consists? of|contains?|includes?|depends? on|related to|associated with|maps? to|connects?)\b/.test(
+      lower,
+    )
+  ) {
     return "relationship";
   }
   if (/\b(for example|for instance|such as|example)\b/.test(lower)) {
     return "example";
   }
-  if (kind === "numbered" || (kind === "bullet" && startsWithActionVerb(value))) {
+  if (
+    kind === "numbered" ||
+    (kind === "bullet" && startsWithActionVerb(value))
+  ) {
     return "procedure_step";
   }
   if (/\b(rule|policy|shall|required|prohibited)\b/.test(lower)) return "rule";
@@ -336,19 +349,19 @@ function createEvidence(
   document: SectionedDocument,
 ): EvidenceSpan {
   const locatedOffset = document.displayText.indexOf(text, section.startOffset);
-  const startOffset = locatedOffset >= section.startOffset && locatedOffset <= section.endOffset
-    ? locatedOffset
-    : undefined;
+  const startOffset =
+    locatedOffset >= section.startOffset && locatedOffset <= section.endOffset
+      ? locatedOffset
+      : undefined;
   const hasExactPageBoundary =
-    document.sourcePages.length > 1 ||
-    document.pageCount === 1;
-  const sourcePage = startOffset === undefined || !hasExactPageBoundary
-    ? undefined
-    : document.sourcePages.find(
-        (page) =>
-          startOffset >= page.startOffset &&
-          startOffset <= page.endOffset,
-      );
+    document.sourcePages.length > 1 || document.pageCount === 1;
+  const sourcePage =
+    startOffset === undefined || !hasExactPageBoundary
+      ? undefined
+      : document.sourcePages.find(
+          (page) =>
+            startOffset >= page.startOffset && startOffset <= page.endOffset,
+        );
 
   return {
     id: `evidence-v2-${safeId(section.id)}-${index + 1}`,
@@ -357,15 +370,13 @@ function createEvidence(
     pageNumber: sourcePage?.pageNumber ?? section.pageStart,
     text,
     startOffset,
-    endOffset: startOffset === undefined ? undefined : startOffset + text.length,
+    endOffset:
+      startOffset === undefined ? undefined : startOffset + text.length,
     chunkId: findChunkId(section.id, index),
   };
 }
 
-function findChunkId(
-  sectionId: string,
-  unitIndex: number,
-): string {
+function findChunkId(sectionId: string, unitIndex: number): string {
   return `${sectionId}-unit-${unitIndex + 1}`;
 }
 
@@ -374,23 +385,19 @@ function evidenceIsPresent(
   section: DocumentSection,
 ): boolean {
   const needle = normaliseForMatching(evidence.text);
-  return needle.length > 0 && (
-    normaliseForMatching(section.body).includes(needle) ||
-    normaliseForMatching(section.analysisBody).includes(needle)
+  return (
+    needle.length > 0 &&
+    (normaliseForMatching(section.body).includes(needle) ||
+      normaliseForMatching(section.analysisBody).includes(needle))
   );
 }
 
-function deriveQualifiedTermsFromFacts(
-  facts: AtomicFact[],
-): QualifiedTerm[] {
+function deriveQualifiedTermsFromFacts(facts: AtomicFact[]): QualifiedTerm[] {
   const output: QualifiedTerm[] = [];
   const seen = new Set<string>();
 
   for (const fact of facts) {
-    if (
-      fact.type !== "definition" ||
-      fact.verificationStatus !== "supported"
-    ) {
+    if (fact.type !== "definition" || fact.verificationStatus !== "supported") {
       continue;
     }
 
@@ -401,8 +408,7 @@ function deriveQualifiedTermsFromFacts(
     if (!match) continue;
 
     const term = cleanTerm(match[1]);
-    const definition =
-      normaliseText(match[2]);
+    const definition = normaliseText(match[2]);
 
     if (
       isExampleOnlyConceptEvidence(definition) ||
@@ -411,9 +417,7 @@ function deriveQualifiedTermsFromFacts(
       continue;
     }
 
-    const key =
-      canonicalStudyConceptKey(term) ||
-      normaliseForMatching(term);
+    const key = canonicalStudyConceptKey(term) || normaliseForMatching(term);
 
     if (
       !key ||
@@ -428,20 +432,10 @@ function deriveQualifiedTermsFromFacts(
     output.push({
       term,
       definition,
-      sourceSectionId:
-        fact.sourceSectionId,
-      evidence:
-        fact.evidence,
-      qualification:
-        "explicit_definition",
-      confidence:
-        Math.min(
-          0.98,
-          Math.max(
-            0.82,
-            fact.confidence,
-          ),
-        ),
+      sourceSectionId: fact.sourceSectionId,
+      evidence: fact.evidence,
+      qualification: "explicit_definition",
+      confidence: Math.min(0.98, Math.max(0.82, fact.confidence)),
     });
   }
 
@@ -456,31 +450,18 @@ function mergeQualifiedTerms(
   const output: QualifiedTerm[] = [];
   const seen = new Set<string>();
 
-  for (const term of [
-    ...primary,
-    ...fallback,
-  ]) {
+  for (const term of [...primary, ...fallback]) {
     const key =
-      canonicalStudyConceptKey(
-        term.term,
-      ) ||
-      normaliseForMatching(
-        term.term,
-      );
+      canonicalStudyConceptKey(term.term) || normaliseForMatching(term.term);
 
-    if (
-      !key ||
-      seen.has(key)
-    ) {
+    if (!key || seen.has(key)) {
       continue;
     }
 
     seen.add(key);
     output.push(term);
 
-    if (
-      output.length >= limit
-    ) {
+    if (output.length >= limit) {
       break;
     }
   }
@@ -506,7 +487,9 @@ function qualifyTerms(
     candidates.push({
       term: claim.subject,
       definition: claim.object,
-      evidenceText: claim.evidence[0]?.text ?? `${claim.subject} ${claim.predicate} ${claim.object}`,
+      evidenceText:
+        claim.evidence[0]?.text ??
+        `${claim.subject} ${claim.predicate} ${claim.object}`,
       confidence: claim.confidence,
       qualification: "explicit_definition",
     });
@@ -522,18 +505,21 @@ function qualifyTerms(
       definition: term.definition,
       evidenceText: term.evidence,
       confidence: term.confidence,
-      qualification: strongDefinition || term.evidence.length >= 25
-        ? "explicit_definition"
-        : occurrences >= 2 || acronym
-          ? "distinguished_and_repeated"
-          : "glossary_definition",
+      qualification:
+        strongDefinition || term.evidence.length >= 25
+          ? "explicit_definition"
+          : occurrences >= 2 || acronym
+            ? "distinguished_and_repeated"
+            : "glossary_definition",
     });
   }
 
   const output: QualifiedTerm[] = [];
   const seen = new Set<string>();
 
-  for (const candidate of candidates.sort((a, b) => b.confidence - a.confidence)) {
+  for (const candidate of candidates.sort(
+    (a, b) => b.confidence - a.confidence,
+  )) {
     const term = cleanTerm(candidate.term);
     const normalized = normaliseForMatching(term);
     if (
@@ -598,25 +584,23 @@ function buildImportantConcepts(
   const output: ImportantConcept[] = [];
   const seen = new Set<string>();
 
-  for (
-    const candidate of candidates.sort(
-      (a, b) =>
-        conceptCandidatePriority(
-          document,
-          b.term,
-          b.confidence,
-          b.evidence,
-          termDefinitions,
-        ) -
-        conceptCandidatePriority(
-          document,
-          a.term,
-          a.confidence,
-          a.evidence,
-          termDefinitions,
-        ),
-    )
-  ) {
+  for (const candidate of candidates.sort(
+    (a, b) =>
+      conceptCandidatePriority(
+        document,
+        b.term,
+        b.confidence,
+        b.evidence,
+        termDefinitions,
+      ) -
+      conceptCandidatePriority(
+        document,
+        a.term,
+        a.confidence,
+        a.evidence,
+        termDefinitions,
+      ),
+  )) {
     const rawName = cleanTerm(candidate.term);
     const name = canonicalizeStudyConceptLabel(rawName);
     const canonicalKey = canonicalStudyConceptKey(name);
@@ -642,11 +626,7 @@ function buildImportantConcepts(
       continue;
     }
 
-    const located = locateEvidence(
-      document,
-      candidate.evidence ?? "",
-      rawName,
-    );
+    const located = locateEvidence(document, candidate.evidence ?? "", rawName);
     if (!located) continue;
     if (isExampleOnlyConceptEvidence(located.evidence.text)) continue;
 
@@ -740,27 +720,32 @@ function locateEvidence(
   const termNeedle = normaliseForMatching(fallbackTerm);
   const section = document.sections.find((candidate) => {
     const body = normaliseForMatching(candidate.analysisBody);
-    return (evidenceNeedle.length >= 8 && body.includes(evidenceNeedle)) ||
-      (termNeedle.length >= 3 && body.includes(termNeedle));
+    return (
+      (evidenceNeedle.length >= 8 && body.includes(evidenceNeedle)) ||
+      (termNeedle.length >= 3 && body.includes(termNeedle))
+    );
   });
 
   if (!section) return null;
 
-  const text = evidenceNeedle.length >= 8 && normaliseForMatching(section.analysisBody).includes(evidenceNeedle)
-    ? normaliseText(evidenceText)
-    : sentenceContaining(section.analysisBody, fallbackTerm) ?? fallbackTerm;
+  const text =
+    evidenceNeedle.length >= 8 &&
+    normaliseForMatching(section.analysisBody).includes(evidenceNeedle)
+      ? normaliseText(evidenceText)
+      : (sentenceContaining(section.analysisBody, fallbackTerm) ??
+        fallbackTerm);
   const localIndex = section.body.indexOf(text);
-  const startOffset = localIndex >= 0 ? section.startOffset + localIndex : undefined;
+  const startOffset =
+    localIndex >= 0 ? section.startOffset + localIndex : undefined;
   const hasExactPageBoundary =
-    document.sourcePages.length > 1 ||
-    document.pageCount === 1;
-  const sourcePage = startOffset === undefined || !hasExactPageBoundary
-    ? undefined
-    : document.sourcePages.find(
-        (page) =>
-          startOffset >= page.startOffset &&
-          startOffset <= page.endOffset,
-      );
+    document.sourcePages.length > 1 || document.pageCount === 1;
+  const sourcePage =
+    startOffset === undefined || !hasExactPageBoundary
+      ? undefined
+      : document.sourcePages.find(
+          (page) =>
+            startOffset >= page.startOffset && startOffset <= page.endOffset,
+        );
 
   return {
     section,
@@ -771,7 +756,8 @@ function locateEvidence(
       pageNumber: sourcePage?.pageNumber ?? section.pageStart,
       text,
       startOffset,
-      endOffset: startOffset === undefined ? undefined : startOffset + text.length,
+      endOffset:
+        startOffset === undefined ? undefined : startOffset + text.length,
     },
   };
 }
@@ -784,35 +770,41 @@ function evaluateGroundingQuality(
   const supportedFacts = facts.filter(
     (fact) => fact.verificationStatus === "supported",
   );
-  const supportedFactRatio = facts.length === 0
-    ? 0
-    : supportedFacts.length / facts.length;
+  const supportedFactRatio =
+    facts.length === 0 ? 0 : supportedFacts.length / facts.length;
   const relevantSections = sections.filter(
     (section) => section.status !== "excluded",
   );
-  const coveredSections = relevantSections.filter(
-    (section) => ["covered", "no_extractable_knowledge"].includes(section.status),
+  const coveredSections = relevantSections.filter((section) =>
+    ["covered", "no_extractable_knowledge"].includes(section.status),
   );
-  const sectionCoverageRatio = relevantSections.length === 0
-    ? 0
-    : coveredSections.length / relevantSections.length;
+  const sectionCoverageRatio =
+    relevantSections.length === 0
+      ? 0
+      : coveredSections.length / relevantSections.length;
   const numericFacts = facts.filter((fact) => fact.numericTokens.length > 0);
-  const numericExactnessRatio = numericFacts.length === 0
-    ? 1
-    : numericFacts.filter((fact) =>
-        fact.numericTokens.every((token) =>
-          fact.evidence.some((evidence) => evidence.text.includes(token)),
-        ),
-      ).length / numericFacts.length;
-  const qualifiedTermPrecision = terms.length === 0
-    ? 1
-    : terms.filter((term) =>
-        isQualifiedTermLabel(term.term) && term.evidence.length > 0,
-      ).length / terms.length;
-  const normalizedFacts = facts.map((fact) => normaliseForMatching(fact.content));
+  const numericExactnessRatio =
+    numericFacts.length === 0
+      ? 1
+      : numericFacts.filter((fact) =>
+          fact.numericTokens.every((token) =>
+            fact.evidence.some((evidence) => evidence.text.includes(token)),
+          ),
+        ).length / numericFacts.length;
+  const qualifiedTermPrecision =
+    terms.length === 0
+      ? 1
+      : terms.filter(
+          (term) => isQualifiedTermLabel(term.term) && term.evidence.length > 0,
+        ).length / terms.length;
+  const normalizedFacts = facts.map((fact) =>
+    normaliseForMatching(fact.content),
+  );
   const duplicateCount = normalizedFacts.length - new Set(normalizedFacts).size;
-  const duplicateFactRatio = facts.length === 0 ? 0 : duplicateCount / facts.length;
-  const artifactCount = facts.filter((fact) => isPlaceholderOrArtifact(fact.content)).length +
+  const duplicateFactRatio =
+    facts.length === 0 ? 0 : duplicateCount / facts.length;
+  const artifactCount =
+    facts.filter((fact) => isPlaceholderOrArtifact(fact.content)).length +
     terms.filter((term) => isPlaceholderOrArtifact(term.term)).length;
 
   const score = clamp(
@@ -825,14 +817,29 @@ function evaluateGroundingQuality(
   );
   const warnings: string[] = [];
 
-  if (facts.length === 0) warnings.push("No grounded facts were extracted from the relevant sections.");
-  if (supportedFactRatio < 0.95) warnings.push("Some extracted facts were not fully supported by their evidence spans.");
-  if (sectionCoverageRatio < 0.85) warnings.push("Relevant section coverage is below 85%.");
-  if (numericExactnessRatio < 1) warnings.push("At least one numerical value does not exactly match its evidence.");
-  if (duplicateFactRatio > 0.15) warnings.push("Duplicate fact content exceeds the 15% quality threshold.");
-  if (artifactCount > 0) warnings.push(`${artifactCount} placeholder or processing artifact items were detected.`);
+  if (facts.length === 0)
+    warnings.push(
+      "No grounded facts were extracted from the relevant sections.",
+    );
+  if (supportedFactRatio < 0.95)
+    warnings.push(
+      "Some extracted facts were not fully supported by their evidence spans.",
+    );
+  if (sectionCoverageRatio < 0.85)
+    warnings.push("Relevant section coverage is below 85%.");
+  if (numericExactnessRatio < 1)
+    warnings.push(
+      "At least one numerical value does not exactly match its evidence.",
+    );
+  if (duplicateFactRatio > 0.15)
+    warnings.push("Duplicate fact content exceeds the 15% quality threshold.");
+  if (artifactCount > 0)
+    warnings.push(
+      `${artifactCount} placeholder or processing artifact items were detected.`,
+    );
 
-  const passed = facts.length > 0 &&
+  const passed =
+    facts.length > 0 &&
     supportedFactRatio >= 0.95 &&
     sectionCoverageRatio >= 0.85 &&
     numericExactnessRatio === 1 &&
@@ -875,66 +882,91 @@ function importanceScore(
     example: 0.7,
     claim: 0.68,
   };
-  const structuralBoost = unit.kind === "bullet" || unit.kind === "numbered" ? 0.05 : 0;
-  const roleBoost = ["results", "conclusion", "method"].includes(section.semanticRole) ? 0.04 : 0;
+  const structuralBoost =
+    unit.kind === "bullet" || unit.kind === "numbered" ? 0.05 : 0;
+  const roleBoost = ["results", "conclusion", "method"].includes(
+    section.semanticRole,
+  )
+    ? 0.04
+    : 0;
   return Math.min(1, typeScore[type] + structuralBoost + roleBoost);
 }
 
 function looksLikeDefinition(value: string): boolean {
-  const match = value.match(/^(.{2,80}?)\s*(?::|\bis\b|\bare\b|\bmeans\b|\brefers to\b)\s+(.{12,})$/i);
+  const match = value.match(
+    /^(.{2,80}?)\s*(?::|\bis\b|\bare\b|\bmeans\b|\brefers to\b)\s+(.{12,})$/i,
+  );
   return Boolean(match && isQualifiedTermLabel(match[1]));
 }
 
 function looksLikeFormula(value: string): boolean {
-  return /\b(?:formula|equation)\b/i.test(value) ||
+  return (
+    /\b(?:formula|equation)\b/i.test(value) ||
     /\b[A-Za-z][A-Za-z0-9_]*\s*=/.test(value) ||
-    /(?:\d+(?:\.\d+)?|\b[A-Z]\b)\s*[+×÷*/-]\s*(?:\d+(?:\.\d+)?|\b[A-Z]\b)/u.test(value);
+    /(?:\d+(?:\.\d+)?|\b[A-Z]\b)\s*[+×÷*/-]\s*(?:\d+(?:\.\d+)?|\b[A-Z]\b)/u.test(
+      value,
+    )
+  );
 }
 
 function startsWithActionVerb(value: string): boolean {
-  return /^(?:ask|avoid|build|calculate|check|classify|compare|confirm|connect|create|define|demonstrate|describe|determine|develop|discuss|ensure|evaluate|explain|highlight|identify|include|invite|list|move|prepare|present|remove|review|select|show|summarise|summarize|use|validate|verify|write)\b/i.test(value);
+  return /^(?:ask|avoid|build|calculate|check|classify|compare|confirm|connect|create|define|demonstrate|describe|determine|develop|discuss|ensure|evaluate|explain|highlight|identify|include|invite|list|move|prepare|present|remove|review|select|show|summarise|summarize|use|validate|verify|write)\b/i.test(
+    value,
+  );
 }
 
 function isMeaningfulUnit(value: string): boolean {
   const text = normaliseText(value);
-  return text.length >= 5 &&
+  return (
+    text.length >= 5 &&
     /\p{L}/u.test(text) &&
     !isPlaceholderOrArtifact(text) &&
     !/^slide\s+\d+$/i.test(text) &&
-    !/^(?:page|figure|table)\s+\d+$/i.test(text);
+    !/^(?:page|figure|table)\s+\d+$/i.test(text)
+  );
 }
 
 function isPlaceholderOrArtifact(value: string): boolean {
   const text = normaliseText(value);
-  return PLACEHOLDER_RE.test(text) ||
+  return (
+    PLACEHOLDER_RE.test(text) ||
     UI_ARTIFACT_RE.test(text) ||
     PAGE_ARTIFACT_RE.test(text) ||
     /^svg\p{L}*/iu.test(text) ||
-    /\bdiagram\s+insert\s+diagram\b/i.test(text);
+    /\bdiagram\s+insert\s+diagram\b/i.test(text)
+  );
 }
 
 export function isQualifiedTermLabel(value: string): boolean {
   const term = cleanTerm(value);
   const words = term.split(/\s+/).filter(Boolean);
-  return isValidConcept(term) &&
+  return (
+    isValidConcept(term) &&
     !isStudyNoiseLine(term) &&
     words.length <= 7 &&
     !SUBORDINATE_TERM_RE.test(term) &&
     !TERM_VERB_RE.test(term) &&
-    !/^(?:lecture\s+note|student\s+presentation\s+template|key\s+points?|main\s+concepts?|key\s+takeaways?)$/i.test(term) &&
+    !/^(?:lecture\s+note|student\s+presentation\s+template|key\s+points?|main\s+concepts?|key\s+takeaways?)$/i.test(
+      term,
+    ) &&
     !/^slide\s+\d+/i.test(term) &&
-    !/\b(?:insert|placeholder)\b/i.test(term);
+    !/\b(?:insert|placeholder)\b/i.test(term)
+  );
 }
 
 function isQualifiedConceptLabel(value: string): boolean {
   const normalized = normaliseForMatching(value);
   const words = normalized.split(/\s+/).filter(Boolean);
-  return words.length <= 7 &&
+  return (
+    words.length <= 7 &&
     !SUBORDINATE_TERM_RE.test(value) &&
     !isStudyNoiseLine(value) &&
     !/^(?:figure\s+shows?|following\s+figure|example)$/i.test(value) &&
-    !/\b(?:insert|placeholder|complete\s+domain|requirements\s+business\s+rules)\b/i.test(value) &&
-    !hasRepeatedWord(words);
+    !/\b(?:insert|placeholder|complete\s+domain|requirements\s+business\s+rules)\b/i.test(
+      value,
+    ) &&
+    !hasRepeatedWord(words)
+  );
 }
 
 function hasRepeatedWord(words: string[]): boolean {
@@ -943,9 +975,11 @@ function hasRepeatedWord(words: string[]): boolean {
 
 function sentenceContaining(text: string, term: string): string | null {
   const lowerTerm = term.toLowerCase();
-  return splitTextUnits(text)
-    .map((unit) => unit.text)
-    .find((unit) => unit.toLowerCase().includes(lowerTerm)) ?? null;
+  return (
+    splitTextUnits(text)
+      .map((unit) => unit.text)
+      .find((unit) => unit.toLowerCase().includes(lowerTerm)) ?? null
+  );
 }
 
 function phraseFrequency(text: string, phrase: string): number {
@@ -985,10 +1019,12 @@ function normaliseForMatching(value: string): string {
 }
 
 function safeId(value: string): string {
-  return normaliseForMatching(value)
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 64) || "item";
+  return (
+    normaliseForMatching(value)
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 64) || "item"
+  );
 }
 
 function clamp(value: number): number {

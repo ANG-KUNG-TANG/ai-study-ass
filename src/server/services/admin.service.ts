@@ -42,9 +42,7 @@ import {
   UserAIPolicyEntity,
   type UserAIPolicyUpdate,
 } from "@/server/entities/user-ai-policy.entity";
-import {
-  getUserAIQuotaSnapshot,
-} from "@/server/services/ai-quota.service";
+import { getUserAIQuotaSnapshot } from "@/server/services/ai-quota.service";
 import {
   enqueueStudyGeneration,
   cancelStudyGeneration,
@@ -130,7 +128,9 @@ export async function revokeUserSessions(
   userId: string,
 ): Promise<void> {
   if (adminId === userId) {
-    throw new ForbiddenError("Use account security settings to revoke your own sessions");
+    throw new ForbiddenError(
+      "Use account security settings to revoke your own sessions",
+    );
   }
   const user = await userRepo.findById(userId);
   if (!user) throw new NotFoundError("User");
@@ -205,13 +205,17 @@ export async function deleteContent(
 }
 
 export async function getContentById(noteId: string): Promise<{
-  note: ReturnType<Awaited<ReturnType<typeof noteRepo.findByIdOrThrow>>["toPublic"]> & {
+  note: ReturnType<
+    Awaited<ReturnType<typeof noteRepo.findByIdOrThrow>>["toPublic"]
+  > & {
     sourcePageCount: number | null;
   };
   owner: { id: string; email: string } | null;
   generation: Awaited<ReturnType<typeof generationRepo.findByNoteId>>;
   intelligence: { stage: string; failedStage: string | null } | null;
-  queue: Awaited<ReturnType<typeof getStudyGenerationJob>> | { state: "unavailable" };
+  queue:
+    | Awaited<ReturnType<typeof getStudyGenerationJob>>
+    | { state: "unavailable" };
   aiUsage: Awaited<ReturnType<typeof getNoteAIUsage>>;
   extractedTextPreview: string;
 }> {
@@ -221,7 +225,9 @@ export async function getContentById(noteId: string): Promise<{
     generationRepo.findByNoteId(noteId),
     intelligenceRepo.findByNoteId(noteId),
     getNoteAIUsage(noteId, 50),
-    getStudyGenerationJob(noteId).catch(() => ({ state: "unavailable" as const })),
+    getStudyGenerationJob(noteId).catch(() => ({
+      state: "unavailable" as const,
+    })),
   ]);
   const intelligencePublic = intelligence?.toPublic();
   return {
@@ -232,7 +238,10 @@ export async function getContentById(noteId: string): Promise<{
     owner: owner ? { id: owner.id, email: owner.email } : null,
     generation,
     intelligence: intelligencePublic
-      ? { stage: intelligencePublic.stage, failedStage: intelligencePublic.failedStage }
+      ? {
+          stage: intelligencePublic.stage,
+          failedStage: intelligencePublic.failedStage,
+        }
       : null,
     queue,
     aiUsage,
@@ -263,7 +272,11 @@ export async function cancelContentProcessing(
 ): Promise<{ jobId: string; previousState: string }> {
   await noteRepo.findByIdOrThrow(noteId);
   const result = await cancelStudyGeneration(noteId);
-  logger.info("Admin cancelled content generation", { adminId, noteId, ...result });
+  logger.info("Admin cancelled content generation", {
+    adminId,
+    noteId,
+    ...result,
+  });
   return result;
 }
 
@@ -271,18 +284,24 @@ export async function quarantineContent(
   adminId: string,
   noteId: string,
   reason: string,
-): Promise<ReturnType<Awaited<ReturnType<typeof noteRepo.setAdminStatus>>["toPublic"]>> {
+): Promise<
+  ReturnType<Awaited<ReturnType<typeof noteRepo.setAdminStatus>>["toPublic"]>
+> {
   const note = await noteRepo.findByIdOrThrow(noteId);
   if (note.adminStatus === "quarantined") {
     throw new BadRequestError("Content is already quarantined");
   }
-  return (await noteRepo.setAdminStatus(noteId, "quarantined", adminId, reason)).toPublic();
+  return (
+    await noteRepo.setAdminStatus(noteId, "quarantined", adminId, reason)
+  ).toPublic();
 }
 
 export async function restoreContent(
   adminId: string,
   noteId: string,
-): Promise<ReturnType<Awaited<ReturnType<typeof noteRepo.setAdminStatus>>["toPublic"]>> {
+): Promise<
+  ReturnType<Awaited<ReturnType<typeof noteRepo.setAdminStatus>>["toPublic"]>
+> {
   const note = await noteRepo.findByIdOrThrow(noteId);
   if (note.adminStatus !== "quarantined") {
     throw new BadRequestError("Content is not quarantined");
@@ -420,7 +439,9 @@ export async function getOverviewStats(): Promise<{
   aiSpendThisMonth: number;
 }> {
   const now = new Date();
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const monthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  );
   const [totalUsers, totalNotes, totalQuizzes, totalFlashcards, monthEvents] =
     await Promise.all([
       userRepo.count(),
@@ -541,43 +562,27 @@ function providerStatus(
   }
 
   const ordered = [...providerToday].sort(
-    (left, right) =>
-      left.createdAt.getTime() -
-      right.createdAt.getTime(),
+    (left, right) => left.createdAt.getTime() - right.createdAt.getTime(),
   );
 
   const latest = ordered.at(-1) ?? null;
 
   const latestSuccess =
-    [...ordered]
-      .reverse()
-      .find((event) => event.success) ??
-    null;
+    [...ordered].reverse().find((event) => event.success) ?? null;
 
   const latestQuota =
-    [...ordered]
-      .reverse()
-      .find(
-        (event) =>
-          event.quotaExceeded,
-      ) ??
-    null;
+    [...ordered].reverse().find((event) => event.quotaExceeded) ?? null;
 
   const quotaExhausted =
     latestQuota !== null &&
-    (
-      latestSuccess === null ||
-      latestQuota.createdAt.getTime() >
-        latestSuccess.createdAt.getTime()
-    );
+    (latestSuccess === null ||
+      latestQuota.createdAt.getTime() > latestSuccess.createdAt.getTime());
 
   if (quotaExhausted) {
     return "quota_exhausted";
   }
 
-  return latest?.success
-    ? "operational"
-    : "degraded";
+  return latest?.success ? "operational" : "degraded";
 }
 
 function beginningOfUtcDay(date: Date): Date {
@@ -659,10 +664,7 @@ export async function getAIUsage(): Promise<AdminAIUsage> {
 
     return {
       provider,
-      status: providerStatus(
-        provider,
-        providerToday,
-      ),
+      status: providerStatus(provider, providerToday),
       requestsToday: providerToday.length,
       successesToday: providerToday.filter((event) => event.success).length,
       failuresToday: providerToday.filter((event) => !event.success).length,
@@ -847,8 +849,7 @@ export interface AdminHealthCheck {
     provider: AIProvider;
     model: string;
 
-    checkMode:
-      "configuration_and_telemetry";
+    checkMode: "configuration_and_telemetry";
 
     requestsToday: number;
     successesToday: number;
@@ -910,22 +911,18 @@ async function databaseHealth(): Promise<AdminHealthCheck["database"]> {
   }
 }
 
-async function aiProviderHealth():
-Promise<AdminHealthCheck["ai"]> {
+async function aiProviderHealth(): Promise<AdminHealthCheck["ai"]> {
   const provider = AI_CONFIG.activeProvider;
   const configured = providerConfigured(provider);
   const model =
-    provider === "openai"
-      ? AI_CONFIG.openai.model
-      : AI_CONFIG.gemini.model;
+    provider === "openai" ? AI_CONFIG.openai.model : AI_CONFIG.gemini.model;
 
   const empty = {
     reachable: false,
     configured,
     provider,
     model,
-    checkMode:
-      "configuration_and_telemetry" as const,
+    checkMode: "configuration_and_telemetry" as const,
     requestsToday: 0,
     successesToday: 0,
     failuresToday: 0,
@@ -944,131 +941,71 @@ Promise<AdminHealthCheck["ai"]> {
 
   const now = new Date();
   const today = beginningOfUtcDay(now);
-  const sevenDaysAgo =
-    new Date(
-      today.getTime() -
-        6 * 86_400_000,
-    );
+  const sevenDaysAgo = new Date(today.getTime() - 6 * 86_400_000);
 
   try {
-    const events =
-      await getUsageSince(
-        sevenDaysAgo,
+    const events = await getUsageSince(sevenDaysAgo);
+
+    const providerEvents = events
+      .filter((event) => event.provider === provider)
+      .sort(
+        (left, right) => left.createdAt.getTime() - right.createdAt.getTime(),
       );
 
-    const providerEvents =
-      events
-        .filter(
-          (event) =>
-            event.provider === provider,
-        )
-        .sort(
-          (left, right) =>
-            left.createdAt.getTime() -
-            right.createdAt.getTime(),
-        );
+    const todayEvents = providerEvents.filter(
+      (event) => event.createdAt >= today,
+    );
 
-    const todayEvents =
-      providerEvents.filter(
-        (event) =>
-          event.createdAt >= today,
-      );
+    const successesToday = todayEvents.filter((event) => event.success);
 
-    const successesToday =
-      todayEvents.filter(
-        (event) =>
-          event.success,
-      );
+    const failuresToday = todayEvents.filter((event) => !event.success);
 
-    const failuresToday =
-      todayEvents.filter(
-        (event) =>
-          !event.success,
-      );
+    const quotaEventsToday = todayEvents.filter((event) => event.quotaExceeded);
 
-    const quotaEventsToday =
-      todayEvents.filter(
-        (event) =>
-          event.quotaExceeded,
-      );
+    const latestToday = todayEvents.at(-1) ?? null;
 
-    const latestToday =
-      todayEvents.at(-1) ?? null;
+    const latestSuccessToday = successesToday.at(-1) ?? null;
 
-    const latestSuccessToday =
-      successesToday.at(-1) ?? null;
-
-    const latestQuotaToday =
-      quotaEventsToday.at(-1) ?? null;
+    const latestQuotaToday = quotaEventsToday.at(-1) ?? null;
 
     const quotaExhausted =
       latestQuotaToday !== null &&
-      (
-        latestSuccessToday === null ||
+      (latestSuccessToday === null ||
         latestQuotaToday.createdAt.getTime() >
-          latestSuccessToday.createdAt.getTime()
-      );
+          latestSuccessToday.createdAt.getTime());
 
-    const status:
-      AdminHealthCheck["ai"]["status"] =
-      quotaExhausted
-        ? "quota_exhausted"
-        : latestToday === null
-          ? "configured"
-          : latestToday.success
-            ? "operational"
-            : "degraded";
+    const status: AdminHealthCheck["ai"]["status"] = quotaExhausted
+      ? "quota_exhausted"
+      : latestToday === null
+        ? "configured"
+        : latestToday.success
+          ? "operational"
+          : "degraded";
 
     return {
       ...empty,
       status,
-      reachable:
-        status === "operational",
-      requestsToday:
-        todayEvents.length,
-      successesToday:
-        successesToday.length,
-      failuresToday:
-        failuresToday.length,
-      quotaExceededToday:
-        quotaEventsToday.length,
-      lastRequestAt:
-        latestIso(
-          providerEvents.map(
-            (event) => event.createdAt,
-          ),
-        ),
-      lastSuccessAt:
-        latestIso(
-          providerEvents
-            .filter(
-              (event) => event.success,
-            )
-            .map(
-              (event) => event.createdAt,
-            ),
-        ),
-      lastFailureAt:
-        latestIso(
-          providerEvents
-            .filter(
-              (event) => !event.success,
-            )
-            .map(
-              (event) => event.createdAt,
-            ),
-        ),
+      reachable: status === "operational",
+      requestsToday: todayEvents.length,
+      successesToday: successesToday.length,
+      failuresToday: failuresToday.length,
+      quotaExceededToday: quotaEventsToday.length,
+      lastRequestAt: latestIso(providerEvents.map((event) => event.createdAt)),
+      lastSuccessAt: latestIso(
+        providerEvents
+          .filter((event) => event.success)
+          .map((event) => event.createdAt),
+      ),
+      lastFailureAt: latestIso(
+        providerEvents
+          .filter((event) => !event.success)
+          .map((event) => event.createdAt),
+      ),
     };
   } catch (error) {
-    logger.warn(
-      "Admin AI health telemetry lookup failed",
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
-      },
-    );
+    logger.warn("Admin AI health telemetry lookup failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     return {
       ...empty,
@@ -1078,20 +1015,14 @@ Promise<AdminHealthCheck["ai"]> {
 }
 
 export async function getSystemHealth(): Promise<AdminHealthCheck> {
-  const [
-    database,
-    infrastructure,
-    telegram,
-    ai,
-  ] = await Promise.all([
+  const [database, infrastructure, telegram, ai] = await Promise.all([
     databaseHealth(),
     getInfrastructureHealth(),
     getTelegramHealth(),
     aiProviderHealth(),
   ]);
 
-  const memory =
-    process.memoryUsage();
+  const memory = process.memoryUsage();
 
   const coreAvailable = database.connected && infrastructure.redis.connected;
 
@@ -1110,19 +1041,13 @@ export async function getSystemHealth(): Promise<AdminHealthCheck> {
     telegram.webhook.matchesExpectedUrl !== false;
 
   const aiDegraded =
-    ai.status === "quota_exhausted" ||
-    ai.status === "degraded";
+    ai.status === "quota_exhausted" || ai.status === "degraded";
 
-  const status:
-    AdminHealthCheck["status"] =
-    !coreAvailable
-      ? "unhealthy"
-      : !workersAvailable ||
-          !queuesAvailable ||
-          !telegramAvailable ||
-          aiDegraded
-        ? "degraded"
-        : "healthy";
+  const status: AdminHealthCheck["status"] = !coreAvailable
+    ? "unhealthy"
+    : !workersAvailable || !queuesAvailable || !telegramAvailable || aiDegraded
+      ? "degraded"
+      : "healthy";
 
   return {
     status,
@@ -1191,9 +1116,10 @@ export async function previewRetention(): Promise<{
 }> {
   const settings = await getOperationalSettings();
   const auditCutoff = retentionCutoff(settings.auditRetentionDays);
-  const contentCutoff = settings.contentRetentionDays > 0
-    ? retentionCutoff(settings.contentRetentionDays)
-    : null;
+  const contentCutoff =
+    settings.contentRetentionDays > 0
+      ? retentionCutoff(settings.contentRetentionDays)
+      : null;
   const [auditLogs, content] = await Promise.all([
     auditLogRepo.countBefore(auditCutoff),
     contentCutoff ? noteRepo.countBefore(contentCutoff) : Promise.resolve(0),
@@ -1207,9 +1133,12 @@ export async function executeRetention(adminId: string): Promise<{
 }> {
   const settings = await getOperationalSettings();
   const auditCutoff = retentionCutoff(settings.auditRetentionDays);
-  const noteIds = settings.contentRetentionDays > 0
-    ? await noteRepo.findIdsBefore(retentionCutoff(settings.contentRetentionDays))
-    : [];
+  const noteIds =
+    settings.contentRetentionDays > 0
+      ? await noteRepo.findIdsBefore(
+          retentionCutoff(settings.contentRetentionDays),
+        )
+      : [];
 
   let deletedContent = 0;
   for (const noteId of noteIds) {

@@ -1,6 +1,4 @@
-import type {
-  DocumentKind,
-} from "@/server/intelligence/types";
+import type { DocumentKind } from "@/server/intelligence/types";
 import {
   FEATURE_QUALITY_TARGET,
   type FeatureQualityContractReport,
@@ -10,7 +8,9 @@ import {
 export interface QualityBenchmarkCase {
   id: string;
   documentKind: DocumentKind;
-  reports: Partial<Record<StudyFeatureQualityName, FeatureQualityContractReport>>;
+  reports: Partial<
+    Record<StudyFeatureQualityName, FeatureQualityContractReport>
+  >;
 }
 
 export interface QualityBenchmarkFeatureResult {
@@ -50,7 +50,9 @@ export function evaluateQualityBenchmark(
   const featureResults = FEATURES.map((feature) => {
     const reports = cases
       .map((item) => item.reports[feature])
-      .filter((report): report is FeatureQualityContractReport => Boolean(report));
+      .filter((report): report is FeatureQualityContractReport =>
+        Boolean(report),
+      );
     const passing = reports.filter((report) => report.passed).length;
     const scores = reports.map((report) => report.scoreOutOf10);
 
@@ -89,9 +91,7 @@ export function evaluateQualityBenchmark(
   }
 
   return {
-    passed:
-      cases.length > 0 &&
-      featureResults.every((result) => result.passed),
+    passed: cases.length > 0 && featureResults.every((result) => result.passed),
     caseCount: cases.length,
     featureResults,
     failures,

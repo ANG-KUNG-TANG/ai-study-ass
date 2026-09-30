@@ -1,7 +1,4 @@
-import {
-  Quiz,
-  type QuizDocument,
-} from "@/server/models/Quiz";
+import { Quiz, type QuizDocument } from "@/server/models/Quiz";
 import {
   QuizEntity,
   QUESTION_TYPES,
@@ -9,14 +6,9 @@ import {
   type QuizQuestionInput,
 } from "@/server/entities/quiz.entity";
 
-function stringArray(
-  value: unknown,
-): string[] {
+function stringArray(value: unknown): string[] {
   return Array.isArray(value)
-    ? value.filter(
-        (item): item is string =>
-          typeof item === "string",
-      )
+    ? value.filter((item): item is string => typeof item === "string")
     : [];
 }
 
@@ -24,24 +16,16 @@ function resolveQuestionType(
   raw: Record<string, unknown>,
   options: string[],
 ): QuestionType {
-  const candidate =
-    raw.questionType ??
-    raw.type ??
-    raw.question_type;
+  const candidate = raw.questionType ?? raw.type ?? raw.question_type;
 
   if (
     typeof candidate === "string" &&
-    QUESTION_TYPES.includes(
-      candidate as QuestionType,
-    )
+    QUESTION_TYPES.includes(candidate as QuestionType)
   ) {
     return candidate as QuestionType;
   }
 
-  const normalizedOptions =
-    options.map((option) =>
-      option.toLowerCase(),
-    );
+  const normalizedOptions = options.map((option) => option.toLowerCase());
 
   if (
     options.length === 2 &&
@@ -63,10 +47,7 @@ function normalizeAnswer(
   type: QuestionType,
   options: string[],
 ): string {
-  const answer =
-    typeof rawAnswer === "string"
-      ? rawAnswer.trim()
-      : "";
+  const answer = typeof rawAnswer === "string" ? rawAnswer.trim() : "";
 
   if (type === "true_false") {
     if (answer.toLowerCase() === "true") {
@@ -82,9 +63,7 @@ function normalizeAnswer(
 
   if (type === "multiple_choice") {
     const exact = options.find(
-      (option) =>
-        option.toLowerCase() ===
-        answer.toLowerCase(),
+      (option) => option.toLowerCase() === answer.toLowerCase(),
     );
 
     return exact ?? options[0] ?? "";
@@ -93,52 +72,37 @@ function normalizeAnswer(
   return answer;
 }
 
-function normalizeQuestion(
-  value: unknown,
-  index: number,
-): QuizQuestionInput {
+function normalizeQuestion(value: unknown, index: number): QuizQuestionInput {
   const raw =
-    value &&
-    typeof value === "object"
+    value && typeof value === "object"
       ? (value as Record<string, unknown>)
       : {};
 
   const options = stringArray(raw.options);
-  const questionType =
-    resolveQuestionType(raw, options);
+  const questionType = resolveQuestionType(raw, options);
 
   return {
     question:
-      typeof raw.question === "string" &&
-      raw.question.trim()
+      typeof raw.question === "string" && raw.question.trim()
         ? raw.question.trim()
         : `Question ${index + 1}`,
 
     questionType,
 
-    options:
-      questionType === "true_false"
-        ? ["True", "False"]
-        : options,
+    options: questionType === "true_false" ? ["True", "False"] : options,
 
     answer: normalizeAnswer(
       raw.answer,
       questionType,
-      questionType === "true_false"
-        ? ["True", "False"]
-        : options,
+      questionType === "true_false" ? ["True", "False"] : options,
     ),
 
     explanation:
-      typeof raw.explanation === "string"
-        ? raw.explanation.trim()
-        : undefined,
+      typeof raw.explanation === "string" ? raw.explanation.trim() : undefined,
   };
 }
 
-function toEntity(
-  doc: QuizDocument,
-): QuizEntity {
+function toEntity(doc: QuizDocument): QuizEntity {
   return new QuizEntity({
     id: doc._id.toString(),
     noteId: String(doc.noteId),
@@ -146,9 +110,7 @@ function toEntity(
 
     // Normalize legacy records that used `type`, `question_type`, or omitted
     // questionType. This prevents old MongoDB data from crashing the UI.
-    questions: (
-      doc.questions as unknown[]
-    ).map(normalizeQuestion),
+    questions: (doc.questions as unknown[]).map(normalizeQuestion),
 
     createdAt: doc.createdAt,
   });
@@ -177,9 +139,7 @@ export async function create(params: {
   return toEntity(doc);
 }
 
-export async function findById(
-  id: string,
-): Promise<QuizEntity | null> {
+export async function findById(id: string): Promise<QuizEntity | null> {
   const doc = await Quiz.findById(id);
   return doc ? toEntity(doc) : null;
 }
@@ -228,11 +188,8 @@ export async function count(): Promise<number> {
   return Quiz.countDocuments();
 }
 
-export async function deleteById(
-  id: string,
-): Promise<boolean> {
-  const result =
-    await Quiz.findByIdAndDelete(id);
+export async function deleteById(id: string): Promise<boolean> {
+  const result = await Quiz.findByIdAndDelete(id);
 
   return result !== null;
 }
@@ -249,9 +206,7 @@ export async function deleteByIdAndUserId(
   return result !== null;
 }
 
-export async function deleteByNoteId(
-  noteId: string,
-): Promise<number> {
+export async function deleteByNoteId(noteId: string): Promise<number> {
   const result = await Quiz.deleteMany({
     noteId,
   });
@@ -259,9 +214,7 @@ export async function deleteByNoteId(
   return result.deletedCount ?? 0;
 }
 
-export async function findAllByUser(
-  userId: string,
-): Promise<QuizEntity[]> {
+export async function findAllByUser(userId: string): Promise<QuizEntity[]> {
   const docs = await Quiz.find({
     userId,
   }).sort({

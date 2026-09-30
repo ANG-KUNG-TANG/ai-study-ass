@@ -2,18 +2,13 @@ import { Queue } from "bullmq";
 import IORedis from "ioredis";
 
 import { logger } from "@/server/utils/logger";
-import {
-  ConflictError,
-  ServiceUnavailableError,
-} from "@/server/utils/errors";
+import { ConflictError, ServiceUnavailableError } from "@/server/utils/errors";
 
 export const STUDY_GENERATION_QUEUE_NAME = "study-generation";
 export const STUDY_GENERATION_JOB_NAME = "generate-study-materials";
 export const STUDY_GENERATION_MAX_QUEUE_DEPTH = 500;
 
-export type StudyGenerationJobMode =
-  | "prepare"
-  | "generate_all";
+export type StudyGenerationJobMode = "prepare" | "generate_all";
 
 export interface StudyGenerationJobData {
   noteId: string;
@@ -91,25 +86,25 @@ export function getStudyGenerationQueue(): StudyGenerationQueue {
     return queueGlobal.__studyGenerationQueue;
   }
 
-  const queue = new Queue<
-    StudyGenerationJobData,
-    StudyGenerationJobResult
-  >(STUDY_GENERATION_QUEUE_NAME, {
-    connection: getProducerConnection(),
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: {
-        type: "exponential",
-        delay: 5_000,
-      },
-      removeOnComplete: {
-        count: 100,
-      },
-      removeOnFail: {
-        count: 100,
+  const queue = new Queue<StudyGenerationJobData, StudyGenerationJobResult>(
+    STUDY_GENERATION_QUEUE_NAME,
+    {
+      connection: getProducerConnection(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 5_000,
+        },
+        removeOnComplete: {
+          count: 100,
+        },
+        removeOnFail: {
+          count: 100,
+        },
       },
     },
-  });
+  );
 
   queueGlobal.__studyGenerationQueue = queue;
 
@@ -147,8 +142,7 @@ export async function enqueueStudyGeneration(
     queue.getDelayedCount(),
   ]);
 
-  const liveQueueDepth =
-    waitingCount + activeCount + delayedCount;
+  const liveQueueDepth = waitingCount + activeCount + delayedCount;
 
   if (liveQueueDepth >= STUDY_GENERATION_MAX_QUEUE_DEPTH) {
     logger.warn("[queue] study generation backlog limit reached", {
@@ -165,13 +159,9 @@ export async function enqueueStudyGeneration(
     );
   }
 
-  const job = await queue.add(
-    STUDY_GENERATION_JOB_NAME,
-    data,
-    {
-      jobId,
-    },
-  );
+  const job = await queue.add(STUDY_GENERATION_JOB_NAME, data, {
+    jobId,
+  });
 
   logger.info("[queue] study generation job queued", {
     queue: STUDY_GENERATION_QUEUE_NAME,
@@ -205,9 +195,12 @@ export async function cancelStudyGeneration(
   noteId: string,
 ): Promise<{ jobId: string; previousState: string }> {
   const job = await getStudyGenerationQueue().getJob(`study-${noteId}`);
-  if (!job) throw new ConflictError("No study-generation job exists for this content");
+  if (!job)
+    throw new ConflictError("No study-generation job exists for this content");
   const state = await job.getState();
-  if (!["waiting", "delayed", "prioritized", "waiting-children"].includes(state)) {
+  if (
+    !["waiting", "delayed", "prioritized", "waiting-children"].includes(state)
+  ) {
     throw new ConflictError(
       state === "active"
         ? "An active job cannot be cancelled safely; wait for it to finish"

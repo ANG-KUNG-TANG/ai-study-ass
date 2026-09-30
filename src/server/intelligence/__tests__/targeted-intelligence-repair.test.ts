@@ -1,7 +1,5 @@
 import type { DocumentChunk } from "../pipeline";
-import {
-  buildIntelligenceRepairEvidence,
-} from "../fallback/intelligence-repair-evidence";
+import { buildIntelligenceRepairEvidence } from "../fallback/intelligence-repair-evidence";
 
 function chunk(
   input: Partial<DocumentChunk> &
@@ -26,10 +24,9 @@ describe("targeted intelligence repair evidence", () => {
           id: "intro",
           sectionId: "s1",
           sectionTitle: "General Notes",
-          text:
-            "This section contains unrelated operational background. ".repeat(
-              120,
-            ),
+          text: "This section contains unrelated operational background. ".repeat(
+            120,
+          ),
         }),
         chunk({
           id: "objective",
@@ -120,20 +117,18 @@ describe("targeted intelligence repair evidence", () => {
           sectionId: "s1",
           sectionTitle: "Methodology",
           semanticRole: "method",
-          text:
-            "The method uses a controlled procedure and repeated evaluation. ".repeat(
-              220,
-            ),
+          text: "The method uses a controlled procedure and repeated evaluation. ".repeat(
+            220,
+          ),
         }),
         chunk({
           id: "large-results",
           sectionId: "s2",
           sectionTitle: "Results",
           semanticRole: "results",
-          text:
-            "The result reports measured performance and evaluation outcomes. ".repeat(
-              220,
-            ),
+          text: "The result reports measured performance and evaluation outcomes. ".repeat(
+            220,
+          ),
         }),
       ],
       ["method", "result"],

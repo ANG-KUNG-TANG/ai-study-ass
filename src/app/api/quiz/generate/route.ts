@@ -6,8 +6,8 @@
 // it through the middleware composition.
 // =============================================================================
 
-import { withErrorHandler } from '@/server/middleware/error.middleware';
-import { withAuth } from '@/server/middleware/auth.middleware';
-import { generateQuizController } from '@/server/controller/quiz.controller';
+import { withErrorHandler } from "@/server/middleware/error.middleware";
+import { withAuth } from "@/server/middleware/auth.middleware";
+import { generateQuizController } from "@/server/controller/quiz.controller";
 
 export const POST = withErrorHandler(withAuth(generateQuizController));

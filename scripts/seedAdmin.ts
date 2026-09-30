@@ -54,7 +54,9 @@ async function seedAdmin() {
     existing.isActive = true;
     await existing.save();
 
-    console.log(`✅ Promoted existing user to admin: ${email} (id: ${existing._id})`);
+    console.log(
+      `✅ Promoted existing user to admin: ${email} (id: ${existing._id})`,
+    );
     return;
   }
 
@@ -78,15 +80,17 @@ async function seedAdmin() {
     name: data.name,
     email: data.email,
     passwordHash: data.passwordHash,
-    role: "admin",          // override — entity.create() always sets "user"
-    isActive: true,         // override — skip email verification entirely
+    role: "admin", // override — entity.create() always sets "user"
+    isActive: true, // override — skip email verification entirely
     emailVerificationToken: null,
     emailVerificationExpires: null,
     refreshTokenId: null,
   });
 
   console.log(`✅ Created new admin account: ${email} (id: ${doc._id})`);
-  console.log(`   Password: ${ADMIN_PASSWORD}  (change this after first login)`);
+  console.log(
+    `   Password: ${ADMIN_PASSWORD}  (change this after first login)`,
+  );
 }
 
 seedAdmin()

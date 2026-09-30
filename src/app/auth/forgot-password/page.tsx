@@ -42,7 +42,12 @@ function ForgotPasswordContent() {
     return (
       <div className="w-full text-center">
         <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-sage-soft text-sage">
-          <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-5 w-5"
+            aria-hidden="true"
+          >
             <path
               d="M5 13l4 4L19 7"
               stroke="currentColor"

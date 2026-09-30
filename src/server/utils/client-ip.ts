@@ -26,9 +26,7 @@ export function resolveClientIp(
   options: ClientIpOptions,
 ): string {
   if (options.trustCloudflareProxy) {
-    const cloudflareIp = normaliseIp(
-      headers.get("cf-connecting-ip"),
-    );
+    const cloudflareIp = normaliseIp(headers.get("cf-connecting-ip"));
 
     if (cloudflareIp) {
       return cloudflareIp;
@@ -38,9 +36,7 @@ export function resolveClientIp(
   }
 
   if (options.nodeEnv !== "production") {
-    const forwarded = headers
-      .get("x-forwarded-for")
-      ?.split(",")[0];
+    const forwarded = headers.get("x-forwarded-for")?.split(",")[0];
 
     return (
       normaliseIp(forwarded ?? null) ??
@@ -52,14 +48,9 @@ export function resolveClientIp(
   return "direct-origin";
 }
 
-export function getClientIp(
-  request: Pick<Request, "headers">,
-): string {
-  return resolveClientIp(
-    request.headers,
-    {
-      trustCloudflareProxy: env.TRUST_CLOUDFLARE_PROXY,
-      nodeEnv: env.NODE_ENV,
-    },
-  );
+export function getClientIp(request: Pick<Request, "headers">): string {
+  return resolveClientIp(request.headers, {
+    trustCloudflareProxy: env.TRUST_CLOUDFLARE_PROXY,
+    nodeEnv: env.NODE_ENV,
+  });
 }

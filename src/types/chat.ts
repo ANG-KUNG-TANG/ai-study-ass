@@ -1,7 +1,4 @@
-export type ChatProvider =
-  | "openai"
-  | "gemini"
-  | "symbolic";
+export type ChatProvider = "openai" | "gemini" | "symbolic";
 
 export interface ChatMessage {
   id: string;

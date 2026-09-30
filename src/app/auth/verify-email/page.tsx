@@ -110,7 +110,9 @@ function VerifyEmailContent() {
         {state === "verifying" && (
           <LoaderCircle className="animate-spin text-ink-soft" size={24} />
         )}
-        {state === "verified" && <CheckCircle2 className="text-green-700" size={24} />}
+        {state === "verified" && (
+          <CheckCircle2 className="text-green-700" size={24} />
+        )}
         {state === "error" && <XCircle className="text-coral" size={24} />}
         {state === "waiting" && <MailCheck className="text-sage" size={24} />}
       </div>
@@ -119,7 +121,10 @@ function VerifyEmailContent() {
         {title}
       </h1>
 
-      <p className="mt-2 text-[13px] leading-6 text-ink-soft" aria-live="polite">
+      <p
+        className="mt-2 text-[13px] leading-6 text-ink-soft"
+        aria-live="polite"
+      >
         {description}
       </p>
 
@@ -138,12 +143,18 @@ function VerifyEmailContent() {
           />
 
           {resendSuccess && (
-            <p className="rounded-[8px] bg-sage-soft px-3 py-2 text-[12px] text-sage" aria-live="polite">
+            <p
+              className="rounded-[8px] bg-sage-soft px-3 py-2 text-[12px] text-sage"
+              aria-live="polite"
+            >
               {t("verify.resendSuccess")}
             </p>
           )}
           {resendError && (
-            <p className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral" role="alert">
+            <p
+              className="rounded-[8px] bg-coral-soft px-3 py-2 text-[12px] text-coral"
+              role="alert"
+            >
               {resendError}
             </p>
           )}

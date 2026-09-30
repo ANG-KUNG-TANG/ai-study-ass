@@ -23,13 +23,15 @@ function groundingFixture(): GroundedKnowledge {
         content: "MongoDB stores application documents in collections.",
         verbatimRequired: false,
         sourceSectionId: "s1",
-        evidence: [{
-          id: "e1",
-          sectionId: "s1",
-          sectionTitle: "Database",
-          pageNumber: 1,
-          text: "MongoDB stores application documents in collections.",
-        }],
+        evidence: [
+          {
+            id: "e1",
+            sectionId: "s1",
+            sectionTitle: "Database",
+            pageNumber: 1,
+            text: "MongoDB stores application documents in collections.",
+          },
+        ],
         evidenceType: "stated",
         verificationStatus: "supported",
         confidence: 0.98,
@@ -39,16 +41,19 @@ function groundingFixture(): GroundedKnowledge {
       {
         id: "f2",
         type: "claim",
-        content: "Redis is used as the queue backend for background study jobs.",
+        content:
+          "Redis is used as the queue backend for background study jobs.",
         verbatimRequired: false,
         sourceSectionId: "s2",
-        evidence: [{
-          id: "e2",
-          sectionId: "s2",
-          sectionTitle: "Queue",
-          pageNumber: 2,
-          text: "Redis is used as the queue backend for background study jobs.",
-        }],
+        evidence: [
+          {
+            id: "e2",
+            sectionId: "s2",
+            sectionTitle: "Queue",
+            pageNumber: 2,
+            text: "Redis is used as the queue backend for background study jobs.",
+          },
+        ],
         evidenceType: "stated",
         verificationStatus: "supported",
         confidence: 0.97,
@@ -61,13 +66,15 @@ function groundingFixture(): GroundedKnowledge {
         content: "The measured extraction accuracy is 92%.",
         verbatimRequired: true,
         sourceSectionId: "s3",
-        evidence: [{
-          id: "e3",
-          sectionId: "s3",
-          sectionTitle: "Results",
-          pageNumber: 3,
-          text: "The measured extraction accuracy is 92%.",
-        }],
+        evidence: [
+          {
+            id: "e3",
+            sectionId: "s3",
+            sectionTitle: "Results",
+            pageNumber: 3,
+            text: "The measured extraction accuracy is 92%.",
+          },
+        ],
         evidenceType: "stated",
         verificationStatus: "supported",
         confidence: 0.99,
@@ -82,13 +89,15 @@ function groundingFixture(): GroundedKnowledge {
         normalizedName: "mongodb",
         explanation: "Document database",
         sourceSectionIds: ["s1"],
-        evidence: [{
-          id: "ce1",
-          sectionId: "s1",
-          sectionTitle: "Database",
-          pageNumber: 1,
-          text: "MongoDB stores application documents in collections.",
-        }],
+        evidence: [
+          {
+            id: "ce1",
+            sectionId: "s1",
+            sectionTitle: "Database",
+            pageNumber: 1,
+            text: "MongoDB stores application documents in collections.",
+          },
+        ],
         importanceScore: 0.9,
       },
       {
@@ -96,13 +105,15 @@ function groundingFixture(): GroundedKnowledge {
         normalizedName: "redis queue",
         explanation: "Background job queue backend",
         sourceSectionIds: ["s2"],
-        evidence: [{
-          id: "ce2",
-          sectionId: "s2",
-          sectionTitle: "Queue",
-          pageNumber: 2,
-          text: "Redis is used as the queue backend for background study jobs.",
-        }],
+        evidence: [
+          {
+            id: "ce2",
+            sectionId: "s2",
+            sectionTitle: "Queue",
+            pageNumber: 2,
+            text: "Redis is used as the queue backend for background study jobs.",
+          },
+        ],
         importanceScore: 0.85,
       },
     ],
@@ -154,15 +165,13 @@ function groundingFixture(): GroundedKnowledge {
   };
 }
 
-function qualityFixture(overrides: Partial<SummaryQualityReport> = {}): SummaryQualityReport {
+function qualityFixture(
+  overrides: Partial<SummaryQualityReport> = {},
+): SummaryQualityReport {
   const contract = buildFeatureQualityReport({
     feature: "summary",
-    dimensions: [
-      { key: "coverage", label: "Coverage", weight: 1, ratio: 0.7 },
-    ],
-    hardGates: [
-      { code: "GROUNDING", message: "Grounded", passed: true },
-    ],
+    dimensions: [{ key: "coverage", label: "Coverage", weight: 1, ratio: 0.7 }],
+    hardGates: [{ code: "GROUNDING", message: "Grounded", passed: true }],
   });
 
   return {
@@ -219,7 +228,8 @@ describe("targeted summary repair", () => {
     const plan = buildSummaryRepairPlan({
       grounding: groundingFixture(),
       artifact: {
-        summary: "## Overview\n\nMongoDB stores application documents in collections.",
+        summary:
+          "## Overview\n\nMongoDB stores application documents in collections.",
         keyPoints: ["MongoDB stores application documents in collections."],
         importantConcepts: ["MongoDB"],
       },
@@ -277,7 +287,9 @@ describe("targeted summary repair", () => {
       },
       {
         overviewAdditions: [],
-        keyPoints: ["Redis is used as the queue backend for background study jobs."],
+        keyPoints: [
+          "Redis is used as the queue backend for background study jobs.",
+        ],
         importantConcepts: ["Redis queue"],
       },
     );

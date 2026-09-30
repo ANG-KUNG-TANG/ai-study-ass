@@ -85,7 +85,7 @@ export default function DashboardPage() {
           onChange: setSearch,
           placeholder: t("dashboard.search"),
         }}
-        actions={(
+        actions={
           <Link
             href="/student/notes"
             className="inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-ink px-4 text-[13px] font-semibold text-paper-raised transition hover:opacity-90"
@@ -93,7 +93,7 @@ export default function DashboardPage() {
             <Upload size={15} strokeWidth={1.8} aria-hidden="true" />
             {t("notes.title")}
           </Link>
-        )}
+        }
       />
 
       {mostRecentNote ? (
@@ -168,7 +168,9 @@ export default function DashboardPage() {
         <section className="min-w-0">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <span className="editorial-kicker">{t("dashboard.libraryKicker")}</span>
+              <span className="editorial-kicker">
+                {t("dashboard.libraryKicker")}
+              </span>
               <h2 className="mt-1 font-serif text-[19px] font-semibold text-ink">
                 {t("dashboard.recentNotes")}
               </h2>
@@ -184,7 +186,10 @@ export default function DashboardPage() {
           {isLoading && (
             <div className="border-y border-line">
               {[...Array(3)].map((_, index) => (
-                <div key={index} className="animate-pulse border-b border-line-soft px-2 py-5 last:border-b-0">
+                <div
+                  key={index}
+                  className="animate-pulse border-b border-line-soft px-2 py-5 last:border-b-0"
+                >
                   <div className="h-4 w-1/2 rounded bg-line-soft" />
                   <div className="mt-2 h-3 w-3/4 rounded bg-line-soft" />
                 </div>
@@ -192,11 +197,17 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {error && <p className="editorial-callout border-coral text-coral">{error}</p>}
+          {error && (
+            <p className="editorial-callout border-coral text-coral">{error}</p>
+          )}
 
           {!isLoading && !error && notes.length === 0 && (
             <div className="border-y border-dashed border-line px-6 py-12 text-center">
-              <FilePlus className="mx-auto text-ink-faint" size={34} strokeWidth={1.5} />
+              <FilePlus
+                className="mx-auto text-ink-faint"
+                size={34}
+                strokeWidth={1.5}
+              />
               <h3 className="mt-3 font-serif text-[17px] font-semibold text-ink">
                 {t("dashboard.noNotes")}
               </h3>
@@ -221,12 +232,25 @@ export default function DashboardPage() {
         </section>
 
         <aside className="min-w-0 border-t border-line pt-4">
-          <span className="editorial-kicker">{t("dashboard.rhythmKicker")}</span>
-          <h2 className="mt-1 font-serif text-[18px] font-semibold text-ink">{t("dashboard.rhythmTitle")}</h2>
+          <span className="editorial-kicker">
+            {t("dashboard.rhythmKicker")}
+          </span>
+          <h2 className="mt-1 font-serif text-[18px] font-semibold text-ink">
+            {t("dashboard.rhythmTitle")}
+          </h2>
           <ol className="mt-4 border-y border-line">
-            <li className="border-b border-line-soft py-3 text-[12.5px] text-ink-soft"><strong className="mr-2 text-ink">01</strong> {t("dashboard.rhythmRead")}</li>
-            <li className="border-b border-line-soft py-3 text-[12.5px] text-ink-soft"><strong className="mr-2 text-ink">02</strong> {t("dashboard.rhythmReview")}</li>
-            <li className="py-3 text-[12.5px] text-ink-soft"><strong className="mr-2 text-ink">03</strong> {t("dashboard.rhythmPractise")}</li>
+            <li className="border-b border-line-soft py-3 text-[12.5px] text-ink-soft">
+              <strong className="mr-2 text-ink">01</strong>{" "}
+              {t("dashboard.rhythmRead")}
+            </li>
+            <li className="border-b border-line-soft py-3 text-[12.5px] text-ink-soft">
+              <strong className="mr-2 text-ink">02</strong>{" "}
+              {t("dashboard.rhythmReview")}
+            </li>
+            <li className="py-3 text-[12.5px] text-ink-soft">
+              <strong className="mr-2 text-ink">03</strong>{" "}
+              {t("dashboard.rhythmPractise")}
+            </li>
           </ol>
           <p className="mt-4 text-[12px] leading-5 text-ink-faint">
             {t("dashboard.floatingNote")}

@@ -3,7 +3,10 @@
 import { apiFetch } from "@/lib/api";
 import type { ChatMessage } from "@/types/chat";
 
-export function askQuestion(noteId: string, question: string): Promise<ChatMessage> {
+export function askQuestion(
+  noteId: string,
+  question: string,
+): Promise<ChatMessage> {
   return apiFetch<ChatMessage>(`/notes/${noteId}/chat`, {
     method: "POST",
     body: JSON.stringify({ question }),

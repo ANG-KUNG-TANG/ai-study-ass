@@ -35,8 +35,10 @@ export interface KnowledgeProps {
   updatedAt: Date;
 }
 
-export type CreateKnowledgeInput =
-  Omit<KnowledgeProps, "createdAt" | "updatedAt"> &
+export type CreateKnowledgeInput = Omit<
+  KnowledgeProps,
+  "createdAt" | "updatedAt"
+> &
   Partial<Pick<KnowledgeProps, "createdAt" | "updatedAt">>;
 
 export class KnowledgeEntity implements KnowledgeProps {
@@ -113,9 +115,18 @@ export class KnowledgeEntity implements KnowledgeProps {
   }
 }
 
-export function validate(knowledge: Pick<KnowledgeProps,
-  "noteId" | "stage" | "core" | "graph" | "prologFacts" | "gaps" | "confidence"
->): string[] {
+export function validate(
+  knowledge: Pick<
+    KnowledgeProps,
+    | "noteId"
+    | "stage"
+    | "core"
+    | "graph"
+    | "prologFacts"
+    | "gaps"
+    | "confidence"
+  >,
+): string[] {
   const errors: string[] = [];
 
   if (!knowledge.noteId) errors.push("noteId is required");
@@ -190,7 +201,9 @@ export function getConfidenceMode(
 }
 
 export function canGenerateQuiz(knowledge: KnowledgeEntity): boolean {
-  return hasFullCoreData(knowledge) && (knowledge.prologFacts?.length ?? 0) >= 3;
+  return (
+    hasFullCoreData(knowledge) && (knowledge.prologFacts?.length ?? 0) >= 3
+  );
 }
 
 export function canGenerateSummary(knowledge: KnowledgeEntity): boolean {

@@ -14,22 +14,26 @@ describe("OperationalSettingsEntity", () => {
   });
 
   it("rejects disabling every upload file type", () => {
-    expect(() => OperationalSettingsEntity.create({
-      ...DEFAULT_OPERATIONAL_SETTINGS,
-      allowedFileTypes: [],
-    })).toThrow("Validation failed");
+    expect(() =>
+      OperationalSettingsEntity.create({
+        ...DEFAULT_OPERATIONAL_SETTINGS,
+        allowedFileTypes: [],
+      }),
+    ).toThrow("Validation failed");
   });
 
   it("rejects negative provider pricing", () => {
-    expect(() => OperationalSettingsEntity.create({
-      ...DEFAULT_OPERATIONAL_SETTINGS,
-      pricing: {
-        ...DEFAULT_OPERATIONAL_SETTINGS.pricing,
-        openai: {
-          ...DEFAULT_OPERATIONAL_SETTINGS.pricing.openai,
-          inputPerMillionUsd: -1,
+    expect(() =>
+      OperationalSettingsEntity.create({
+        ...DEFAULT_OPERATIONAL_SETTINGS,
+        pricing: {
+          ...DEFAULT_OPERATIONAL_SETTINGS.pricing,
+          openai: {
+            ...DEFAULT_OPERATIONAL_SETTINGS.pricing.openai,
+            inputPerMillionUsd: -1,
+          },
         },
-      },
-    })).toThrow("Validation failed");
+      }),
+    ).toThrow("Validation failed");
   });
 });

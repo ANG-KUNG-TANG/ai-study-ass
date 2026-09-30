@@ -21,13 +21,15 @@ function fact(
     content,
     verbatimRequired: false,
     sourceSectionId: sectionId,
-    evidence: [{
-      id: `e-${id}`,
-      sectionId,
-      sectionTitle: `Section ${sectionId}`,
-      pageNumber: 1,
-      text: content,
-    }],
+    evidence: [
+      {
+        id: `e-${id}`,
+        sectionId,
+        sectionTitle: `Section ${sectionId}`,
+        pageNumber: 1,
+        text: content,
+      },
+    ],
     evidenceType: "stated",
     verificationStatus: "supported",
     confidence: 0.96,
@@ -39,10 +41,30 @@ function fact(
 function grounding(): GroundedKnowledge {
   const facts = [
     fact("f1", "s1", "Alpha routing chooses the shortest verified path.", 0.99),
-    fact("f2", "s2", "Beta validation rejects unsupported route advertisements.", 0.95),
-    fact("f3", "s3", "Gamma convergence occurs after all routers learn the stable topology.", 0.92),
-    fact("f4", "s4", "Delta timers control how frequently routing updates are processed.", 0.89),
-    fact("f5", "s5", "Epsilon metrics rank candidate paths before forwarding decisions.", 0.86),
+    fact(
+      "f2",
+      "s2",
+      "Beta validation rejects unsupported route advertisements.",
+      0.95,
+    ),
+    fact(
+      "f3",
+      "s3",
+      "Gamma convergence occurs after all routers learn the stable topology.",
+      0.92,
+    ),
+    fact(
+      "f4",
+      "s4",
+      "Delta timers control how frequently routing updates are processed.",
+      0.89,
+    ),
+    fact(
+      "f5",
+      "s5",
+      "Epsilon metrics rank candidate paths before forwarding decisions.",
+      0.86,
+    ),
   ];
 
   return {
@@ -155,21 +177,21 @@ describe("quiz sufficiency", () => {
   it("targets important evidence not already represented by accepted questions", () => {
     const evidence = retrieveQuizRepairEvidence(
       grounding(),
-      [{
-        question: "What does Alpha routing do?",
-        questionType: "short_answer",
-        options: [],
-        answer: "Alpha routing chooses the shortest verified path.",
-        explanation: "Verified evidence.",
-      }],
+      [
+        {
+          question: "What does Alpha routing do?",
+          questionType: "short_answer",
+          options: [],
+          answer: "Alpha routing chooses the shortest verified path.",
+          explanation: "Verified evidence.",
+        },
+      ],
       2,
     );
 
     expect(evidence.characterCount).toBeLessThanOrEqual(3_200);
     expect(evidence.factIds).not.toContain("f1");
-    expect(evidence.factIds).toEqual(
-      expect.arrayContaining(["f2", "f3"]),
-    );
+    expect(evidence.factIds).toEqual(expect.arrayContaining(["f2", "f3"]));
     expect(evidence.text).toContain("Beta validation");
   });
 });

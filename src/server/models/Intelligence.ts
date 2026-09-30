@@ -15,11 +15,7 @@ const { Schema } = mongoose;
 // for now because Mongoose won't validate/strip fields it doesn't recognize.
 
 export type IntelligenceStage =
-  | "extraction"
-  | "ontology"
-  | "graph"
-  | "prolog"
-  | "complete";
+  "extraction" | "ontology" | "graph" | "prolog" | "complete";
 
 export interface PaperIntelligenceDoc extends Document {
   noteId: string;
@@ -47,13 +43,7 @@ const PaperIntelligenceSchema = new Schema<PaperIntelligenceDoc>(
     },
     stage: {
       type: String,
-      enum: [
-        "extraction",
-        "ontology",
-        "graph",
-        "prolog",
-        "complete",
-      ],
+      enum: ["extraction", "ontology", "graph", "prolog", "complete"],
       required: true,
     },
     core: {
@@ -78,14 +68,7 @@ const PaperIntelligenceSchema = new Schema<PaperIntelligenceDoc>(
     },
     failedStage: {
       type: String,
-      enum: [
-        "extraction",
-        "ontology",
-        "graph",
-        "prolog",
-        "complete",
-        null,
-      ],
+      enum: ["extraction", "ontology", "graph", "prolog", "complete", null],
       default: null,
     },
     failedReason: {

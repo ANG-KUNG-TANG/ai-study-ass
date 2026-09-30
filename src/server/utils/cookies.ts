@@ -25,22 +25,14 @@ export function setRefreshTokenCookie(
   response.cookies.set(
     COOKIE_REFRESH_TOKEN,
     token,
-    refreshCookieOptions(
-      Math.floor(COOKIE_MAX_AGE_MS / 1_000),
-    ),
+    refreshCookieOptions(Math.floor(COOKIE_MAX_AGE_MS / 1_000)),
   );
 
   return response;
 }
 
-export function clearRefreshTokenCookie(
-  response: NextResponse,
-): NextResponse {
-  response.cookies.set(
-    COOKIE_REFRESH_TOKEN,
-    "",
-    refreshCookieOptions(0),
-  );
+export function clearRefreshTokenCookie(response: NextResponse): NextResponse {
+  response.cookies.set(COOKIE_REFRESH_TOKEN, "", refreshCookieOptions(0));
 
   return response;
 }

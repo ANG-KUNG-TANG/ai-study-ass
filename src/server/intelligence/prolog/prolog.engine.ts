@@ -1,5 +1,5 @@
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { createRequire } from "node:module";
 import type {
   KnowledgeGraph,
@@ -7,7 +7,7 @@ import type {
   PrologEngineInstance,
   PrologFact,
   PrologResult,
-} from '../types';
+} from "../types";
 
 // tau-prolog ships no TypeScript types — declare the minimal surface used
 // here. Keeps the file strict-mode clean without depending on @types/tau-prolog
@@ -19,7 +19,6 @@ let cachedTauProlog: TauProlog | null = null;
 function getTauProlog(): TauProlog {
   if (cachedTauProlog) return cachedTauProlog;
   try {
-     
     cachedTauProlog = loadCommonJsModule("tau-prolog") as TauProlog;
     return cachedTauProlog;
   } catch (error) {
@@ -123,24 +122,26 @@ function resolveRulesSource(): string {
 // need the type info once they're inside a typed functor.
 
 function stripPrefix(nodeId: string): string {
-  const idx = nodeId.indexOf(':');
+  const idx = nodeId.indexOf(":");
   return idx === -1 ? nodeId : nodeId.slice(idx + 1);
 }
 
-
-export function graphToFacts(graph: KnowledgeGraph, noteId: string): PrologFact[] {
+export function graphToFacts(
+  graph: KnowledgeGraph,
+  noteId: string,
+): PrologFact[] {
   const facts: PrologFact[] = [];
   const seen = new Set<string>();
 
   function pushFact(functor: string, args: string[]): void {
-    const key = `${functor}(${args.join(',')})`;
+    const key = `${functor}(${args.join(",")})`;
     if (seen.has(key)) return;
     seen.add(key);
     facts.push({ functor, args });
   }
 
   const paperNodeId = `paper:${noteId}`;
-  if (graph.getNode(paperNodeId)) pushFact('paper', [noteId]);
+  if (graph.getNode(paperNodeId)) pushFact("paper", [noteId]);
 
   for (const edge of graph.edges) {
     const sourceNode = graph.getNode(edge.from);
@@ -150,63 +151,78 @@ export function graphToFacts(graph: KnowledgeGraph, noteId: string): PrologFact[
     if (edge.from === paperNodeId) {
       const targetSlug = stripPrefix(edge.to);
 
-      if (edge.type === 'uses' && targetNode.type === 'method') {
-        pushFact('method', [noteId, targetSlug]);
+      if (edge.type === "uses" && targetNode.type === "method") {
+        pushFact("method", [noteId, targetSlug]);
         continue;
       }
-      if (edge.type === 'trained_on' && targetNode.type === 'dataset') {
-        pushFact('dataset', [noteId, targetSlug]);
+      if (edge.type === "trained_on" && targetNode.type === "dataset") {
+        pushFact("dataset", [noteId, targetSlug]);
         continue;
       }
-      if (edge.type === 'evaluated_on' && targetNode.type === 'dataset') {
-        pushFact('dataset', [noteId, targetSlug]);
+      if (edge.type === "evaluated_on" && targetNode.type === "dataset") {
+        pushFact("dataset", [noteId, targetSlug]);
         continue;
       }
-      if (edge.type === 'evaluated_on' && targetNode.type === 'sample') {
+      if (edge.type === "evaluated_on" && targetNode.type === "sample") {
         const sampleValue = targetNode.properties?.value;
-        pushFact('sample', [noteId, targetSlug, typeof sampleValue === 'number' ? String(sampleValue) : 'unknown']);
+        pushFact("sample", [
+          noteId,
+          targetSlug,
+          typeof sampleValue === "number" ? String(sampleValue) : "unknown",
+        ]);
         continue;
       }
-      if (edge.type === 'uses_tool' && targetNode.type === 'tool') {
-        pushFact('tool', [noteId, targetSlug]);
+      if (edge.type === "uses_tool" && targetNode.type === "tool") {
+        pushFact("tool", [noteId, targetSlug]);
         continue;
       }
-      if (edge.type === 'has_problem') {
-        pushFact('problem', [noteId, targetSlug]);
+      if (edge.type === "has_problem") {
+        pushFact("problem", [noteId, targetSlug]);
         continue;
       }
-      if (edge.type === 'mentions' && targetNode.type === 'concept') {
-        pushFact('mentions', [noteId, targetSlug]);
+      if (edge.type === "mentions" && targetNode.type === "concept") {
+        pushFact("mentions", [noteId, targetSlug]);
         continue;
       }
-      if (edge.type === 'achieves' && targetNode.type === 'metric') {
+      if (edge.type === "achieves" && targetNode.type === "metric") {
         const value = targetNode.properties?.value;
-        if (typeof value === 'number') pushFact('accuracy', [noteId, String(value)]);
+        if (typeof value === "number")
+          pushFact("accuracy", [noteId, String(value)]);
         continue;
       }
-      if (edge.type === 'reports' && targetNode.type === 'metric') {
-        const metric = String(targetNode.properties?.metric ?? targetNode.label).toLowerCase();
+      if (edge.type === "reports" && targetNode.type === "metric") {
+        const metric = String(
+          targetNode.properties?.metric ?? targetNode.label,
+        ).toLowerCase();
         const value = targetNode.properties?.value;
-        pushFact('metric', [noteId, stripPrefix(edge.to)]);
-        if (metric === 'accuracy' && typeof value === 'number') {
-          pushFact('accuracy', [noteId, String(value)]);
+        pushFact("metric", [noteId, stripPrefix(edge.to)]);
+        if (metric === "accuracy" && typeof value === "number") {
+          pushFact("accuracy", [noteId, String(value)]);
         }
         continue;
       }
-      if ((edge.type === 'reports' || edge.type === 'contains') && (targetNode.type === 'claim' || targetNode.type === 'result')) {
-        const claimType = String(targetNode.properties?.claimType ?? targetNode.type);
-        pushFact('claim', [noteId, claimType, targetSlug]);
+      if (
+        (edge.type === "reports" || edge.type === "contains") &&
+        (targetNode.type === "claim" || targetNode.type === "result")
+      ) {
+        const claimType = String(
+          targetNode.properties?.claimType ?? targetNode.type,
+        );
+        pushFact("claim", [noteId, claimType, targetSlug]);
         const numericValue = targetNode.properties?.numericValue;
         const metric = targetNode.properties?.metric;
-        if (targetNode.type === 'result') {
-          pushFact('result', [
+        if (targetNode.type === "result") {
+          pushFact("result", [
             noteId,
             targetSlug,
-            typeof numericValue === 'number' ? String(numericValue) : 'unknown',
-            typeof metric === 'string' ? metric : 'unspecified',
+            typeof numericValue === "number" ? String(numericValue) : "unknown",
+            typeof metric === "string" ? metric : "unspecified",
           ]);
-          if (String(metric).toLowerCase() === 'accuracy' && typeof numericValue === 'number') {
-            pushFact('accuracy', [noteId, String(numericValue)]);
+          if (
+            String(metric).toLowerCase() === "accuracy" &&
+            typeof numericValue === "number"
+          ) {
+            pushFact("accuracy", [noteId, String(numericValue)]);
           }
         }
         continue;
@@ -219,10 +235,22 @@ export function graphToFacts(graph: KnowledgeGraph, noteId: string): PrologFact[
     if (fromSlug === toSlug) continue;
 
     const reserved = new Set([
-      'paper', 'method', 'dataset', 'accuracy', 'solves', 'mentions',
-      'claim', 'result', 'metric', 'sample', 'tool', 'problem',
+      "paper",
+      "method",
+      "dataset",
+      "accuracy",
+      "solves",
+      "mentions",
+      "claim",
+      "result",
+      "metric",
+      "sample",
+      "tool",
+      "problem",
     ]);
-    const functor = reserved.has(edge.type) ? `concept_${edge.type}` : edge.type;
+    const functor = reserved.has(edge.type)
+      ? `concept_${edge.type}`
+      : edge.type;
     pushFact(functor, [fromSlug, toSlug]);
   }
 
@@ -256,17 +284,17 @@ export function quoteAtom(value: string): string {
   if (isNumericLiteral(value)) return value;
   if (SAFE_BARE_ATOM_RE.test(value)) return value;
   // Escape backslashes first, then single quotes, per Prolog quoted-atom rules.
-  const escaped = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const escaped = value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   return `'${escaped}'`;
 }
 
 function factsToSource(facts: PrologFact[]): string {
   return facts
     .map((f) => {
-      const args = f.args.map((a) => quoteAtom(a)).join(', ');
+      const args = f.args.map((a) => quoteAtom(a)).join(", ");
       return `${f.functor}(${args}).`;
     })
-    .join('\n');
+    .join("\n");
 }
 
 // ─── Answer formatting ──────────────────────────────────────────────────────────
@@ -292,16 +320,16 @@ function buildExplanation(goal: string, answers: PrologAnswer[]): string {
   const lines = answers.map((ans) => {
     const bindingsStr = Object.entries(ans.bindings)
       .map(([k, v]) => `${k} = ${v}`)
-      .join(', ');
+      .join(", ");
     const evidenceStr = ans.evidence
-      .map((f) => `${f.functor}(${f.args.join(', ')})`)
-      .join(', ');
+      .map((f) => `${f.functor}(${f.args.join(", ")})`)
+      .join(", ");
     return bindingsStr
-      ? `${bindingsStr} — derived from: ${evidenceStr || 'rule inference'}`
-      : `goal satisfied — derived from: ${evidenceStr || 'rule inference'}`;
+      ? `${bindingsStr} — derived from: ${evidenceStr || "rule inference"}`
+      : `goal satisfied — derived from: ${evidenceStr || "rule inference"}`;
   });
 
-  return lines.join('; ');
+  return lines.join("; ");
 }
 
 // ─── Confidence scoring ──────────────────────────────────────────────────────────
@@ -320,15 +348,25 @@ function buildExplanation(goal: string, answers: PrologAnswer[]): string {
 // rule and scores 0.7 even on success.
 
 const GROUND_FACT_FUNCTORS = new Set([
-  'paper', 'method', 'dataset', 'accuracy', 'solves', 'mentions',
-  'is_a', 'part_of', 'uses', 'related_to', 'trained_on', 'concept_solves',
+  "paper",
+  "method",
+  "dataset",
+  "accuracy",
+  "solves",
+  "mentions",
+  "is_a",
+  "part_of",
+  "uses",
+  "related_to",
+  "trained_on",
+  "concept_solves",
 ]);
 
 function scoreConfidence(goal: string, answers: PrologAnswer[]): number {
   if (answers.length === 0) return 0.0;
 
   const functorMatch = goal.match(/^\s*([a-z_][a-zA-Z0-9_]*)\s*\(/);
-  const functor = functorMatch ? functorMatch[1] : '';
+  const functor = functorMatch ? functorMatch[1] : "";
 
   // Extract the argument list and count how many distinct Prolog variables
   // (identifiers starting with an uppercase letter or underscore) it declares.
@@ -337,7 +375,7 @@ function scoreConfidence(goal: string, answers: PrologAnswer[]): number {
   // it's a complete match, so it must not be confused with a goal that HAS
   // variables but failed to bind all of them.
   const argsMatch = goal.match(/\(([^)]*)\)/);
-  const argList = argsMatch ? argsMatch[1].split(',').map((a) => a.trim()) : [];
+  const argList = argsMatch ? argsMatch[1].split(",").map((a) => a.trim()) : [];
   const declaredVars = argList.filter((a) => /^[A-Z_][a-zA-Z0-9_]*$/.test(a));
 
   if (declaredVars.length === 0) {
@@ -346,8 +384,8 @@ function scoreConfidence(goal: string, answers: PrologAnswer[]): number {
   }
 
   // Goal has variables — check whether every answer bound all of them.
-  const allFullyBound = answers.every(
-    (a) => declaredVars.every((v) => v in a.bindings),
+  const allFullyBound = answers.every((a) =>
+    declaredVars.every((v) => v in a.bindings),
   );
 
   if (!allFullyBound) return 0.4;
@@ -360,7 +398,7 @@ function scoreConfidence(goal: string, answers: PrologAnswer[]): number {
 export class PrologEngine implements PrologEngineInstance {
   private session: TauSession | null = null;
   private loadedFacts: PrologFact[] = [];
-  private loadedNoteId = '';
+  private loadedNoteId = "";
 
   // ── Load ───────────────────────────────────────────────────────────────────
   // Converts the graph to facts, appends cs.rules.pl, consults the combined
@@ -378,7 +416,11 @@ export class PrologEngine implements PrologEngineInstance {
       session.consult(program, {
         success: () => resolve(),
         error: (err: unknown) =>
-          reject(new Error(`PrologEngine.load: consult failed — ${pl.format_answer(err)}`)),
+          reject(
+            new Error(
+              `PrologEngine.load: consult failed — ${pl.format_answer(err)}`,
+            ),
+          ),
       });
     });
 
@@ -394,7 +436,9 @@ export class PrologEngine implements PrologEngineInstance {
 
   async query(goal: string): Promise<PrologResult> {
     this.assertLoaded();
-    const normalizedGoal = goal.trim().endsWith('.') ? goal.trim() : `${goal.trim()}.`;
+    const normalizedGoal = goal.trim().endsWith(".")
+      ? goal.trim()
+      : `${goal.trim()}.`;
 
     const rawAnswers = await this.collectAnswers(normalizedGoal);
 
@@ -411,7 +455,7 @@ export class PrologEngine implements PrologEngineInstance {
       answers,
       explanation,
       confidence,
-      resolvedBy: answers.length > 0 ? 'prolog' : 'fallback',
+      resolvedBy: answers.length > 0 ? "prolog" : "fallback",
     };
   }
 
@@ -443,7 +487,7 @@ export class PrologEngine implements PrologEngineInstance {
     if (!this.session) {
       throw new Error(
         `PrologEngine: call load(graph, noteId) before query(). ` +
-          `(noteId context: ${this.loadedNoteId || 'none loaded'})`,
+          `(noteId context: ${this.loadedNoteId || "none loaded"})`,
       );
     }
   }
@@ -487,14 +531,14 @@ export class PrologEngine implements PrologEngineInstance {
 
     // pl.format_answer(term) renders the whole substitution as
     // "X = cnn, Y = cifar10" (or "true" if no free variables).
-    const formatted = pl.format_answer(term, session).replace(/\.\s*$/, '');
+    const formatted = pl.format_answer(term, session).replace(/\.\s*$/, "");
 
-    if (formatted === 'true' || formatted.trim() === '') {
+    if (formatted === "true" || formatted.trim() === "") {
       return bindings; // ground goal, no free variables to bind
     }
 
-    for (const pair of formatted.split(',')) {
-      const eq = pair.indexOf('=');
+    for (const pair of formatted.split(",")) {
+      const eq = pair.indexOf("=");
       if (eq === -1) continue;
       const key = pair.slice(0, eq).trim();
       const value = pair.slice(eq + 1).trim();

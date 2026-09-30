@@ -51,9 +51,7 @@ describe("extraction-quality.service", () => {
     expect(report.status).toBe("failed");
     expect(report.usable).toBe(false);
     expect(
-      report.reasons.some(
-        (reason) => reason.code === "EMPTY_OR_WHITESPACE",
-      ),
+      report.reasons.some((reason) => reason.code === "EMPTY_OR_WHITESPACE"),
     ).toBe(true);
   });
 
@@ -75,9 +73,7 @@ describe("extraction-quality.service", () => {
 
     expect(report.status).toBe("failed");
     expect(
-      report.reasons.some(
-        (reason) => reason.code === "LOW_PAGE_COVERAGE",
-      ),
+      report.reasons.some((reason) => reason.code === "LOW_PAGE_COVERAGE"),
     ).toBe(true);
   });
 
@@ -95,15 +91,15 @@ describe("extraction-quality.service", () => {
     expect(report.status).toBe("failed");
     expect(
       report.reasons.some(
-        (reason) =>
-          reason.code === "REPLACEMENT_CHARACTER_NOISE",
+        (reason) => reason.code === "REPLACEMENT_CHARACTER_NOISE",
       ),
     ).toBe(true);
   });
 
   it("warns when the configured content limit was reached", () => {
-    const content =
-      "Grounded document evidence and study material. ".repeat(20);
+    const content = "Grounded document evidence and study material. ".repeat(
+      20,
+    );
 
     const report = assessExtractionQuality({
       fileType: "docx",
@@ -115,8 +111,7 @@ describe("extraction-quality.service", () => {
     expect(report.usable).toBe(true);
     expect(
       report.reasons.some(
-        (reason) =>
-          reason.code === "TRUNCATED_AT_CONTENT_LIMIT",
+        (reason) => reason.code === "TRUNCATED_AT_CONTENT_LIMIT",
       ),
     ).toBe(true);
   });

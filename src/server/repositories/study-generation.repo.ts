@@ -90,11 +90,11 @@ export async function initialise(
         },
       };
 
-  const doc = await StudyGeneration.findOneAndUpdate(
-    { _id: noteId },
-    update,
-    { upsert: true, new: true, setDefaultsOnInsert: true },
-  )
+  const doc = await StudyGeneration.findOneAndUpdate({ _id: noteId }, update, {
+    upsert: true,
+    new: true,
+    setDefaultsOnInsert: true,
+  })
     .lean()
     .exec();
 

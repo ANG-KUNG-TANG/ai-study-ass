@@ -8,49 +8,22 @@ import {
 } from "@/server/controller/user.controller";
 
 // GET /api/user/me
-export const GET = withAuth(
-  async (req, context, auth) => {
-    await apiLimiter(
-      req,
-      `user:${auth.userId}:profile:read`,
-    );
+export const GET = withAuth(async (req, context, auth) => {
+  await apiLimiter(req, `user:${auth.userId}:profile:read`);
 
-    return getProfile(
-      req as NextRequest,
-      context,
-      auth,
-    );
-  },
-);
+  return getProfile(req as NextRequest, context, auth);
+});
 
 // PATCH /api/user/me
-export const PATCH = withAuth(
-  async (req, context, auth) => {
-    await apiLimiter(
-      req,
-      `user:${auth.userId}:profile:update`,
-    );
+export const PATCH = withAuth(async (req, context, auth) => {
+  await apiLimiter(req, `user:${auth.userId}:profile:update`);
 
-    return updateProfile(
-      req as NextRequest,
-      context,
-      auth,
-    );
-  },
-);
+  return updateProfile(req as NextRequest, context, auth);
+});
 
 // DELETE /api/user/me
-export const DELETE = withAuth(
-  async (req, context, auth) => {
-    await apiLimiter(
-      req,
-      `user:${auth.userId}:profile:delete`,
-    );
+export const DELETE = withAuth(async (req, context, auth) => {
+  await apiLimiter(req, `user:${auth.userId}:profile:delete`);
 
-    return deleteAccount(
-      req as NextRequest,
-      context,
-      auth,
-    );
-  },
-);
+  return deleteAccount(req as NextRequest, context, auth);
+});

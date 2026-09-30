@@ -5,13 +5,16 @@ import { z } from "zod";
 // a provider account or when provider quota is exhausted.
 const envSchema = z
   .object({
-    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
 
     MONGODB_URI: z
       .string()
       .min(1, "MONGODB_URI is required")
       .refine(
-        (uri) => uri.startsWith("mongodb://") || uri.startsWith("mongodb+srv://"),
+        (uri) =>
+          uri.startsWith("mongodb://") || uri.startsWith("mongodb+srv://"),
         "MONGODB_URI must start with mongodb:// or mongodb+srv://",
       ),
 
@@ -89,8 +92,8 @@ const envSchema = z
       data.GOOGLE_CLIENT_SECRET,
       data.GOOGLE_REDIRECT_URI,
     ];
-    const googleConfigured = googleValues.filter(
-      (value) => Boolean(value?.trim()),
+    const googleConfigured = googleValues.filter((value) =>
+      Boolean(value?.trim()),
     ).length;
 
     if (googleConfigured > 0 && googleConfigured < googleValues.length) {

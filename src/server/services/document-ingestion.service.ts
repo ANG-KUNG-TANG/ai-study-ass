@@ -3,10 +3,7 @@ import type {
   UploadValidationPolicy,
   UploadedFile,
 } from "@/server/services/upload.service";
-import {
-  prepareUpload,
-  processUpload,
-} from "@/server/services/upload.service";
+import { prepareUpload, processUpload } from "@/server/services/upload.service";
 import {
   createNote,
   type CreateNoteOptions,
@@ -33,14 +30,9 @@ export interface DocumentIngestionOptions extends CreateNoteOptions {
   uploadPolicy?: UploadValidationPolicy;
 }
 
-async function rollback(
-  noteId: string,
-  storageKey?: string,
-): Promise<void> {
+async function rollback(noteId: string, storageKey?: string): Promise<void> {
   await Promise.allSettled([
-    storageKey
-      ? deleteTemporaryUpload(storageKey)
-      : Promise.resolve(),
+    storageKey ? deleteTemporaryUpload(storageKey) : Promise.resolve(),
     generationRepo.deleteByNoteId(noteId),
     noteRepo.deleteById(noteId),
   ]);
@@ -55,7 +47,7 @@ export async function ingestDocument(
   file: UploadedFile,
   options: DocumentIngestionOptions = {},
 ): Promise<DocumentIngestionResult> {
-  const settings = options.uploadPolicy ?? await assertUploadsEnabled();
+  const settings = options.uploadPolicy ?? (await assertUploadsEnabled());
   const prepared = prepareUpload(file, settings);
 
   if (prepared.fileType !== "pdf") {

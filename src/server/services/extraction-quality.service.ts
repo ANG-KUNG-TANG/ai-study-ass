@@ -1,14 +1,9 @@
 import { MAX_CONTENT_LENGTH } from "@/server/utils/constants";
 import { FileError } from "@/server/utils/errors";
 
-export type ExtractionQualityStatus =
-  | "good"
-  | "warning"
-  | "failed";
+export type ExtractionQualityStatus = "good" | "warning" | "failed";
 
-export type ExtractionQualitySeverity =
-  | "warning"
-  | "error";
+export type ExtractionQualitySeverity = "warning" | "error";
 
 export type ExtractionQualityReasonCode =
   | "EMPTY_OR_WHITESPACE"
@@ -95,10 +90,7 @@ function countMatches(value: string, pattern: RegExp): number {
 }
 
 function normaliseLine(value: string): string {
-  return value
-    .toLocaleLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
+  return value.toLocaleLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function addReason(
@@ -150,18 +142,12 @@ function buildPageMetrics(
   const pageText = new Map<number, string>();
 
   for (const page of pages) {
-    if (
-      !Number.isInteger(page.pageNumber) ||
-      page.pageNumber <= 0
-    ) {
+    if (!Number.isInteger(page.pageNumber) || page.pageNumber <= 0) {
       continue;
     }
 
     const previous = pageText.get(page.pageNumber) ?? "";
-    pageText.set(
-      page.pageNumber,
-      `${previous}\n${page.rawText ?? ""}`.trim(),
-    );
+    pageText.set(page.pageNumber, `${previous}\n${page.rawText ?? ""}`.trim());
   }
 
   const extractedPageNumbers = [...pageText.entries()]
@@ -190,9 +176,7 @@ function buildPageMetrics(
         ? null
         : round(Math.min(1, ratio(pagesWithText, pageCount))),
     averageCharsPerPage:
-      pageCount === null
-        ? null
-        : round(ratio(charCount, pageCount), 2),
+      pageCount === null ? null : round(ratio(charCount, pageCount), 2),
     extractedPageNumbers,
     missingPageNumbers,
   };
@@ -206,27 +190,15 @@ export function assessExtractionQuality(
   const charCount = trimmed.length;
   const nonWhitespaceChars = countMatches(trimmed, /\S/gu);
 
-  const letterOrNumberCount = countMatches(
-    trimmed,
-    /[\p{L}\p{N}]/gu,
-  );
-  const wordLikeTokenCount = countMatches(
-    trimmed,
-    /[\p{L}\p{N}]+/gu,
-  );
+  const letterOrNumberCount = countMatches(trimmed, /[\p{L}\p{N}]/gu);
+  const wordLikeTokenCount = countMatches(trimmed, /[\p{L}\p{N}]+/gu);
 
   const controlCharacterCount = countMatches(
     trimmed,
     /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,
   );
-  const replacementCharacterCount = countMatches(
-    trimmed,
-    /\uFFFD/g,
-  );
-  const readableCharacterCount = Math.max(
-    0,
-    charCount - controlCharacterCount,
-  );
+  const replacementCharacterCount = countMatches(trimmed, /\uFFFD/g);
+  const readableCharacterCount = Math.max(0, charCount - controlCharacterCount);
 
   const repeatedSymbolRunCount = countMatches(
     trimmed,
@@ -237,9 +209,7 @@ export function assessExtractionQuality(
     .split(/\n/u)
     .map((line) => line.trim())
     .filter(Boolean);
-  const uniqueLines = new Set(
-    lines.map(normaliseLine).filter(Boolean),
-  );
+  const uniqueLines = new Set(lines.map(normaliseLine).filter(Boolean));
 
   const maxContentLength =
     typeof input.maxContentLength === "number" &&
@@ -260,25 +230,17 @@ export function assessExtractionQuality(
     wordLikeTokenCount,
     lineCount: lines.length,
     uniqueLineRatio:
-      lines.length === 0
-        ? 0
-        : round(uniqueLines.size / lines.length),
+      lines.length === 0 ? 0 : round(uniqueLines.size / lines.length),
     readableRatio:
-      charCount === 0
-        ? 0
-        : round(readableCharacterCount / charCount),
+      charCount === 0 ? 0 : round(readableCharacterCount / charCount),
     alphanumericRatio:
       nonWhitespaceChars === 0
         ? 0
         : round(letterOrNumberCount / nonWhitespaceChars),
     replacementCharacterRatio:
-      charCount === 0
-        ? 0
-        : round(replacementCharacterCount / charCount),
+      charCount === 0 ? 0 : round(replacementCharacterCount / charCount),
     controlCharacterRatio:
-      charCount === 0
-        ? 0
-        : round(controlCharacterCount / charCount),
+      charCount === 0 ? 0 : round(controlCharacterCount / charCount),
     repeatedSymbolRunCount,
     ...pageMetrics,
     truncatedAtContentLimit,
@@ -292,8 +254,7 @@ export function assessExtractionQuality(
       {
         code: "EMPTY_OR_WHITESPACE",
         severity: "error",
-        message:
-          "The parser did not produce readable text.",
+        message: "The parser did not produce readable text.",
       },
       70,
     );
@@ -328,8 +289,7 @@ export function assessExtractionQuality(
         {
           code: "LOW_READABLE_RATIO",
           severity: "error",
-          message:
-            "Too many control or unreadable characters were detected.",
+          message: "Too many control or unreadable characters were detected.",
         },
         35,
       );
@@ -400,8 +360,7 @@ export function assessExtractionQuality(
         {
           code: "CONTROL_CHARACTER_NOISE",
           severity: "error",
-          message:
-            "The extraction contains excessive control-character noise.",
+          message: "The extraction contains excessive control-character noise.",
         },
         30,
       );
@@ -418,33 +377,20 @@ export function assessExtractionQuality(
       );
     }
 
-    const symbolRunWarningThreshold = Math.max(
-      3,
-      Math.floor(charCount / 1500),
-    );
-    const symbolRunFailureThreshold = Math.max(
-      10,
-      Math.floor(charCount / 400),
-    );
+    const symbolRunWarningThreshold = Math.max(3, Math.floor(charCount / 1500));
+    const symbolRunFailureThreshold = Math.max(10, Math.floor(charCount / 400));
 
-    if (
-      repeatedSymbolRunCount >=
-      symbolRunFailureThreshold
-    ) {
+    if (repeatedSymbolRunCount >= symbolRunFailureThreshold) {
       addReason(
         reasons,
         {
           code: "REPEATED_SYMBOL_NOISE",
           severity: "error",
-          message:
-            "The extraction contains extensive repeated-symbol noise.",
+          message: "The extraction contains extensive repeated-symbol noise.",
         },
         30,
       );
-    } else if (
-      repeatedSymbolRunCount >=
-      symbolRunWarningThreshold
-    ) {
+    } else if (repeatedSymbolRunCount >= symbolRunWarningThreshold) {
       addReason(
         reasons,
         {
@@ -457,10 +403,7 @@ export function assessExtractionQuality(
       );
     }
 
-    if (
-      metrics.lineCount >= 20 &&
-      metrics.uniqueLineRatio < 0.16
-    ) {
+    if (metrics.lineCount >= 20 && metrics.uniqueLineRatio < 0.16) {
       addReason(
         reasons,
         {
@@ -471,10 +414,7 @@ export function assessExtractionQuality(
         },
         30,
       );
-    } else if (
-      metrics.lineCount >= 20 &&
-      metrics.uniqueLineRatio < 0.4
-    ) {
+    } else if (metrics.lineCount >= 20 && metrics.uniqueLineRatio < 0.4) {
       addReason(
         reasons,
         {
@@ -562,20 +502,12 @@ export function assessExtractionQuality(
     );
   }
 
-  const hasError = reasons.some(
-    (reason) => reason.severity === "error",
-  );
-  const hasWarning = reasons.some(
-    (reason) => reason.severity === "warning",
-  );
+  const hasError = reasons.some((reason) => reason.severity === "error");
+  const hasWarning = reasons.some((reason) => reason.severity === "warning");
 
   let score = Math.max(
     0,
-    100 -
-      reasons.reduce(
-        (sum, reason) => sum + reason.penalty,
-        0,
-      ),
+    100 - reasons.reduce((sum, reason) => sum + reason.penalty, 0),
   );
 
   if (hasError) {
@@ -594,9 +526,7 @@ export function assessExtractionQuality(
     status,
     usable: status !== "failed",
     score,
-    reasons: reasons.map(
-      ({ penalty: _penalty, ...reason }) => reason,
-    ),
+    reasons: reasons.map(({ penalty: _penalty, ...reason }) => reason),
     metrics,
   };
 }
@@ -618,9 +548,7 @@ export class ExtractionQualityError extends FileError {
   }
 }
 
-export function assertExtractionUsable(
-  report: ExtractionQualityReport,
-): void {
+export function assertExtractionUsable(report: ExtractionQualityReport): void {
   if (!report.usable) {
     throw new ExtractionQualityError(report);
   }
@@ -632,17 +560,12 @@ export function extractionQualityLogContext(
   return {
     extractionQualityStatus: report.status,
     extractionQualityScore: report.score,
-    extractionQualityReasons: report.reasons.map(
-      (reason) => reason.code,
-    ),
+    extractionQualityReasons: report.reasons.map((reason) => reason.code),
     extractionCharCount: report.metrics.charCount,
     extractionPageCount: report.metrics.pageCount,
     extractionPagesWithText: report.metrics.pagesWithText,
-    extractionPageCoverage:
-      report.metrics.pageCoverageRatio,
-    extractionAverageCharsPerPage:
-      report.metrics.averageCharsPerPage,
-    extractionTruncated:
-      report.metrics.truncatedAtContentLimit,
+    extractionPageCoverage: report.metrics.pageCoverageRatio,
+    extractionAverageCharsPerPage: report.metrics.averageCharsPerPage,
+    extractionTruncated: report.metrics.truncatedAtContentLimit,
   };
 }

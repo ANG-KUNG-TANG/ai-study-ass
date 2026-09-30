@@ -169,23 +169,32 @@ const en = {
   "about.workflowDescription":
     "A short pipeline keeps every learning tool connected to the uploaded source.",
   "about.workflow.uploadTitle": "Upload",
-  "about.workflow.uploadDescription": "Add a supported PDF or DOCX study document.",
+  "about.workflow.uploadDescription":
+    "Add a supported PDF or DOCX study document.",
   "about.workflow.analyseTitle": "Understand",
-  "about.workflow.analyseDescription": "The intelligence pipeline identifies sections, concepts, and supporting evidence.",
+  "about.workflow.analyseDescription":
+    "The intelligence pipeline identifies sections, concepts, and supporting evidence.",
   "about.workflow.studyTitle": "Study",
-  "about.workflow.studyDescription": "Use the generated learning tools and return to the source whenever needed.",
+  "about.workflow.studyDescription":
+    "Use the generated learning tools and return to the source whenever needed.",
   "about.featuresTitle": "Learning tools",
-  "about.featuresDescription": "Each tool is generated from the selected study document.",
+  "about.featuresDescription":
+    "Each tool is generated from the selected study document.",
   "about.feature.summaryTitle": "Structured summaries",
-  "about.feature.summaryDescription": "Review explanations, key ideas, and document sections efficiently.",
+  "about.feature.summaryDescription":
+    "Review explanations, key ideas, and document sections efficiently.",
   "about.feature.quizTitle": "Practice quizzes",
-  "about.feature.quizDescription": "Check understanding with questions generated from the source.",
+  "about.feature.quizDescription":
+    "Check understanding with questions generated from the source.",
   "about.feature.flashcardsTitle": "Flashcards",
-  "about.feature.flashcardsDescription": "Strengthen recall through focused question-and-answer cards.",
+  "about.feature.flashcardsDescription":
+    "Strengthen recall through focused question-and-answer cards.",
   "about.feature.knowledgeTitle": "Knowledge maps",
-  "about.feature.knowledgeDescription": "Explore relationships between the document’s important concepts.",
+  "about.feature.knowledgeDescription":
+    "Explore relationships between the document’s important concepts.",
   "about.feature.chatTitle": "Document-aware chat",
-  "about.feature.chatDescription": "Ask questions using the uploaded material as learning context.",
+  "about.feature.chatDescription":
+    "Ask questions using the uploaded material as learning context.",
   "about.techTitle": "Technology",
   "about.techDescription":
     "The application uses a typed Next.js architecture, MongoDB for durable data, Redis and BullMQ for background document jobs, provider-based AI generation, and Docker for consistent deployment.",
@@ -236,7 +245,8 @@ const en = {
   "feedback.success": "Thank you—your feedback has reached the administrators.",
   "feedback.failed": "Feedback could not be submitted.",
   "feedback.recentTitle": "Your recent feedback",
-  "feedback.recentDescription": "Track what you submitted and its review status.",
+  "feedback.recentDescription":
+    "Track what you submitted and its review status.",
   "feedback.empty": "You have not submitted feedback yet.",
   "feedback.status.new": "New",
   "feedback.status.reviewing": "Under review",
@@ -296,7 +306,8 @@ const en = {
   "dashboard.recentNotes": "Recent notes",
   "dashboard.viewAll": "View all",
   "dashboard.noNotes": "No notes yet",
-  "dashboard.noNotesDescription": "Upload your first PDF or DOCX to start learning.",
+  "dashboard.noNotesDescription":
+    "Upload your first PDF or DOCX to start learning.",
   "dashboard.libraryKicker": "Library",
   "dashboard.rhythmKicker": "Study rhythm",
   "dashboard.rhythmTitle": "A calm daily loop",
@@ -368,7 +379,8 @@ const en = {
   "summary.keyPoints": "Key points",
   "summary.concepts": "Important concepts",
   "summary.studyTopics": "Detailed study notes",
-  "summary.studyTopicsDescription": "Learn the strongest source-grounded topics with clear explanations and useful details",
+  "summary.studyTopicsDescription":
+    "Learn the strongest source-grounded topics with clear explanations and useful details",
   "summary.focusedTopics": "{count} learning topics",
   "summary.simpleExplanation": "Simple explanation",
   "summary.importantKeyPoints": "Important details",
@@ -453,7 +465,8 @@ const en = {
   "feature.studyMaterials": "Study materials",
   "feature.studyAssistant": "Study assistant",
   "feature.summaries": "Summaries",
-  "feature.summariesDescription": "Open a note to review its generated summary.",
+  "feature.summariesDescription":
+    "Open a note to review its generated summary.",
   "feature.summariesEmpty":
     "Upload a PDF or DOCX before opening a generated summary.",
   "feature.openSummary": "Open summary",
@@ -581,7 +594,8 @@ const en = {
   "knowledge.followOrderDescription":
     "Each step comes from a source section. Open a concept to see what it means, why it connects, and the evidence supporting it.",
   "knowledge.learningSection": "Learning section",
-  "knowledge.noSectionConcepts": "No key concepts were attached to this section.",
+  "knowledge.noSectionConcepts":
+    "No key concepts were attached to this section.",
   "knowledge.fitGraph": "Fit",
   "knowledge.resetGraph": "Reset",
   "knowledge.inspector.understand": "Understand",
@@ -597,7 +611,8 @@ const en = {
   "knowledge.inspector.type": "Type",
   "knowledge.inspector.noRelationship":
     "No direct source-grounded relationship was found for this item.",
-  "knowledge.inspector.noSource": "No source evidence is attached to this node.",
+  "knowledge.inspector.noSource":
+    "No source evidence is attached to this node.",
   "knowledge.documentEvidence": "Document evidence",
   "knowledge.link": "link",
   "knowledge.links": "links",
@@ -751,8 +766,7 @@ const en = {
   "admin.health.unavailable": "Unavailable",
   "admin.health.operational": "Operational",
   "admin.health.quotaExhausted": "Quota exhausted",
-  "admin.health.aiToday":
-    "Today: {successes} successful · {failures} failed",
+  "admin.health.aiToday": "Today: {successes} successful · {failures} failed",
   "admin.health.quotaErrors": "Provider quota errors: {count}",
   "admin.health.quotaAlertTitle": "AI provider quota is exhausted",
   "admin.health.quotaAlertDescription":
@@ -860,8 +874,7 @@ const en = {
   "admin.users.ban": "Ban",
   "admin.users.unban": "Unban",
   "admin.users.empty": "No users found.",
-  "admin.users.banConfirm":
-    "Ban {name}? They will be signed out immediately.",
+  "admin.users.banConfirm": "Ban {name}? They will be signed out immediately.",
   "admin.users.deleteConfirm":
     "Permanently delete {name} ({email})? This cannot be undone.",
   "admin.users.actionFailed": "Action failed",
@@ -904,7 +917,8 @@ const en = {
   "admin.overview.overviewUnavailable": "Overview statistics are unavailable.",
   "admin.overview.usersUnavailable": "User account statistics are unavailable.",
   "admin.overview.aiUnavailable": "AI usage telemetry is unavailable.",
-  "admin.overview.healthUnavailable": "System health information is unavailable.",
+  "admin.overview.healthUnavailable":
+    "System health information is unavailable.",
   "admin.overview.inactiveAccountOne": "1 inactive account",
   "admin.overview.inactiveAccounts": "{count} inactive accounts",
   "admin.overview.inactiveDetail":
@@ -947,7 +961,8 @@ const my: Record<TranslationKey, string> = {
   "common.showPassword": "စကားဝှက်ပြရန်",
   "common.hidePassword": "စကားဝှက်ဖျောက်ရန်",
 
-  "auth.hero.title": "မရှင်းလင်းမှုကို တစ်ချက်နှိပ်ရုံဖြင့် နားလည်မှုအဖြစ် ပြောင်းလဲပါ။",
+  "auth.hero.title":
+    "မရှင်းလင်းမှုကို တစ်ချက်နှိပ်ရုံဖြင့် နားလည်မှုအဖြစ် ပြောင်းလဲပါ။",
   "auth.hero.description":
     "သင်ခန်းစာမှတ်စုများကို တင်ပြီး AI ဖြင့် အနှစ်ချုပ်၊ ကတ်များ၊ မေးခွန်းများနှင့် ရှင်းလင်းချက်များကို စက္ကန့်ပိုင်းအတွင်း ဖန်တီးပါ။",
   "auth.editorial.kicker": "မူရင်းအကြောင်းအရာကို အခြေခံသော လေ့လာရေးအလုပ်နေရာ",
@@ -981,10 +996,13 @@ const my: Record<TranslationKey, string> = {
   "login.oauth.accessDenied": "Google ဝင်ရောက်မှုကို ပယ်ဖျက်ခဲ့သည်။",
   "login.oauth.accountLinkRequired":
     "ဤအီးမေးလ်သည် စကားဝှက်ဖြင့် ဝင်ရောက်ထားပြီးဖြစ်သည်။ စကားဝှက်ဖြင့် ဝင်ပါ။",
-  "login.oauth.invalidState": "Google ဝင်ရောက်မှု သက်တမ်းကုန်သွားပါပြီ။ ထပ်မံကြိုးစားပါ။",
+  "login.oauth.invalidState":
+    "Google ဝင်ရောက်မှု သက်တမ်းကုန်သွားပါပြီ။ ထပ်မံကြိုးစားပါ။",
   "login.oauth.notConfigured": "Google ဝင်ရောက်မှုကို မသတ်မှတ်ရသေးပါ။",
-  "login.oauth.rateLimited": "ဝင်ရောက်ရန် အကြိမ်များလွန်းသည်။ ခဏစောင့်ပြီး ထပ်မံကြိုးစားပါ။",
-  "login.oauth.failed": "Google ဖြင့် ဝင်ရောက်မှု မပြီးမြောက်ပါ။ ထပ်မံကြိုးစားပါ။",
+  "login.oauth.rateLimited":
+    "ဝင်ရောက်ရန် အကြိမ်များလွန်းသည်။ ခဏစောင့်ပြီး ထပ်မံကြိုးစားပါ။",
+  "login.oauth.failed":
+    "Google ဖြင့် ဝင်ရောက်မှု မပြီးမြောက်ပါ။ ထပ်မံကြိုးစားပါ။",
   "login.resendVerification": "အတည်ပြုအီးမေးလ်ကို ထပ်ပို့ရန်",
 
   "register.title": "သင့်အကောင့်ကို ဖန်တီးပါ",
@@ -1012,10 +1030,12 @@ const my: Record<TranslationKey, string> = {
   "forgot.submit": "ပြန်လည်သတ်မှတ်ရန် လင့်ခ်ပို့ရန်",
   "forgot.submitting": "ပို့နေသည်…",
   "forgot.checkInbox": "သင့်အီးမေးလ်ကို စစ်ဆေးပါ",
-  "forgot.sent": "စကားဝှက်ပြန်လည်သတ်မှတ်ရန် လင့်ခ်ကို {email} သို့ ပို့ပြီးပါပြီ။",
+  "forgot.sent":
+    "စကားဝှက်ပြန်လည်သတ်မှတ်ရန် လင့်ခ်ကို {email} သို့ ပို့ပြီးပါပြီ။",
   "forgot.backToLogin": "ဝင်ရောက်ရန် ပြန်သွားရန်",
 
-  "reset.missingToken": "ပြန်လည်သတ်မှတ်သည့် လင့်ခ်တွင် token မပါပါ။ အီးမေးလ်ရှိ လင့်ခ်ကို စစ်ဆေးပါ။",
+  "reset.missingToken":
+    "ပြန်လည်သတ်မှတ်သည့် လင့်ခ်တွင် token မပါပါ။ အီးမေးလ်ရှိ လင့်ခ်ကို စစ်ဆေးပါ။",
   "reset.passwordMismatch": "စကားဝှက်များ မတူညီပါ။",
   "reset.failed": "စကားဝှက် ပြန်လည်သတ်မှတ်၍ မရပါ။",
   "reset.title": "စကားဝှက်အသစ် သတ်မှတ်ပါ",
@@ -1072,13 +1092,15 @@ const my: Record<TranslationKey, string> = {
   "sidebar.studentRole": "ကျောင်းသား",
   "sidebar.aboutTitle": "အက်ပ်အကြောင်း",
   "sidebar.streakTitle": "{days} ရက်ဆက်တိုက်",
-  "sidebar.streak": "ယနေ့ လေ့လာရေးကတ် ၂ စုံ ထပ်မံလေ့လာပြီး ဆက်တိုက်မှတ်တမ်းကို ထိန်းပါ။",
+  "sidebar.streak":
+    "ယနေ့ လေ့လာရေးကတ် ၂ စုံ ထပ်မံလေ့လာပြီး ဆက်တိုက်မှတ်တမ်းကို ထိန်းပါ။",
 
   "about.eyebrow": "အပလီကေးရှင်း",
   "about.title": "AI Study Assistant အကြောင်း",
   "about.version": "ဗားရှင်း {version}",
   "about.statusBadge": "ဆက်လက်တိုးတက်နေသည်",
-  "about.whatTitle": "သင်ခန်းစာစာရွက်စာတမ်းများကို ချိတ်ဆက်ထားသော လေ့လာရေးအလုပ်နေရာအဖြစ် ပြောင်းပါ",
+  "about.whatTitle":
+    "သင်ခန်းစာစာရွက်စာတမ်းများကို ချိတ်ဆက်ထားသော လေ့လာရေးအလုပ်နေရာအဖြစ် ပြောင်းပါ",
   "about.description":
     "AI Study Assistant သည် ကျောင်းသားများ၏ သင်ခန်းစာစာရွက်စာတမ်းများကို ရှင်းလင်းသော အနှစ်ချုပ်များ၊ မေးခွန်းများ၊ လေ့လာရေးကတ်များ၊ အသိပညာမြေပုံများနှင့် ရွေးချယ်ထားသောအကြောင်းအရာကို နားလည်သည့် AI စကားပြောခန်းအဖြစ် ပြောင်းလဲပေးသည်။",
   "about.problemTitle": "ဖြေရှင်းပေးသည့် ပြဿနာ",
@@ -1094,23 +1116,32 @@ const my: Record<TranslationKey, string> = {
   "about.workflowDescription":
     "လေ့လာရေးကိရိယာတိုင်းကို တင်ထားသော မူရင်းအကြောင်းအရာနှင့် ဆက်စပ်ထားသည့် လုပ်ငန်းစဉ်ဖြစ်သည်။",
   "about.workflow.uploadTitle": "တင်ပါ",
-  "about.workflow.uploadDescription": "ပံ့ပိုးထားသော PDF သို့မဟုတ် DOCX စာရွက်စာတမ်းကို ထည့်ပါ။",
+  "about.workflow.uploadDescription":
+    "ပံ့ပိုးထားသော PDF သို့မဟုတ် DOCX စာရွက်စာတမ်းကို ထည့်ပါ။",
   "about.workflow.analyseTitle": "နားလည်ပါ",
-  "about.workflow.analyseDescription": "စနစ်သည် အပိုင်းများ၊ အယူအဆများနှင့် အထောက်အထားများကို ဖော်ထုတ်ပေးသည်။",
+  "about.workflow.analyseDescription":
+    "စနစ်သည် အပိုင်းများ၊ အယူအဆများနှင့် အထောက်အထားများကို ဖော်ထုတ်ပေးသည်။",
   "about.workflow.studyTitle": "လေ့လာပါ",
-  "about.workflow.studyDescription": "ဖန်တီးထားသော ကိရိယာများကို သုံးပြီး လိုအပ်သည့်အခါ မူရင်းစာသားကို ပြန်ကြည့်ပါ။",
+  "about.workflow.studyDescription":
+    "ဖန်တီးထားသော ကိရိယာများကို သုံးပြီး လိုအပ်သည့်အခါ မူရင်းစာသားကို ပြန်ကြည့်ပါ။",
   "about.featuresTitle": "လေ့လာရေးကိရိယာများ",
-  "about.featuresDescription": "ကိရိယာတစ်ခုစီကို ရွေးချယ်ထားသော စာရွက်စာတမ်းမှ ဖန်တီးထားသည်။",
+  "about.featuresDescription":
+    "ကိရိယာတစ်ခုစီကို ရွေးချယ်ထားသော စာရွက်စာတမ်းမှ ဖန်တီးထားသည်။",
   "about.feature.summaryTitle": "ဖွဲ့စည်းထားသော အနှစ်ချုပ်များ",
-  "about.feature.summaryDescription": "ရှင်းလင်းချက်များ၊ အဓိကအချက်များနှင့် စာရွက်စာတမ်းအပိုင်းများကို လွယ်ကူစွာ ပြန်လည်ကြည့်ရှုပါ။",
+  "about.feature.summaryDescription":
+    "ရှင်းလင်းချက်များ၊ အဓိကအချက်များနှင့် စာရွက်စာတမ်းအပိုင်းများကို လွယ်ကူစွာ ပြန်လည်ကြည့်ရှုပါ။",
   "about.feature.quizTitle": "လေ့ကျင့်ရေးမေးခွန်းများ",
-  "about.feature.quizDescription": "မူရင်းအကြောင်းအရာမှ ဖန်တီးထားသော မေးခွန်းများဖြင့် နားလည်မှုကို စစ်ဆေးပါ။",
+  "about.feature.quizDescription":
+    "မူရင်းအကြောင်းအရာမှ ဖန်တီးထားသော မေးခွန်းများဖြင့် နားလည်မှုကို စစ်ဆေးပါ။",
   "about.feature.flashcardsTitle": "လေ့လာရေးကတ်များ",
-  "about.feature.flashcardsDescription": "မေးခွန်းနှင့်အဖြေကတ်များဖြင့် မှတ်မိနိုင်စွမ်းကို မြှင့်တင်ပါ။",
+  "about.feature.flashcardsDescription":
+    "မေးခွန်းနှင့်အဖြေကတ်များဖြင့် မှတ်မိနိုင်စွမ်းကို မြှင့်တင်ပါ။",
   "about.feature.knowledgeTitle": "အသိပညာမြေပုံများ",
-  "about.feature.knowledgeDescription": "အရေးကြီးသော အယူအဆများအကြား ဆက်နွယ်မှုကို လေ့လာပါ။",
+  "about.feature.knowledgeDescription":
+    "အရေးကြီးသော အယူအဆများအကြား ဆက်နွယ်မှုကို လေ့လာပါ။",
   "about.feature.chatTitle": "စာရွက်စာတမ်းအခြေပြု စကားပြောခန်း",
-  "about.feature.chatDescription": "တင်ထားသောအကြောင်းအရာကို အခြေခံ၍ မေးခွန်းများ မေးနိုင်သည်။",
+  "about.feature.chatDescription":
+    "တင်ထားသောအကြောင်းအရာကို အခြေခံ၍ မေးခွန်းများ မေးနိုင်သည်။",
   "about.techTitle": "နည်းပညာများ",
   "about.techDescription":
     "ဤအက်ပ်သည် typed Next.js architecture၊ အမြဲတမ်းဒေတာအတွက် MongoDB၊ နောက်ခံစာရွက်စာတမ်းအလုပ်များအတွက် Redis နှင့် BullMQ၊ AI provider များနှင့် တည်ငြိမ်သောဖြန့်ချိမှုအတွက် Docker ကို အသုံးပြုထားသည်။",
@@ -1158,10 +1189,12 @@ const my: Record<TranslationKey, string> = {
   "feedback.contextLabel": "သက်ဆိုင်ရာစာမျက်နှာ",
   "feedback.submit": "အကြံပြုချက်ပို့ရန်",
   "feedback.submitting": "ပို့နေသည်…",
-  "feedback.success": "ကျေးဇူးတင်ပါသည်—သင့်အကြံပြုချက်ကို စီမံခန့်ခွဲသူများ လက်ခံရရှိပါပြီ။",
+  "feedback.success":
+    "ကျေးဇူးတင်ပါသည်—သင့်အကြံပြုချက်ကို စီမံခန့်ခွဲသူများ လက်ခံရရှိပါပြီ။",
   "feedback.failed": "အကြံပြုချက်ကို ပို့၍မရပါ။",
   "feedback.recentTitle": "သင့်လတ်တလောအကြံပြုချက်များ",
-  "feedback.recentDescription": "တင်ထားသည့်အကြံပြုချက်နှင့် စစ်ဆေးမှုအခြေအနေကို ကြည့်ပါ။",
+  "feedback.recentDescription":
+    "တင်ထားသည့်အကြံပြုချက်နှင့် စစ်ဆေးမှုအခြေအနေကို ကြည့်ပါ။",
   "feedback.empty": "အကြံပြုချက် မတင်ရသေးပါ။",
   "feedback.status.new": "အသစ်",
   "feedback.status.reviewing": "စစ်ဆေးနေသည်",
@@ -1172,13 +1205,15 @@ const my: Record<TranslationKey, string> = {
   "admin.feedback.title": "အသုံးပြုသူအကြံပြုချက်များ",
   "admin.feedback.description":
     "အသုံးပြုသူများပေးပို့သည့် မှတ်ချက်၊ အကြံပြုချက်၊ လုပ်ဆောင်ချက်တောင်းဆိုမှုနှင့် ပြဿနာများကို စစ်ဆေးပါ။",
-  "admin.feedback.searchPlaceholder": "ခေါင်းစဉ်၊ စာသား၊ အီးမေးလ် သို့မဟုတ် စာမျက်နှာရှာရန်",
+  "admin.feedback.searchPlaceholder":
+    "ခေါင်းစဉ်၊ စာသား၊ အီးမေးလ် သို့မဟုတ် စာမျက်နှာရှာရန်",
   "admin.feedback.allTypes": "အမျိုးအစားအားလုံး",
   "admin.feedback.allStatuses": "အခြေအနေအားလုံး",
   "admin.feedback.export": "CSV ထုတ်ယူရန်",
   "admin.feedback.refresh": "ပြန်ဖွင့်ရန်",
   "admin.feedback.total": "တင်ပြချက် {count} ခု",
-  "admin.feedback.empty": "ရွေးထားသော စစ်ထုတ်မှုနှင့် ကိုက်ညီသည့် အကြံပြုချက်မရှိပါ။",
+  "admin.feedback.empty":
+    "ရွေးထားသော စစ်ထုတ်မှုနှင့် ကိုက်ညီသည့် အကြံပြုချက်မရှိပါ။",
   "admin.feedback.adminNote": "အတွင်းပိုင်း ဖွံ့ဖြိုးရေးမှတ်ချက်",
   "admin.feedback.adminNotePlaceholder":
     "ဆုံးဖြတ်ချက်၊ တည်ဆောက်မည့်အကြံ သို့မဟုတ် ပိတ်ရသည့်အကြောင်းရင်းကို မှတ်တမ်းတင်ပါ။",
@@ -1215,13 +1250,15 @@ const my: Record<TranslationKey, string> = {
   "dashboard.averageScore": "ပျမ်းမျှရမှတ်",
   "dashboard.cardsReviewed": "လေ့လာပြီး ကတ်များ",
   "dashboard.continueStudying": "ဆက်လက်လေ့လာရန်",
-  "dashboard.ready": "အနှစ်ချုပ်ပြီးပါပြီ။ မေးခွန်းနှင့် ကတ်များ အသင့်ဖြစ်ပါပြီ။",
+  "dashboard.ready":
+    "အနှစ်ချုပ်ပြီးပါပြီ။ မေးခွန်းနှင့် ကတ်များ အသင့်ဖြစ်ပါပြီ။",
   "dashboard.processing": "သင့်မှတ်စုကို လုပ်ဆောင်နေပါသည်။ ခဏနေ ပြန်လာပါ။",
   "dashboard.continue": "ဆက်လက်ရန်",
   "dashboard.recentNotes": "လတ်တလောမှတ်စုများ",
   "dashboard.viewAll": "အားလုံးကြည့်ရန်",
   "dashboard.noNotes": "မှတ်စုမရှိသေးပါ",
-  "dashboard.noNotesDescription": "စတင်လေ့လာရန် ပထမဆုံး PDF သို့မဟုတ် DOCX ကို တင်ပါ။",
+  "dashboard.noNotesDescription":
+    "စတင်လေ့လာရန် ပထမဆုံး PDF သို့မဟုတ် DOCX ကို တင်ပါ။",
   "dashboard.libraryKicker": "စာကြည့်တိုက်",
   "dashboard.rhythmKicker": "လေ့လာမှုစည်းချက်",
   "dashboard.rhythmTitle": "တည်ငြိမ်သော နေ့စဉ်လေ့လာမှု",
@@ -1253,12 +1290,14 @@ const my: Record<TranslationKey, string> = {
     "ချိတ်ဆက်ထားသော စာရွက်စာတမ်းတစ်ခုတည်းမှ မူရင်းစာသားကို ဖတ်၊ အဓိကအချက်များကို ပြန်လည်ကြည့်ပြီး လေ့ကျင့်ပါ။",
   "document.sourceReady": "မူရင်းစာသား အသင့်ဖြစ်ပါပြီ",
 
-  "upload.unsupported": "ဤဖိုင်အမျိုးအစားကို မထောက်ပံ့ပါ။ ခွင့်ပြုထားသည်များ: {types}",
+  "upload.unsupported":
+    "ဤဖိုင်အမျိုးအစားကို မထောက်ပံ့ပါ။ ခွင့်ပြုထားသည်များ: {types}",
   "upload.tooLarge": "ဖိုင်အရွယ်အစား ကြီးလွန်းသည်။ အများဆုံး: {size}MB",
   "upload.failed": "ဖိုင်တင်မှု မအောင်မြင်ပါ",
   "upload.uploading": "တင်နေသည်…",
   "upload.drop": "PDF သို့မဟုတ် DOCX ကို ဤနေရာသို့ ချပါ",
-  "upload.description": "စာသားထုတ်ယူပြီး အနှစ်ချုပ်၊ မေးခွန်းနှင့် စကားပြောခန်းအတွက် ပြင်ဆင်ပေးပါမည်။",
+  "upload.description":
+    "စာသားထုတ်ယူပြီး အနှစ်ချုပ်၊ မေးခွန်းနှင့် စကားပြောခန်းအတွက် ပြင်ဆင်ပေးပါမည်။",
   "upload.browse": "ဖိုင်ရွေးရန်",
 
   "note.deleteLabel": "{title} ကို ဖျက်ရန်",
@@ -1292,7 +1331,8 @@ const my: Record<TranslationKey, string> = {
   "summary.keyPoints": "အဓိကအချက်များ",
   "summary.concepts": "အရေးကြီးသော သဘောတရားများ",
   "summary.studyTopics": "အသေးစိတ် လေ့လာမှတ်စုများ",
-  "summary.studyTopicsDescription": "အရင်းအမြစ်အထောက်အထားရှိသော အဓိကအကြောင်းအရာများကို ရှင်းလင်းချက်နှင့် အသုံးဝင်သောအသေးစိတ်အချက်များဖြင့် လေ့လာပါ",
+  "summary.studyTopicsDescription":
+    "အရင်းအမြစ်အထောက်အထားရှိသော အဓိကအကြောင်းအရာများကို ရှင်းလင်းချက်နှင့် အသုံးဝင်သောအသေးစိတ်အချက်များဖြင့် လေ့လာပါ",
   "summary.focusedTopics": "လေ့လာရန် အကြောင်းအရာ {count} ခု",
   "summary.simpleExplanation": "ရိုးရှင်းသော ရှင်းလင်းချက်",
   "summary.importantKeyPoints": "အရေးကြီးသော အသေးစိတ်အချက်များ",
@@ -1318,8 +1358,10 @@ const my: Record<TranslationKey, string> = {
   "quiz.type.trueFalse": "မှန် သို့မဟုတ် မှား",
   "quiz.type.shortAnswer": "အဖြေတို",
   "quiz.unavailable": "မေးခွန်းများ မရရှိသေးပါ",
-  "quiz.unavailableDescription": "မေးခွန်းများကို အခြားလေ့လာရေးအကြောင်းအရာများနှင့်အတူ အလိုအလျောက် ဖန်တီးပါသည်။",
-  "quiz.retryHelp": "ပြန်လုပ်ရန်လိုပါက အခြေအနေအကွက်ရှိ “လေ့လာရေးအကြောင်းအရာအားလုံး ပြန်ဖန်တီးရန်” ကို သုံးပါ။",
+  "quiz.unavailableDescription":
+    "မေးခွန်းများကို အခြားလေ့လာရေးအကြောင်းအရာများနှင့်အတူ အလိုအလျောက် ဖန်တီးပါသည်။",
+  "quiz.retryHelp":
+    "ပြန်လုပ်ရန်လိုပါက အခြေအနေအကွက်ရှိ “လေ့လာရေးအကြောင်းအရာအားလုံး ပြန်ဖန်တီးရန်” ကို သုံးပါ။",
   "quiz.practice": "လေ့ကျင့်ရန်",
   "quiz.questionCount": "မေးခွန်း {count} ခု",
   "quiz.typeAnswer": "သင့်အဖြေကို ရိုက်ထည့်ပါ",
@@ -1338,7 +1380,8 @@ const my: Record<TranslationKey, string> = {
   "flashcards.regenerating": "ပြန်လည်ဖန်တီးနေသည်",
   "flashcards.regenerate": "ကတ်အစုကို ပြန်လည်ဖန်တီးရန်",
   "flashcards.unavailable": "လေ့လာရေးကတ်များ မရရှိသေးပါ",
-  "flashcards.unavailableDescription": "ကတ်များကို အခြားလေ့လာရေးအကြောင်းအရာများနှင့်အတူ အလိုအလျောက် ဖန်တီးပါသည်။",
+  "flashcards.unavailableDescription":
+    "ကတ်များကို အခြားလေ့လာရေးအကြောင်းအရာများနှင့်အတူ အလိုအလျောက် ဖန်တီးပါသည်။",
   "flashcards.reviewDeck": "ကတ်များ လေ့လာရန်",
   "flashcards.position": "ကတ် {current} / {total}",
   "flashcards.answer": "အဖြေ",
@@ -1351,9 +1394,11 @@ const my: Record<TranslationKey, string> = {
 
   "original.source": "မူရင်းစာတမ်း",
   "original.title": "ထုတ်ယူထားသော မူရင်းစာသား",
-  "original.description": "လေ့လာရေးမှတ်စု မဖန်တီးမီ တင်ထားသောစာတမ်းမှ ထုတ်ယူထားသည့် စာသားဖြစ်သည်။",
+  "original.description":
+    "လေ့လာရေးမှတ်စု မဖန်တီးမီ တင်ထားသောစာတမ်းမှ ထုတ်ယူထားသည့် စာသားဖြစ်သည်။",
   "original.empty": "ထုတ်ယူထားသော စာသားမရှိပါ",
-  "original.emptyDescription": "ဤမှတ်စုတွင် မူရင်းစာသား မသိမ်းထားပါ။ ပြန်ရရန် စာတမ်းကို ထပ်တင်ပါ သို့မဟုတ် ပြန်လည်လုပ်ဆောင်ပါ။",
+  "original.emptyDescription":
+    "ဤမှတ်စုတွင် မူရင်းစာသား မသိမ်းထားပါ။ ပြန်ရရန် စာတမ်းကို ထပ်တင်ပါ သို့မဟုတ် ပြန်လည်လုပ်ဆောင်ပါ။",
 
   "chat.document": "စာတမ်းနှင့် စကားပြောခန်း",
   "chat.askAbout": "{title} အကြောင်း မေးရန်",
@@ -1361,7 +1406,8 @@ const my: Record<TranslationKey, string> = {
   "chat.clear": "စကားပြောခန်း ရှင်းရန်",
   "chat.loading": "စကားဝိုင်း ဖွင့်နေသည်…",
   "chat.start": "စကားဝိုင်း စတင်ပါ",
-  "chat.startDescription": "ဤစာတမ်းအပေါ် အခြေခံ၍ ရှင်းလင်းချက်၊ ဥပမာ၊ နှိုင်းယှဉ်ချက်၊ အဓိပ္ပာယ်ဖွင့်ဆိုချက် သို့မဟုတ် ပြန်လည်လေ့လာမေးခွန်းများ မေးပါ။",
+  "chat.startDescription":
+    "ဤစာတမ်းအပေါ် အခြေခံ၍ ရှင်းလင်းချက်၊ ဥပမာ၊ နှိုင်းယှဉ်ချက်၊ အဓိပ္ပာယ်ဖွင့်ဆိုချက် သို့မဟုတ် ပြန်လည်လေ့လာမေးခွန်းများ မေးပါ။",
   "chat.thinking": "စဉ်းစားနေသည်…",
   "chat.placeholder": "ဤစာတမ်းအကြောင်း မေးခွန်းမေးပါ…",
   "chat.send": "မေးခွန်းပို့ရန်",
@@ -1371,18 +1417,24 @@ const my: Record<TranslationKey, string> = {
   "feature.studyMaterials": "လေ့လာရေးအကြောင်းအရာများ",
   "feature.studyAssistant": "လေ့လာရေးအကူ",
   "feature.summaries": "အနှစ်ချုပ်များ",
-  "feature.summariesDescription": "ဖန်တီးထားသော အနှစ်ချုပ်ကို ကြည့်ရန် မှတ်စုတစ်ခု ဖွင့်ပါ။",
-  "feature.summariesEmpty": "အနှစ်ချုပ်ကြည့်ရန် PDF သို့မဟုတ် DOCX ကို အရင်တင်ပါ။",
+  "feature.summariesDescription":
+    "ဖန်တီးထားသော အနှစ်ချုပ်ကို ကြည့်ရန် မှတ်စုတစ်ခု ဖွင့်ပါ။",
+  "feature.summariesEmpty":
+    "အနှစ်ချုပ်ကြည့်ရန် PDF သို့မဟုတ် DOCX ကို အရင်တင်ပါ။",
   "feature.openSummary": "အနှစ်ချုပ်ဖွင့်ရန်",
   "feature.quizzes": "မေးခွန်းများ",
-  "feature.quizzesDescription": "မေးခွန်းများဖွင့်ရန် သို့မဟုတ် မရှိသေးသော မေးခွန်းများဖန်တီးရန် မှတ်စုတစ်ခု ရွေးပါ။",
+  "feature.quizzesDescription":
+    "မေးခွန်းများဖွင့်ရန် သို့မဟုတ် မရှိသေးသော မေးခွန်းများဖန်တီးရန် မှတ်စုတစ်ခု ရွေးပါ။",
   "feature.quizzesEmpty": "မေးခွန်းစတင်ရန် စာတမ်းတစ်ခုကို အရင်တင်ပါ။",
   "feature.openQuiz": "မေးခွန်းဖွင့်ရန်",
-  "feature.flashcardsDescription": "ဖန်တီးထားသော လေ့လာရေးကတ်များကို လေ့လာရန် မှတ်စုတစ်ခု ရွေးပါ။",
+  "feature.flashcardsDescription":
+    "ဖန်တီးထားသော လေ့လာရေးကတ်များကို လေ့လာရန် မှတ်စုတစ်ခု ရွေးပါ။",
   "feature.flashcardsEmpty": "ကတ်များကြည့်ရန် စာတမ်းတစ်ခုကို အရင်တင်ပါ။",
   "feature.openFlashcards": "ကတ်များဖွင့်ရန်",
-  "feature.chatDescription": "သိမ်းထားသော အသိပညာကို သုံးပြီး မေးခွန်းမေးရန် မှတ်စုတစ်ခု ရွေးပါ။",
-  "feature.chatEmpty": "မှတ်စုအခြေပြု စကားပြောခန်း စတင်ရန် စာတမ်းတစ်ခုကို အရင်တင်ပါ။",
+  "feature.chatDescription":
+    "သိမ်းထားသော အသိပညာကို သုံးပြီး မေးခွန်းမေးရန် မှတ်စုတစ်ခု ရွေးပါ။",
+  "feature.chatEmpty":
+    "မှတ်စုအခြေပြု စကားပြောခန်း စတင်ရန် စာတမ်းတစ်ခုကို အရင်တင်ပါ။",
   "feature.openChat": "စကားပြောခန်းဖွင့်ရန်",
   "feature.noNotes": "မှတ်စုမရှိပါ",
   "feature.search": "မှတ်စုများ ရှာရန်…",
@@ -1390,9 +1442,11 @@ const my: Record<TranslationKey, string> = {
   "feature.noteCountOne": "မှတ်စု ၁ ခု",
   "feature.loadingNotes": "မှတ်စုများ ဖွင့်နေသည်…",
   "feature.noMatch": "ကိုက်ညီသော မှတ်စုမရှိပါ",
-  "feature.tryDifferent": "အခြားခေါင်းစဉ်ဖြင့် ရှာပါ သို့မဟုတ် ရှာဖွေမှုကို ရှင်းပါ။",
+  "feature.tryDifferent":
+    "အခြားခေါင်းစဉ်ဖြင့် ရှာပါ သို့မဟုတ် ရှာဖွေမှုကို ရှင်းပါ။",
   "feature.openNotes": "မှတ်စုများဖွင့်ရန်",
-  "feature.preview": "ဖန်တီးထားသော လေ့လာရေးအကြောင်းအရာကို ကြည့်ရန် ဤမှတ်စုကို ဖွင့်ပါ။",
+  "feature.preview":
+    "ဖန်တီးထားသော လေ့လာရေးအကြောင်းအရာကို ကြည့်ရန် ဤမှတ်စုကို ဖွင့်ပါ။",
   "feature.viewSummary": "အနှစ်ချုပ်ကြည့်ရန်",
 
   "generation.feature.knowledge": "အသိပညာ",
@@ -1405,15 +1459,24 @@ const my: Record<TranslationKey, string> = {
   "generation.stage.complete": "လေ့လာရေးအကြောင်းအရာများ အသင့်ဖြစ်ပါပြီ",
   "generation.stage.partial": "တစ်စိတ်တစ်ပိုင်း ဖန်တီးပြီးပါပြီ",
   "generation.stage.failed": "ဖန်တီးမှု မအောင်မြင်ပါ",
-  "generation.description.extracting": "စာတမ်းကို ပြင်ဆင်ပြီး မူရင်းစာသား ထုတ်ယူနေပါသည်။",
-  "generation.description.visionOcr": "PDF တွင် စကင်ဖတ်ထားသော စာမျက်နှာများ ပါသည်။ Vision OCR ဖြင့် စာသားပြန်ယူနေပါသည်။",
-  "generation.description.ocrFailed": "စကင်ဖတ်ထားသော စာတမ်းကို ယခု မလုပ်ဆောင်နိုင်ပါ။ မူရင်း PDF ကို သိမ်းထားပြီး စာသားပြန်ယူမှုကို ထပ်ကြိုးစားနိုင်ပါသည်။",
-  "generation.description.pending": "စာတမ်းလုပ်ဆောင်မှု ပြီးပြီး ဖန်တီးရေး worker စတင်ရန် စောင့်နေပါသည်။",
-  "generation.description.analyzing": "စာတမ်းမှ သဘောတရား၊ ဖွဲ့စည်းပုံနှင့် အသိပညာကို ခွဲခြမ်းနေပါသည်။",
-  "generation.description.generating": "အနှစ်ချုပ်၊ မေးခွန်း၊ ကတ်နှင့် လေ့လာရေးအသိပညာကို ပြင်ဆင်နေပါသည်။",
-  "generation.description.complete": "လေ့လာရေးအကြောင်းအရာအားလုံး အသုံးပြုရန် အသင့်ဖြစ်ပါပြီ။",
-  "generation.description.partial": "အချို့အကြောင်းအရာများ ဖန်တီးပြီးသော်လည်း တစ်ခု သို့မဟုတ် အများကို မပြီးနိုင်ပါ။",
-  "generation.description.failed": "လေ့လာရေးအကြောင်းအရာများကို အောင်မြင်စွာ မဖန်တီးနိုင်ပါ။",
+  "generation.description.extracting":
+    "စာတမ်းကို ပြင်ဆင်ပြီး မူရင်းစာသား ထုတ်ယူနေပါသည်။",
+  "generation.description.visionOcr":
+    "PDF တွင် စကင်ဖတ်ထားသော စာမျက်နှာများ ပါသည်။ Vision OCR ဖြင့် စာသားပြန်ယူနေပါသည်။",
+  "generation.description.ocrFailed":
+    "စကင်ဖတ်ထားသော စာတမ်းကို ယခု မလုပ်ဆောင်နိုင်ပါ။ မူရင်း PDF ကို သိမ်းထားပြီး စာသားပြန်ယူမှုကို ထပ်ကြိုးစားနိုင်ပါသည်။",
+  "generation.description.pending":
+    "စာတမ်းလုပ်ဆောင်မှု ပြီးပြီး ဖန်တီးရေး worker စတင်ရန် စောင့်နေပါသည်။",
+  "generation.description.analyzing":
+    "စာတမ်းမှ သဘောတရား၊ ဖွဲ့စည်းပုံနှင့် အသိပညာကို ခွဲခြမ်းနေပါသည်။",
+  "generation.description.generating":
+    "အနှစ်ချုပ်၊ မေးခွန်း၊ ကတ်နှင့် လေ့လာရေးအသိပညာကို ပြင်ဆင်နေပါသည်။",
+  "generation.description.complete":
+    "လေ့လာရေးအကြောင်းအရာအားလုံး အသုံးပြုရန် အသင့်ဖြစ်ပါပြီ။",
+  "generation.description.partial":
+    "အချို့အကြောင်းအရာများ ဖန်တီးပြီးသော်လည်း တစ်ခု သို့မဟုတ် အများကို မပြီးနိုင်ပါ။",
+  "generation.description.failed":
+    "လေ့လာရေးအကြောင်းအရာများကို အောင်မြင်စွာ မဖန်တီးနိုင်ပါ။",
   "generation.status.pending": "စောင့်နေသည်",
   "generation.status.generating": "ဖန်တီးနေသည်",
   "generation.status.ready": "အသင့်ဖြစ်ပါပြီ",
@@ -1425,24 +1488,28 @@ const my: Record<TranslationKey, string> = {
   "generation.loadFailed": "ဖန်တီးမှုအခြေအနေကို မဖွင့်နိုင်ပါ",
   "generation.retry": "ထပ်ကြိုးစားရန်",
   "generation.allReady": "လေ့လာရေးအကြောင်းအရာအားလုံး အသင့်ဖြစ်ပါပြီ",
-  "generation.allReadyDescription": "အနှစ်ချုပ်၊ မေးခွန်း၊ ကတ်နှင့် အသိပညာ ဖန်တီးပြီးပါပြီ။",
+  "generation.allReadyDescription":
+    "အနှစ်ချုပ်၊ မေးခွန်း၊ ကတ်နှင့် အသိပညာ ဖန်တီးပြီးပါပြီ။",
   "generation.regenerating": "ပြန်ဖန်တီးနေသည်…",
   "generation.regenerate": "လေ့လာရေးအကြောင်းအရာအားလုံး ပြန်ဖန်တီးရန်",
   "generation.autoUpdate": "အခြေအနေကို အလိုအလျောက် ပြင်ဆင်ပါသည်။",
-  "generation.ocrHelp": "မူရင်း PDF ရှိနေသေးသည်။ စာတမ်းကို ထပ်တင်ရန်မလိုဘဲ စာသားပြန်ယူမှုကို ထပ်ကြိုးစားနိုင်သည်။",
+  "generation.ocrHelp":
+    "မူရင်း PDF ရှိနေသေးသည်။ စာတမ်းကို ထပ်တင်ရန်မလိုဘဲ စာသားပြန်ယူမှုကို ထပ်ကြိုးစားနိုင်သည်။",
   "generation.retryingOcr": "OCR ထပ်ကြိုးစားနေသည်…",
   "generation.retryOcr": "OCR ထပ်ကြိုးစားရန်",
 
   "knowledge.eyebrow": "အသိပညာ",
   "knowledge.title": "လေ့လာရေးအသိပညာ မြေပုံ",
-  "knowledge.description": "“{title}” မှ သင်ပေးသောအရာ၊ အယူအဆများ ဆက်စပ်ပုံနှင့် အယူအဆတစ်ခုစီ၏ မူရင်းရင်းမြစ်ကို နားလည်ပါ။",
+  "knowledge.description":
+    "“{title}” မှ သင်ပေးသောအရာ၊ အယူအဆများ ဆက်စပ်ပုံနှင့် အယူအဆတစ်ခုစီ၏ မူရင်းရင်းမြစ်ကို နားလည်ပါ။",
   "knowledge.grounded": "စာတမ်းအပေါ် အခြေခံသော အသိပညာ",
   "knowledge.sections": "အပိုင်းများ",
   "knowledge.items": "အသိပညာအချက်များ",
   "knowledge.grounding": "ရင်းမြစ်ခိုင်မာမှု",
   "knowledge.loadFailed": "အသိပညာဒေတာကို မဖွင့်နိုင်ပါ။",
   "knowledge.notGenerated": "အသိပညာကို မဖန်တီးရသေးပါ",
-  "knowledge.notGeneratedDescription": "ဤမှတ်စုအတွက် လေ့လာရေးအကြောင်းအရာ ဖန်တီးပြီး စာမျက်နှာကို ပြန်ဖွင့်ပါ။",
+  "knowledge.notGeneratedDescription":
+    "ဤမှတ်စုအတွက် လေ့လာရေးအကြောင်းအရာ ဖန်တီးပြီး စာမျက်နှာကို ပြန်ဖွင့်ပါ။",
   "knowledge.processingFailed": "အသိပညာ လုပ်ဆောင်မှု မအောင်မြင်ပါ",
   "knowledge.pipelineFailed": "အသိပညာခွဲခြမ်းမှု မပြီးမြောက်ပါ။",
   "knowledge.learningPath": "လေ့လာရေးလမ်းကြောင်း",
@@ -1462,21 +1529,26 @@ const my: Record<TranslationKey, string> = {
   "knowledge.confidence70": "၇၀% နှင့်အထက်",
   "knowledge.confidence85": "၈၅% နှင့်အထက်",
   "knowledge.noConcepts": "သဘောတရား မထုတ်ယူနိုင်ပါ",
-  "knowledge.noConceptsDescription": "ခွဲခြမ်းမှု ပြီးသော်လည်း စာတမ်းအခြေပြု အသိပညာအချက် မတွေ့ပါ။",
+  "knowledge.noConceptsDescription":
+    "ခွဲခြမ်းမှု ပြီးသော်လည်း စာတမ်းအခြေပြု အသိပညာအချက် မတွေ့ပါ။",
   "knowledge.sourceConfidence": "ရင်းမြစ်ယုံကြည်မှု",
   "knowledge.noEvidence": "အထောက်အထားစာပိုဒ် မရှိပါ",
-  "knowledge.noEvidenceDescription": "အသိပညာအချက်တွင် မူရင်းစာသားရင်းမြစ် ပါဝင်သောအခါ အထောက်အထားကို ပြပါမည်။",
+  "knowledge.noEvidenceDescription":
+    "အသိပညာအချက်တွင် မူရင်းစာသားရင်းမြစ် ပါဝင်သောအခါ အထောက်အထားကို ပြပါမည်။",
   "knowledge.page": "စာမျက်နှာ {page}",
   "knowledge.sourceEvidence": "ရင်းမြစ်အထောက်အထား",
   "knowledge.supports": "ပံ့ပိုးသောအချက်:",
   "knowledge.types": "အသိပညာအမျိုးအစားများ",
   "knowledge.relationships": "ဆက်နွယ်မှုများ",
   "knowledge.selectItem": "အသိပညာအချက်တစ်ခု ရွေးပါ",
-  "knowledge.selectDescription": "အဓိပ္ပာယ်၊ အခြားအယူအဆများနှင့် ဆက်စပ်ပုံနှင့် မူရင်းအထောက်အထားကို တွေ့ရပါမည်။",
+  "knowledge.selectDescription":
+    "အဓိပ္ပာယ်၊ အခြားအယူအဆများနှင့် ဆက်စပ်ပုံနှင့် မူရင်းအထောက်အထားကို တွေ့ရပါမည်။",
   "knowledge.keyConcepts": "အဓိကသဘောတရားများ",
-  "knowledge.legacyDescription": "ဤအသိပညာရလဒ်ဟောင်းတွင် အပိုင်းဖွဲ့စည်းပုံ မရှိသေးပါ။ လေ့လာရေးလမ်းကြောင်းအပြည့် ရရန် မှတ်စုကို ပြန်ဖန်တီးပါ။",
+  "knowledge.legacyDescription":
+    "ဤအသိပညာရလဒ်ဟောင်းတွင် အပိုင်းဖွဲ့စည်းပုံ မရှိသေးပါ။ လေ့လာရေးလမ်းကြောင်းအပြည့် ရရန် မှတ်စုကို ပြန်ဖန်တီးပါ။",
   "knowledge.followOrder": "စာတမ်းအစီအစဉ်အတိုင်း လေ့လာပါ",
-  "knowledge.followOrderDescription": "အဆင့်တစ်ခုစီသည် မူရင်းစာတမ်းအပိုင်းမှ လာပါသည်။ အဓိပ္ပာယ်၊ ဆက်စပ်ပုံနှင့် အထောက်အထားကို ကြည့်ရန် သဘောတရားကို ဖွင့်ပါ။",
+  "knowledge.followOrderDescription":
+    "အဆင့်တစ်ခုစီသည် မူရင်းစာတမ်းအပိုင်းမှ လာပါသည်။ အဓိပ္ပာယ်၊ ဆက်စပ်ပုံနှင့် အထောက်အထားကို ကြည့်ရန် သဘောတရားကို ဖွင့်ပါ။",
   "knowledge.learningSection": "လေ့လာရေးအပိုင်း",
   "knowledge.noSectionConcepts": "ဤအပိုင်းတွင် အဓိကသဘောတရား မရှိပါ။",
   "knowledge.fitGraph": "အပြည့်ပြရန်",
@@ -1492,7 +1564,8 @@ const my: Record<TranslationKey, string> = {
   "knowledge.inspector.showEvidence": "မူရင်းအထောက်အထား ကြည့်ရန်",
   "knowledge.inspector.technical": "နည်းပညာအသေးစိတ်",
   "knowledge.inspector.type": "အမျိုးအစား",
-  "knowledge.inspector.noRelationship": "ဤအချက်အတွက် မူရင်းစာတမ်းအခြေပြု တိုက်ရိုက်ဆက်နွယ်မှု မတွေ့ပါ။",
+  "knowledge.inspector.noRelationship":
+    "ဤအချက်အတွက် မူရင်းစာတမ်းအခြေပြု တိုက်ရိုက်ဆက်နွယ်မှု မတွေ့ပါ။",
   "knowledge.inspector.noSource": "ဤအချက်တွင် မူရင်းအထောက်အထား မပါပါ။",
   "knowledge.documentEvidence": "စာတမ်းအထောက်အထား",
   "knowledge.link": "ဆက်နွယ်မှု",
@@ -1500,13 +1573,17 @@ const my: Record<TranslationKey, string> = {
   "flashcards.showQuestion": "အဖြေကို ပြနေသည်။ မေးခွန်းပြရန် နှိပ်ပါ။",
   "flashcards.showAnswer": "မေးခွန်းကို ပြနေသည်။ အဖြေပြရန် နှိပ်ပါ။",
   "intelligence.title": "စာတမ်းအသိဉာဏ် ခွဲခြမ်းမှု",
-  "intelligence.completedExpired": "ခွဲခြမ်းမှု ပြီးပါပြီ။ တိုက်ရိုက်အဆင့်မှတ်တမ်း သက်တမ်းကုန်သော်လည်း အတည်ပြုထားသော အသိဉာဏ်ဒေတာကို အသုံးပြုနိုင်သည်။",
+  "intelligence.completedExpired":
+    "ခွဲခြမ်းမှု ပြီးပါပြီ။ တိုက်ရိုက်အဆင့်မှတ်တမ်း သက်တမ်းကုန်သော်လည်း အတည်ပြုထားသော အသိဉာဏ်ဒေတာကို အသုံးပြုနိုင်သည်။",
   "intelligence.confidence": "အထောက်အထား ယုံကြည်မှု: {confidence}%",
-  "intelligence.failed": "အသိဉာဏ်ခွဲခြမ်းမှု မအောင်မြင်ပါ။ ပြန်ကြိုးစားရန် လေ့လာရေးအကြောင်းအရာများကို ပြန်ဖန်တီးပါ။",
+  "intelligence.failed":
+    "အသိဉာဏ်ခွဲခြမ်းမှု မအောင်မြင်ပါ။ ပြန်ကြိုးစားရန် လေ့လာရေးအကြောင်းအရာများကို ပြန်ဖန်တီးပါ။",
   "intelligence.preparing": "အသိဉာဏ်ခွဲခြမ်းမှု ပြင်ဆင်နေသည်…",
-  "intelligence.completed": "ခွဲခြမ်းမှု ပြီးပါပြီ။ လေ့လာရေးအကြောင်းအရာများတွင် အတည်ပြုထားသော အထောက်အထားကို အသုံးပြုနိုင်ပါပြီ။",
+  "intelligence.completed":
+    "ခွဲခြမ်းမှု ပြီးပါပြီ။ လေ့လာရေးအကြောင်းအရာများတွင် အတည်ပြုထားသော အထောက်အထားကို အသုံးပြုနိုင်ပါပြီ။",
   "intelligence.stopped": "ခွဲခြမ်းမှု မပြီးမီ ရပ်သွားသည်။",
-  "intelligence.running": "အဆင့်တစ်ခုစီကို ခွဲခြမ်းပြီး အထောက်အထားများကို သိမ်းဆည်းနေသည်။",
+  "intelligence.running":
+    "အဆင့်တစ်ခုစီကို ခွဲခြမ်းပြီး အထောက်အထားများကို သိမ်းဆည်းနေသည်။",
   "profile.title": "ကျောင်းသား ပရိုဖိုင်",
   "profile.description": "သင့်ပရိုဖိုင်နှင့် အကောင့်အချက်အလက်များကို စီမံပါ။",
   "profile.eyebrow": "အကောင့်",
@@ -1597,9 +1674,11 @@ const my: Record<TranslationKey, string> = {
   "admin.ai.failed": "မအောင်မြင်",
   "admin.ai.yes": "ဟုတ်သည်",
   "admin.ai.no": "မဟုတ်ပါ",
-  "admin.ai.noDurableUsage": "သိမ်းဆည်းထားသော ဝန်ဆောင်မှုပေးသူအသုံးပြုမှု မရှိသေးပါ။",
+  "admin.ai.noDurableUsage":
+    "သိမ်းဆည်းထားသော ဝန်ဆောင်မှုပေးသူအသုံးပြုမှု မရှိသေးပါ။",
   "admin.ai.recentActivity": "လတ်တလော ဝန်ဆောင်မှုပေးသူလုပ်ဆောင်မှု",
-  "admin.ai.recentActivityDescription": "နောက်ဆုံးသိမ်းထားသော AI အသုံးပြုမှုမှတ်တမ်းများ။",
+  "admin.ai.recentActivityDescription":
+    "နောက်ဆုံးသိမ်းထားသော AI အသုံးပြုမှုမှတ်တမ်းများ။",
   "admin.ai.lastSuccess": "နောက်ဆုံးအောင်မြင်မှု: {value}",
   "admin.ai.lastFailure": "နောက်ဆုံးမအောင်မြင်မှု: {value}",
   "admin.ai.result": "ရလဒ်",
@@ -1622,7 +1701,8 @@ const my: Record<TranslationKey, string> = {
   "admin.health.heapTotal": "Heap စုစုပေါင်း: {total}",
   "admin.health.raw": "မူရင်းတုံ့ပြန်ချက်",
   "admin.health.loadFailed": "စနစ်အခြေအနေကို မဖွင့်နိုင်ပါ။",
-  "admin.health.description": "တိုက်ရိုက်စနစ်အခြေအနေ။ ၁၀ စက္ကန့်တိုင်း ပြန်လည်စစ်ဆေးသည်။",
+  "admin.health.description":
+    "တိုက်ရိုက်စနစ်အခြေအနေ။ ၁၀ စက္ကန့်တိုင်း ပြန်လည်စစ်ဆေးသည်။",
   "admin.health.lastSnapshot": "နောက်ဆုံးဆာဗာမှတ်တမ်း: {value}",
   "admin.health.staleSnapshot": "နောက်ဆုံးအောင်မြင်သော မှတ်တမ်းကို ပြနေသည်။",
   "admin.health.system": "စနစ်",
@@ -1642,7 +1722,8 @@ const my: Record<TranslationKey, string> = {
   "admin.health.unavailable": "အသုံးမပြုနိုင်",
   "admin.health.operational": "ပုံမှန်လည်ပတ်နေသည်",
   "admin.health.quotaExhausted": "Quota ကုန်ဆုံးပြီ",
-  "admin.health.aiToday": "ယနေ့: {successes} ခု အောင်မြင် · {failures} ခု မအောင်မြင်",
+  "admin.health.aiToday":
+    "ယနေ့: {successes} ခု အောင်မြင် · {failures} ခု မအောင်မြင်",
   "admin.health.quotaErrors": "ဝန်ဆောင်မှုပေးသူ quota အမှား: {count}",
   "admin.health.quotaAlertTitle": "AI ဝန်ဆောင်မှုပေးသူ quota ကုန်ဆုံးပြီ",
   "admin.health.quotaAlertDescription":
@@ -1685,7 +1766,8 @@ const my: Record<TranslationKey, string> = {
   "admin.health.heapUsed": "သုံးထားသော heap: {value}",
   "admin.health.heapDetails": "Heap စုစုပေါင်း: {total} · RSS: {rss}",
   "admin.activity.title": "လုပ်ဆောင်မှုမှတ်တမ်း",
-  "admin.activity.description": "လုံခြုံရေး၊ အကောင့်၊ အကြောင်းအရာနှင့် AI စစ်ဆေးမှတ်တမ်းများကို ကြည့်ရန်။",
+  "admin.activity.description":
+    "လုံခြုံရေး၊ အကောင့်၊ အကြောင်းအရာနှင့် AI စစ်ဆေးမှတ်တမ်းများကို ကြည့်ရန်။",
   "admin.activity.eventsRetained": "သိမ်းထားသောမှတ်တမ်း {count} ခု",
   "admin.activity.event": "ဖြစ်ရပ်",
   "admin.activity.actor": "လုပ်ဆောင်သူ",
@@ -1693,7 +1775,8 @@ const my: Record<TranslationKey, string> = {
   "admin.activity.action": "လုပ်ဆောင်ချက်",
   "admin.activity.time": "အချိန်",
   "admin.activity.empty": "လုပ်ဆောင်မှုမှတ်တမ်း မရှိပါ",
-  "admin.activity.emptyDescription": "စစ်ဆေးမှတ်တမ်းအသစ်များကို ဤနေရာတွင် ပြပါမည်။",
+  "admin.activity.emptyDescription":
+    "စစ်ဆေးမှတ်တမ်းအသစ်များကို ဤနေရာတွင် ပြပါမည်။",
   "admin.activity.loadFailed": "လုပ်ဆောင်မှုမှတ်တမ်းကို မဖွင့်နိုင်ပါ။",
   "student.ai.account": "အကောင့်",
   "student.ai.title": "AI အသုံးပြုမှု",
@@ -1718,8 +1801,10 @@ const my: Record<TranslationKey, string> = {
   "student.ai.providerUsage": "ဝန်ဆောင်မှုပေးသူအသုံးပြုမှု",
   "student.ai.byFeature": "အင်္ဂါရပ်အလိုက် အသုံးပြုမှု",
   "student.ai.feature": "အင်္ဂါရပ်",
-  "student.ai.noFeatureUsage": "သင့်အကောင့်အတွက် ဝန်ဆောင်မှုပေးသူအသုံးပြုမှု မရှိသေးပါ။",
-  "student.ai.noActivity": "သင့်အကောင့်တွင် သိမ်းဆည်းထားသော provider လုပ်ဆောင်မှု မရှိသေးပါ။",
+  "student.ai.noFeatureUsage":
+    "သင့်အကောင့်အတွက် ဝန်ဆောင်မှုပေးသူအသုံးပြုမှု မရှိသေးပါ။",
+  "student.ai.noActivity":
+    "သင့်အကောင့်တွင် သိမ်းဆည်းထားသော provider လုပ်ဆောင်မှု မရှိသေးပါ။",
   "admin.content.title": "အကြောင်းအရာ",
   "admin.content.search": "အကြောင်းအရာ ရှာရန်…",
   "admin.content.loading": "ဖွင့်နေသည်…",
@@ -1749,35 +1834,44 @@ const my: Record<TranslationKey, string> = {
   "admin.users.unban": "ပြန်ဖွင့်ရန်",
   "admin.users.empty": "အသုံးပြုသူ မတွေ့ပါ။",
   "admin.users.banConfirm": "{name} ကို ပိတ်မလား။ ချက်ချင်း ထွက်သွားပါမည်။",
-  "admin.users.deleteConfirm": "{name} ({email}) ကို အပြီးဖျက်မလား။ ပြန်ပြင်၍မရပါ။",
+  "admin.users.deleteConfirm":
+    "{name} ({email}) ကို အပြီးဖျက်မလား။ ပြန်ပြင်၍မရပါ။",
   "admin.users.actionFailed": "လုပ်ဆောင်မှု မအောင်မြင်ပါ",
   "admin.overview.eyebrow": "စီမံခန့်ခွဲမှု",
   "admin.overview.title": "စီမံခန့်ခွဲရေး ဗဟို",
-  "admin.overview.description": "အကောင့်၊ အကြောင်းအရာ၊ AI အလုပ်နှင့် စနစ်အခြေအနေကို စောင့်ကြည့်ရန်။",
+  "admin.overview.description":
+    "အကောင့်၊ အကြောင်းအရာ၊ AI အလုပ်နှင့် စနစ်အခြေအနေကို စောင့်ကြည့်ရန်။",
   "admin.overview.updated": "{time} တွင် ပြင်ဆင်ပြီး",
   "admin.overview.loading": "တိုက်ရိုက်ဒေတာ ဖွင့်နေသည်…",
-  "admin.overview.partialError": "Dashboard ဝန်ဆောင်မှုအချို့ တုံ့ပြန်မှုမရှိပါ။",
+  "admin.overview.partialError":
+    "Dashboard ဝန်ဆောင်မှုအချို့ တုံ့ပြန်မှုမရှိပါ။",
   "admin.overview.userAccounts": "အသုံးပြုသူအကောင့်များ",
   "admin.overview.contentLibrary": "အကြောင်းအရာစာကြည့်တိုက်",
   "admin.overview.quizOutput": "မေးခွန်းဖန်တီးမှု",
   "admin.overview.aiRequests": "ယနေ့ AI တောင်းဆိုမှုများ",
   "admin.overview.aiWorkload": "ပြီးခဲ့သော ၇ ရက် AI အလုပ်ပမာဏ",
-  "admin.overview.aiWorkloadDescription": "လက်ရှိဆာဗာမှ မှတ်တမ်းတင်ထားသော တကယ့်တောင်းဆိုမှုများ။",
+  "admin.overview.aiWorkloadDescription":
+    "လက်ရှိဆာဗာမှ မှတ်တမ်းတင်ထားသော တကယ့်တောင်းဆိုမှုများ။",
   "admin.overview.total": "စုစုပေါင်း {count}",
   "admin.overview.noHistory": "AI တောင်းဆိုမှုမှတ်တမ်း မရှိသေးပါ။",
   "admin.overview.workloadMix": "အလုပ်ပမာဏ အမျိုးအစား",
-  "admin.overview.workloadMixDescription": "AI အစားထိုးနည်း သုံးနေသော အင်္ဂါရပ်များ။",
-  "admin.overview.noFeatureUsage": "တောင်းဆိုမှုရှိလာသောအခါ အင်္ဂါရပ်အလိုက် AI အသုံးပြုမှုကို ပြပါမည်။",
+  "admin.overview.workloadMixDescription":
+    "AI အစားထိုးနည်း သုံးနေသော အင်္ဂါရပ်များ။",
+  "admin.overview.noFeatureUsage":
+    "တောင်းဆိုမှုရှိလာသောအခါ အင်္ဂါရပ်အလိုက် AI အသုံးပြုမှုကို ပြပါမည်။",
   "admin.overview.recentActivity": "လတ်တလောလုပ်ဆောင်မှု",
   "admin.overview.auditEvents": "စစ်ဆေးမှတ်တမ်း {count} ခု",
   "admin.overview.openAudit": "စစ်ဆေးမှတ်တမ်း ဖွင့်ရန်",
   "admin.overview.noActivity": "လုပ်ဆောင်မှု မှတ်တမ်းမရှိသေးပါ။",
   "admin.overview.attention": "ဂရုပြုရန်လိုအပ်သည်",
-  "admin.overview.attentionDescription": "စီမံခန့်ခွဲသူ ဆုံးဖြတ်ရန်လိုနိုင်သော အချက်များ။",
+  "admin.overview.attentionDescription":
+    "စီမံခန့်ခွဲသူ ဆုံးဖြတ်ရန်လိုနိုင်သော အချက်များ။",
   "admin.overview.noUrgent": "အရေးပေါ်လုပ်ဆောင်ရန် မရှိပါ",
-  "admin.overview.noUrgentDescription": "အကောင့်၊ ဒေတာဘေ့စ်၊ AI ဝန်ဆောင်မှုနှင့် မှတ်ဉာဏ်သည် စစ်ဆေးနိုင်သည့် အတိုင်းအတာအတွင်း ကောင်းမွန်သည်။",
+  "admin.overview.noUrgentDescription":
+    "အကောင့်၊ ဒေတာဘေ့စ်၊ AI ဝန်ဆောင်မှုနှင့် မှတ်ဉာဏ်သည် စစ်ဆေးနိုင်သည့် အတိုင်းအတာအတွင်း ကောင်းမွန်သည်။",
   "admin.overview.readiness": "စနစ်အသင့်အနေအထား",
-  "admin.overview.readinessDescription": "AI quota မသုံးဘဲ လျင်မြန်စွာ စစ်ဆေးထားသော အခြေအနေများ။",
+  "admin.overview.readinessDescription":
+    "AI quota မသုံးဘဲ လျင်မြန်စွာ စစ်ဆေးထားသော အခြေအနေများ။",
   "admin.overview.heapMemory": "Heap မှတ်ဉာဏ်",
   "admin.overview.unknownTime": "အချိန်မသိပါ",
   "admin.overview.overviewUnavailable": "အနှစ်ချုပ်စာရင်း မရရှိပါ။",
@@ -1786,22 +1880,30 @@ const my: Record<TranslationKey, string> = {
   "admin.overview.healthUnavailable": "စနစ်အခြေအနေ မရရှိပါ။",
   "admin.overview.inactiveAccountOne": "အသုံးမပြုနိုင်သောအကောင့် ၁ ခု",
   "admin.overview.inactiveAccounts": "အသုံးမပြုနိုင်သောအကောင့် {count} ခု",
-  "admin.overview.inactiveDetail": "ဆိုင်းငံ့ထားသောအကောင့်များကို စစ်ဆေးပြီး အတည်ပြုထားသူများကိုသာ ပြန်ဖွင့်ပါ။",
+  "admin.overview.inactiveDetail":
+    "ဆိုင်းငံ့ထားသောအကောင့်များကို စစ်ဆေးပြီး အတည်ပြုထားသူများကိုသာ ပြန်ဖွင့်ပါ။",
   "admin.overview.aiFailureOne": "ယနေ့ AI မအောင်မြင်မှု ၁ ခု",
   "admin.overview.aiFailures": "ယနေ့ AI မအောင်မြင်မှု {count} ခု",
-  "admin.overview.aiFailureDetail": "ဝန်ဆောင်မှုပေးသူ အခြေအနေ၊ timeout၊ quota နှင့် အစားထိုးလုပ်ဆောင်မှုကို စစ်ဆေးပါ။",
+  "admin.overview.aiFailureDetail":
+    "ဝန်ဆောင်မှုပေးသူ အခြေအနေ၊ timeout၊ quota နှင့် အစားထိုးလုပ်ဆောင်မှုကို စစ်ဆေးပါ။",
   "admin.overview.databaseDisconnected": "ဒေတာဘေ့စ် မချိတ်ဆက်ထားပါ",
-  "admin.overview.databaseDetail": "MongoDB ပြန်လည်ကောင်းမွန်သည်အထိ စီမံခန့်ခွဲသူနှင့် ကျောင်းသားလုပ်ဆောင်မှုများ မအောင်မြင်နိုင်ပါ။",
+  "admin.overview.databaseDetail":
+    "MongoDB ပြန်လည်ကောင်းမွန်သည်အထိ စီမံခန့်ခွဲသူနှင့် ကျောင်းသားလုပ်ဆောင်မှုများ မအောင်မြင်နိုင်ပါ။",
   "admin.overview.memoryUsage": "မှတ်ဉာဏ်အသုံးပြုမှု {value}",
-  "admin.overview.memoryDetail": "ကြာမြင့်စွာလည်ပတ်နေသော ဖန်တီးမှုများကို စစ်ဆေးပြီး log များကြည့်ပြီးမှ ပြန်စပါ။",
+  "admin.overview.memoryDetail":
+    "ကြာမြင့်စွာလည်ပတ်နေသော ဖန်တီးမှုများကို စစ်ဆေးပြီး log များကြည့်ပြီးမှ ပြန်စပါ။",
   "admin.overview.telemetryTemporary": "AI စောင့်ကြည့်ဒေတာသည် ယာယီဖြစ်သည်",
-  "admin.overview.accountBreakdown": "အသုံးပြုနိုင် {active} · မသုံးနိုင် {inactive} · စီမံသူ {admins}",
+  "admin.overview.accountBreakdown":
+    "အသုံးပြုနိုင် {active} · မသုံးနိုင် {inactive} · စီမံသူ {admins}",
   "admin.overview.accountBreakdownUnavailable": "အကောင့်ခွဲခြမ်းချက် မရရှိပါ",
   "admin.overview.notesPerUser": "လက်ရှိအသုံးပြုသူတစ်ဦးလျှင် မှတ်စု {count} ခု",
-  "admin.overview.uploadedAcrossUsers": "အသုံးပြုသူအားလုံး၏ တင်ထားသောမှတ်စုများ",
-  "admin.overview.quizConversion": "မှတ်စုများ၏ {value} တွင် မေးခွန်းများ ဖန်တီးပြီး",
+  "admin.overview.uploadedAcrossUsers":
+    "အသုံးပြုသူအားလုံး၏ တင်ထားသောမှတ်စုများ",
+  "admin.overview.quizConversion":
+    "မှတ်စုများ၏ {value} တွင် မေးခွန်းများ ဖန်တီးပြီး",
   "admin.overview.generatedAssessments": "ဖန်တီးထားသော လေ့လာရေးစစ်ဆေးမှုများ",
-  "admin.overview.providerActive": "{provider} လည်ပတ်နေ · မအောင်မြင်မှု {failures} ခု",
+  "admin.overview.providerActive":
+    "{provider} လည်ပတ်နေ · မအောင်မြင်မှု {failures} ခု",
   "admin.overview.noProviderTelemetry": "လက်ရှိဝန်ဆောင်မှုပေးသူဒေတာ မရှိပါ",
 };
 
@@ -1822,8 +1924,7 @@ export function translate(
   const template = dictionaries[locale][key] ?? en[key];
 
   return Object.entries(values).reduce(
-    (message, [name, value]) =>
-      message.replaceAll(`{${name}}`, String(value)),
+    (message, [name, value]) => message.replaceAll(`{${name}}`, String(value)),
     template,
   );
 }

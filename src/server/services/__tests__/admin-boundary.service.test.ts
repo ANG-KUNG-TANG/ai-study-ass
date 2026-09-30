@@ -29,9 +29,7 @@ describe("admin mutation safety boundaries", () => {
   });
 
   it("prevents an admin from banning themselves", async () => {
-    await expect(
-      banUser("admin-1", "admin-1"),
-    ).rejects.toMatchObject({
+    await expect(banUser("admin-1", "admin-1")).rejects.toMatchObject({
       statusCode: 403,
       code: "FORBIDDEN",
     });
@@ -41,9 +39,7 @@ describe("admin mutation safety boundaries", () => {
   });
 
   it("prevents an admin from deleting themselves through the admin flow", async () => {
-    await expect(
-      deleteUser("admin-1", "admin-1"),
-    ).rejects.toMatchObject({
+    await expect(deleteUser("admin-1", "admin-1")).rejects.toMatchObject({
       statusCode: 403,
       code: "FORBIDDEN",
     });
@@ -76,9 +72,7 @@ describe("admin mutation safety boundaries", () => {
     } as never);
     jest.mocked(userRepo.count).mockResolvedValue(1);
 
-    await expect(
-      deleteUser("admin-1", "admin-2"),
-    ).rejects.toMatchObject({
+    await expect(deleteUser("admin-1", "admin-2")).rejects.toMatchObject({
       statusCode: 403,
       code: "FORBIDDEN",
     });
@@ -97,10 +91,7 @@ describe("admin mutation safety boundaries", () => {
 
     await updateUserRole("admin-1", "user-2", "admin");
 
-    expect(userRepo.updateRole).toHaveBeenCalledWith(
-      "user-2",
-      "admin",
-    );
+    expect(userRepo.updateRole).toHaveBeenCalledWith("user-2", "admin");
     expect(revokeAllUserTokens).toHaveBeenCalledWith("user-2");
   });
 
@@ -115,10 +106,7 @@ describe("admin mutation safety boundaries", () => {
 
     await banUser("admin-1", "user-2");
 
-    expect(userRepo.setActive).toHaveBeenCalledWith(
-      "user-2",
-      false,
-    );
+    expect(userRepo.setActive).toHaveBeenCalledWith("user-2", false);
     expect(revokeAllUserTokens).toHaveBeenCalledWith("user-2");
   });
 });

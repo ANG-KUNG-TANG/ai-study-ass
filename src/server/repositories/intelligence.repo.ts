@@ -49,7 +49,7 @@ export async function upsert(entity: IntelligenceResultEntity): Promise<void> {
       processedAt: data.processedAt,
       gaps: data.gaps,
     },
-    { upsert: true, returnDocument: "after" }
+    { upsert: true, returnDocument: "after" },
   );
 
   await groundedKnowledgeRepo.upsert(data.noteId, data.grounding);
@@ -61,7 +61,9 @@ export async function upsert(entity: IntelligenceResultEntity): Promise<void> {
   });
 }
 
-export async function upsertFailed(entity: IntelligenceResultEntity): Promise<void> {
+export async function upsertFailed(
+  entity: IntelligenceResultEntity,
+): Promise<void> {
   const data = entity.toPersistence();
 
   // A failed rerun must never expose grounding from an older successful run.
@@ -84,7 +86,7 @@ export async function upsertFailed(entity: IntelligenceResultEntity): Promise<vo
       processedAt: data.processedAt,
       gaps: null,
     },
-    { upsert: true, returnDocument: "after" }
+    { upsert: true, returnDocument: "after" },
   );
 
   logger.warn("Intelligence result marked failed", {
@@ -94,7 +96,9 @@ export async function upsertFailed(entity: IntelligenceResultEntity): Promise<vo
   });
 }
 
-export async function findByNoteId(noteId: string): Promise<IntelligenceResultEntity | null> {
+export async function findByNoteId(
+  noteId: string,
+): Promise<IntelligenceResultEntity | null> {
   const [doc, grounding] = await Promise.all([
     PaperIntelligence.findOne({ noteId }).lean().exec(),
     groundedKnowledgeRepo.findByNoteId(noteId),
@@ -103,7 +107,9 @@ export async function findByNoteId(noteId: string): Promise<IntelligenceResultEn
   return toEntity(doc, grounding);
 }
 
-export async function findByNoteIdOrThrow(noteId: string): Promise<IntelligenceResultEntity> {
+export async function findByNoteIdOrThrow(
+  noteId: string,
+): Promise<IntelligenceResultEntity> {
   const result = await findByNoteId(noteId);
   if (!result) throw new NotFoundError("Intelligence result");
   return result;
@@ -117,7 +123,9 @@ export async function findStagesByNoteIds(
   const docs = await PaperIntelligence.find(
     { noteId: { $in: noteIds } },
     { noteId: 1, stage: 1 },
-  ).lean().exec();
+  )
+    .lean()
+    .exec();
 
   return new Map(
     docs.map((doc: { noteId: string; stage: string }) => [

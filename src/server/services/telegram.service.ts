@@ -672,17 +672,23 @@ async function handleDocument(
 
     await sendMessage(
       chatId,
-      ["✅ PDF validated!", "", "⏳ Queuing background extraction..."].join("\n"),
+      ["✅ PDF validated!", "", "⏳ Queuing background extraction..."].join(
+        "\n",
+      ),
     );
 
-    const result = await ingestDocument(userId, {
-      buffer: pdfBuffer,
-      originalName: fileName,
-      mimeType: document.mime_type ?? PDF_MIME_TYPE,
-      size: pdfBuffer.length,
-    }, {
-      telegramChatId: chatId,
-    });
+    const result = await ingestDocument(
+      userId,
+      {
+        buffer: pdfBuffer,
+        originalName: fileName,
+        mimeType: document.mime_type ?? PDF_MIME_TYPE,
+        size: pdfBuffer.length,
+      },
+      {
+        telegramChatId: chatId,
+      },
+    );
     const note = result.note;
 
     logger.info("[telegram] note created from PDF", {

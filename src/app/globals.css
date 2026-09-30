@@ -5,16 +5,16 @@
 
 body {
   min-height: 100vh;
-  background: theme('colors.paper');
-  color: theme('colors.ink');
+  background: theme("colors.paper");
+  color: theme("colors.ink");
   font-family: var(--font-sans), sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: theme('colors.yellow.soft');
-  color: theme('colors.ink');
+  background: theme("colors.yellow.soft");
+  color: theme("colors.ink");
 }
 
 button,
@@ -22,7 +22,7 @@ a,
 input,
 textarea,
 select {
-  outline-color: theme('colors.yellow');
+  outline-color: theme("colors.yellow");
 }
 
 @layer components {

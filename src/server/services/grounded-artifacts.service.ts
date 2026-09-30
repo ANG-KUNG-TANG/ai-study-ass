@@ -7,9 +7,30 @@ import type { FlashcardDifficulty } from "@/server/entities/flashcard.entity";
 import { toLearningGrounding } from "@/server/services/quality/learning-evidence.service";
 
 const QUERY_STOP_WORDS = new Set([
-  "about", "after", "also", "and", "are", "can", "does", "for", "from",
-  "have", "how", "into", "its", "that", "the", "their", "this", "what",
-  "when", "where", "which", "with", "would", "your",
+  "about",
+  "after",
+  "also",
+  "and",
+  "are",
+  "can",
+  "does",
+  "for",
+  "from",
+  "have",
+  "how",
+  "into",
+  "its",
+  "that",
+  "the",
+  "their",
+  "this",
+  "what",
+  "when",
+  "where",
+  "which",
+  "with",
+  "would",
+  "your",
 ]);
 
 export interface GroundedFlashcardDraft {
@@ -72,15 +93,10 @@ export function buildQuestionsFromGrounding(
   for (const fact of facts) {
     if (questions.length >= count) break;
 
-    const shouldUseTrueFalse = allowedTypes.includes("true_false") &&
-      (
-        !allowedTypes.includes("short_answer") ||
-        questions.length % 3 === 2
-      );
-    if (
-      shouldUseTrueFalse &&
-      isTrueFalseSuitable(fact.content)
-    ) {
+    const shouldUseTrueFalse =
+      allowedTypes.includes("true_false") &&
+      (!allowedTypes.includes("short_answer") || questions.length % 3 === 2);
+    if (shouldUseTrueFalse && isTrueFalseSuitable(fact.content)) {
       questions.push({
         question: `True or false: ${fact.content}`,
         questionType: "true_false",
@@ -92,7 +108,8 @@ export function buildQuestionsFromGrounding(
     }
 
     if (allowedTypes.includes("short_answer")) {
-      const heading = sectionHeadings.get(fact.sourceSectionId) ?? "the document";
+      const heading =
+        sectionHeadings.get(fact.sourceSectionId) ?? "the document";
       questions.push({
         question: `What is one important point from "${cleanHeading(heading)}"?`,
         questionType: "short_answer",
@@ -159,12 +176,17 @@ export function answerFromGrounding(
   const ranked = uniqueSupportedFacts(grounding)
     .map((fact) => {
       const factTokens = new Set(tokenise(fact.content));
-      const overlap = [...query].filter((token) => factTokens.has(token)).length;
+      const overlap = [...query].filter((token) =>
+        factTokens.has(token),
+      ).length;
       const headingTokens = new Set(
         tokenise(sectionHeadings.get(fact.sourceSectionId) ?? ""),
       );
-      const headingOverlap = [...query].filter((token) => headingTokens.has(token)).length;
-      const score = overlap + headingOverlap * 1.25 + fact.importanceScore * 0.35;
+      const headingOverlap = [...query].filter((token) =>
+        headingTokens.has(token),
+      ).length;
+      const score =
+        overlap + headingOverlap * 1.25 + fact.importanceScore * 0.35;
       return { fact, overlap: overlap + headingOverlap, score };
     })
     .filter((item) => item.overlap > 0)
@@ -179,11 +201,17 @@ export function answerFromGrounding(
     };
   }
 
-  const evidence = ranked.map((item) => item.fact.evidence[0]?.text ?? item.fact.content);
+  const evidence = ranked.map(
+    (item) => item.fact.evidence[0]?.text ?? item.fact.content,
+  );
   return {
-    text: ranked.length === 1
-      ? ranked[0].fact.content
-      : ["Based on the verified document evidence:", ...ranked.map((item) => `- ${item.fact.content}`)].join("\n"),
+    text:
+      ranked.length === 1
+        ? ranked[0].fact.content
+        : [
+            "Based on the verified document evidence:",
+            ...ranked.map((item) => `- ${item.fact.content}`),
+          ].join("\n"),
     confidence: Math.min(0.94, 0.68 + ranked.length * 0.08),
     evidence,
   };
@@ -289,9 +317,8 @@ function factsWithoutQualifiedDefinitions(
   );
 
   return uniqueSupportedFacts(grounding).filter(
-    (fact) => !qualifiedEvidence.has(
-      normalise(fact.evidence[0]?.text ?? fact.content),
-    ),
+    (fact) =>
+      !qualifiedEvidence.has(normalise(fact.evidence[0]?.text ?? fact.content)),
   );
 }
 
@@ -303,9 +330,13 @@ function isArtifactEligibleFact(fact: AtomicFact): boolean {
 
 function isTrueFalseSuitable(value: string): boolean {
   const text = value.trim();
-  return text.length >= 28 &&
+  return (
+    text.length >= 28 &&
     text.length <= 220 &&
-    /\b(?:is|are|was|were|must|should|can|cannot|does|do|has|have|uses?|includes?|contains?|ensures?|allows?|requires?|reflects?|represents?|shows?|confirms?)\b/i.test(text);
+    /\b(?:is|are|was|were|must|should|can|cannot|does|do|has|have|uses?|includes?|contains?|ensures?|allows?|requires?|reflects?|represents?|shows?|confirms?)\b/i.test(
+      text,
+    )
+  );
 }
 
 function questionForFact(fact: AtomicFact, heading: string): string {
@@ -323,7 +354,8 @@ function questionForFact(fact: AtomicFact, heading: string): string {
 
 function difficultyForFact(fact: AtomicFact): FlashcardDifficulty {
   if (["number", "definition"].includes(fact.type)) return "easy";
-  if (["limitation", "relationship", "result"].includes(fact.type)) return "hard";
+  if (["limitation", "relationship", "result"].includes(fact.type))
+    return "hard";
   return "medium";
 }
 
@@ -358,13 +390,17 @@ function deduplicateCards(
 }
 
 function tokenise(value: string): string[] {
-  return (value.toLowerCase().match(/[\p{L}\p{N}-]{3,}/gu) ?? [])
-    .filter((token) => !QUERY_STOP_WORDS.has(token));
+  return (value.toLowerCase().match(/[\p{L}\p{N}-]{3,}/gu) ?? []).filter(
+    (token) => !QUERY_STOP_WORDS.has(token),
+  );
 }
 
 function cleanHeading(value: string): string {
   return value
-    .replace(/\s*\(\s*insert\s+(?:a\s+)?(?:class\s+)?(?:diagram|image|figure|chart)\s*\)\s*/gi, " ")
+    .replace(
+      /\s*\(\s*insert\s+(?:a\s+)?(?:class\s+)?(?:diagram|image|figure|chart)\s*\)\s*/gi,
+      " ",
+    )
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -13,16 +13,9 @@ import {
   Users,
   Wrench,
 } from "lucide-react";
-import {
-  Handle,
-  Position,
-  type NodeProps,
-} from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { KnowledgeFlowNode } from "./types";
-import {
-  nodeColor,
-  readableType,
-} from "./knowledge-graph.utils";
+import { nodeColor, readableType } from "./knowledge-graph.utils";
 import { useLanguage } from "@/context/LanguageContext";
 
 function renderNodeTypeIcon(type: string) {
@@ -101,12 +94,8 @@ function KnowledgeNodeComponent({
         data.dimmed ? "opacity-25" : "opacity-100",
       ].join(" ")}
       style={{
-        borderColor: selected
-          ? accent
-          : `${accent}70`,
-        background: backgroundForType(
-          data.nodeType,
-        ),
+        borderColor: selected ? accent : `${accent}70`,
+        background: backgroundForType(data.nodeType),
       }}
     >
       <Handle
@@ -148,13 +137,12 @@ function KnowledgeNodeComponent({
                 : readableType(data.nodeType)}
             </span>
 
-            {confidence !== null &&
-              data.nodeType !== "section" && (
-                <>
-                  <span>•</span>
-                  <span>{confidence}%</span>
-                </>
-              )}
+            {confidence !== null && data.nodeType !== "section" && (
+              <>
+                <span>•</span>
+                <span>{confidence}%</span>
+              </>
+            )}
 
             {data.connectionCount > 0 && (
               <>
@@ -190,6 +178,4 @@ function KnowledgeNodeComponent({
   );
 }
 
-export const KnowledgeNode = memo(
-  KnowledgeNodeComponent,
-);
+export const KnowledgeNode = memo(KnowledgeNodeComponent);

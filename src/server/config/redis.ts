@@ -8,9 +8,7 @@ function createRedisClient() {
   const url = process.env.REDIS_URL;
 
   if (!url) {
-    throw new Error(
-      "REDIS_URL is not configured",
-    );
+    throw new Error("REDIS_URL is not configured");
   }
 
   const client = createClient({
@@ -19,10 +17,7 @@ function createRedisClient() {
 
   client.on("error", (error) => {
     logger.error("[redis] client error", {
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
+      error: error instanceof Error ? error.message : String(error),
     });
   });
 
@@ -44,70 +39,52 @@ function createRedisClient() {
 // IMPORTANT:
 // Infer the type from OUR actual configured client.
 // Do not use RedisClientType or ReturnType<typeof createClient>.
-type AppRedisClient =
-  ReturnType<typeof createRedisClient>;
+type AppRedisClient = ReturnType<typeof createRedisClient>;
 
-type RedisGlobal =
-  typeof globalThis & {
-    __aiStudyRedisClient?: AppRedisClient;
-    __aiStudyRedisConnectPromise?:
-      Promise<AppRedisClient>;
-  };
+type RedisGlobal = typeof globalThis & {
+  __aiStudyRedisClient?: AppRedisClient;
+  __aiStudyRedisConnectPromise?: Promise<AppRedisClient>;
+};
 
-const globalRedis =
-  globalThis as RedisGlobal;
+const globalRedis = globalThis as RedisGlobal;
 
 // ─── Connection ──────────────────────────────────────────────────────────────
 
-export async function getRedisClient():
-Promise<AppRedisClient> {
+export async function getRedisClient(): Promise<AppRedisClient> {
   if (!globalRedis.__aiStudyRedisClient) {
-    globalRedis.__aiStudyRedisClient =
-      createRedisClient();
+    globalRedis.__aiStudyRedisClient = createRedisClient();
   }
 
-  const client =
-    globalRedis.__aiStudyRedisClient;
+  const client = globalRedis.__aiStudyRedisClient;
 
   if (client.isReady) {
     return client;
   }
 
-  if (
-    !globalRedis.__aiStudyRedisConnectPromise
-  ) {
-    globalRedis.__aiStudyRedisConnectPromise =
-      client
-        .connect()
-        .then(() => client)
-        .finally(() => {
-          globalRedis.__aiStudyRedisConnectPromise =
-            undefined;
-        });
+  if (!globalRedis.__aiStudyRedisConnectPromise) {
+    globalRedis.__aiStudyRedisConnectPromise = client
+      .connect()
+      .then(() => client)
+      .finally(() => {
+        globalRedis.__aiStudyRedisConnectPromise = undefined;
+      });
   }
 
-  return globalRedis
-    .__aiStudyRedisConnectPromise;
+  return globalRedis.__aiStudyRedisConnectPromise;
 }
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 
-export async function pingRedis():
-Promise<boolean> {
+export async function pingRedis(): Promise<boolean> {
   try {
-    const client =
-      await getRedisClient();
+    const client = await getRedisClient();
 
-    const result =
-      await client.ping();
+    const result = await client.ping();
 
     return result === "PONG";
   } catch (error) {
     logger.error("[redis] ping failed", {
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
+      error: error instanceof Error ? error.message : String(error),
     });
 
     return false;

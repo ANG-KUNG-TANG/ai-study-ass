@@ -1,6 +1,4 @@
-import type {
-  IntelligenceResultEntity,
-} from "@/server/entities/intelligence.entity";
+import type { IntelligenceResultEntity } from "@/server/entities/intelligence.entity";
 import {
   appendUntrustedContentRules,
   buildUntrustedTextBlock,
@@ -16,16 +14,11 @@ export interface ChatHistoryMessage {
 export interface BuildChatPromptInput {
   noteTitle: string;
   noteContent: string;
-  intelligence:
-    | IntelligenceResultEntity
-    | null;
+  intelligence: IntelligenceResultEntity | null;
   history: ChatHistoryMessage[];
   question: string;
   evidence: string[];
-  answerability?:
-    | "ANSWERABLE"
-    | "PARTIAL"
-    | "NOT_ANSWERABLE";
+  answerability?: "ANSWERABLE" | "PARTIAL" | "NOT_ANSWERABLE";
   strictEvidenceOnly?: boolean;
 }
 
@@ -34,11 +27,7 @@ export interface ChatPromptResult {
   prompt: string;
 }
 
-function buildFactBlock(
-  intelligence:
-    | IntelligenceResultEntity
-    | null,
-): string {
+function buildFactBlock(intelligence: IntelligenceResultEntity | null): string {
   if (isIntelligenceV2Enabled() && intelligence?.grounding?.facts.length) {
     return intelligence.grounding.facts
       .filter((fact) => fact.verificationStatus === "supported")
@@ -55,60 +44,37 @@ function buildFactBlock(
     return "(no structured facts were extracted)";
   }
 
-  const core =
-    intelligence.core;
+  const core = intelligence.core;
 
   const facts: string[] = [];
 
   if (core.problem) {
-    facts.push(
-      `Problem: ${core.problem}`,
-    );
+    facts.push(`Problem: ${core.problem}`);
   }
 
   if (core.method) {
-    facts.push(
-      `Method: ${core.method}`,
-    );
+    facts.push(`Method: ${core.method}`);
   }
 
   if (core.dataset) {
-    facts.push(
-      `Dataset: ${core.dataset}`,
-    );
+    facts.push(`Dataset: ${core.dataset}`);
   }
 
-  if (
-    core.accuracy !== null &&
-    core.accuracy !== undefined
-  ) {
-    facts.push(
-      `Accuracy: ${core.accuracy}%`,
-    );
+  if (core.accuracy !== null && core.accuracy !== undefined) {
+    facts.push(`Accuracy: ${core.accuracy}%`);
   }
 
-  for (
-    const contribution of
-    core.contributions.slice(0, 3)
-  ) {
-    facts.push(
-      `Contribution: ${contribution}`,
-    );
+  for (const contribution of core.contributions.slice(0, 3)) {
+    facts.push(`Contribution: ${contribution}`);
   }
 
-  const concepts =
-    intelligence
-      .resolvedConcepts()
-      .map(
-        (match) =>
-          match.concept.label,
-      )
-      .slice(0, 10);
+  const concepts = intelligence
+    .resolvedConcepts()
+    .map((match) => match.concept.label)
+    .slice(0, 10);
 
   if (concepts.length > 0) {
-    facts.push(
-      `Key concepts: ${concepts.join(", ")}`,
-    );
+    facts.push(`Key concepts: ${concepts.join(", ")}`);
   }
 
   return facts.length > 0
@@ -116,26 +82,17 @@ function buildFactBlock(
     : "(no structured facts were extracted)";
 }
 
-export function buildChatPrompt(
-  input: BuildChatPromptInput,
-): ChatPromptResult {
-  const history = input.history
-    .slice(-6)
-    .map((message) => ({
-      student: message.question,
-      assistant: message.answer,
-    }));
+export function buildChatPrompt(input: BuildChatPromptInput): ChatPromptResult {
+  const history = input.history.slice(-6).map((message) => ({
+    student: message.question,
+    assistant: message.answer,
+  }));
 
-  const factBlock =
-    input.strictEvidenceOnly
-      ? (
-          input.evidence.length > 0
-            ? input.evidence.join("\n")
-            : "(no verified evidence selected)"
-        )
-      : buildFactBlock(
-          input.intelligence,
-        );
+  const factBlock = input.strictEvidenceOnly
+    ? input.evidence.length > 0
+      ? input.evidence.join("\n")
+      : "(no verified evidence selected)"
+    : buildFactBlock(input.intelligence);
 
   const evidenceBlock =
     input.evidence.length > 0
@@ -143,11 +100,8 @@ export function buildChatPrompt(
           "DOCUMENT_EVIDENCE",
           input.evidence.slice(0, 12),
         )
-      : buildUntrustedTextBlock(
-          "DOCUMENT_EXCERPT",
-          input.noteContent,
-          4_000,
-        ).block;
+      : buildUntrustedTextBlock("DOCUMENT_EXCERPT", input.noteContent, 4_000)
+          .block;
 
   return {
     systemPrompt: appendUntrustedContentRules(
@@ -158,22 +112,11 @@ export function buildChatPrompt(
     ),
 
     prompt: [
-      buildUntrustedTextBlock(
-        "NOTE_TITLE",
-        input.noteTitle,
-        1_000,
-      ).block,
-      buildUntrustedTextBlock(
-        "EXTRACTED_FACTS",
-        factBlock,
-        6_000,
-      ).block,
+      buildUntrustedTextBlock("NOTE_TITLE", input.noteTitle, 1_000).block,
+      buildUntrustedTextBlock("EXTRACTED_FACTS", factBlock, 6_000).block,
       evidenceBlock,
       history.length > 0
-        ? buildUntrustedValueBlock(
-            "PREVIOUS_CONVERSATION",
-            history,
-          )
+        ? buildUntrustedValueBlock("PREVIOUS_CONVERSATION", history)
         : "",
       input.answerability
         ? `ANSWERABILITY_CLASSIFICATION: ${input.answerability}`

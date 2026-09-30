@@ -3,7 +3,10 @@ import * as intelligenceService from "@/server/services/intelligence.service";
 import * as noteRepo from "@/server/repositories/note.repo";
 import { NotFoundError } from "@/server/utils/errors";
 import { successResponse } from "@/server/utils/response";
-import type { AuthContext, RouteContext } from "@/server/middleware/auth.middleware";
+import type {
+  AuthContext,
+  RouteContext,
+} from "@/server/middleware/auth.middleware";
 
 // ─── Purpose ────────────────────────────────────────────────────────────────
 // HTTP-facing layer for read-only intelligence status. Intelligence has no
@@ -18,14 +21,11 @@ import type { AuthContext, RouteContext } from "@/server/middleware/auth.middlew
 export async function getIntelligenceStatus(
   _req: Request,
   context: RouteContext,
-  auth: AuthContext
+  auth: AuthContext,
 ): Promise<NextResponse> {
   const { id: noteId } = await context.params;
 
-  const note = await noteRepo.findByIdAndUserId(
-    noteId,
-    auth.userId,
-  );
+  const note = await noteRepo.findByIdAndUserId(noteId, auth.userId);
 
   if (!note) {
     throw new NotFoundError("Note");

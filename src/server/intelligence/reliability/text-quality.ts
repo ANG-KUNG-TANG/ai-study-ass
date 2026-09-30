@@ -7,7 +7,8 @@ const GREEK_RE = /\p{Script=Greek}/gu;
 const LATIN_RE = /\p{Script=Latin}/gu;
 const LETTER_OR_NUMBER_RE = /[\p{L}\p{N}]/gu;
 const SUSPICIOUS_SYMBOL_RE = /[^\p{L}\p{N}\p{P}\p{Z}\n\r\t]/gu;
-const GENERIC_PAGE_LINE_RE = /^(?:case\s+id\s+\w+|noname\s+manuscript|will\s+be\s+inserted\s+by\s+the\s+editor)$/i;
+const GENERIC_PAGE_LINE_RE =
+  /^(?:case\s+id\s+\w+|noname\s+manuscript|will\s+be\s+inserted\s+by\s+the\s+editor)$/i;
 
 export interface ReliableCleanResult {
   text: string;
@@ -43,7 +44,10 @@ export function corruptedCharacterRatio(text: string): number {
   const replacement = text.match(REPLACEMENT_RE)?.length ?? 0;
   const controls = text.match(CONTROL_RE)?.length ?? 0;
 
-  return Math.min(1, (suspicious + replacement * 2 + controls * 2) / chars.length);
+  return Math.min(
+    1,
+    (suspicious + replacement * 2 + controls * 2) / chars.length,
+  );
 }
 
 export function greekCharacterRatio(text: string): number {
@@ -63,10 +67,13 @@ export function hasEncodingNoise(text: string): boolean {
   if (cleaned.length < 12) return false;
 
   const greek = greekCharacterRatio(cleaned);
-  const latin = (cleaned.match(LATIN_RE)?.length ?? 0) / Math.max(1, [...cleaned].length);
+  const latin =
+    (cleaned.match(LATIN_RE)?.length ?? 0) / Math.max(1, [...cleaned].length);
   const suspicious = corruptedCharacterRatio(cleaned);
   const readable = readableCharacterRatio(cleaned);
-  const commonEnglishWords = cleaned.match(/\b(the|and|of|to|in|for|with|is|are|case|study)\b/gi)?.length ?? 0;
+  const commonEnglishWords =
+    cleaned.match(/\b(the|and|of|to|in|for|with|is|are|case|study)\b/gi)
+      ?.length ?? 0;
 
   return (
     suspicious > 0.08 ||
@@ -102,9 +109,8 @@ function repeatedPageLineKeys(pages: string[]): Set<string> {
     }
   }
 
-  const threshold = pages.length > 1
-    ? Math.max(2, Math.ceil(pages.length * 0.55))
-    : 3;
+  const threshold =
+    pages.length > 1 ? Math.max(2, Math.ceil(pages.length * 0.55)) : 3;
 
   return new Set(
     [...counts.entries()]
@@ -133,7 +139,11 @@ function collapseRepeatedPhrasesInLine(line: string): string {
   const words = normaliseLine(line).split(/\s+/).filter(Boolean);
   if (words.length < 4) return words.join(" ");
 
-  for (let phraseLength = Math.floor(words.length / 2); phraseLength >= 2; phraseLength -= 1) {
+  for (
+    let phraseLength = Math.floor(words.length / 2);
+    phraseLength >= 2;
+    phraseLength -= 1
+  ) {
     const phrase = words.slice(0, phraseLength).join(" ").toLowerCase();
     let repeats = 1;
 
@@ -166,30 +176,46 @@ function calculateQuality(
   const suspiciousCharacterRatio = corruptedCharacterRatio(cleanedText);
   const greekRatio = greekCharacterRatio(cleanedText);
   const readableRatio = readableCharacterRatio(cleanedText);
-  const replacementCharacterCount = originalText.match(REPLACEMENT_RE)?.length ?? 0;
+  const replacementCharacterCount =
+    originalText.match(REPLACEMENT_RE)?.length ?? 0;
   const sourceLineCount = Math.max(1, originalText.split(/\r?\n/).length);
-  const linePenalty = Math.min(0.32, (corruptLineCount + repeatedLineCount * 0.35) / sourceLineCount);
-  const lengthRetention = Math.min(1, cleanedText.length / Math.max(400, originalText.length * 0.28));
+  const linePenalty = Math.min(
+    0.32,
+    (corruptLineCount + repeatedLineCount * 0.35) / sourceLineCount,
+  );
+  const lengthRetention = Math.min(
+    1,
+    cleanedText.length / Math.max(400, originalText.length * 0.28),
+  );
 
   const score = Math.max(
     0,
     Math.min(
       1,
-      1
-        - suspiciousCharacterRatio * 2.5
-        - Math.max(0, greekRatio - 0.08) * 1.2
-        - Math.max(0, 0.62 - readableRatio) * 0.9
-        - linePenalty
-        - Math.max(0, 0.45 - lengthRetention) * 0.45,
+      1 -
+        suspiciousCharacterRatio * 2.5 -
+        Math.max(0, greekRatio - 0.08) * 1.2 -
+        Math.max(0, 0.62 - readableRatio) * 0.9 -
+        linePenalty -
+        Math.max(0, 0.45 - lengthRetention) * 0.45,
     ),
   );
 
   const warnings: string[] = [];
-  if (corruptLineCount > 0) warnings.push(`${corruptLineCount} corrupt or encoding-noise lines were removed.`);
-  if (repeatedLineCount > 0) warnings.push(`${repeatedLineCount} repeated header/footer lines were removed.`);
-  if (suspiciousCharacterRatio > 0.04) warnings.push("The remaining text still contains an unusual symbol ratio.");
-  if (readableRatio < 0.6) warnings.push("The extracted text has a low readable-character ratio.");
-  if (cleanedText.length < 250) warnings.push("Too little usable text remains after cleaning.");
+  if (corruptLineCount > 0)
+    warnings.push(
+      `${corruptLineCount} corrupt or encoding-noise lines were removed.`,
+    );
+  if (repeatedLineCount > 0)
+    warnings.push(
+      `${repeatedLineCount} repeated header/footer lines were removed.`,
+    );
+  if (suspiciousCharacterRatio > 0.04)
+    warnings.push("The remaining text still contains an unusual symbol ratio.");
+  if (readableRatio < 0.6)
+    warnings.push("The extracted text has a low readable-character ratio.");
+  if (cleanedText.length < 250)
+    warnings.push("Too little usable text remains after cleaning.");
 
   return {
     score,

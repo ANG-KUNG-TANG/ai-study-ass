@@ -25,9 +25,7 @@ describe("withRole", () => {
       jti: "jti-1",
     });
 
-    const handler = jest.fn(async () =>
-      NextResponse.json({ success: true }),
-    );
+    const handler = jest.fn(async () => NextResponse.json({ success: true }));
 
     const route = withRole("admin")(handler);
 
@@ -54,9 +52,7 @@ describe("withRole", () => {
       jti: "jti-admin",
     });
 
-    const handler = jest.fn(async () =>
-      NextResponse.json({ success: true }),
-    );
+    const handler = jest.fn(async () => NextResponse.json({ success: true }));
 
     const route = withRole("admin")(handler);
 

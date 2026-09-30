@@ -7,7 +7,11 @@ export function detectKnowledgeGaps(
   doc: SectionedDocument,
   ontology: ResolvedConcept[],
 ): KnowledgeGap {
-  return detectGaps(core, ontology, doc.sections.map((section) => section.title));
+  return detectGaps(
+    core,
+    ontology,
+    doc.sections.map((section) => section.title),
+  );
 }
 
 export { detectGaps };

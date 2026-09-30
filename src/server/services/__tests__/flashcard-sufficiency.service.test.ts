@@ -20,35 +20,27 @@ function fact(
     type: "claim",
     content,
     verbatimRequired: false,
-    sourceSectionId:
-      sectionId,
-    evidence: [{
-      id: `e-${id}`,
-      sectionId,
-      sectionTitle:
-        `Section ${sectionId}`,
-      pageNumber: 1,
-      text: content,
-    }],
+    sourceSectionId: sectionId,
+    evidence: [
+      {
+        id: `e-${id}`,
+        sectionId,
+        sectionTitle: `Section ${sectionId}`,
+        pageNumber: 1,
+        text: content,
+      },
+    ],
     evidenceType: "stated",
-    verificationStatus:
-      "supported",
+    verificationStatus: "supported",
     confidence: 0.96,
-    importanceScore:
-      importance,
+    importanceScore: importance,
     numericTokens: [],
   };
 }
 
-function grounding():
-  GroundedKnowledge {
+function grounding(): GroundedKnowledge {
   const facts = [
-    fact(
-      "f1",
-      "s1",
-      "Alpha routing chooses the shortest verified path.",
-      0.99,
-    ),
+    fact("f1", "s1", "Alpha routing chooses the shortest verified path.", 0.99),
     fact(
       "f2",
       "s2",
@@ -82,58 +74,39 @@ function grounding():
   ];
 
   return {
-    schemaVersion:
-      GROUNDING_SCHEMA_VERSION,
-    pipelineVersion:
-      "intelligence-v2.4",
+    schemaVersion: GROUNDING_SCHEMA_VERSION,
+    pipelineVersion: "intelligence-v2.4",
     sourceHash: "source",
-    documentKind:
-      "lecture_notes",
+    documentKind: "lecture_notes",
     sourceLanguage: "en",
     facts,
     keyTerms: [],
     concepts: [
       {
-        name:
-          "Routing Convergence",
-        normalizedName:
-          "routing convergence",
-        explanation:
-          "The process of reaching a stable routing state.",
-        sourceSectionIds:
-          ["s3"],
-        evidence:
-          facts[2]!.evidence,
+        name: "Routing Convergence",
+        normalizedName: "routing convergence",
+        explanation: "The process of reaching a stable routing state.",
+        sourceSectionIds: ["s3"],
+        evidence: facts[2]!.evidence,
         importanceScore: 0.94,
       },
       {
-        name:
-          "Route Validation",
-        normalizedName:
-          "route validation",
-        explanation:
-          "Validation of routing information.",
-        sourceSectionIds:
-          ["s2"],
-        evidence:
-          facts[1]!.evidence,
+        name: "Route Validation",
+        normalizedName: "route validation",
+        explanation: "Validation of routing information.",
+        sourceSectionIds: ["s2"],
+        evidence: facts[1]!.evidence,
         importanceScore: 0.9,
       },
     ],
-    sections:
-      facts.map(
-        (item, index) => ({
-          sectionId:
-            item.sourceSectionId,
-          heading:
-            `Section ${index + 1}`,
-          status:
-            "covered" as const,
-          factIds: [item.id],
-          sourceUnitCount: 1,
-          omittedUnitCount: 0,
-        }),
-      ),
+    sections: facts.map((item, index) => ({
+      sectionId: item.sourceSectionId,
+      heading: `Section ${index + 1}`,
+      status: "covered" as const,
+      factIds: [item.id],
+      sourceUnitCount: 1,
+      omittedUnitCount: 0,
+    })),
     quality: {
       score: 0.94,
       scoreOutOf10: 9.4,
@@ -143,168 +116,87 @@ function grounding():
       numericExactnessRatio: 1,
       qualifiedTermPrecision: 1,
       duplicateFactRatio: 0,
-      artifactCount:
-        facts.length,
+      artifactCount: facts.length,
       warnings: [],
     },
-    createdAt:
-      new Date(
-        "2026-08-27T00:00:00.000Z",
-      ),
+    createdAt: new Date("2026-08-27T00:00:00.000Z"),
   };
 }
 
-describe(
-  "flashcard sufficiency",
-  () => {
-    it(
-      "uses the existing ready threshold as the minimum acceptable grounded deck size",
-      () => {
-        expect(
-          minimumAcceptableFlashcardCount(
-            15,
-          ),
-        ).toBe(11);
-        expect(
-          minimumAcceptableFlashcardCount(
-            10,
-          ),
-        ).toBe(7);
-        expect(
-          minimumAcceptableFlashcardCount(
-            3,
-          ),
-        ).toBe(3);
-      },
+describe("flashcard sufficiency", () => {
+  it("uses the existing ready threshold as the minimum acceptable grounded deck size", () => {
+    expect(minimumAcceptableFlashcardCount(15)).toBe(11);
+    expect(minimumAcceptableFlashcardCount(10)).toBe(7);
+    expect(minimumAcceptableFlashcardCount(3)).toBe(3);
+  });
+
+  it("does not spend AI merely to fill a grounded deck from 12 to the target of 15", () => {
+    const plan = buildFlashcardSufficiencyPlan({
+      targetCount: 15,
+      acceptedCount: 12,
+      qualityValidated: true,
+    });
+
+    expect(plan.minimumAcceptableCount).toBe(11);
+    expect(plan.targetShortfall).toBe(3);
+    expect(plan.needsAI).toBe(false);
+    expect(plan.requestedAIAdditions).toBe(0);
+  });
+
+  it("requests only enough AI cards to reach grounded sufficiency", () => {
+    const plan = buildFlashcardSufficiencyPlan({
+      targetCount: 15,
+      acceptedCount: 8,
+      qualityValidated: true,
+    });
+
+    expect(plan.minimumAcceptableCount).toBe(11);
+    expect(plan.requestedAIAdditions).toBe(3);
+    expect(plan.needsAI).toBe(true);
+  });
+
+  it("preserves exact-target fallback for non-grounded legacy generation", () => {
+    const plan = buildFlashcardSufficiencyPlan({
+      targetCount: 15,
+      acceptedCount: 12,
+      qualityValidated: false,
+    });
+
+    expect(plan.requestedAIAdditions).toBe(3);
+    expect(plan.needsAI).toBe(true);
+  });
+
+  it("requests bounded quality repair even when the target deck size is already full", () => {
+    const plan = buildFlashcardSufficiencyPlan({
+      targetCount: 15,
+      acceptedCount: 15,
+      qualityValidated: false,
+      qualityRepairNeeded: true,
+    });
+
+    expect(plan.targetShortfall).toBe(0);
+    expect(plan.requestedAIAdditions).toBeGreaterThanOrEqual(2);
+    expect(plan.requestedAIAdditions).toBeLessThanOrEqual(5);
+    expect(plan.needsAI).toBe(true);
+  });
+
+  it("targets important evidence not already represented by accepted cards", () => {
+    const source = grounding();
+    const evidence = retrieveFlashcardRepairEvidence(
+      source,
+      [
+        {
+          front: "What does Alpha routing do?",
+          back: "Alpha routing chooses the shortest verified path.",
+          difficulty: "easy",
+        },
+      ],
+      2,
     );
 
-    it(
-      "does not spend AI merely to fill a grounded deck from 12 to the target of 15",
-      () => {
-        const plan =
-          buildFlashcardSufficiencyPlan({
-            targetCount: 15,
-            acceptedCount: 12,
-            qualityValidated: true,
-          });
-
-        expect(
-          plan.minimumAcceptableCount,
-        ).toBe(11);
-        expect(
-          plan.targetShortfall,
-        ).toBe(3);
-        expect(
-          plan.needsAI,
-        ).toBe(false);
-        expect(
-          plan.requestedAIAdditions,
-        ).toBe(0);
-      },
-    );
-
-    it(
-      "requests only enough AI cards to reach grounded sufficiency",
-      () => {
-        const plan =
-          buildFlashcardSufficiencyPlan({
-            targetCount: 15,
-            acceptedCount: 8,
-            qualityValidated: true,
-          });
-
-        expect(
-          plan.minimumAcceptableCount,
-        ).toBe(11);
-        expect(
-          plan.requestedAIAdditions,
-        ).toBe(3);
-        expect(
-          plan.needsAI,
-        ).toBe(true);
-      },
-    );
-
-    it(
-      "preserves exact-target fallback for non-grounded legacy generation",
-      () => {
-        const plan =
-          buildFlashcardSufficiencyPlan({
-            targetCount: 15,
-            acceptedCount: 12,
-            qualityValidated: false,
-          });
-
-        expect(
-          plan.requestedAIAdditions,
-        ).toBe(3);
-        expect(
-          plan.needsAI,
-        ).toBe(true);
-      },
-    );
-
-    it(
-      "requests bounded quality repair even when the target deck size is already full",
-      () => {
-        const plan =
-          buildFlashcardSufficiencyPlan({
-            targetCount: 15,
-            acceptedCount: 15,
-            qualityValidated: false,
-            qualityRepairNeeded: true,
-          });
-
-        expect(plan.targetShortfall).toBe(0);
-        expect(plan.requestedAIAdditions).toBeGreaterThanOrEqual(2);
-        expect(plan.requestedAIAdditions).toBeLessThanOrEqual(5);
-        expect(plan.needsAI).toBe(true);
-      },
-    );
-
-    it(
-      "targets important evidence not already represented by accepted cards",
-      () => {
-        const source =
-          grounding();
-        const evidence =
-          retrieveFlashcardRepairEvidence(
-            source,
-            [{
-              front:
-                "What does Alpha routing do?",
-              back:
-                "Alpha routing chooses the shortest verified path.",
-              difficulty:
-                "easy",
-            }],
-            2,
-          );
-
-        expect(
-          evidence.characterCount,
-        ).toBeLessThanOrEqual(
-          3_200,
-        );
-        expect(
-          evidence.factIds,
-        ).not.toContain(
-          "f1",
-        );
-        expect(
-          evidence.factIds,
-        ).toEqual(
-          expect.arrayContaining([
-            "f2",
-            "f3",
-          ]),
-        );
-        expect(
-          evidence.text,
-        ).toContain(
-          "Beta validation",
-        );
-      },
-    );
-  },
-);
+    expect(evidence.characterCount).toBeLessThanOrEqual(3_200);
+    expect(evidence.factIds).not.toContain("f1");
+    expect(evidence.factIds).toEqual(expect.arrayContaining(["f2", "f3"]));
+    expect(evidence.text).toContain("Beta validation");
+  });
+});

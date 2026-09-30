@@ -13,7 +13,9 @@ export const generateFlashcardsSchema = z.object({
 });
 
 export const reviewFlashcardSchema = z.object({
-  difficulty: z.enum(["easy", "medium", "hard"], { error: "invalid difficulty value" }),
+  difficulty: z.enum(["easy", "medium", "hard"], {
+    error: "invalid difficulty value",
+  }),
 });
 
 export type GenerateFlashcardsInput = z.infer<typeof generateFlashcardsSchema>;

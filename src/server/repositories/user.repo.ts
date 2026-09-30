@@ -1,7 +1,16 @@
 import { User } from "@/server/models/User";
-import { UserEntity, type UserProps, type UserId, type UserRole } from "@/server/entities/user.entity";
+import {
+  UserEntity,
+  type UserProps,
+  type UserId,
+  type UserRole,
+} from "@/server/entities/user.entity";
 import { logger } from "@/server/utils/logger";
-import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from "@/server/utils/constants";
+import {
+  DEFAULT_PAGE,
+  DEFAULT_LIMIT,
+  MAX_LIMIT,
+} from "@/server/utils/constants";
 import { NotFoundError } from "../utils/errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -11,7 +20,7 @@ export interface UserQueryOptions {
   limit?: number;
   role?: UserRole;
   isActive?: boolean;
-  search?: string;          // matches name or email substring
+  search?: string; // matches name or email substring
   sortBy?: "createdAt" | "name" | "email";
   sortOrder?: "asc" | "desc";
 }
@@ -67,7 +76,8 @@ function buildSelect(options: SensitiveFieldOptions = {}): string {
   const extras: string[] = [];
   if (options.withPassword) extras.push("+passwordHash");
   if (options.withRefreshTokenId) extras.push("+refreshTokenId");
-  if (options.withVerificationToken) extras.push("+emailVerificationToken +emailVerificationExpires");
+  if (options.withVerificationToken)
+    extras.push("+emailVerificationToken +emailVerificationExpires");
   if (options.withGoogleSubject) extras.push("+googleSubject");
   return extras.join(" ");
 }
@@ -76,7 +86,7 @@ function buildSelect(options: SensitiveFieldOptions = {}): string {
 
 export async function findById(
   id: UserId,
-  sensitive: SensitiveFieldOptions = {}
+  sensitive: SensitiveFieldOptions = {},
 ): Promise<UserEntity | null> {
   const select = buildSelect(sensitive);
   const doc = await User.findById(id)
@@ -90,7 +100,7 @@ export async function findById(
 
 export async function findByEmail(
   email: string,
-  sensitive: SensitiveFieldOptions = {}
+  sensitive: SensitiveFieldOptions = {},
 ): Promise<UserEntity | null> {
   const select = buildSelect(sensitive);
   const doc = await User.findOne({ email: email.toLowerCase().trim() })
@@ -103,7 +113,7 @@ export async function findByEmail(
 }
 
 export async function findByVerificationToken(
-  tokenHash: string
+  tokenHash: string,
 ): Promise<UserEntity | null> {
   const doc = await User.findOne({ emailVerificationToken: tokenHash })
     .select("+emailVerificationToken +emailVerificationExpires")
@@ -127,9 +137,7 @@ export async function findByGoogleSubject(
 }
 
 export async function existsByEmail(email: string): Promise<boolean> {
-  return Boolean(
-    await User.exists({ email: email.toLowerCase().trim() })
-  );
+  return Boolean(await User.exists({ email: email.toLowerCase().trim() }));
 }
 
 // ─── READ — list ──────────────────────────────────────────────────────────────
@@ -137,7 +145,7 @@ export async function existsByEmail(email: string): Promise<boolean> {
 // access rules before calling — repo just executes what it's told.
 
 export async function findMany(
-  options: UserQueryOptions = {}
+  options: UserQueryOptions = {},
 ): Promise<PaginatedUsers> {
   const page = Math.max(1, options.page ?? DEFAULT_PAGE);
   const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
@@ -175,13 +183,15 @@ export async function findMany(
 // add near findMany
 export async function findManyByIds(ids: UserId[]): Promise<UserEntity[]> {
   if (ids.length === 0) return [];
-  const docs = await User.find({ _id: { $in: ids } }).lean().exec();
+  const docs = await User.find({ _id: { $in: ids } })
+    .lean()
+    .exec();
   return docs.map(toEntity);
 }
 // ─── AGGREGATE ────────────────────────────────────────────────────────────────
 
 export async function count(
-  filter: { role?: UserRole; isActive?: boolean } = {}
+  filter: { role?: UserRole; isActive?: boolean } = {},
 ): Promise<number> {
   return User.countDocuments(filter);
 }
@@ -195,7 +205,7 @@ export async function create(entity: UserEntity): Promise<UserEntity> {
     _id: data.id,
     name: data.name,
     email: data.email,
-    passwordHash: data.passwordHash,   // already hashed by auth.service
+    passwordHash: data.passwordHash, // already hashed by auth.service
     googleSubject: data.googleSubject,
     passwordConfigured: data.passwordConfigured,
     role: data.role,
@@ -280,7 +290,7 @@ export async function setGoogleSubject(
 
 export async function updateRefreshTokenId(
   id: UserId,
-  refreshTokenId: string | null
+  refreshTokenId: string | null,
 ): Promise<void> {
   await User.findByIdAndUpdate(id, {
     refreshTokenId,
@@ -321,12 +331,12 @@ export async function rotateRefreshTokenId(
 // caller must pass an already-hashed value.
 export async function updatePassword(
   id: UserId,
-  passwordHash: string
+  passwordHash: string,
 ): Promise<void> {
   await User.findByIdAndUpdate(id, {
     passwordHash,
     passwordConfigured: true,
-    refreshTokenId: null,   // invalidate all sessions
+    refreshTokenId: null, // invalidate all sessions
     updatedAt: new Date(),
   });
   logger.info("Password updated", { userId: id });
@@ -335,7 +345,7 @@ export async function updatePassword(
 export async function updateVerificationToken(
   id: UserId,
   tokenHash: string,
-  expires: Date
+  expires: Date,
 ): Promise<void> {
   await User.findByIdAndUpdate(id, {
     emailVerificationToken: tokenHash,
@@ -356,7 +366,7 @@ export async function clearVerificationToken(id: UserId): Promise<void> {
 
 export async function updateProfile(
   id: UserId,
-  data: { name?: string }
+  data: { name?: string },
 ): Promise<UserEntity | null> {
   const doc = await User.findByIdAndUpdate(
     id,
@@ -364,7 +374,7 @@ export async function updateProfile(
     {
       returnDocument: "after",
       runValidators: true,
-    }
+    },
   )
     .lean()
     .exec();
@@ -373,10 +383,7 @@ export async function updateProfile(
   return toEntity(doc);
 }
 
-export async function updateRole(
-  id: UserId,
-  role: UserRole
-): Promise<void> {
+export async function updateRole(id: UserId, role: UserRole): Promise<void> {
   await User.findByIdAndUpdate(id, {
     role,
     updatedAt: new Date(),
@@ -384,10 +391,7 @@ export async function updateRole(
   logger.info("User role updated", { userId: id, role });
 }
 
-export async function setActive(
-  id: UserId,
-  isActive: boolean
-): Promise<void> {
+export async function setActive(id: UserId, isActive: boolean): Promise<void> {
   await User.findByIdAndUpdate(id, {
     isActive,
     updatedAt: new Date(),
@@ -407,7 +411,7 @@ export async function deleteById(id: UserId): Promise<void> {
 export async function updatePasswordResetToken(
   id: UserId,
   tokenHash: string,
-  expires: Date
+  expires: Date,
 ): Promise<void> {
   await User.findByIdAndUpdate(id, {
     passwordResetToken: tokenHash,
@@ -461,7 +465,7 @@ export async function consumePasswordResetToken(
 }
 
 export async function findByPasswordResetToken(
-  tokenHash: string
+  tokenHash: string,
 ): Promise<UserEntity | null> {
   const doc = await User.findOne({ passwordResetToken: tokenHash })
     .select("+passwordResetToken +passwordResetExpires")
@@ -476,7 +480,7 @@ export async function findByPasswordResetToken(
 
 export async function findByIdOrThrow(
   id: UserId,
-  sensitive: SensitiveFieldOptions = {}
+  sensitive: SensitiveFieldOptions = {},
 ): Promise<UserEntity> {
   const user = await findById(id, sensitive);
   if (!user) throw new NotFoundError("User");
@@ -485,7 +489,7 @@ export async function findByIdOrThrow(
 
 export async function findByEmailOrThrow(
   email: string,
-  sensitive: SensitiveFieldOptions = {}
+  sensitive: SensitiveFieldOptions = {},
 ): Promise<UserEntity> {
   const user = await findByEmail(email, sensitive);
   if (!user) throw new NotFoundError("User");

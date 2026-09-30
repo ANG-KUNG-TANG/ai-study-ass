@@ -29,7 +29,10 @@ export async function updateProfile(
   _context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const data = await validateBody(req, updateProfileSchema) as UpdateProfileInput;
+  const data = (await validateBody(
+    req,
+    updateProfileSchema,
+  )) as UpdateProfileInput;
   const user = await userService.updateProfile(auth.userId, data);
 
   await logActivity({
@@ -49,7 +52,10 @@ export async function deleteAccount(
   _context: RouteContext,
   auth: AuthContext,
 ): Promise<NextResponse> {
-  const { password } = await validateBody(req, deleteAccountSchema) as DeleteAccountInput;
+  const { password } = (await validateBody(
+    req,
+    deleteAccountSchema,
+  )) as DeleteAccountInput;
   await userService.deleteAccount(auth.userId, password);
 
   await logActivity({
