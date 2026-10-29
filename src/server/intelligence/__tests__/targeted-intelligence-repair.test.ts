@@ -1,7 +1,6 @@
 import type { DocumentChunk } from "../pipeline";
 import { buildIntelligenceRepairEvidence } from "../fallback/intelligence-repair-evidence";
-import { completeWithAI } from "../fallback/ai_fallback.service";
-import type { KnowledgeCore, KnowledgeGap } from "../types";
+
 function chunk(
   input: Partial<DocumentChunk> &
     Pick<DocumentChunk, "id" | "sectionId" | "sectionTitle" | "text">,
