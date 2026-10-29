@@ -37,7 +37,7 @@ export function computeConfidenceBreakdown(
   const conceptQuality = scoreConceptQuality(inputs.core);
   const ontology = scoreOntology(inputs.ontology);
   const graph = scoreGraph(inputs.graph, inputs.core);
-  const reasoning = Math.min(1, inputs.prologAnswerCount / 8);
+  const reasoning = Math.min(1, inputs.prologAnswerCount / 9);
 
   const overall =
     grounding * WEIGHTS.grounding +
