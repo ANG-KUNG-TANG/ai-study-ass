@@ -61,35 +61,48 @@ export function StudyArtwork() {
 
   return (
     <section className="relative hidden min-h-full overflow-hidden border-l border-line bg-yellow-soft/30 lg:flex lg:items-center">
+      {/* Subtle background texture */}
       <div
-        className="absolute inset-0 opacity-70 [background-image:radial-gradient(#E6DDC8_1.25px,transparent_1.25px)] [background-size:28px_28px]"
+        className="pointer-events-none absolute inset-0 opacity-50 [background-image:radial-gradient(#E6DDC8_1px,transparent_1px)] [background-size:26px_26px]"
         aria-hidden="true"
       />
 
-      <div className="relative z-10 w-full px-8 py-12 xl:px-12 2xl:px-16">
-        <h2 className="max-w-[760px] text-[clamp(2.7rem,4.2vw,4.8rem)] font-bold leading-[0.93] tracking-[-0.07em] text-ink">
-          {t("auth.hero.title")}
-        </h2>
-        <p className="mt-6 max-w-[690px] text-[14px] leading-7 text-ink-soft xl:text-[15px]">
-          {t("auth.hero.description")}
-        </p>
+      <div className="relative z-10 mx-auto w-full max-w-[760px] px-7 py-10 xl:px-10 2xl:px-12">
+        {/* Heading */}
+        <div className="max-w-[600px]">
+          <h2 className="text-[clamp(2rem,3vw,3.25rem)] font-semibold leading-[1.08] tracking-[-0.045em] text-ink">
+            {t("auth.hero.title")}
+          </h2>
 
-        <div className="mt-8 grid grid-cols-2 gap-3 xl:grid-cols-3 xl:gap-4">
+          <p className="mt-4 max-w-[560px] text-sm leading-6 text-ink-soft">
+            {t("auth.hero.description")}
+          </p>
+        </div>
+
+        {/* Feature cards */}
+        <div className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-3">
           {features.map(({ icon: Icon, label, iconClass, surfaceClass }) => (
-            <div
+            <article
               key={label}
-              className="flex min-h-[132px] flex-col justify-between rounded-[16px] border border-line bg-paper-raised/95 p-4 xl:min-h-[150px] xl:p-5"
+              className="flex min-h-[104px] flex-col justify-between rounded-xl border border-line bg-paper-raised/95 p-4 transition-colors duration-200 hover:border-yellow"
             >
               <span
-                className={`flex h-11 w-11 items-center justify-center rounded-full ${surfaceClass} ${iconClass}`}
+                className={`flex h-9 w-9 items-center justify-center rounded-full ${surfaceClass} ${iconClass}`}
               >
-                <Icon size={21} strokeWidth={1.9} aria-hidden="true" />
+                <Icon size={18} strokeWidth={1.9} aria-hidden="true" />
               </span>
-              <strong className="mt-5 text-[12px] font-bold leading-5 tracking-[-0.02em] text-ink xl:text-[13px]">
+
+              <strong className="mt-3 text-xs font-semibold leading-5 tracking-tight text-ink">
                 {t(label)}
               </strong>
-            </div>
+            </article>
           ))}
+        </div>
+
+        {/* Small decorative footer */}
+        <div className="mt-5 flex items-center gap-2 text-[11px] text-ink-soft">
+          <span className="h-1.5 w-1.5 rounded-full bg-sage" />
+          <span>{t("home.learningLoop")}</span>
         </div>
       </div>
     </section>

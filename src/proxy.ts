@@ -9,6 +9,7 @@ import { verifyBrowserSession } from "@/server/services/browser-session.service"
 // Public pages — no session required. Prefixed with /auth to match actual
 // page locations (src/app/auth/login, src/app/auth/logout, ...).
 const PUBLIC_ROUTES = [
+  "/",
   "/auth/login",
   "/auth/register",
   "/auth/forgot-password",
@@ -32,7 +33,10 @@ const PUBLIC_API_ROUTES = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const isPublicPage = (p: string) => PUBLIC_ROUTES.some((r) => p.startsWith(r));
+const isPublicPage = (p: string) =>
+  PUBLIC_ROUTES.some((route) =>
+    route === "/" ? p === "/" : p.startsWith(route),
+  );
 const isPublicApi = (p: string) =>
   PUBLIC_API_ROUTES.some((r) => p.startsWith(r));
 const isApiRoute = (p: string) => p.startsWith("/api/");

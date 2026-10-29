@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -168,10 +167,7 @@ export default function RootPage() {
       </div>
 
       {/* Interactive demo */}
-      <section
-        id="try-demo"
-        className="scroll-mt-5 bg-paper pb-16 sm:pb-20"
-      >
+      <section id="try-demo" className="scroll-mt-5 bg-paper pb-16 sm:pb-20">
         <div
           data-scroll-reveal
           className="mx-auto max-w-[1120px] px-5 transition-[opacity,transform] duration-700 ease-out motion-reduce:transition-none sm:px-8 lg:px-10"
@@ -247,8 +243,8 @@ export default function RootPage() {
             </h2>
 
             <p className="mt-3 max-w-[480px] text-sm leading-6 text-ink-soft">
-              Turn your notes into useful study tools, then practice at your
-              own pace.
+              Turn your notes into useful study tools, then practice at your own
+              pace.
             </p>
           </div>
 

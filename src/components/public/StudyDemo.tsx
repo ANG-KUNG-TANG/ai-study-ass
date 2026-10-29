@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -207,7 +206,9 @@ export function StudyDemo() {
                   : flashcards[cardIndex].question}
               </span>
               <span className="mt-4 text-xs text-ink-soft">
-                {showAnswer ? "Tap to see the question" : "Tap to reveal answer"}
+                {showAnswer
+                  ? "Tap to see the question"
+                  : "Tap to reveal answer"}
               </span>
             </button>
 
@@ -264,10 +265,7 @@ export function StudyDemo() {
                   optionClass = "border-sage bg-sage-soft";
                 } else if (selected && !correct) {
                   optionClass = "border-coral bg-coral/5";
-                } else if (
-                  selectedAnswer !== null &&
-                  correct
-                ) {
+                } else if (selectedAnswer !== null && correct) {
                   optionClass = "border-sage bg-sage-soft";
                 }
 
@@ -340,9 +338,7 @@ export function StudyDemo() {
                 <div
                   key={`${index}-${message.role}`}
                   className={`flex ${
-                    message.role === "user"
-                      ? "justify-end"
-                      : "justify-start"
+                    message.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
                   <div
