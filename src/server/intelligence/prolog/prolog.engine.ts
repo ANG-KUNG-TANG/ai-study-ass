@@ -307,9 +307,79 @@ interface RawAnswer {
   bindings: Record<string, string>;
 }
 
-function buildEvidence(answer: RawAnswer, facts: PrologFact[]): PrologFact[] {
+function findBelongsToEvidence(
+  concept: string,
+  domain: string,
+  facts: PrologFact[],
+): PrologFact[] {
+  const directRelations = new Set(["is_a", "part_of"]);
+
+  function findPath(
+    current: string,
+    visited: Set<string>,
+  ): PrologFact[] | null {
+    if (current === domain) {
+      return [];
+    }
+
+    if (visited.has(current)) {
+      return null;
+    }
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(current);
+
+    for (const fact of facts) {
+      if (!directRelations.has(fact.functor) || fact.args[0] !== current) {
+        continue;
+      }
+
+      const nextConcept = fact.args[1];
+
+      if (!nextConcept) {
+        continue;
+      }
+
+      const remainingPath = findPath(nextConcept, nextVisited);
+
+      if (remainingPath !== null) {
+        return [fact, ...remainingPath];
+      }
+    }
+
+    return null;
+  }
+
+  return findPath(concept, new Set()) ?? [];
+}
+
+function buildEvidence(
+  answer: RawAnswer,
+  facts: PrologFact[],
+  goal: string,
+): PrologFact[] {
+  const belongsToMatch = goal.match(
+    /^\s*belongs_to\(\s*([a-z][a-zA-Z0-9_]*)\s*,\s*([a-z][a-zA-Z0-9_]*)\s*\)\s*\.?\s*$/,
+  );
+
+  if (belongsToMatch) {
+    return findBelongsToEvidence(belongsToMatch[1], belongsToMatch[2], facts);
+  }
   const boundValues = new Set(Object.values(answer.bindings));
-  return facts.filter((f) => f.args.some((a) => boundValues.has(a)));
+
+  // Ground queries can succeed without producing variable bindings.
+  // Include their argument values when searching for relevant facts.
+  const goalArgs =
+    goal
+      .match(/\((.*)\)/)?.[1]
+      ?.split(",")
+      .map((arg) => arg.trim()) ?? [];
+
+  const relevantValues = new Set([...boundValues, ...goalArgs]);
+
+  return facts.filter((fact) =>
+    fact.args.some((arg) => relevantValues.has(arg)),
+  );
 }
 
 function buildExplanation(goal: string, answers: PrologAnswer[]): string {
@@ -444,7 +514,7 @@ export class PrologEngine implements PrologEngineInstance {
 
     const answers: PrologAnswer[] = rawAnswers.map((raw) => ({
       bindings: raw.bindings,
-      evidence: buildEvidence(raw, this.loadedFacts),
+      evidence: buildEvidence(raw, this.loadedFacts, normalizedGoal),
     }));
 
     const confidence = scoreConfidence(goal, answers);
@@ -494,6 +564,7 @@ export class PrologEngine implements PrologEngineInstance {
 
   private collectAnswers(goal: string): Promise<RawAnswer[]> {
     const session = this.session!;
+
     return new Promise((resolve) => {
       session.query(goal, {
         success: () => {
@@ -502,21 +573,33 @@ export class PrologEngine implements PrologEngineInstance {
           const next = (): void => {
             session.answer({
               success: (term: unknown) => {
-                answers.push({ bindings: this.extractBindings(term) });
+                answers.push({
+                  bindings: this.extractBindings(term),
+                });
+
                 next();
               },
-              fail: () => resolve(answers),
-              error: () => resolve(answers), // stop on error, return what we have
-              limit: () => resolve(answers),
+
+              fail: () => {
+                resolve(answers);
+              },
+
+              error: () => {
+                resolve(answers);
+              },
+
+              limit: () => {
+                resolve(answers);
+              },
             });
           };
 
           next();
         },
-        // Syntax error in the goal itself — return zero answers rather than throw,
-        // so a malformed goal from a feature service degrades to AI fallback
-        // instead of crashing the request.
-        error: () => resolve([]),
+
+        error: () => {
+          resolve([]);
+        },
       });
     });
   }

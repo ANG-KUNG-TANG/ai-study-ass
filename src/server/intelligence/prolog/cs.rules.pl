@@ -1,3 +1,7 @@
+% Allow missing relationship types to fail safely.
+is_a(_, _) :- fail.
+part_of(_, _) :- fail.
+
 % Evidence-grounded intelligence rules.
 
 belongs_to(Concept, Domain) :- is_a(Concept, Domain).
