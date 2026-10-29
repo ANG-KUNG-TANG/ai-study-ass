@@ -560,12 +560,15 @@ function inferGroundedRelation(
 
   if (aIndex < 0 || bIndex < 0) return null;
 
-  const [first, second, firstIndex, secondIndex] =
-    aIndex <= bIndex ? [a, b, aIndex, bIndex] : [b, a, bIndex, aIndex];
+  const [first, second, firstIndex, secondIndex, firstMention] =
+    aIndex <= bIndex
+      ? [a, b, aIndex, bIndex, aLabel]
+      : [b, a, bIndex, aIndex, bLabel];
 
   const between = sentence
-    .slice(firstIndex, secondIndex + 1)
-    .replace(/\s+/g, " ");
+    .slice(firstIndex + firstMention.length, secondIndex)
+    .replace(/\s+/g, " ")
+    .trim();
 
   if (/\b(is|are|was|were)\s+(an?|the)?\s*$/.test(between)) {
     return { from: first.nodeId, to: second.nodeId, type: "is_a" };

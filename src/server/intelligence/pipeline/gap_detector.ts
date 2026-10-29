@@ -38,7 +38,7 @@ export function detectGaps(
     }
     if (section === "results") {
       return !presentSections.some((present) =>
-        ["results", "discussion", "conclusion"].includes(present),
+        ["results", "discussion"].includes(present),
       );
     }
     return !presentSections.includes(section);

@@ -150,4 +150,21 @@ describe("Evidence-grounded workflow", () => {
     expect(result.core.method).toBeNull();
     expect(result.aiFallback.used).toBe(false);
   });
+
+  test("does not invoke AI repair when no required fields are missing", async () => {
+    const aiGenerate = jest.fn(groundedRepair);
+
+    const result = await runPipeline({
+      noteId: "no-repair-needed",
+      document: DEFECT_PAPER,
+      aiGenerate,
+      aiFallbackThreshold: 0.99,
+    });
+
+    expect(result.gaps.missingFields).toEqual([]);
+    expect(aiGenerate).not.toHaveBeenCalled();
+    expect(
+      result.stageProgress.find((stage) => stage.stage === "ai_repair")?.status,
+    ).toBe("skipped");
+  });
 });

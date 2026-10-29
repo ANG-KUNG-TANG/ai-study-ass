@@ -664,22 +664,22 @@ Health checks
 
 ## 🔧 Technology Stack
 
-| Category | Technologies |
-|---|---|
-| Frontend | Next.js, React, TypeScript, Tailwind CSS |
-| Backend | Next.js API Routes, Node.js |
-| Database | MongoDB, Mongoose |
-| Queue | Redis, BullMQ, IORedis |
-| AI | Google GenAI |
-| Document Processing | PDF Parse, Mammoth, Tesseract OCR |
-| Reasoning | Tau-Prolog |
-| Visualization | XYFlow (@xyflow/react) |
-| Authentication | JWT (jsonwebtoken, jose), Google OAuth |
-| Validation | Zod |
-| Email | Resend |
-| Infrastructure | Docker, Docker Compose |
-| Deployment | Vercel |
-| Messaging | Telegram Bot API |
+| Category            | Technologies                             |
+| ------------------- | ---------------------------------------- |
+| Frontend            | Next.js, React, TypeScript, Tailwind CSS |
+| Backend             | Next.js API Routes, Node.js              |
+| Database            | MongoDB, Mongoose                        |
+| Queue               | Redis, BullMQ, IORedis                   |
+| AI                  | Google GenAI                             |
+| Document Processing | PDF Parse, Mammoth, Tesseract OCR        |
+| Reasoning           | Tau-Prolog                               |
+| Visualization       | XYFlow (@xyflow/react)                   |
+| Authentication      | JWT (jsonwebtoken, jose), Google OAuth   |
+| Validation          | Zod                                      |
+| Email               | Resend                                   |
+| Infrastructure      | Docker, Docker Compose                   |
+| Deployment          | Vercel                                   |
+| Messaging           | Telegram Bot API                         |
 
 ---
 
@@ -773,26 +773,26 @@ npm run worker:pdf   # PDF ingestion worker
 
 ### Available scripts
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start the Next.js development server |
-| `npm run build` | Create a production build |
-| `npm start` | Run the production build |
-| `npm run lint` | Run ESLint |
-| `npm run typecheck` | Run TypeScript type checking (`tsc --noEmit`) |
-| `npm test` | Run the Jest test suite |
-| `npm run test:watch` | Run Jest in watch mode |
-| `npm run test:coverage` | Generate a coverage report |
-| `npm run format` | Format the codebase with Prettier |
-| `npm run format:check` | Check formatting without changing files |
-| `npm run check` | Run typecheck, lint, tests, and build in sequence |
-| `npm run worker` | Start the AI study-generation worker |
-| `npm run worker:pdf` | Start the PDF ingestion worker |
-| `npm run docker:build` | Build the Docker image |
-| `npm run docker:up` | Start the Docker Compose stack |
-| `npm run docker:down` | Stop the Docker Compose stack |
-| `npm run docker:logs` | Follow the app container logs |
-| `npm run docker:prod` | Start the production Compose stack |
+| Command                 | Description                                       |
+| ----------------------- | ------------------------------------------------- |
+| `npm run dev`           | Start the Next.js development server              |
+| `npm run build`         | Create a production build                         |
+| `npm start`             | Run the production build                          |
+| `npm run lint`          | Run ESLint                                        |
+| `npm run typecheck`     | Run TypeScript type checking (`tsc --noEmit`)     |
+| `npm test`              | Run the Jest test suite                           |
+| `npm run test:watch`    | Run Jest in watch mode                            |
+| `npm run test:coverage` | Generate a coverage report                        |
+| `npm run format`        | Format the codebase with Prettier                 |
+| `npm run format:check`  | Check formatting without changing files           |
+| `npm run check`         | Run typecheck, lint, tests, and build in sequence |
+| `npm run worker`        | Start the AI study-generation worker              |
+| `npm run worker:pdf`    | Start the PDF ingestion worker                    |
+| `npm run docker:build`  | Build the Docker image                            |
+| `npm run docker:up`     | Start the Docker Compose stack                    |
+| `npm run docker:down`   | Stop the Docker Compose stack                     |
+| `npm run docker:logs`   | Follow the app container logs                     |
+| `npm run docker:prod`   | Start the production Compose stack                |
 
 ---
 
