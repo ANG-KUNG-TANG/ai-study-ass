@@ -1,6 +1,32 @@
-# 🧠 AI Study Assistant
 
-> An AI-powered learning platform that transforms study documents into structured, interactive learning experiences.
+<div align="center">
+
+  <img
+    src="./docs/screenshots/ai_study_assistant_logo_v2.svg"
+    alt="AI Study Assistant Logo"
+    width="180"
+  />
+
+  <h1>AI Study Assistant</h1>
+
+  <p>
+    An AI-powered learning platform that transforms
+    study documents into structured, interactive learning experiences.
+  </p>
+
+  <p>
+    <a href="https://ai-study-ass.vercel.app">Live Application</a>
+    ·
+    <a href="https://t.me/aistudyassbot">Telegram Bot</a>
+    ·
+    <a href="https://github.com/ANG-KUNG-TANG/ai-study-ass">GitHub Repository</a>
+  </p>
+
+</div>
+
+---
+
+## 📖 Table of Contents
 
 **AI Study Assistant** is a full-stack educational platform designed to help students learn from their own study materials.
 
