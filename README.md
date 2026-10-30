@@ -1,3 +1,5 @@
+<div align="center">
+
 # 🧠 AI Study Assistant
 
 > An AI-powered learning platform that transforms study documents into structured, interactive learning experiences.
