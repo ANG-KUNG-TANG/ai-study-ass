@@ -1,187 +1,102 @@
+<div align="center">
+
 # 🧠 AI Study Assistant
 
-> An AI-powered learning platform that transforms study documents into structured, interactive learning experiences.
+### Turn your study materials into structured, interactive learning experiences.
 
-**AI Study Assistant** is a full-stack educational platform designed to help students learn from their own study materials.
+A full-stack AI-powered learning platform that transforms documents into summaries, concepts, flashcards, quizzes, and evidence-grounded learning support.
 
-Instead of simply sending an uploaded document to an AI model and asking it to summarize the content, the system uses a multi-stage processing pipeline to extract, structure, analyze, and reason about learning content before generating study materials.
+[**Live Application**](https://ai-study-ass.vercel.app) · [**Telegram Bot**](https://t.me/aistudyassbot) · [**GitHub Repository**](https://github.com/ANG-KUNG-TANG/ai-study-ass)
 
-Students can upload learning materials, generate summaries, concepts, flashcards, quizzes, and explanations, and interact with their study content through the web application and Telegram.
-
-The project also includes background workers, asynchronous job processing, Redis queues, document ingestion, AI usage observability, administrative controls, security protections, and an evidence-grounded intelligence engine.
+</div>
 
 ---
 
-## 🌐 Live Application
+## Product demo
 
-**Web Application:** https://ai-study-ass.vercel.app
+<!--
+Add your finished demo video here.
 
-**Telegram Bot:** [@aistudyassbot](https://t.me/aistudyassbot)
+Recommended:
+1. Upload the MP4 by editing this README on GitHub.
+2. Wait for GitHub to generate a video attachment URL.
+3. Replace this comment with the generated URL or embed the video using
+   the Markdown link GitHub provides.
 
-**GitHub Repository:** https://github.com/ANG-KUNG-TANG/ai-study-ass
+Do not invent a video URL or commit a large video file unless intended.
+-->
 
----
+**A short walkthrough should show the complete student journey:**
 
-## 📖 Table of Contents
+| Time | Scene | What to demonstrate |
+|---|---|---|
+| 0–5s | Opening | The challenge of turning course documents into useful study resources |
+| 5–12s | Product introduction | Actual AI Study Assistant dashboard |
+| 12–21s | Document upload | Upload a real sample PDF and show its processing status |
+| 21–34s | Study generation | Generated summary, concepts, flashcards, and quiz |
+| 34–44s | Knowledge intelligence | Concept map, knowledge tree, and learning path |
+| 44–53s | Learning interaction | AI chat and its supporting evidence |
+| 53–60s | Connected experience | Telegram integration, live application, and project identity |
 
-- [Overview](#-overview)
-- [Problem](#-problem)
-- [Solution](#-solution)
-- [Core Features](#-core-features)
-- [Application Preview](#-application-preview)
-- [How It Works](#-how-it-works)
-- [System Architecture](#-system-architecture)
-- [Document Processing Pipeline](#-document-processing-pipeline)
-- [AI Study Generation](#-ai-study-generation)
-- [Intelligence Engine](#-intelligence-engine)
-- [Knowledge Gap Detection](#-knowledge-gap-detection)
-- [Background Workers](#-background-workers)
-- [Queue Architecture](#-queue-architecture)
-- [Telegram Integration](#-telegram-integration)
-- [Admin Observability](#-admin-observability)
-- [Security](#-security)
-- [Technology Stack](#-technology-stack)
-- [Project Structure](#-project-structure)
-- [Local Development](#-local-development)
-- [Docker Development](#-docker-development)
-- [Environment Variables](#-environment-variables)
-- [Testing](#-testing)
-- [Production Deployment](#-production-deployment)
-- [Architecture Decisions](#-architecture-decisions)
-- [Engineering Challenges](#-engineering-challenges)
-- [Future Improvements](#-future-improvements)
-- [Project Status](#-project-status)
-- [Author](#-author)
-- [License](#-license)
+*Use actual screen recordings for application interfaces. Use generated motion graphics only for transitions and supporting visuals. Do not expose personal information, API keys, or private account details.*
 
 ---
 
-## 🎯 Overview
+## Why I built this
 
-AI Study Assistant is designed around a simple idea:
+Students often receive learning materials as PDFs, lecture notes, technical documents, and presentations. Although these materials contain valuable information, converting them into effective study resources requires considerable manual effort.
 
-> **Students should be able to learn from their own materials without manually converting those materials into study resources.**
+Students must read lengthy documents, identify important concepts, write summaries, create flashcards, prepare practice questions, and determine which topics they still need to understand.
 
-A student can upload a learning document and let the system process it into structured study content.
+I built AI Study Assistant to reduce this manual work and make learning materials more useful for active study.
 
-The platform supports a workflow such as:
+The platform does more than send an uploaded document to an AI model for a summary. It uses a multi-stage processing pipeline to extract, structure, analyse, and reason about learning content before generating study resources.
 
-```text
-Upload Study Material
-        ↓
-Document Processing
-        ↓
-Text Extraction
-        ↓
-Content Structuring
-        ↓
-Concept Analysis
-        ↓
-Study Material Generation
-        ↓
-Review & Learning
+## What it does
+
+AI Study Assistant turns static learning materials into an interactive learning workflow:
+
+1. **Upload** course documents and study materials.
+2. **Process** documents through asynchronous ingestion and text extraction.
+3. **Structure** the extracted learning content.
+4. **Generate** summaries, concepts, flashcards, quizzes, and explanations.
+5. **Explore** concepts and their relationships through knowledge visualisations.
+6. **Interact** with study content through the web application and Telegram.
+
+```mermaid
+flowchart TD
+    A[Study Material] --> B[Document Upload]
+    B --> C[Document Processing]
+    C --> D[Text Extraction]
+    D --> E[Content Structuring]
+    E --> F[Study Generation]
+    E --> G[Intelligence Engine]
+    F --> H[Summaries / Flashcards / Quizzes]
+    G --> I[Concepts / Knowledge Graph / Reasoning]
+    H --> J[Learning Experience]
+    I --> J
+    J --> K[Web Application]
+    J --> L[Telegram]
 ```
 
----
+## Core features
 
-## ❓ Problem
+### Learning workspace
 
-Students often receive learning materials in formats such as:
+- **Document upload** — use course documents and study materials as the foundation for learning.
+- **AI-generated summaries** — review condensed, structured learning content.
+- **Key concepts** — identify important ideas from processed material.
+- **Flashcards** — practise recall using question-and-answer cards.
+- **Quizzes** — test understanding with practice questions.
+- **Explanations and AI chat** — ask questions and explore learning content.
+- **Learning visualisations** — inspect concept maps, knowledge trees, and learning paths.
+- **Feedback** — provide feedback about the learning experience.
 
-- PDF lecture notes
-- Course materials
-- Technical documentation
-- Text documents
-- Presentation materials
+### Knowledge-based learning
 
-Although these materials contain the required information, they are not always structured for effective learning.
+The intelligence layer represents concepts and their relationships instead of treating all learning content as unstructured text.
 
-Students may need to manually:
-
-1. Read through large amounts of content.
-2. Identify the important concepts.
-3. Write their own summaries.
-4. Create flashcards.
-5. Create practice questions.
-6. Identify concepts they do not understand.
-7. Review the material repeatedly.
-
-This process can be time-consuming, especially when students are working with large technical documents.
-
-Traditional document viewers also provide limited support for transforming static learning materials into interactive study experiences.
-
-AI Study Assistant addresses this problem by turning learning materials into structured study resources that students can actively use for learning and revision.
-
----
-
-## 💡 Solution
-
-AI Study Assistant transforms static learning materials into interactive learning resources through a multi-stage processing pipeline.
-
-Instead of treating an uploaded document as a single prompt, the system separates document processing, content analysis, AI generation, and learning support into different stages.
-
-```text
-                         Study Material
-                               │
-                               ▼
-                         Document Upload
-                               │
-                               ▼
-                       Document Processing
-                               │
-                               ▼
-                         Text Extraction
-                               │
-                               ▼
-                       Content Structuring
-                               │
-                 ┌─────────────┴─────────────┐
-                 │                           │
-                 ▼                           ▼
-          Study Generation            Intelligence Engine
-                 │                           │
-        ┌────────┼────────┐          ┌───────┼────────┐
-        │        │        │          │       │        │
-        ▼        ▼        ▼          ▼       ▼        ▼
-     Summary    Quiz  Flashcards  Concepts  Graph  Reasoning
-        │        │        │          │       │        │
-        └────────┴────────┘          └───────┴────────┘
-                 │                           │
-                 └─────────────┬─────────────┘
-                               ▼
-                       Learning Experience
-                               │
-                    ┌──────────┴──────────┐
-                    │                     │
-                    ▼                     ▼
-               Web Application        Telegram
-```
-
----
-
-## ✨ Core Features
-
-### 📄 Document Upload
-
-Students can upload their learning materials and use them as the source for generating study resources.
-
-The document processing pipeline handles the uploaded material asynchronously so that long-running processing does not block the main web application.
-
-### 📝 AI-Generated Study Materials
-
-The platform can transform processed learning materials into several types of study resources.
-
-- **📚 Summaries:** Generate structured summaries that condense important information from the source material.
-- **🧩 Key Concepts:** Identify important concepts and ideas found within the learning material.
-- **🃏 Flashcards:** Convert important concepts into question-and-answer flashcards for revision.
-- **📝 Quizzes:** Generate practice questions based on the processed learning content.
-- **💡 Explanations:** Provide explanations for concepts and learning questions using the available source material.
-
-### 🧠 Knowledge-Based Learning
-
-The system goes beyond simple text generation by representing concepts and their relationships.
-
-Concepts can be organized into structures such as:
+For example, a Computer Networks document can be organised into a structure such as:
 
 ```text
 Computer Networks
@@ -199,501 +114,242 @@ Computer Networks
     └── UDP
 ```
 
----
+The project combines concept extraction, ontology, knowledge graphs, and Prolog-based symbolic reasoning. The intelligence engine is an active area of development.
 
-## 📸 Application Preview
+### Asynchronous processing
 
-> The images below load from `docs/screenshots/`. Make sure these files are committed to the repository and that the file names match exactly (GitHub paths are case-sensitive).
+- Redis and BullMQ provide the job-processing layer.
+- Dedicated workers handle PDF ingestion and study generation.
+- Background jobs separate long-running workloads from normal web requests.
+- Queue-based processing supports job lifecycle management, retries, and failure isolation.
 
-### 🏠 Student Dashboard
+### Administration and observability
 
-<p align="center">
-  <img src="./docs/screenshots/dashboard.png" alt="Student dashboard" width="900" />
-</p>
+The project includes administrative visibility into AI usage and application operations, including:
 
-The dashboard provides the main learning workspace where students can access their uploaded materials, generated study resources, learning progress, and other learning features.
+- Per-student and provider/model usage.
+- Request latency and token usage.
+- Failed requests and quota events.
+- Worker, Redis, MongoDB, and Telegram health.
+- Application uptime and memory usage.
+- Audit activity and security events.
+- Document-processing jobs.
 
----
+### Security
 
-### 📄 Upload Screen
+Security is considered across the application, HTTP, and container layers.
 
-<p align="center">
-  <img src="./docs/screenshots/upload.png" alt="Document upload" width="900" />
-</p>
-
-Students can upload their learning materials and start the document-processing pipeline.
-
----
-
-### 📚 Study Materials
-
-#### Summary
-
-<p align="center">
-  <img src="./docs/screenshots/summary.png" alt="Generated summary" width="900" />
-</p>
-
-The system transforms processed learning content into a structured summary for review.
-
-#### Summary Notes
-
-<p align="center">
-  <img src="./docs/screenshots/summary-note.png" alt="Summary notes" width="900" />
-</p>
-
-Students can work with the generated notes as part of their study workflow.
-
-#### Concepts
-
-<p align="center">
-  <img src="./docs/screenshots/concepts.png" alt="Key concepts" width="900" />
-</p>
-
-Important concepts extracted from the learning material are presented as structured learning content.
-
-#### Flashcards
-
-<p align="center">
-  <img src="./docs/screenshots/flashcards.png" alt="Flashcards" width="900" />
-</p>
-
-Students can review important concepts using generated flashcards.
-
-#### Quiz
-
-<p align="center">
-  <img src="./docs/screenshots/quiz.png" alt="Quiz" width="900" />
-</p>
-
-The platform generates practice questions from the learning material.
+- Authentication and authorization.
+- Input validation and rate limiting.
+- Audit logging and secure session handling.
+- Environment-based secret management.
+- HTTP security headers.
+- Container hardening, including non-root execution and resource restrictions where configured.
 
 ---
 
-### 🧠 Intelligence Views
+## Application preview
 
-#### Concept Map
+The screenshots below are expected to be stored in `docs/screenshots/`. Ensure the files are committed and that their names match exactly; GitHub paths are case-sensitive.
 
-<p align="center">
-  <img src="./docs/screenshots/concept-map.png" alt="Concept map" width="900" />
-</p>
-
-Concept relationships can be visualized as a knowledge map.
-
-#### Knowledge Tree
+### Student dashboard
 
 <p align="center">
-  <img src="./docs/screenshots/knowledge-tree.png" alt="Knowledge tree" width="900" />
+  <img src="./docs/screenshots/dashboard.png" alt="AI Study Assistant student dashboard" width="900" />
 </p>
 
-The knowledge tree provides another representation of the relationships between learning concepts.
+The main learning workspace for accessing study materials and generated resources.
 
-#### Learning Path
+### Document upload
+
+<p align="center">
+  <img src="./docs/screenshots/upload.png" alt="Document upload screen" width="900" />
+</p>
+
+Upload learning materials to begin the document-processing workflow.
+
+### Generated study resources
+
+| Summary | Summary notes |
+|---|---|
+| <img src="./docs/screenshots/summary.png" alt="Generated summary" width="100%" /> | <img src="./docs/screenshots/summary-note.png" alt="Summary notes" width="100%" /> |
+
+| Key concepts | Flashcards |
+|---|---|
+| <img src="./docs/screenshots/concepts.png" alt="Extracted concepts" width="100%" /> | <img src="./docs/screenshots/flashcards.png" alt="Flashcards" width="100%" /> |
+
+### Quiz
+
+<p align="center">
+  <img src="./docs/screenshots/quiz.png" alt="Generated quiz" width="900" />
+</p>
+
+### Knowledge and intelligence views
+
+| Concept map | Knowledge tree |
+|---|---|
+| <img src="./docs/screenshots/concept-map.png" alt="Concept map" width="100%" /> | <img src="./docs/screenshots/knowledge-tree.png" alt="Knowledge tree" width="100%" /> |
 
 <p align="center">
   <img src="./docs/screenshots/learning-path.png" alt="Learning path" width="900" />
 </p>
 
-The learning path organizes concepts into a structured progression.
-
-#### Evidence
-
 <p align="center">
-  <img src="./docs/screenshots/evidence.png" alt="Evidence" width="900" />
+  <img src="./docs/screenshots/evidence.png" alt="Evidence view" width="900" />
 </p>
 
-Evidence-based learning information helps connect generated explanations with the underlying learning material.
+### Learning interaction
 
----
+| AI chat | Feedback |
+|---|---|
+| <img src="./docs/screenshots/chat.png" alt="AI chat" width="100%" /> | <img src="./docs/screenshots/feedback.png" alt="Student feedback" width="100%" /> |
 
-### 💬 Learning Interaction
-
-#### AI Chat
-
-<p align="center">
-  <img src="./docs/screenshots/chat.png" alt="AI chat" width="900" />
-</p>
-
-Students can interact with their learning material through the AI-assisted chat interface.
-
-#### Feedback
+### Administration
 
 <p align="center">
-  <img src="./docs/screenshots/feedback.png" alt="Feedback" width="900" />
+  <img src="./docs/screenshots/ai-usage.png" alt="AI usage dashboard" width="900" />
 </p>
 
-Students can provide feedback about their learning experience.
-
 ---
 
-### 📊 AI Usage Dashboard
+## How the system works
 
-<p align="center">
-  <img src="./docs/screenshots/ai-usage.png" alt="AI usage" width="900" />
-</p>
+The application separates document ingestion, AI study generation, and the student-facing learning experience.
 
-The platform provides visibility into AI usage and learning-related activity.
-
----
-
-## 🔄 How It Works
-
-The complete learning workflow can be summarized as:
-
-```text
-                     Student
-                        │
-                        ▼
-                 Upload Document
-                        │
-                        ▼
-                 Next.js Application
-                        │
-                        ▼
-                 Document Ingestion
-                        │
-                        ▼
-                   PDF Worker
-                        │
-                        ▼
-                 Text Extraction
-                        │
-                        ▼
-                Processed Content
-                        │
-                        ▼
-             Study Generation Queue
-                        │
-                        ▼
-                AI Generation Worker
-                        │
-              ┌─────────┴─────────┐
-              │                   │
-              ▼                   ▼
-        Study Materials    Intelligence Engine
-              │                   │
-              │            ┌──────┴──────┐
-              │            │             │
-              │         Concepts      Reasoning
-              │            │             │
-              │            └──────┬──────┘
-              │                   │
-              └─────────┬─────────┘
-                        ▼
-                Student Learning
-                        │
-                 ┌──────┴──────┐
-                 ▼             ▼
-                Web         Telegram
-```
-
----
-
-## 🧱 System Architecture
-
-```mermaid
-flowchart TD
-    User[Student]
-
-    User --> Web[Next.js Application]
-    User --> Telegram[Telegram Bot]
-
-    Web --> Mongo[(MongoDB)]
-    Web --> Redis[(Redis)]
-
-    Redis --> PDF[PDF Worker]
-    Redis --> AI[AI Generation Worker]
-
-    PDF --> Mongo
-    AI --> Mongo
-
-    AI --> Provider[AI Provider]
-```
-
----
-
-## 📄 Document Processing Pipeline
+### Document processing pipeline
 
 ```mermaid
 flowchart TD
     A[Student Uploads PDF] --> B[Next.js API]
     B --> C[PDF Queue]
     C --> D[PDF Worker]
-    D --> E[Extract Text]
+    D --> E[Text Extraction]
     E --> F{Extraction Quality}
-
-    F -->|Good| G[Store Extracted Content]
-    F -->|Poor| H[OCR Processing]
-
+    F -->|Acceptable| G[Store Extracted Content]
+    F -->|Needs improvement| H[OCR Processing]
     H --> G
     G --> I[Study Generation Queue]
     I --> J[AI Worker]
     J --> K[Generate Study Materials]
     K --> L[(MongoDB)]
-
     L --> M[Student Dashboard]
-    L --> N[Telegram Notification]
+    L --> N[Telegram Response / Notification]
 ```
 
----
-
-## 📝 AI Study Generation
+### AI study generation
 
 Study-generation jobs are processed asynchronously rather than keeping a browser request open for the entire generation process.
 
-```text
-Study Generation Job
-        │
-        ▼
-Load Processed Content
-        │
-        ▼
-Prepare AI Context
-        │
-        ▼
-Generate Learning Resources
-        │
-   ┌────┼────────┬─────────┐
-   ▼    ▼        ▼         ▼
-Summary Quiz Flashcards Concepts
-        │
-        ▼
-   Store Results
-        │
-        ▼
- Notify / Display
+```mermaid
+flowchart TD
+    A[Study Generation Job] --> B[Load Processed Content]
+    B --> C[Prepare AI Context]
+    C --> D[Generate Learning Resources]
+    D --> E[Summary]
+    D --> F[Quiz]
+    D --> G[Flashcards]
+    D --> H[Concepts]
+    E --> I[Store Results]
+    F --> I
+    G --> I
+    H --> I
+    I --> J[Notify / Display]
 ```
 
----
-
-## 🧠 Intelligence Engine
-
-The intelligence engine provides a structured layer around the learning content.
+### Intelligence engine
 
 ```mermaid
 flowchart LR
-    A[Learning Material]
-    B[Parser]
-    C[NLP Processing]
-    D[Concept Extraction]
-    E[Ontology]
-    F[Knowledge Graph]
-    G[Prolog Reasoning]
-    H[Knowledge Gap Detection]
-    I[Evidence-Grounded Explanation]
-
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
-    H --> I
+    A[Learning Material] --> B[Parsing]
+    B --> C[NLP Processing]
+    C --> D[Concept Extraction]
+    D --> E[Ontology]
+    E --> F[Knowledge Graph]
+    F --> G[Prolog Reasoning]
+    G --> H[Knowledge Gap Detection]
+    H --> I[Evidence-Grounded Learning Support]
 ```
 
 The goal is to combine natural-language generation with structured knowledge and explicit reasoning.
 
----
+### System architecture
 
-## 🔍 Knowledge Gap Detection
+```mermaid
+flowchart TD
+    Student[Student] --> Web[Next.js Application]
+    Student --> Telegram[Telegram Bot]
+    Web --> Mongo[(MongoDB)]
+    Web --> Redis[(Redis)]
+    Telegram --> Webhook[Telegram Webhook]
+    Webhook --> Services[Application Services]
+    Services --> Mongo
+    Services --> Redis
+    Redis --> PDF[PDF Worker]
+    Redis --> AI[AI Generation Worker]
+    PDF --> Mongo
+    AI --> Mongo
+    AI --> Provider[AI Provider]
+```
 
-Knowledge gap detection is the stage of the intelligence engine that helps identify which concepts a student may not yet understand.
-
-By combining the concept graph, symbolic reasoning, and the student's learning activity (such as quiz and flashcard results), the system can highlight weak or missing concepts and support a more focused review.
-
-Related concepts are planned as part of [Future Improvements](#-future-improvements), including concept mastery tracking and weak-concept detection.
-
----
-
-## ⚡ Background Workers
+### Background workers and queues
 
 Long-running workloads are separated from the web process.
 
 ```mermaid
 flowchart TB
-    App[Next.js Application]
-
-    App --> PDFQueue[(Redis / PDF Queue)]
+    App[Next.js Application] --> PDFQueue[(Redis / PDF Queue)]
     App --> StudyQueue[(Redis / Study Queue)]
-
     PDFQueue --> PDFWorker[PDF Worker]
     StudyQueue --> AIWorker[AI Generation Worker]
-
     PDFWorker --> Mongo[(MongoDB)]
     AIWorker --> Mongo
-
     AIWorker --> AIProvider[AI Provider]
 ```
 
-### PDF Worker
+This architecture supports non-blocking web requests, background processing, retryable jobs, failure isolation, worker monitoring, and independent workload management.
 
-Responsible for document ingestion and text extraction.
+### Telegram integration
 
-### AI Generation Worker
-
-Responsible for asynchronous generation of study resources and related processing.
-
----
-
-## 🔄 Queue Architecture
-
-Redis and BullMQ provide the asynchronous job-processing layer.
-
-```text
-                    Redis
-                      │
-            ┌─────────┴─────────┐
-            │                   │
-            ▼                   ▼
-     PDF Ingestion Queue   Study Generation Queue
-            │                   │
-            ▼                   ▼
-       PDF Worker          AI Worker
-            │                   │
-            └─────────┬─────────┘
-                      ▼
-                   MongoDB
-```
-
-Benefits include:
-
-- Non-blocking web requests
-- Background processing
-- Retryable jobs
-- Failure isolation
-- Worker monitoring
-- Independent scaling of workloads
-
----
-
-## 📱 Telegram Integration
-
-The Telegram workflow is:
-
-```text
-Telegram User
-      │
-      ▼
-Telegram Bot
-      │
-      ▼
-Webhook
-      │
-      ▼
-Next.js API
-      │
-      ▼
-Application Services
-      │
-      ▼
-Study System
-      │
-      ▼
-Telegram Response / Notification
+```mermaid
+flowchart TD
+    A[Telegram User] --> B[Telegram Bot]
+    B --> C[Webhook]
+    C --> D[Next.js API]
+    D --> E[Application Services]
+    E --> F[Study System]
+    F --> G[Telegram Response / Notification]
 ```
 
 ---
 
-## 📊 Admin Observability
+## Technology stack
 
-The project includes administrative observability for operational and AI-related monitoring.
+| Category | Technologies |
+|---|---|
+| Frontend | Next.js, React, TypeScript, Tailwind CSS |
+| Backend | Next.js API Routes, Node.js |
+| Database | MongoDB, Mongoose |
+| Queues | Redis, BullMQ, IORedis |
+| AI | Google GenAI |
+| Document processing | PDF Parse, Mammoth, Tesseract OCR |
+| Symbolic reasoning | Tau-Prolog |
+| Visualisation | XYFlow (`@xyflow/react`) |
+| Authentication | JWT (`jsonwebtoken`, `jose`), Google OAuth |
+| Validation | Zod |
+| Email | Resend |
+| Infrastructure | Docker, Docker Compose |
+| Deployment | Vercel |
+| Messaging | Telegram Bot API |
 
-Areas include:
-
-- AI usage
-- Per-student usage
-- Provider/model usage
-- Request latency
-- Token usage
-- Failed requests
-- Quota events
-- Worker health
-- Redis health
-- MongoDB health
-- Telegram health
-- Application uptime
-- Memory usage
-- Audit activity
-- Security events
-- Processing jobs
-
----
-
-## 🔐 Security
-
-Security is considered at the application, infrastructure, and container layers.
-
-### Application Security
-
-- Authentication
-- Authorization
-- Input validation
-- Rate limiting
-- Audit logging
-- Secure session handling
-- Environment-based secrets
-
-### HTTP Security
-
-The application uses security headers such as:
-
-```text
-Content-Security-Policy
-X-Content-Type-Options
-X-Frame-Options
-Referrer-Policy
-Permissions-Policy
-Strict-Transport-Security
-```
-
-### Container Security
-
-Worker and application containers can be hardened through:
-
-```text
-Non-root execution
-No-new-privileges
-Dropped Linux capabilities
-Read-only filesystem
-Resource limits
-Temporary filesystem
-Health checks
-```
-
----
-
-## 🔧 Technology Stack
-
-| Category            | Technologies                             |
-| ------------------- | ---------------------------------------- |
-| Frontend            | Next.js, React, TypeScript, Tailwind CSS |
-| Backend             | Next.js API Routes, Node.js              |
-| Database            | MongoDB, Mongoose                        |
-| Queue               | Redis, BullMQ, IORedis                   |
-| AI                  | Google GenAI                             |
-| Document Processing | PDF Parse, Mammoth, Tesseract OCR        |
-| Reasoning           | Tau-Prolog                               |
-| Visualization       | XYFlow (@xyflow/react)                   |
-| Authentication      | JWT (jsonwebtoken, jose), Google OAuth   |
-| Validation          | Zod                                      |
-| Email               | Resend                                   |
-| Infrastructure      | Docker, Docker Compose                   |
-| Deployment          | Vercel                                   |
-| Messaging           | Telegram Bot API                         |
-
----
-
-## 📁 Project Structure
+## Project structure
 
 ```text
 ai-study-assistant/
-│
 ├── app/
 │   ├── api/
 │   ├── admin/
 │   ├── student/
 │   └── ...
-│
 ├── src/
 │   └── server/
 │       ├── config/
@@ -706,10 +362,8 @@ ai-study-assistant/
 │       └── workers/
 │           ├── study-generation.worker.ts
 │           └── pdf-ingestion.worker.ts
-│
 ├── docs/
 │   └── screenshots/
-│
 ├── public/
 ├── Dockerfile
 ├── compose.yaml
@@ -722,88 +376,62 @@ ai-study-assistant/
 
 ---
 
-## 💻 Local Development
+## Quick start
 
 ### Requirements
 
-- Node.js 20.9 or later (required by Next.js 16)
-- npm (bundled with Node.js)
-- Docker
-- Docker Compose
+- Node.js 20.9 or later (required by Next.js 16).
+- npm.
+- Docker and Docker Compose for the local service stack.
 
-### Clone the repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/ANG-KUNG-TANG/ai-study-ass.git
 cd ai-study-ass
 ```
 
-### Install dependencies
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-### Configure environment variables
+### 3. Configure environment variables
 
-Create the appropriate local environment file and provide the required database, Redis, authentication, AI, storage, and Telegram configuration.
+Create your local environment configuration and provide the database, Redis, authentication, AI, storage, and Telegram settings required by the features you intend to run.
 
-See [Environment Variables](#-environment-variables).
+See [Environment variables](#environment-variables).
 
-### Start the development server
+### 4. Start supporting services
+
+```bash
+docker compose up --build -d
+```
+
+### 5. Start the development server
 
 ```bash
 npm run dev
 ```
 
-Open:
+Open [http://localhost:3000](http://localhost:3000).
 
-```text
-http://localhost:3000
-```
+### 6. Start background workers
 
-### Start the background workers
-
-The web app only enqueues jobs. To process them, start the workers in separate terminals (Redis and MongoDB must be running, for example via Docker Compose):
+Run the workers in separate terminals. MongoDB and Redis must be reachable.
 
 ```bash
 npm run worker       # AI study-generation worker
 npm run worker:pdf   # PDF ingestion worker
 ```
 
-### Available scripts
-
-| Command                 | Description                                       |
-| ----------------------- | ------------------------------------------------- |
-| `npm run dev`           | Start the Next.js development server              |
-| `npm run build`         | Create a production build                         |
-| `npm start`             | Run the production build                          |
-| `npm run lint`          | Run ESLint                                        |
-| `npm run typecheck`     | Run TypeScript type checking (`tsc --noEmit`)     |
-| `npm test`              | Run the Jest test suite                           |
-| `npm run test:watch`    | Run Jest in watch mode                            |
-| `npm run test:coverage` | Generate a coverage report                        |
-| `npm run format`        | Format the codebase with Prettier                 |
-| `npm run format:check`  | Check formatting without changing files           |
-| `npm run check`         | Run typecheck, lint, tests, and build in sequence |
-| `npm run worker`        | Start the AI study-generation worker              |
-| `npm run worker:pdf`    | Start the PDF ingestion worker                    |
-| `npm run docker:build`  | Build the Docker image                            |
-| `npm run docker:up`     | Start the Docker Compose stack                    |
-| `npm run docker:down`   | Stop the Docker Compose stack                     |
-| `npm run docker:logs`   | Follow the app container logs                     |
-| `npm run docker:prod`   | Start the production Compose stack                |
-
----
-
-## 🐳 Docker Development
+## Docker development
 
 Start the local service stack:
 
 ```bash
 docker compose up --build -d
-# or
-npm run docker:up
 ```
 
 Check running services:
@@ -834,13 +462,9 @@ ai-study-redis
 ai-study-mongo
 ```
 
----
+## Environment variables
 
-## 🔑 Environment Variables
-
-Create your local environment configuration from your own deployment requirements.
-
-Typical variables include:
+The following are representative variable names. Check the current `.env.example` and deployment configuration for the complete, authoritative list.
 
 ```env
 # Application
@@ -872,13 +496,32 @@ TELEGRAM_WEBHOOK_SECRET=
 RESEND_API_KEY=
 ```
 
-> **Never commit real secrets, API keys, passwords, tokens, or private connection strings to GitHub.**
+> Never commit real API keys, passwords, tokens, or private connection strings to GitHub.
 
-A recommended repository file is `.env.example`, containing variable names but no secret values.
+## Available scripts
 
----
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the Next.js development server |
+| `npm run build` | Create a production build |
+| `npm start` | Run the production build |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | Run TypeScript type checking |
+| `npm test` | Run the Jest test suite |
+| `npm run test:watch` | Run Jest in watch mode |
+| `npm run test:coverage` | Generate a coverage report |
+| `npm run format` | Format the codebase with Prettier |
+| `npm run format:check` | Check formatting |
+| `npm run check` | Run typecheck, lint, tests, and build |
+| `npm run worker` | Start the AI study-generation worker |
+| `npm run worker:pdf` | Start the PDF ingestion worker |
+| `npm run docker:build` | Build the Docker image |
+| `npm run docker:up` | Start the Docker Compose stack |
+| `npm run docker:down` | Stop the Docker Compose stack |
+| `npm run docker:logs` | Follow application container logs |
+| `npm run docker:prod` | Start the production Compose stack |
 
-## 🧪 Testing
+## Testing and quality checks
 
 Run the test suite:
 
@@ -886,31 +529,14 @@ Run the test suite:
 npm test
 ```
 
-Run tests in watch mode:
-
-```bash
-npm run test:watch
-```
-
-Generate coverage:
-
-```bash
-npm run test:coverage
-```
-
-Run type checking:
+Run type checking and linting:
 
 ```bash
 npm run typecheck
-```
-
-Run linting:
-
-```bash
 npm run lint
 ```
 
-Run the full pre-merge check (typecheck, lint, tests, build):
+Run the full pre-merge check:
 
 ```bash
 npm run check
@@ -918,73 +544,57 @@ npm run check
 
 ---
 
-## 🚀 Production Deployment
+## Production deployment
 
 The web application can be deployed independently from the background workers.
 
-Conceptually:
-
-```text
-                         Internet
-                            │
-                            ▼
-                    ┌──────────────┐
-                    │  Next.js Web │
-                    │   Hosting    │
-                    └──────┬───────┘
-                           │
-             ┌─────────────┼─────────────┐
-             │             │             │
-             ▼             ▼             ▼
-          MongoDB        Redis       AI Provider
-                            │
-                   ┌────────┴────────┐
-                   │                 │
-                   ▼                 ▼
-               AI Worker         PDF Worker
+```mermaid
+flowchart TD
+    Internet[Internet] --> Web[Next.js Web Hosting]
+    Web --> Mongo[(MongoDB)]
+    Web --> Redis[(Redis)]
+    Web --> AIProvider[AI Provider]
+    Redis --> AIWorker[AI Worker]
+    Redis --> PDFWorker[PDF Worker]
+    AIWorker --> Mongo
+    PDFWorker --> Mongo
 ```
 
-This separation allows web traffic and background workloads to be managed independently.
+This separation allows web traffic and background workloads to be managed independently. The web application is available at [ai-study-ass.vercel.app](https://ai-study-ass.vercel.app).
 
----
-
-## 🧩 Architecture Decisions
+## Architecture decisions
 
 ### Why background workers?
 
-Document processing and AI generation can take significantly longer than normal API operations.
+Document processing and AI generation can take significantly longer than normal API operations. Moving these tasks into queues and workers allows the API to respond quickly while processing continues asynchronously.
 
-Moving those tasks into queues and workers allows the API to respond quickly while processing continues asynchronously.
+### Why Redis and BullMQ?
 
-### Why Redis + BullMQ?
-
-Redis provides fast queue infrastructure, while BullMQ provides job management features such as retries, worker processing, and job states.
+Redis provides the queue infrastructure, while BullMQ provides job management features such as retries, worker processing, and job states.
 
 ### Why MongoDB?
 
-The application works with flexible learning content, generated resources, usage telemetry, and other document-oriented data. MongoDB provides a natural fit for these structures.
+The application works with flexible learning content, generated resources, usage telemetry, and other document-oriented data. MongoDB provides a practical fit for these evolving structures.
 
-### Why a hybrid AI + symbolic architecture?
+### Why combine AI and symbolic reasoning?
 
-AI models are useful for natural-language generation, summarization, and explanations. Structured knowledge and symbolic reasoning provide explicit relationships and deterministic rule-based inference.
+AI models are useful for natural-language generation, summarisation, and explanations. Structured knowledge and symbolic reasoning provide explicit relationships and deterministic rule-based inference.
 
-The project therefore combines:
+The project therefore explores the combination of:
 
 ```text
 AI Generation
-      +
+     +
 Structured Knowledge
-      +
+     +
 Knowledge Graph
-      +
+     +
 Ontology
-      +
+     +
 Symbolic Reasoning
 ```
 
----
-
-## 🛠 Engineering Challenges
+## Engineering challenges
 
 ### Long-running operations
 
@@ -1006,7 +616,7 @@ Background jobs can fail independently of the web application.
 
 ### AI observability
 
-AI applications require different operational metrics from traditional CRUD systems.
+AI applications require operational metrics beyond traditional CRUD monitoring.
 
 **Approach:** track provider, model, feature, latency, token usage, failures, and usage limits.
 
@@ -1014,93 +624,59 @@ AI applications require different operational metrics from traditional CRUD syst
 
 Uploaded documents should not automatically receive unrestricted access to the host environment.
 
-**Approach:** isolated containers, non-root execution, dropped capabilities, resource limits, and restricted filesystems.
+**Approach:** container isolation and hardening controls, including non-root execution, dropped capabilities, resource limits, and restricted filesystems where configured.
 
 ---
 
-## 🔮 Future Improvements
+## Roadmap
 
 Potential future improvements include:
 
-### Personalized Learning
+### Personalised learning
 
-- Adaptive quiz difficulty
-- Personalized recommendations
-- Concept review priorities
-- Learning progress analysis
+- Adaptive quiz difficulty.
+- Personalised recommendations.
+- Concept review priorities.
+- Learning progress analysis.
 
-### Spaced Repetition
+### Spaced repetition
 
 Introduce scheduling for flashcard and concept review.
 
-### Multi-Document Knowledge Bases
+### Multi-document knowledge bases
 
 Allow multiple documents to contribute to a single course-level knowledge base.
 
-### Advanced Knowledge Graphs
+### Advanced knowledge graphs
 
-Improve:
+Improve concept extraction, relationship detection, prerequisite detection, and knowledge graph visualisation.
 
-- Concept extraction
-- Relationship detection
-- Prerequisite detection
-- Knowledge graph visualization
+### Learning analytics
 
-### Learning Analytics
-
-Add:
-
-- Concept mastery
-- Quiz performance
-- Review frequency
-- Weak concept detection
-- Learning progress
-- Study-time trends
+Expand concept mastery, quiz performance, review frequency, weak-concept detection, learning progress, and study-time trends.
 
 ---
 
-## 📌 Project Status
+## Project status
 
 AI Study Assistant is an active academic and portfolio project focused on combining:
 
 **Full-stack development + AI engineering + asynchronous systems + document processing + knowledge representation + DevOps + security.**
 
-Current areas include:
+The project currently includes the Next.js application, TypeScript, MongoDB, Redis, BullMQ, background workers, PDF ingestion, AI study generation, Telegram integration, AI usage observability, worker health monitoring, administrative controls, audit logging, Docker-based development, and a knowledge-representation foundation.
 
-- ✅ Next.js web application
-- ✅ TypeScript
-- ✅ MongoDB
-- ✅ Redis
-- ✅ BullMQ
-- ✅ Background workers
-- ✅ PDF ingestion
-- ✅ AI study generation
-- ✅ Telegram integration
-- ✅ AI usage observability
-- ✅ Worker health monitoring
-- ✅ Administrative controls
-- ✅ Audit logging
-- ✅ Docker development environment
-- ✅ Security controls
-- ✅ Knowledge representation
-- ✅ Symbolic reasoning
-- 🚧 Further intelligence-engine improvements
-- 🚧 More advanced learning personalization
+Further intelligence-engine improvements and advanced learning personalisation remain under development.
 
----
+## Author
 
-## 👤 Author
-
-**Ang Kung Tang**
-
+**Ang Kung Tang**  
 Computer Science / Digital Technology Innovation Student
 
-**GitHub:** https://github.com/ANG-KUNG-TANG
+- GitHub: [ANG-KUNG-TANG](https://github.com/ANG-KUNG-TANG)
+- Project: [ai-study-ass](https://github.com/ANG-KUNG-TANG/ai-study-ass)
+- Live application: [ai-study-ass.vercel.app](https://ai-study-ass.vercel.app)
+- Telegram: [@aistudyassbot](https://t.me/aistudyassbot)
 
-**Project:** https://github.com/ANG-KUNG-TANG/ai-study-ass
+## License
 
----
-
-## 📄 License
-
-This project is currently developed as a personal academic and portfolio project.
+This project is currently developed as a personal academic and portfolio project. See the repository's [LICENSE](./LICENSE) file for licensing information.
