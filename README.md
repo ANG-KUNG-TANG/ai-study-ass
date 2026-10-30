@@ -1,6 +1,19 @@
 <div align="center">
+  <img
+    src="docs/screenshots/ai_study_assistant_logo_v2.svg"
+    alt="AI Study Assistant Logo"
+    width="180"
+  />
 
-# 🧠 AI Study Assistant
+  <h1>AI Study Assistant</h1>
+
+  <p>
+    An AI-powered learning platform that transforms
+    study documents into structured, interactive learning experiences.
+  </p>
+</div>
+
+# AI Study Assistant
 
 ### Turn your study materials into structured, interactive learning experiences.
 
