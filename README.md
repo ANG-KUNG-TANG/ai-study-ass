@@ -28,17 +28,17 @@ Do not invent a video URL or commit a large video file unless intended.
 
 **A short walkthrough should show the complete student journey:**
 
-| Time | Scene | What to demonstrate |
-|---|---|---|
-| 0–5s | Opening | The challenge of turning course documents into useful study resources |
-| 5–12s | Product introduction | Actual AI Study Assistant dashboard |
-| 12–21s | Document upload | Upload a real sample PDF and show its processing status |
-| 21–34s | Study generation | Generated summary, concepts, flashcards, and quiz |
-| 34–44s | Knowledge intelligence | Concept map, knowledge tree, and learning path |
-| 44–53s | Learning interaction | AI chat and its supporting evidence |
-| 53–60s | Connected experience | Telegram integration, live application, and project identity |
+| Time   | Scene                  | What to demonstrate                                                   |
+| ------ | ---------------------- | --------------------------------------------------------------------- |
+| 0–5s   | Opening                | The challenge of turning course documents into useful study resources |
+| 5–12s  | Product introduction   | Actual AI Study Assistant dashboard                                   |
+| 12–21s | Document upload        | Upload a real sample PDF and show its processing status               |
+| 21–34s | Study generation       | Generated summary, concepts, flashcards, and quiz                     |
+| 34–44s | Knowledge intelligence | Concept map, knowledge tree, and learning path                        |
+| 44–53s | Learning interaction   | AI chat and its supporting evidence                                   |
+| 53–60s | Connected experience   | Telegram integration, live application, and project identity          |
 
-*Use actual screen recordings for application interfaces. Use generated motion graphics only for transitions and supporting visuals. Do not expose personal information, API keys, or private account details.*
+_Use actual screen recordings for application interfaces. Use generated motion graphics only for transitions and supporting visuals. Do not expose personal information, API keys, or private account details._
 
 ---
 
@@ -170,12 +170,12 @@ Upload learning materials to begin the document-processing workflow.
 
 ### Generated study resources
 
-| Summary | Summary notes |
-|---|---|
+| Summary                                                                           | Summary notes                                                                      |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | <img src="./docs/screenshots/summary.png" alt="Generated summary" width="100%" /> | <img src="./docs/screenshots/summary-note.png" alt="Summary notes" width="100%" /> |
 
-| Key concepts | Flashcards |
-|---|---|
+| Key concepts                                                                        | Flashcards                                                                    |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | <img src="./docs/screenshots/concepts.png" alt="Extracted concepts" width="100%" /> | <img src="./docs/screenshots/flashcards.png" alt="Flashcards" width="100%" /> |
 
 ### Quiz
@@ -186,8 +186,8 @@ Upload learning materials to begin the document-processing workflow.
 
 ### Knowledge and intelligence views
 
-| Concept map | Knowledge tree |
-|---|---|
+| Concept map                                                                     | Knowledge tree                                                                        |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | <img src="./docs/screenshots/concept-map.png" alt="Concept map" width="100%" /> | <img src="./docs/screenshots/knowledge-tree.png" alt="Knowledge tree" width="100%" /> |
 
 <p align="center">
@@ -200,8 +200,8 @@ Upload learning materials to begin the document-processing workflow.
 
 ### Learning interaction
 
-| AI chat | Feedback |
-|---|---|
+| AI chat                                                              | Feedback                                                                          |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | <img src="./docs/screenshots/chat.png" alt="AI chat" width="100%" /> | <img src="./docs/screenshots/feedback.png" alt="Student feedback" width="100%" /> |
 
 ### Administration
@@ -324,22 +324,22 @@ flowchart TD
 
 ## Technology stack
 
-| Category | Technologies |
-|---|---|
-| Frontend | Next.js, React, TypeScript, Tailwind CSS |
-| Backend | Next.js API Routes, Node.js |
-| Database | MongoDB, Mongoose |
-| Queues | Redis, BullMQ, IORedis |
-| AI | Google GenAI |
-| Document processing | PDF Parse, Mammoth, Tesseract OCR |
-| Symbolic reasoning | Tau-Prolog |
-| Visualisation | XYFlow (`@xyflow/react`) |
-| Authentication | JWT (`jsonwebtoken`, `jose`), Google OAuth |
-| Validation | Zod |
-| Email | Resend |
-| Infrastructure | Docker, Docker Compose |
-| Deployment | Vercel |
-| Messaging | Telegram Bot API |
+| Category            | Technologies                               |
+| ------------------- | ------------------------------------------ |
+| Frontend            | Next.js, React, TypeScript, Tailwind CSS   |
+| Backend             | Next.js API Routes, Node.js                |
+| Database            | MongoDB, Mongoose                          |
+| Queues              | Redis, BullMQ, IORedis                     |
+| AI                  | Google GenAI                               |
+| Document processing | PDF Parse, Mammoth, Tesseract OCR          |
+| Symbolic reasoning  | Tau-Prolog                                 |
+| Visualisation       | XYFlow (`@xyflow/react`)                   |
+| Authentication      | JWT (`jsonwebtoken`, `jose`), Google OAuth |
+| Validation          | Zod                                        |
+| Email               | Resend                                     |
+| Infrastructure      | Docker, Docker Compose                     |
+| Deployment          | Vercel                                     |
+| Messaging           | Telegram Bot API                           |
 
 ## Project structure
 
@@ -500,26 +500,26 @@ RESEND_API_KEY=
 
 ## Available scripts
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start the Next.js development server |
-| `npm run build` | Create a production build |
-| `npm start` | Run the production build |
-| `npm run lint` | Run ESLint |
-| `npm run typecheck` | Run TypeScript type checking |
-| `npm test` | Run the Jest test suite |
-| `npm run test:watch` | Run Jest in watch mode |
-| `npm run test:coverage` | Generate a coverage report |
-| `npm run format` | Format the codebase with Prettier |
-| `npm run format:check` | Check formatting |
-| `npm run check` | Run typecheck, lint, tests, and build |
-| `npm run worker` | Start the AI study-generation worker |
-| `npm run worker:pdf` | Start the PDF ingestion worker |
-| `npm run docker:build` | Build the Docker image |
-| `npm run docker:up` | Start the Docker Compose stack |
-| `npm run docker:down` | Stop the Docker Compose stack |
-| `npm run docker:logs` | Follow application container logs |
-| `npm run docker:prod` | Start the production Compose stack |
+| Command                 | Description                           |
+| ----------------------- | ------------------------------------- |
+| `npm run dev`           | Start the Next.js development server  |
+| `npm run build`         | Create a production build             |
+| `npm start`             | Run the production build              |
+| `npm run lint`          | Run ESLint                            |
+| `npm run typecheck`     | Run TypeScript type checking          |
+| `npm test`              | Run the Jest test suite               |
+| `npm run test:watch`    | Run Jest in watch mode                |
+| `npm run test:coverage` | Generate a coverage report            |
+| `npm run format`        | Format the codebase with Prettier     |
+| `npm run format:check`  | Check formatting                      |
+| `npm run check`         | Run typecheck, lint, tests, and build |
+| `npm run worker`        | Start the AI study-generation worker  |
+| `npm run worker:pdf`    | Start the PDF ingestion worker        |
+| `npm run docker:build`  | Build the Docker image                |
+| `npm run docker:up`     | Start the Docker Compose stack        |
+| `npm run docker:down`   | Stop the Docker Compose stack         |
+| `npm run docker:logs`   | Follow application container logs     |
+| `npm run docker:prod`   | Start the production Compose stack    |
 
 ## Testing and quality checks
 
