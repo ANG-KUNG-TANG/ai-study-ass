@@ -1,6 +1,5 @@
 <div align="center">
 
-
 <img
     src="./docs/screenshots/ai_study_assistant_logo_v2.svg"
     alt="AI Study Assistant Logo"
@@ -27,8 +26,6 @@
 ---
 
 ## 📖 Table of Contents
-
-
 
 # 🧠 AI Study Assistant
 
