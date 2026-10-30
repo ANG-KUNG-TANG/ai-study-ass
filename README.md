@@ -1,7 +1,6 @@
-
 <div align="center">
 
-  <img
+<img
     src="./docs/screenshots/ai_study_assistant_logo_v2.svg"
     alt="AI Study Assistant Logo"
     width="180"
